@@ -1,0 +1,36 @@
+(skill-contract
+  (name "process-bootstrap")
+  (v "ημ.skill/process-bootstrap@0.1.0")
+
+  (intent
+    "Bootstrap the portable agent process in a repository through the smallest viable file, script, Rheos/eta-mu, Muse, or runtime-service layer.")
+
+  (activation
+    (priority 84)
+    (explicit ["skill:process-bootstrap"])
+    (triggers ["bootstrap the process"
+               "initialize .ημ"
+               "set up eta-mu"
+               "set up rheos"
+               "configure agent harnesses"
+               "add receipt river"
+               "make this repo agent-ready"
+               "weave this repository"]))
+
+  (governance
+    (touch-layer :mutable)
+    (non-override [:mission :directives :safety :license :output-shape])
+    (requires-user-approval false))
+
+  (effects
+    (writes true)
+    (network :conditional)
+    (commits false)
+    (global-config :requires-explicit-task))
+
+  (requires
+    ["environment-classifier"])
+
+  (artifacts
+    (skill-file "~/.agents/skills/process-bootstrap/SKILL.md")
+    (project-root ".ημ/")))

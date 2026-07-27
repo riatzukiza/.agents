@@ -1,41 +1,56 @@
 # `~/.agents`
 
-A canonical, versioned skill repository for agent work across local harnesses, connected tools, and project checkouts.
+A canonical, versioned operating substrate for agent work across local harnesses, cloud sandboxes, connected tools, and project checkouts.
 
-The repository is not a bag of prompts. It is an operating substrate:
+This is not a bag of prompts. It contains:
 
+- a global intent contract,
+- a process constitution,
+- a construction kernel,
+- harness-specific projections,
 - reusable skills with explicit activation gates,
-- machine-readable contracts where automation needs them,
-- scripts and references that travel with the skill,
-- a global principle contract,
+- machine-readable contracts,
+- scripts and references,
 - append-only execution receipts,
-- and a mycology loop that turns repeated friction into reviewed skills.
+- and a mycology loop that turns recurring friction into reviewed skills.
 
-## Governing files
+## Start here
 
-- [`PRINCIPLE.edn`](PRINCIPLE.edn) — the global intent contract: mission, directives, operators, uncertainty grammar, output shape, safety, licensing, and skill discovery.
-- [`AGENTS.md`](AGENTS.md) — repository-specific instructions for maintaining this corpus.
-- [`skills/`](skills/) — the canonical skill catalog.
-- [`skills/.skill-lock.json`](skills/.skill-lock.json) — provenance and version metadata for imported skills.
-- `.ημ/receipts.edn` — append-only evidence for substantive changes to this repository.
-- `.ημ/session-mycology/` — project-local learning records and incubating skill spores.
+| File | Purpose |
+|---|---|
+| [`PRINCIPLE.edn`](PRINCIPLE.edn) | Mission, directives, operators, uncertainty grammar, output contract, safety, licensing, and skill-system invariants |
+| [`AGENTS.md`](AGENTS.md) | Short universal map for agents working in this repository |
+| [`PROCESS.md`](PROCESS.md) | Claims, evidence, authority, acceptance, process data, capability adaptation, and bootstrap |
+| [`STYLE.md`](STYLE.md) | Intent-to-system construction kernel, source/interpreter/projection boundaries, and verification |
+| [`docs/WEAVE.md`](docs/WEAVE.md) | Cross-repository synthesis and source-role map |
+
+Harness adapters:
+
+- [`CHATGPT.md`](CHATGPT.md)
+- [`CLAUDE.md`](CLAUDE.md)
+- [`CODEX.md`](CODEX.md)
+- [`OPENCODE.md`](OPENCODE.md)
+- [`PERPLEXITY.md`](PERPLEXITY.md)
+
+Each adapter starts from observed capabilities rather than product-name assumptions.
 
 ## Core operating stack
 
 | Skill | Purpose |
 |---|---|
-| [`receipt-river`](skills/receipt-river/SKILL.md) | Externalize execution state into an append-only ledger. |
-| [`session-mycology`](skills/session-mycology/SKILL.md) | Turn recurring friction into reviewable skill spores. |
-| [`fork-tax`](skills/fork-tax/SKILL.md) | Produce a deterministic commit, tag, push, and handoff snapshot when Π is invoked. |
-| [`grok-intention`](skills/grok-intention/SKILL.md) | Recover compressed intent from prompts, notes, and repository context. |
-| [`sing-the-songs-of-your-people`](skills/sing-the-songs-of-your-people/SKILL.md) | Produce truthful synthesis in the native voice of the corpus. |
-| [`skill-authoring`](skills/skill-authoring/SKILL.md) | Create and revise scoped, reusable skills. |
+| [`environment-classifier`](skills/environment-classifier/SKILL.md) | Determine what the current harness can inspect, mutate, execute, persist, and verify |
+| [`process-bootstrap`](skills/process-bootstrap/SKILL.md) | Add the smallest useful process layer without requiring eta-mu or any harness |
+| [`receipt-river`](skills/receipt-river/SKILL.md) | Externalize execution truth into an append-only ledger |
+| [`session-mycology`](skills/session-mycology/SKILL.md) | Turn recurring friction into reviewable skill spores |
+| [`eta-mu-kanban`](skills/eta-mu-kanban/SKILL.md) | Operate Rheos/eta-mu boards lawfully and migrate legacy ledgers toward `.ημ/` |
+| [`fork-tax`](skills/fork-tax/SKILL.md) | Produce a deterministic commit/tag/push handoff when Π is explicitly invoked |
+| [`grok-intention`](skills/grok-intention/SKILL.md) | Recover compressed intent from prompts, notes, history, and repository context |
+| [`sing-the-songs-of-your-people`](skills/sing-the-songs-of-your-people/SKILL.md) | Produce truthful synthesis in the native voice of the corpus |
+| [`skill-authoring`](skills/skill-authoring/SKILL.md) | Create and revise scoped reusable skills |
 
-These are substrate skills, not a mandatory bundle to load on every turn. Explicit invocation wins; otherwise the active agent should select the smallest relevant set.
+These are substrate skills, not a mandatory prompt bundle. Explicit invocation wins; otherwise load the smallest relevant set.
 
 ## Skill shape
-
-A native skill normally looks like this:
 
 ```text
 skills/<name>/
@@ -45,82 +60,122 @@ skills/<name>/
 └── references/    # optional supporting material
 ```
 
-`SKILL.md` is the human-operational source. `CONTRACT.edn` exists when activation, governance, scoring, or non-override behavior needs a machine-readable form.
+`SKILL.md` is the human-operational source. `CONTRACT.edn` exists when activation, governance, scoring, effects, or non-override behavior needs a machine-readable form.
 
-Imported skills may have additional files. Preserve their provenance and do not silently present third-party material as native work.
+Imported skills may have additional files. Preserve their provenance and upstream license metadata.
 
-## Discovery model
+## Discovery
 
-For substantive repository work, agents should resolve instructions in this order:
+For substantive repository work:
 
-1. active harness and user instructions,
-2. every applicable project `AGENTS.md`,
-3. project-local skills,
-4. the canonical global catalog at `~/.agents/skills`,
-5. the selected skill's references and scripts.
+1. active safety, harness, and user instructions,
+2. applicable `AGENTS.md` / override files,
+3. project constitution, decisions, process, and style,
+4. project-local skills,
+5. the global catalog at `~/.agents/skills`,
+6. the selected skill's references and scripts.
 
-Do not ingest the entire catalog. Search by task shape, explicit skill name, trigger phrase, referenced path, or repository guidance, then read only the relevant skills.
+Do not ingest the entire catalog. Search by explicit skill, task shape, trigger, referenced path, or repository guidance.
 
-## Learning model
+OpenCode currently discovers global and project `.agents/skills` directly. Other harnesses may use their own skill locations or adapters; this repository remains canonical.
 
-The repository learns through files, not implied memory:
+## Process data
+
+The preferred project-local topology is:
+
+```text
+<project>/
+├── AGENTS.md
+├── project source, decisions, designs, and tasks
+├── .agents/skills/            # project-local skills when needed
+└── .ημ/
+    ├── receipts.edn
+    ├── environment/
+    ├── ledgers/
+    ├── runs/
+    ├── session-mycology/
+    ├── config/
+    ├── plugins/
+    └── projections/
+```
+
+This is a semantic target, not a demand to create empty directories.
+
+Legacy `.eta-mu/`, root `receipts.edn`, `kanban/.events/ledger.edn`, task comments, and tool-specific state are preserved evidence. Migrations must inventory, copy/replay, compare, cut over, and retain rollback.
+
+## No-tool baseline
+
+A repository can respect the process with only plain files and Git:
+
+- short project instructions,
+- explicit source/projection authority,
+- append-only receipts,
+- bounded tasks or plans,
+- relevant verification records,
+- and mycology observations.
+
+Rheos, eta-mu, Muse, Katamorph, event-ledger, hooks, daemons, databases, MCP, and connectors are optional strengthening layers.
+
+Use `process-bootstrap` to select:
+
+```text
+inventory
+  -> file-only substrate
+  -> helper scripts
+  -> Rheos/eta-mu
+  -> Muse harness adapters
+  -> runtime services
+```
+
+Each layer remains intelligible without the next.
+
+## Learning
 
 ```text
 work
-  -> append evidence with receipt-river
-  -> score the turn with session-mycology
-  -> incubate a project-local spore when the pattern generalizes
-  -> review in a later session
-  -> promote into skills/<name>/ with provenance
+  -> Receipt River evidence
+  -> Session Mycology score
+  -> optional project-local spore
+  -> later review
+  -> promoted or revised skill
 ```
 
-A spore is never promoted in the same session that created it. Recurrence and evidence earn promotion; enthusiasm alone does not.
+A spore is never automatically promoted in the same session that created it. Direct user requests to author a skill are explicit skill work and retain their own provenance.
 
 ## Local installation
-
-Clone this repository at its canonical location:
 
 ```bash
 git clone https://github.com/riatzukiza/.agents.git ~/.agents
 ```
 
-Harnesses that already discover `~/.agents/skills` can read it directly. For other harnesses, link or configure **their documented skill directory** to `~/.agents/skills` while keeping this repository as the source of truth:
+Harnesses that discover `~/.agents/skills` can read it directly. For others, configure their documented skill location to reference this catalog rather than maintaining divergent copies.
+
+Example:
 
 ```bash
 ln -sfn ~/.agents/skills <harness-skill-directory>
 ```
 
-Do not duplicate and independently edit copied skill trees. Harness-specific adapters may specialize discovery or tool syntax, but should point back to this corpus.
+Do not independently edit copied trees. Host-specific files are projections of this corpus.
 
 ## Working on this repository
 
-Before changing a skill:
-
-1. read [`PRINCIPLE.edn`](PRINCIPLE.edn) and [`AGENTS.md`](AGENTS.md),
-2. inspect the relevant skill and contract,
-3. tail `.ημ/receipts.edn` when present,
-4. search for overlap before creating a new skill,
+1. read `PRINCIPLE.edn`, `PROCESS.md`, `STYLE.md`, and `AGENTS.md`,
+2. classify the environment,
+3. inspect receipts and relevant skills,
+4. search for overlap and historical context,
 5. make the smallest compatible change,
-6. verify the touched files using capabilities the active harness actually has,
-7. append receipts and a mycology entry,
+6. verify with capabilities actually present,
+7. append receipts and mycology state,
 8. use a branch and pull request for governance-wide changes.
 
-Π / Fork Tax is stronger than ordinary repository persistence. Do not create tags or full handoff manifests unless the user explicitly invokes it.
-
-## Portability
-
-The same corpus may be reached through a local checkout, symlink, coding-agent harness, GitHub connector, or another repository API. Tool boundaries must remain explicit:
-
-- connector access is not a local shell,
-- unavailable scripts were not run,
-- repository API writes must preserve append-only records,
-- host-specific assumptions belong in compatibility sections or adapters.
+Π / Fork Tax is stronger than ordinary persistence. Do not create tags or full handoff manifests unless explicitly invoked.
 
 ## License
 
 Under the global contract:
 
-- libraries are released under GNU LGPL v3 or later,
-- services and standalone applications are released under GNU GPL v3 or later.
+- libraries are GNU LGPL v3 or later,
+- services and standalone applications are GNU GPL v3 or later.
 
-Individual imported skills may retain their upstream license metadata.
+Imported skills may retain their upstream license.
