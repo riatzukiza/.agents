@@ -1,0 +1,16 @@
+(skill-contract
+  (name "notes-to-specs-synthesis")
+  (v "ημ.skill/notes-to-specs-synthesis@0.1.0")
+
+  (intent "Pattern for extracting reusable specs from scattered notes and creating version-controlled architecture documents in appropriate packages.")
+
+  (activation
+    (priority 41)
+    (explicit ["skill:notes-to-specs-synthesis"])
+    (triggers ["notes-to-specs-synthesis" "notes to specs synthesis"]))
+
+  (governance
+    (touch-layer :mutable)
+    (non-override [:mission :directives :safety :license :output-shape])
+    (requires-user-approval false))
+)

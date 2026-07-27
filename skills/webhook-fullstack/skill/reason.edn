@@ -1,0 +1,9 @@
+;; reason.edn — append-only agent reasoning log
+[{:t          "2026-06-18T11:15:00Z"
+  :agent      "perplexity/sonnet-4.6"
+  :session    "scaffold-zip"
+  :layer      :infra
+  :intent     "Generate full src scaffold zip with shadow-cljs project"
+  :reasoning  "User confirmed they want the full starter src tree.
+               Followed the layer order: shape extern law domain infra client.
+               Kept each ns self-contained with clear dependency direction."}]

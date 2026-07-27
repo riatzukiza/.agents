@@ -1,0 +1,21 @@
+(skill-contract
+  (name "devel-workspace-contract")
+  (v "ημ.skill/devel-workspace-contract@0.1.0")
+
+  (intent
+    "Map legacy ~/projects or ~/repos assumptions into the ~/devel placement contract and choose the correct home for work in this workspace.")
+
+  (activation
+    (priority 74)
+    (explicit ["skill:devel-workspace-contract"])
+    (triggers ["devel workspace contract" "devel == projects" "~/devel" "where should this live" "projects or repos"]))
+
+  (governance
+    (touch-layer :mutable)
+    (non-override [:mission :directives :safety :license :output-shape])
+    (requires-user-approval false))
+
+  (effects
+    (writes false)
+    (network false)
+    (commits false)))

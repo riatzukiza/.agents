@@ -1,0 +1,52 @@
+(skill-contract
+  (name "total-creative-freedom")
+  (v "ημ.skill/total-creative-freedom@0.1.0")
+
+  (intent
+    "When the user explicitly invites total creative freedom, widen the search and solution space, synthesize repo/session context, and deliver the strongest prompt-faithful artifact with concrete grounding.")
+
+  (activation
+    (priority 80)
+    (explicit ["skill:total-creative-freedom"])
+    (triggers ["engage in total creative freedom" "total creative freedom"]))
+
+  (governance
+    (touch-layer :mutable)
+    (non-override [:mission :directives :safety :license :output-shape])
+    (requires-user-approval false))
+
+  (effects
+    (writes true)
+    (network true)
+    (commits false))
+
+  (fulfillment-score
+    (fn [session]
+      (let [reflections (get session :reflections [])
+            spores (get session :spores [])
+            skill-events (get session :skillEvents [])
+            n (count reflections)
+            skill-names (map (fn [e] (get e :skill)) skill-events)
+            creative-calls (count (filter (fn [s] (= s "total-creative-freedom")) skill-names))
+            skill-candidate-avg (if (> n 0)
+                                  (/ (reduce + (map (fn [r] (get r :skillCandidateP 0)) reflections)) n)
+                                  0)
+            avg-eff (if (> n 0)
+                      (/ (reduce + (map (fn [r] (get r :efficiencyP 0.5)) reflections)) n)
+                      0.5)
+            avg-fric (if (> n 0)
+                       (/ (reduce + (map (fn [r] (get r :frictionP 0.5)) reflections)) n)
+                       0.5)
+            spore-count (count spores)
+            base-score (* avg-eff (- 1 avg-fric))
+            invocation-bonus (if (> creative-calls 0) 0.1 0)
+            synthesis-bonus (* 0.15 (min skill-candidate-avg 1))
+            spore-bonus (if (> spore-count 0) 0.05 0)
+            p (+ base-score invocation-bonus synthesis-bonus spore-bonus)]
+        {:p (min p 1.0)
+         :evidence {:turns n
+                    :creative-freedom-invocations creative-calls
+                    :spores-incubated spore-count
+                    :avg-skill-candidate skill-candidate-avg
+                    :avg-efficiency avg-eff
+                    :avg-friction avg-fric}}))))

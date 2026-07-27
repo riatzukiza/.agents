@@ -1,0 +1,16 @@
+(skill-contract
+  (name "workspace-monorepo-rehome-with-pnpm-relink")
+  (v "ημ.skill/workspace-monorepo-rehome-with-pnpm-relink@0.1.0")
+
+  (intent "Rehome many workspace packages into a new monorepo root by rewriting hard-coded paths, fixing relative tsconfig extends, clearing stale moved node_modules, reinstalling with pnpm, and smoke-building representative packages.")
+
+  (activation
+    (priority 41)
+    (explicit ["skill:workspace-monorepo-rehome-with-pnpm-relink"])
+    (triggers ["workspace-monorepo-rehome-with-pnpm-relink" "workspace monorepo rehome with pnpm relink"]))
+
+  (governance
+    (touch-layer :mutable)
+    (non-override [:mission :directives :safety :license :output-shape])
+    (requires-user-approval false))
+)

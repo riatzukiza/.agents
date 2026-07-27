@@ -1,0 +1,131 @@
+{
+  "version": 3,
+  "skills": {
+    "find-skills": {
+      "source": "vercel-labs/skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/vercel-labs/skills.git",
+      "skillPath": "skills/find-skills/SKILL.md",
+      "skillFolderHash": "c2f31172b6f256272305a5e6e7228b258446899f",
+      "installedAt": "2026-02-01T22:25:55.381Z",
+      "updatedAt": "2026-02-01T22:25:55.381Z"
+    },
+    "pm2-server-control": {
+      "source": "viteinfinite/skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/viteinfinite/skills.git",
+      "skillPath": "skills/pm2-server-control/SKILL.md",
+      "skillFolderHash": "d9f1dc82145eaff136f1c95f7d497527f722037e",
+      "installedAt": "2026-02-02T20:01:30.019Z",
+      "updatedAt": "2026-02-02T20:01:30.019Z"
+    },
+    "agent-browser": {
+      "source": "vercel-labs/agent-browser",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/vercel-labs/agent-browser.git",
+      "skillPath": "skills/agent-browser/SKILL.md",
+      "skillFolderHash": "fe7cba547a645dd6a21d56680db033f2d82dff3a",
+      "installedAt": "2026-02-03T20:19:08.614Z",
+      "updatedAt": "2026-02-03T20:19:08.614Z"
+    },
+    "render-deploy": {
+      "source": "openai/skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/openai/skills.git",
+      "skillPath": "skills/.curated/render-deploy/SKILL.md",
+      "skillFolderHash": "f14885c4c082870b8b77791eb4eebe59fed2f33e",
+      "installedAt": "2026-03-10T20:33:34.920Z",
+      "updatedAt": "2026-03-10T20:33:34.920Z"
+    },
+    "resolve-git-conflicts": {
+      "source": "pjt222/development-guides",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/pjt222/development-guides.git",
+      "skillPath": "skills/resolve-git-conflicts/SKILL.md",
+      "skillFolderHash": "fa3a68f53799f183da6df708b2d12f8e17b38a75",
+      "installedAt": "2026-03-27T05:14:58.508Z",
+      "updatedAt": "2026-03-27T05:14:58.508Z"
+    },
+    "deploy-to-vercel": {
+      "source": "vercel-labs/agent-skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/vercel-labs/agent-skills.git",
+      "skillPath": "skills/deploy-to-vercel/SKILL.md",
+      "skillFolderHash": "1378aa506439f26c809dbcfc61515cbd70f93d69",
+      "installedAt": "2026-04-28T16:18:32.355Z",
+      "updatedAt": "2026-04-28T16:18:32.355Z"
+    },
+    "vercel-cli-with-tokens": {
+      "source": "vercel-labs/agent-skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/vercel-labs/agent-skills.git",
+      "skillPath": "skills/vercel-cli-with-tokens/SKILL.md",
+      "skillFolderHash": "279c8760375cb6a47a4a8a312b652b0745c6d776",
+      "installedAt": "2026-04-28T16:18:32.355Z",
+      "updatedAt": "2026-04-28T16:18:32.355Z"
+    },
+    "vercel-composition-patterns": {
+      "source": "vercel-labs/agent-skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/vercel-labs/agent-skills.git",
+      "skillPath": "skills/composition-patterns/SKILL.md",
+      "skillFolderHash": "bf90d0a4b83ea054653350f9c67f6de235d3a368",
+      "installedAt": "2026-04-28T16:18:32.355Z",
+      "updatedAt": "2026-04-28T16:18:32.355Z"
+    },
+    "vercel-react-best-practices": {
+      "source": "vercel-labs/agent-skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/vercel-labs/agent-skills.git",
+      "skillPath": "skills/react-best-practices/SKILL.md",
+      "skillFolderHash": "343db72180d05814949fef7d46be96b5c6ee86b3",
+      "installedAt": "2026-04-28T16:18:32.355Z",
+      "updatedAt": "2026-04-28T16:18:32.355Z"
+    },
+    "vercel-react-native-skills": {
+      "source": "vercel-labs/agent-skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/vercel-labs/agent-skills.git",
+      "skillPath": "skills/react-native-skills/SKILL.md",
+      "skillFolderHash": "8b4c6a51914e2111ab6f4f00cb81778652aa241d",
+      "installedAt": "2026-04-28T16:18:32.356Z",
+      "updatedAt": "2026-04-28T16:18:32.356Z"
+    },
+    "vercel-react-view-transitions": {
+      "source": "vercel-labs/agent-skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/vercel-labs/agent-skills.git",
+      "skillPath": "skills/react-view-transitions/SKILL.md",
+      "skillFolderHash": "4d46c637057aae90b9ec5280190c25dc0d90ec28",
+      "installedAt": "2026-04-28T16:18:32.356Z",
+      "updatedAt": "2026-04-28T16:18:32.356Z"
+    },
+    "web-design-guidelines": {
+      "source": "vercel-labs/agent-skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/vercel-labs/agent-skills.git",
+      "skillPath": "skills/web-design-guidelines/SKILL.md",
+      "skillFolderHash": "3116f3e62dbd02b44a598b1aa690d2a8938e8f89",
+      "installedAt": "2026-04-28T16:18:32.356Z",
+      "updatedAt": "2026-04-28T16:18:32.356Z"
+    }
+  },
+  "dismissed": {
+    "findSkillsPrompt": true
+  },
+  "lastSelectedAgents": [
+    "amp",
+    "antigravity",
+    "cline",
+    "codex",
+    "cursor",
+    "deepagents",
+    "firebender",
+    "gemini-cli",
+    "github-copilot",
+    "kimi-cli",
+    "opencode",
+    "warp",
+    "pi"
+  ]
+}

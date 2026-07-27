@@ -1,0 +1,13 @@
+# Example cloudflared configuration for a remotely managed tunnel.
+# Use `cloudflared-setup.sh write-config` or the `create-tunnel-stack.mjs`
+# orchestrator to generate this file from INGRESS_RULES.
+
+tunnel: 00000000-0000-0000-0000-000000000000
+credentials-file: /etc/cloudflared/00000000-0000-0000-0000-000000000000.json
+
+ingress:
+  - hostname: app.example.com
+    service: http://localhost:3000
+  - hostname: api.example.com
+    service: http://localhost:3001
+  - service: http_status:404

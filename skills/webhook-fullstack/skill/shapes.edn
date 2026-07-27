@@ -1,0 +1,31 @@
+;; shapes.edn — append-only registry of named shapes
+[{:name     :WebhookPayload
+  :ns       shape.webhook
+  :added    "2026-06-16"
+  :project  "webhook-fullstack-skill"
+  :schema   [:map
+             [:event/id     :uuid]
+             [:event/type   :keyword]
+             [:event/source :string]
+             [:event/ts     inst?]
+             [:event/body   :map]]}
+
+ {:name     :AckResponse
+  :ns       shape.webhook
+  :added    "2026-06-16"
+  :project  "webhook-fullstack-skill"
+  :schema   [:map
+             [:status   [:enum :ok :rejected]]
+             [:event/id :uuid]
+             [:ts       inst?]]}
+
+ {:name     :LedgerEvent
+  :ns       shape.webhook
+  :added    "2026-06-16"
+  :project  "webhook-fullstack-skill"
+  :schema   [:map
+             [:ledger/id      :uuid]
+             [:ledger/parent  {:optional true} :uuid]
+             [:ledger/ts      inst?]
+             [:ledger/type    :keyword]
+             [:ledger/payload :map]]}]

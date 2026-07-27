@@ -1,0 +1,16 @@
+(skill-contract
+  (name "shadow-cljs-esm-export-verification")
+  (v "ημ.skill/shadow-cljs-esm-export-verification@0.1.0")
+
+  (intent "Pattern for verifying shadow-cljs :esm target exports work at runtime: test with node -e after every build, watch for undefined exports caused by CLJS namespace init ordering or paren imbalance, and keep heavy-IO modules as .mjs imports instead of CLJS exports.")
+
+  (activation
+    (priority 41)
+    (explicit ["skill:shadow-cljs-esm-export-verification"])
+    (triggers ["shadow-cljs-esm-export-verification" "shadow cljs-esm-export-verification"]))
+
+  (governance
+    (touch-layer :mutable)
+    (non-override [:mission :directives :safety :license :output-shape])
+    (requires-user-approval false))
+)

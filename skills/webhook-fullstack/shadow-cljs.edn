@@ -1,0 +1,17 @@
+{:source-paths ["src"]
+
+ :dependencies
+ [[applied-science/js-interop "0.4.2"]
+  [metosin/malli              "0.16.4"]]
+
+ :builds
+ {:server
+  {:target     :node-script
+   :output-to  "out/server.js"
+   :main       infra.server/start!
+   :devtools   {:repl-pprint true}}
+
+  :client
+  {:target     :browser
+   :output-dir "public/js"
+   :modules    {:main {:entries [client.app]}}}}}

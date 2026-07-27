@@ -1,0 +1,16 @@
+(skill-contract
+  (name "fork-tax-concurrent-agent-guardrails")
+  (v "ημ.skill/fork-tax-concurrent-agent-guardrails@0.1.0")
+
+  (intent "Revise fork-tax protocols so they assume concurrent agents by default in shared workspaces, forbid destructive repo-wide cleanup of unrelated dirt, and require path-scoped staging plus explicit blocker recording.")
+
+  (activation
+    (priority 41)
+    (explicit ["skill:fork-tax-concurrent-agent-guardrails"])
+    (triggers ["fork-tax-concurrent-agent-guardrails" "fork tax concurrent agent guardrails"]))
+
+  (governance
+    (touch-layer :mutable)
+    (non-override [:mission :directives :safety :license :output-shape])
+    (requires-user-approval false))
+)

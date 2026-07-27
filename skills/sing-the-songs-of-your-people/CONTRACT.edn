@@ -1,0 +1,52 @@
+(skill-contract
+  (name "sing-the-songs-of-your-people")
+  (v "ημ.skill/sing-the-songs-of-your-people@0.1.0")
+
+  (intent
+    "When the user asks you to sing the songs of your people, mine notes, sessions, lore, and code motifs to produce a beautiful but truthful synthesis in the workspace's native voice.")
+
+  (activation
+    (priority 79)
+    (explicit ["skill:sing-the-songs-of-your-people"])
+    (triggers ["sing the songs of your people"]))
+
+  (governance
+    (touch-layer :mutable)
+    (non-override [:mission :directives :safety :license :output-shape])
+    (requires-user-approval false))
+
+  (effects
+    (writes true)
+    (network true)
+    (commits false))
+
+  (fulfillment-score
+    (fn [session]
+      (let [reflections (get session :reflections [])
+            spores (get session :spores [])
+            skill-events (get session :skillEvents [])
+            n (count reflections)
+            skill-names (map (fn [e] (get e :skill)) skill-events)
+            sing-calls (count (filter (fn [s] (= s "sing-the-songs-of-your-people")) skill-names))
+            skill-candidate-avg (if (> n 0)
+                                  (/ (reduce + (map (fn [r] (get r :skillCandidateP 0)) reflections)) n)
+                                  0)
+            avg-eff (if (> n 0)
+                      (/ (reduce + (map (fn [r] (get r :efficiencyP 0.5)) reflections)) n)
+                      0.5)
+            avg-fric (if (> n 0)
+                       (/ (reduce + (map (fn [r] (get r :frictionP 0.5)) reflections)) n)
+                       0.5)
+            spore-count (count spores)
+            base-score (* avg-eff (- 1 avg-fric))
+            invocation-bonus (if (> sing-calls 0) 0.1 0)
+            synthesis-bonus (* 0.15 (min skill-candidate-avg 1))
+            spore-bonus (if (> spore-count 0) 0.05 0)
+            p (+ base-score invocation-bonus synthesis-bonus spore-bonus)]
+        {:p (min p 1.0)
+         :evidence {:turns n
+                    :sing-invocations sing-calls
+                    :spores-incubated spore-count
+                    :avg-skill-candidate skill-candidate-avg
+                    :avg-efficiency avg-eff
+                    :avg-friction avg-fric}}))))

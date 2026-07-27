@@ -1,0 +1,5 @@
+{:ledger/id      #uuid "00000000-0000-0000-0000-000000000001"
+ :ledger/parent  nil
+ :ledger/ts      #inst "2026-06-18T11:15:00.000Z"
+ :ledger/type    :ledger/genesis
+ :ledger/payload {:note "webhook-fullstack project genesis"}}

@@ -1,0 +1,12 @@
+;; decision.edn — append-only pivot and risk log
+[{:t          "2026-06-18T11:15:00Z"
+  :agent      "perplexity/sonnet-4.6"
+  :session    "scaffold-zip"
+  :pivot      false
+  :risk       :low
+  :layer      :infra
+  :from       "Single monolithic server file"
+  :to         "Three fp-wrapped plugins + one scoped route plugin"
+  :rationale  "Fastify requires fp-wrap for shared decorations.
+               Splitting into separate plugin files makes each concern
+               independently testable and reusable across projects."}]

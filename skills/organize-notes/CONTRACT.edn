@@ -1,0 +1,89 @@
+;; organize-notes CONTRACT.edn
+;; Skill for organizing timestamped notes into slug-titled files with frontmatter
+
+{:skill
+ {:name "organize-notes"
+  :description "Convert timestamped note filenames into slug titles with proper YAML frontmatter and organize into category directories."
+  :version "1.0.0"
+  :trigger-patterns ["organize my notes"
+                     "organize my @docs/notes/"
+                     "clean up my notes"
+                     "organize the notes folder"]
+  :category "personal"
+  :priority 50}
+
+ :contract
+ {:preconditions
+  [(fn [ctx]
+     ;; Verify notes directory exists
+     (when-let [notes-dir (get ctx :notes-dir)]
+       (.exists (io/file notes-dir))))
+   
+   (fn [ctx]
+     ;; Check for timestamped files
+     (when-let [notes-dir (get ctx :notes-dir)]
+       (let [pattern #"\d{4}\.\d{2}\.\d{2}\.\d{2}\.\d{2}\.\d{2}\.md"]
+         (seq (filter #(re-matches pattern (.getName %))
+                      (.listFiles (io/file notes-dir)))))))]
+
+  :postconditions
+  [(fn [ctx result]
+     ;; All timestamped files should be organized
+     (when-let [notes-dir (get ctx :notes-dir)]
+       (let [pattern #"\d{4}\.\d{2}\.\d{2}\.\d{2}\.\d{2}\.\d{2}\.md"]
+         (empty? (filter #(re-matches pattern (.getName %))
+                        (.listFiles (io/file notes-dir)))))))]
+
+  :invariants
+  [(fn [ctx]
+     ;; Never delete content - always preserve or move
+     (let [original-count (get ctx :original-file-count)
+           result-count (get ctx :result-file-count)]
+       (= original-count result-count)))
+   
+   (fn [ctx]
+     ;; Empty files go to empty/ category
+     (let [empty-files (get ctx :empty-files)]
+       (every? #(str/includes? (.getPath %) "/empty/") empty-files)))
+   
+   (fn [ctx]
+     ;; Each organized file has valid frontmatter
+     (let [organized (get ctx :organized-files)]
+       (every? #(and (str/starts-with? (slurp %) "---")
+                     (str/includes? (slurp %) "original_name:")) 
+               organized)))]}
+
+ :categories
+ {:dev "Development notes, prompts, agent configs, code"
+  :research "Technical research, analysis, external references"
+  :infrastructure "DevOps, servers, configs, deployment"
+  :personal "Reflections, planning, journal-like content"
+  :poetry "Lyrics, creative writing, constraints"
+  :design "Game design, specs, UI mockups"
+  :linux "Linux-specific configs and notes"
+  :security "Vulnerability reports, security notes"
+  :other "Miscellaneous, single-link notes, credentials fragments"
+  :empty "Empty or placeholder files"}
+
+ :frontmatter-template
+ "---\noriginal_name: \"{original}\"\ntitle: \"{title}\"\nsummary: \"{summary}\"\ncategory: \"{category}\"\ncreated: \"{date}\"\n---\n\n"
+
+ :title-extraction
+ {:heuristics
+  [{:name "first-heading"
+    :pattern #"^#\s+(.+)$"
+    :field :title}
+   {:name "first-h1-h2"
+    :pattern #"(?m)^#{1,2}\s+(.+)$"
+    :field :title}
+   {:name "first-sentence"
+    :pattern #"^[A-Z][^.]{0,79}\."
+    :field :title}
+   {:name "content-theme"
+    :extractor :analyze-content-theme
+    :field :title}]}
+
+ :output-format
+ {:report
+  {:template "Organized {count} timestamped notes:\n\n{categories}\n\nMoved {empty} empty files to empty/\n{cleanup}\n\nTotal: {total} files processed"
+   :categories-format "- {category}/: {count} files"}}}

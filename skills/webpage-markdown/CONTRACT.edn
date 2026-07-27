@@ -1,0 +1,18 @@
+(skill-contract
+  (name "webpage-markdown")
+  (v "ημ.skill/webpage-markdown@0.1.0")
+
+  (intent
+    "Fetch a http(s) URL via the webfetch tool, cleaning static HTML into Markdown and extracting PDFs to text. Use agent-browser for JS-rendered/authenticated pages.")
+
+  (activation
+    (priority 55)
+    (explicit ["skill:webpage-markdown"])
+    (triggers
+      ["fetch webpage" "fetch web page" "read this url" "read this link" "convert html to markdown" "webpage to markdown" "can't read web pages" "cant read web pages" "webfetch" "fetch pdf url"]))
+
+  (governance
+    (touch-layer :mutable)
+    (non-override [:mission :directives :safety :license :output-shape])
+    (requires-user-approval false))
+)

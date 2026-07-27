@@ -1,0 +1,17 @@
+(skill-contract
+  (name "emacs-daemon-ops")
+  (v "ημ.skill/emacs-daemon-ops@0.1.0")
+
+  (intent
+    "Interact with the running Emacs daemon using emacsclient: evaluate elisp and open files deterministically.")
+
+  (activation
+    (priority 56)
+    (explicit ["skill:emacs-daemon-ops"])
+    (triggers ["emacs daemon" "emacsclient" "eval elisp" "org-capture" "open in emacs"]))
+
+  (governance
+    (touch-layer :mutable)
+    (non-override [:mission :directives :safety :license :output-shape])
+    (requires-user-approval false))
+)

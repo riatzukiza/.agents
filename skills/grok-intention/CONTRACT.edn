@@ -1,0 +1,52 @@
+(skill-contract
+  (name "grok-intention")
+  (v "ημ.skill/grok-intention@0.1.0")
+
+  (intent
+    "Recover dense, symbolic, or underspecified user intent from notes, sessions, and repo context, then manifest it into a concrete structure, spec, or artifact.")
+
+  (activation
+    (priority 81)
+    (explicit ["skill:grok-intention"])
+    (triggers ["grok my intention" "manifest the dream" "intent is now densely compressed" "give the machine a shape"]))
+
+  (governance
+    (touch-layer :mutable)
+    (non-override [:mission :directives :safety :license :output-shape])
+    (requires-user-approval false))
+
+  (effects
+    (writes true)
+    (network true)
+    (commits false))
+
+  (fulfillment-score
+    (fn [session]
+      (let [reflections (get session :reflections [])
+            spores (get session :spores [])
+            skill-events (get session :skillEvents [])
+            n (count reflections)
+            skill-names (map (fn [e] (get e :skill)) skill-events)
+            grok-calls (count (filter (fn [s] (= s "grok-intention")) skill-names))
+            skill-candidate-avg (if (> n 0)
+                                  (/ (reduce + (map (fn [r] (get r :skillCandidateP 0)) reflections)) n)
+                                  0)
+            avg-eff (if (> n 0)
+                      (/ (reduce + (map (fn [r] (get r :efficiencyP 0.5)) reflections)) n)
+                      0.5)
+            avg-fric (if (> n 0)
+                       (/ (reduce + (map (fn [r] (get r :frictionP 0.5)) reflections)) n)
+                       0.5)
+            spore-count (count spores)
+            base-score (* avg-eff (- 1 avg-fric))
+            invocation-bonus (if (> grok-calls 0) 0.1 0)
+            manifest-bonus (* 0.1 (min skill-candidate-avg 1))
+            spore-bonus (if (> spore-count 0) 0.05 0)
+            p (+ base-score invocation-bonus manifest-bonus spore-bonus)]
+        {:p (min p 1.0)
+         :evidence {:turns n
+                    :grok-invocations grok-calls
+                    :spores-incubated spore-count
+                    :avg-skill-candidate skill-candidate-avg
+                    :avg-efficiency avg-eff
+                    :avg-friction avg-fric}}))))

@@ -1,0 +1,13 @@
+{
+  "name": "cloudflare-tunnel-ops",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "nbb": "^1.4.208"
+  },
+  "scripts": {
+    "tunnel": "node cf-tunnel-fetch.mjs",
+    "tunnel:cljs": "nbb cf-tunnel-fetch.cljs",
+    "stack": "node create-tunnel-stack.mjs"
+  }
+}

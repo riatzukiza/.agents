@@ -1,0 +1,19 @@
+{:name "publish-image-analysis"
+ :description "Publish image analysis results to social platforms after user confirmation"
+ :version 1
+ :domain :social
+ :workflow :image-analysis-publish
+ :requires-env-any ["OPENHAX_DISCORD_TOKEN" "BLUESKY_IDENTIFIER"]
+ :tools ["discord" "bluesky" "social_publish"]
+ :triggers ["post this" "share this" "looks good, post" "publish this"]
+ :after-tools ["analyze_image" "vision" "render_image" "desktop_screenshot"]
+ :confirm-before-post true
+ :defaults {:discord-channel-id "1444189585373663417"}
+ :exposes
+ {:workflow
+  {:steps
+   [{:step "analyze-image" :tools ["analyze_image" "vision"]}
+    {:step "assess-shareability" :decision true}
+    {:step "confirm-with-user" :required true}
+    {:step "prepare-content" :context ["image-description" "analysis-summary"]}
+    {:step "post-to-platforms" :tools ["discord" "bluesky" "social_publish"]}]}}}

@@ -1,0 +1,35 @@
+(skill-contract
+  (name "eta-mu-kanban")
+  (v "ημ.skill/eta-mu-kanban@0.1.0")
+
+  (intent
+    "Agent-first kanban board management via the eta-mu kanban CLI. List, search, find, count, update status, manage frontmatter, add comments, open in editor, and serve the web UI.")
+
+  (activation
+    (priority 75)
+    (explicit ["skill:eta-mu-kanban"])
+    (triggers ["kanban" "task board" "task list" "task search" "update status" "move task" "kanban count" "kanban list" "kanban find" "kanban search" "kanban serve" "kanban content" "kanban comment" "kanban frontmatter" "kanban open"]))
+
+  (governance
+    (touch-layer :mutable)
+    (non-override [:mission :directives :safety :license :output-shape])
+    (requires-user-approval false))
+
+  (effects
+    (writes true)
+    (network false)
+    (commits false))
+
+  (protocol
+    (workflow
+      ["Discover board state: `eta-mu kanban count --tasks-dir <path>`"
+       "Find relevant tasks: `eta-mu kanban search <query> --tasks-dir <path>`"
+       "Inspect task detail: `eta-mu kanban content <uuid> --tasks-dir <path>`"
+       "Update status: `eta-mu kanban frontmatter <uuid> status <new-status> --tasks-dir <path>`"
+       "Record progress: `eta-mu kanban comment <uuid> <text> --tasks-dir <path>`"
+       "Open in editor: `eta-mu kanban open <uuid> --tasks-dir <path>`"
+       "Start web UI: `eta-mu kanban serve --tasks-dir <path> --port <port>`"]))
+
+  (artifacts
+    (skill-file "~/.agents/skills/eta-mu-kanban/SKILL.md")
+    (contract-file "~/.agents/skills/eta-mu-kanban/CONTRACT.edn")))

@@ -1,0 +1,17 @@
+(skill-contract
+  (name "desktop-open")
+  (v "ημ.skill/desktop-open@0.1.0")
+
+  (intent
+    "Open a URL or local file on the user's desktop using the desktop_open tool (Firefox or xdg-open).")
+
+  (activation
+    (priority 54)
+    (explicit ["skill:desktop-open"])
+    (triggers ["open firefox" "open in firefox" "open this link" "open this url" "xdg-open" "open file" "open pdf"]))
+
+  (governance
+    (touch-layer :mutable)
+    (non-override [:mission :directives :safety :license :output-shape])
+    (requires-user-approval false))
+)

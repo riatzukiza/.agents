@@ -1,0 +1,73 @@
+(skill-contract
+  (name "receipt-river")
+  (v "ημ.skill/receipt-river@0.2.0")
+
+  (intent
+    "Use an append-only receipts.edn ledger (Receipt River). Tail it regularly and append receipts at phase boundaries, verification, and commits. Ships bb scripts for harness-agnostic file interaction.")
+
+  (activation
+    (priority 62)
+    (explicit ["skill:receipt-river"])
+    (triggers ["receipt river" "receipts.log" "append-only receipts" "tail receipts" "receipts v2"]))
+
+  (governance
+    (touch-layer :mutable)
+    (non-override [:mission :directives :safety :license :output-shape])
+    (requires-user-approval false))
+
+  (effects
+    (writes true)
+    (network false)
+    (commits false))
+
+  (fulfillment-score
+    (fn [session]
+      (let [receipt-events (get session :receiptEvents [])
+            receipts (get session :receipts [])
+            event-count (count receipt-events)
+            receipt-count (count receipts)
+            bootstrap-count (count (filter (fn [e] (= (get e :action) "bootstrap")) receipt-events))
+            tail-count (count (filter (fn [e] (= (get e :action) "tail")) receipt-events))
+            append-count (count (filter (fn [e] (= (get e :action) "append")) receipt-events))
+            validate-count (count (filter (fn [e] (= (get e :action) "validate")) receipt-events))
+            base (if (> receipt-count 0) 0.4 0)
+            bootstrap-bonus (if (> bootstrap-count 0) 0.2 0)
+            tail-bonus (if (> tail-count 0) 0.15 0)
+            append-bonus (if (> append-count 0) 0.15 0)
+            validate-bonus (if (> validate-count 0) 0.1 0)
+            activity-bonus (if (> event-count 3) 0.05 0)
+            p (+ base bootstrap-bonus tail-bonus append-bonus validate-bonus activity-bonus)]
+        {:p (min p 1.0)
+         :evidence {:receipt-events event-count
+                    :receipts receipt-count
+                    :bootstraps bootstrap-count
+                    :tails tail-count
+                    :appends append-count
+                    :validations validate-count}})))
+
+  (protocol
+    (workflow
+      ["Discover the project root by walking up from cwd looking for .ημ/ or .git/."
+       "If receipts.edn exists: treat as append-only; never edit past lines."
+       "If receipts.edn is absent and work is non-trivial: create it."
+       "Append a receipt at: (1) start, (2) after each phase, (3) after tests/build, (4) after commits/pushes."
+       "Before major decisions: tail the last ~20 lines to regain context."
+       "When runtime exposes the receipt_river tool, prefer it over ad-hoc shell appends so receipt format can be validated and audited."
+       "Prefer the shipped bb scripts (rr-init.bb, rr-append.bb, rr-tail.bb, rr-last.bb) for direct file interaction."
+       "Do not log secrets; keep notes bounded."]))
+)
+
+(receipts-contract
+  (id "promethean.receipts/v2")
+  (file "receipts.edn")
+  (append-only true)
+  (format :edn)
+  (project-aware true)
+  (root-marker [".ημ" ".git"])
+  (eta-mu-file ".ημ/receipts.edn")
+  (scripts ["scripts/rr-init.bb" "scripts/rr-append.bb" "scripts/rr-tail.bb" "scripts/rr-last.bb"])
+  (required-keys [ts kind origin owner dod pi host manifest refs])
+  (optional-keys [note tests decisions drift])
+  (kinds
+    [:push-truth :artifact-hash :test-run :build :decision :drift :catalog
+     :observation :field-impact :truth :refutation :adjudication]))

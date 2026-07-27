@@ -1,0 +1,16 @@
+{
+  "type": "module",
+  "scripts": {
+    "dev":   "shadow-cljs watch server",
+    "build": "shadow-cljs release server",
+    "start": "node out/server.js"
+  },
+  "dependencies": {
+    "fastify":           "^4.28.1",
+    "fastify-plugin":    "^4.5.1",
+    "@fastify/formbody": "^7.4.0"
+  },
+  "devDependencies": {
+    "shadow-cljs": "^2.28.14"
+  }
+}

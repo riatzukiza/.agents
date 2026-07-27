@@ -1,0 +1,61 @@
+(skill-contract
+  (name "regression-triage")
+  (v "ημ.skill/regression-triage@0.1.0")
+
+  (intent
+    "Investigate regressions; identify introducing change; choose rollback vs fix-forward; add regression test.")
+
+  (activation
+    (priority 80)
+    (explicit ["skill:regression-triage"])
+    (triggers ["there was a regression" "this was a regression" "this regressed" "regression triage"]))
+
+  (governance
+    (touch-layer :mutable)
+    (non-override [:mission :directives :safety :license :output-shape])
+    (requires-user-approval false))
+
+  (effects
+    (writes true)
+    (network false)
+    (commits true))
+
+  (fulfillment-score
+    (fn [session]
+      (let [reflections (get session :reflections [])
+            skill-events (get session :skillEvents [])
+            n (count reflections)
+            skill-names (map (fn [e] (get e :skill)) skill-events)
+            triage-calls (count (filter (fn [s] (= s "regression-triage")) skill-names))
+            avg-eff (if (> n 0)
+                      (/ (reduce + (map (fn [r] (get r :efficiencyP 0.5)) reflections)) n)
+                      0.5)
+            avg-fric (if (> n 0)
+                       (/ (reduce + (map (fn [r] (get r :frictionP 0.5)) reflections)) n)
+                       0.5)
+            ;; Regression triage should have low friction (methodical process)
+            base-score (* avg-eff (- 1 avg-fric))
+            ;; Bonus for invoking the skill (following process)
+            invocation-bonus (if (> triage-calls 0) 0.15 0)
+            ;; Lower friction = better triage (patience in investigation)
+            low-friction-bonus (if (< avg-fric 0.3) 0.1 0)
+            p (+ base-score invocation-bonus low-friction-bonus)]
+        {:p (min p 1.0)
+         :evidence {:turns n
+                    :triage-invocations triage-calls
+                    :avg-efficiency avg-eff
+                    :avg-friction avg-fric}})))
+
+  (protocol
+    (workflow
+      ["Confirm the regression is real on current HEAD (expected vs actual; env; version/commit)."
+       "Locate introducing change (prefer git bisect with deterministic test command)."
+       "Classify intent with uncertainty labels (side-effect vs incomplete/incorrect feature)."
+       "Remediate: revert vs fix-forward."
+       "MANDATORY: add a regression test covering the failed path."
+       "Verify: smallest relevant suite first, then broader suite when feasible."
+       "Record: intro commit, intent classification, remediation choice, and what the test protects."]))
+
+  (output
+    (must-include ["repro" "introducing-change" "regression-test" "verification"]))
+)

@@ -1,0 +1,63 @@
+(skill-contract
+  (name "fork-tax")
+  (v "ημ.skill/fork-tax@0.2.0")
+
+  (intent
+    "Persist the full working state into git as a deterministic handoff snapshot (commit + tag + push + manifest artifacts).")
+
+  (activation
+    (priority 90)
+    (explicit ["skill:fork-tax" "Π"])
+    (triggers ["pay the fork tax" "fork tax" "full dump" "handoff packet" "snapshot tag"]))
+
+  (governance
+    (touch-layer :semi-stable)
+    (non-override [:mission :directives :safety :license :output-shape])
+    (requires-user-approval true))
+
+  (effects
+    (writes true)
+    (network true)
+    (commits true))
+
+  (fulfillment-score
+    (fn [session]
+      (let [reflections (get session :reflections [])
+            skill-events (get session :skillEvents [])
+            n (count reflections)
+            ;; Check for fork-tax invocation
+            skill-names (map (fn [e] (get e :skill)) skill-events)
+            fork-tax-calls (count (filter (fn [s] (= s "fork-tax")) skill-names))
+            ;; Average scores from reflections
+            avg-eff (if (> n 0)
+                      (/ (reduce + (map (fn [r] (get r :efficiencyP 0.5)) reflections)) n)
+                      0.5)
+            avg-fric (if (> n 0)
+                       (/ (reduce + (map (fn [r] (get r :frictionP 0.5)) reflections)) n)
+                       0.5)
+            ;; Base: efficiency * (1 - friction)
+            base-score (* avg-eff (- 1 avg-fric))
+            ;; Bonus for invoking fork-tax (persisting state)
+            invocation-bonus (if (> fork-tax-calls 0) 0.15 0)
+            p (+ base-score invocation-bonus)]
+        {:p (min p 1.0)
+         :evidence {:turns n
+                    :fork-tax-invocations fork-tax-calls
+                    :avg-efficiency avg-eff
+                    :avg-friction avg-fric}})))
+
+  (protocol
+    (workflow
+      ["Confirm repo root/branch/head and that the working tree reflects reality."
+       "Assume the workspace may be shared unless the user explicitly grants exclusivity; detect concurrent/unowned dirt before staging anything."
+       "Do not commit secrets. If secrets suspected: stop, redact, then continue."
+       "Never use blanket reset/restore/clean or repo-wide add-all behavior against shared dirt; prefer explicit path-scoped staging."
+       "Run quick verification on the owned/stageable paths if available (or record why skipped)."
+       "Update in-repo Π artifacts (.ημ/Π_STATE.sexp, .ημ/Π_LAST.md, .ημ/Π_MANIFEST.sha256), explicitly recording concurrent dirt/blockers that were left untouched."
+       "Commit only owned/stageable repo-relevant changes."
+       "Create annotated tag Π/<yyyy-mm-dd>/<hhmmss>-<short-head>."
+       "Push branch and tag; if blocked, record exact error output in Π note and stop."]))
+
+  (output
+    (must-include ["commit" "tag" "push-status" "handoff-artifacts" "concurrent-dirt-status"]))
+)

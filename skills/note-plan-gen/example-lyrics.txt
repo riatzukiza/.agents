@@ -1,0 +1,14 @@
+# syllable<TAB>stress<TAB>beats
+# stress: 1=primary 2=secondary 0=unstressed
+# beats: duration in beats (fractions ok)
+stay	1	1.0
+with	0	0.5
+me	2	0.5
+to	0	0.5
+night	1	1.5
+we	0	0.5
+rise	1	1.0
+in	0	0.5
+to	0	0.5
+the	0	0.25
+light	1	2.0
