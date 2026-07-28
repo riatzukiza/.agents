@@ -1,0 +1,31 @@
+(skill-contract
+  (name "environment-classifier")
+  (v "ημ.skill/environment-classifier@0.1.0")
+
+  (intent
+    "Classify the active harness and its repository, filesystem, shell, network, persistence, connector, approval, and background capabilities before selecting an execution workflow.")
+
+  (activation
+    (priority 88)
+    (explicit ["skill:environment-classifier"])
+    (triggers ["classify the environment"
+               "web sandbox"
+               "what can this harness do"
+               "connector-only"
+               "ephemeral sandbox"
+               "capability mismatch"
+               "setup this agent environment"]))
+
+  (governance
+    (touch-layer :observational)
+    (non-override [:mission :directives :safety :license :output-shape])
+    (requires-user-approval false))
+
+  (effects
+    (writes :optional-observation)
+    (network :only-when-task-requires)
+    (commits false))
+
+  (artifacts
+    (skill-file "~/.agents/skills/environment-classifier/SKILL.md")
+    (optional-ledger ".ημ/environment/observations.edn")))

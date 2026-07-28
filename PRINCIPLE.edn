@@ -26,7 +26,9 @@
   "Evidence-on-fresh: if information may have changed, verify using current sources."
   "Precision over breadth: minimize tool calls and prefer targeted operations."
   "Capability honesty: distinguish what the active harness can inspect, mutate, persist, or verify."
-  "Context recovery: inspect available project evidence before asking the user to restate known intent.")
+  "Context recovery: inspect available project evidence before asking the user to restate known intent."
+  "Tool independence: preserve the process even when preferred runtimes, plugins, daemons, or databases are absent."
+  "Source clarity: distinguish canonical sources, durable ledgers, interpreters, adapters, and rebuildable projections.")
 
 ;; ============================================================
 ;; 2. Operator Grammar
@@ -58,29 +60,51 @@
   (identity
     (canonical-root "~/.agents")
     (purpose
-      "A versioned, cross-harness repository of reusable agent skills, contracts, scripts, and learning records."))
+      "A versioned, cross-harness repository of reusable agent process, skills, contracts, scripts, adapters, and learning records."))
 
   (layout
     (principle "PRINCIPLE.edn")
+    (process "PROCESS.md")
+    (style "STYLE.md")
     (repository-instructions "AGENTS.md")
+    (harness-adapters ["CHATGPT.md" "CLAUDE.md" "CODEX.md" "OPENCODE.md" "PERPLEXITY.md"])
     (skills "skills/<skill-name>/SKILL.md")
     (contracts "skills/<skill-name>/CONTRACT.edn")
-    (project-receipts ".ημ/receipts.edn or receipts.edn")
+    (project-process-root ".ημ/")
+    (project-receipts ".ημ/receipts.edn or legacy receipts.edn")
     (project-spores ".ημ/session-mycology/spores/"))
 
   (discovery
     (rule
       "Before substantive repository work, read every applicable AGENTS.md from repository root to the target path.")
     (rule
+      "Classify the active environment and capability boundary before selecting commands, persistence, or verification claims.")
+    (rule
       "Discover project-local skills first, then consult ~/.agents/skills as the canonical global catalog.")
     (rule
       "Load the smallest relevant skill set; do not ingest the entire catalog without cause.")
     (rule
-      "Explicit skill invocation wins. Otherwise select skills from concrete triggers, task shape, and repository guidance.")
+      "Explicit skill invocation wins. Otherwise select skills from concrete triggers, task shape, repository guidance, and available capabilities.")
     (rule
-      "A skill may specialize execution but may not silently override mission, directives, safety, license, or user autonomy."))
+      "A skill may specialize execution but may not silently override mission, directives, safety, license, process authority, or user autonomy."))
+
+  (process-data
+    (rule
+      "Prefer .ημ/ as the project-local home for receipts, ledgers, runs, sessions, mycology, config, plugins, and projections.")
+    (rule
+      "Legacy paths such as .eta-mu/, root receipts.edn, and kanban/.events/ledger.edn are historical evidence; migrate by replay or verified copy, never by destructive normalization.")
+    (rule
+      "No project must install eta-mu, Rheos, Muse, Katamorph, event-ledger, a daemon, database, hook, or MCP server to comply with this contract.")
+    (rule
+      "When preferred tools are absent, use the smallest file-and-Git representation that preserves authority, provenance, uncertainty, and recoverability."))
 
   (core-skills
+    (skill "environment-classifier"
+      (intent "Determine the actual filesystem, shell, network, mutation, persistence, connector, approval, and execution capabilities of the active harness."))
+    (skill "process-bootstrap"
+      (intent "Initialize or converge the portable process at the smallest useful level without making optional tools mandatory."))
+    (skill "eta-mu-kanban"
+      (intent "Operate Rheos/eta-mu boards through lawful ledger-backed surfaces and migrate legacy board ledgers toward .ημ/."))
     (skill "fork-tax"
       (intent "Persist a deterministic repository handoff when Π, fork tax, full dump, or snapshot is requested."))
     (skill "receipt-river"
@@ -90,7 +114,9 @@
     (skill "grok-intention"
       (intent "Recover compressed intent from the prompt, repository, notes, and prior evidence before asking for repetition."))
     (skill "sing-the-songs-of-your-people"
-      (intent "Produce truthful synthesis in the native voice and motifs of the corpus.")))
+      (intent "Produce truthful synthesis in the native voice and motifs of the corpus."))
+    (skill "skill-authoring"
+      (intent "Create or revise capability-adaptive, provenance-preserving skills in the canonical repository.")))
 
   (learning
     (rule
@@ -98,17 +124,21 @@
     (rule
       "Do not promote a spore during the same session that created it.")
     (rule
+      "A direct user request to create or revise a skill is authorized skill work, not automatic promotion of an incubating spore.")
+    (rule
       "Promotion must preserve provenance and create or revise a reviewed skill under skills/<name>/.")
     (rule
       "Use receipt-river references as evidence for learning; never record secrets."))
 
   (harness-boundary
     (rule
-      "Treat this repository as canonical source, whether a harness reads it directly, through a symlink, through a connector, or through copied adapters.")
+      "Treat this repository as canonical source, whether a harness reads it directly, through a symlink, through a connector, or through generated adapters.")
     (rule
-      "Never pretend connector access is a local checkout or that unavailable tools ran successfully.")
+      "Harness guides translate universal process into available capabilities; they do not redefine the process.")
     (rule
-      "When direct file append is unavailable, preserve append-only semantics through repository APIs and record the actual host and origin.")))
+      "Never pretend connector access is a local checkout, a cloud sandbox is persistent, or an unavailable tool ran successfully.")
+    (rule
+      "When direct file append is unavailable, preserve append-only semantics through repository APIs or an explicit artifact handoff and record the actual host and origin.")))
 
 ;; ============================================================
 ;; 3. Context Symbols

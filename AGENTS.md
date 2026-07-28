@@ -1,108 +1,104 @@
 # Agent Instructions
 
-This repository is the canonical source for Err's reusable agent skills, contracts, scripts, and cross-harness operating principles.
+This repository is the canonical source for Err's reusable agent process, skills, contracts, scripts, and harness adapters.
 
-These instructions apply to the entire repository.
+Keep this file short. It is a map, not the encyclopedia.
 
-## Authority and discovery
+## Read order
 
-1. Obey the active harness and user instructions.
-2. Read [`PRINCIPLE.edn`](PRINCIPLE.edn) before substantive work in this repository.
-3. Read this file completely.
-4. Inspect `.ημ/receipts.edn` before major decisions when it exists.
-5. Discover the smallest relevant set of skills under `skills/` and read their `SKILL.md` files before acting.
-6. Read a skill's `CONTRACT.edn` when changing its activation, governance, scoring, or non-override behavior.
+For substantive work in this repository:
 
-Do not load the entire skill corpus by default. Prefer targeted discovery from task language, referenced files, and explicit skill invocations.
+1. obey active safety, harness, and user instructions,
+2. read [`PRINCIPLE.edn`](PRINCIPLE.edn),
+3. read [`PROCESS.md`](PROCESS.md),
+4. read [`STYLE.md`](STYLE.md),
+5. classify the active environment with `environment-classifier`,
+6. read the matching harness adapter,
+7. inspect `.ημ/receipts.edn`,
+8. load the smallest relevant skill set,
+9. read a skill's `CONTRACT.edn` when changing activation or governance.
+
+Harness adapters:
+
+- [`CHATGPT.md`](CHATGPT.md)
+- [`CLAUDE.md`](CLAUDE.md)
+- [`CODEX.md`](CODEX.md)
+- [`OPENCODE.md`](OPENCODE.md)
+- [`PERPLEXITY.md`](PERPLEXITY.md)
+
+## Universals
+
+- Preserve user sovereignty and explicit authority.
+- Separate observation, interpretation, recommendation, decision, verification, and acceptance.
+- Preserve epistemic tiers: `observed -> derived -> provisional -> accepted`.
+- Name canonical sources, durable ledgers, and rebuildable projections.
+- Prefer append-only correction over rewritten history.
+- Keep work bounded, reviewable, and honestly stateful.
+- Define contracts and failure shapes before dependent adapters.
+- Isolate foreign/runtime boundaries.
+- Run checks relevant to the touched responsibility.
+- Record unavailable capabilities and unperformed checks.
+- Learn from repeated friction through Receipt River and Session Mycology.
+
+## Process data
+
+The preferred project-local home for operational process data is `.ημ/`.
+
+New receipts, board event ledgers, runs, sessions, mycology records, config, plugins, and projections should converge there when the project adopts them.
+
+Legacy paths such as `.eta-mu/`, root `receipts.edn`, and `kanban/.events/ledger.edn` are evidence. Preserve and migrate them deliberately; never delete history merely to normalize layout.
+
+No repository is required to install eta-mu, Rheos, Muse, Katamorph, event-ledger, a daemon, database, hook, or MCP server. Use `process-bootstrap` to select the smallest useful layer.
 
 ## Core skills
 
-The following skills are part of the repository's operating substrate:
+- `environment-classifier` — establish actual harness capabilities first.
+- `process-bootstrap` — initialize or converge the portable process without requiring tools.
+- `receipt-river` — append execution truth for non-trivial work.
+- `session-mycology` — record friction and incubate reusable lessons.
+- `eta-mu-kanban` — operate Rheos/eta-mu boards lawfully and migrate legacy ledgers.
+- `fork-tax` — use only when Π, fork tax, full dump, snapshot, or deterministic handoff is explicitly invoked.
+- `grok-intention` — recover dense intent from prompt, repository, notes, and history.
+- `sing-the-songs-of-your-people` — produce truthful corpus-native synthesis.
+- `skill-authoring` — create or materially revise reusable skills.
 
-- `receipt-river` — mandatory for non-trivial, multi-step, migration, PR, or handoff work.
-- `session-mycology` — use after substantive work to record friction and incubate reusable patterns.
-- `fork-tax` — use only when the user invokes Π, fork tax, full dump, snapshot, or deterministic handoff.
-- `grok-intention` — use when intent is dense, symbolic, compressed, or recoverable from repository context.
-- `sing-the-songs-of-your-people` — use for truthful corpus-native synthesis, not decorative mystification.
-- `skill-authoring` — use when creating or materially revising a reusable skill.
-
-Explicit invocation wins. Otherwise activate skills only when their gates match.
-
-## Repository invariants
-
-- `~/.agents` is the canonical global root on local machines.
-- `skills/<name>/SKILL.md` is the human-operational skill definition.
-- `skills/<name>/CONTRACT.edn` is the machine-readable contract when one exists.
-- Skill folder names and frontmatter `name` values must match and use lowercase kebab-case.
-- Preserve provenance for imported, generated, or promoted skills.
-- Prefer harness-neutral instructions. Put harness-specific assumptions in clearly named compatibility sections or adapters.
-- Do not silently rewrite imported third-party skills as if they were native.
-- Never commit secrets, tokens, authorization headers, private keys, session cookies, or private user data.
+Explicit invocation wins. Otherwise activate only when gates match.
 
 ## Skill changes
 
-When adding or materially revising a skill:
+When adding or revising a skill:
 
-1. Read `skills/skill-authoring/SKILL.md`.
-2. Search for overlapping skills before creating a new one.
-3. Keep activation and anti-activation gates explicit.
-4. Keep procedures actionable and testable.
-5. Reference global principles instead of duplicating them.
-6. Add or update `CONTRACT.edn` when the skill participates in automated activation or governance.
-7. Preserve the repository license contract: libraries are LGPL-3.0-or-later; services and standalone applications are GPL-3.0-or-later.
-8. Update documentation or indexes that would otherwise drift.
+1. read `skills/skill-authoring/SKILL.md`,
+2. search for overlap,
+3. keep activation and anti-activation explicit,
+4. keep steps executable and capability-adaptive,
+5. reference global rules instead of duplicating them,
+6. preserve provenance,
+7. update contracts and indexes that would drift,
+8. append receipts and mycology state.
 
-## Receipt River
+Do not promote a mycology spore in the same session that created it. Direct user requests to create a skill are ordinary authorized skill work, not automatic spore promotion.
 
-For non-trivial work, maintain `.ημ/receipts.edn` as an append-only ledger.
+## Repository work
 
-- Never modify or delete prior receipt lines.
-- Append an observation near the start.
-- Append decisions when choosing among meaningful alternatives.
-- Append verification results after checks.
-- Append handoff or push truth before completion.
-- Record the actual host and tool boundary. A GitHub connector is not a local checkout.
-- When local scripts are unavailable, preserve the same append-only semantics through repository APIs.
-
-Read `skills/receipt-river/SKILL.md` for the canonical schema.
-
-## Session Mycology
-
-After substantive work:
-
-1. Read the relevant receipt tail.
-2. Score efficiency, friction, and skill-candidate probability.
-3. Append one entry to `.ημ/session-mycology/ledger.md`.
-4. Create at most one spore in `.ημ/session-mycology/spores/` when `p-skill-candidate >= 0.7` and the pattern generalizes.
-5. Never promote a spore in the same session that created it.
-
-Promotions must preserve provenance and be reviewed before becoming a production skill.
-
-## Git and concurrent work
-
-- Assume shared or concurrent work unless exclusivity is explicit.
-- Use a branch and pull request for repository-wide governance changes.
-- Never destroy unrelated work with repo-wide reset, restore, clean, or blanket staging.
-- Scope changes to owned paths.
-- Use Fork Tax only when explicitly triggered.
-
-## Validation
-
-Use the smallest relevant checks available in the active harness:
-
-- Re-read every touched file after writing it.
-- Verify Markdown links and referenced paths.
-- Verify `SKILL.md` frontmatter and folder-name agreement.
-- Verify edited s-expressions for balanced delimiters and canonical uncertainty code points.
-- Run shipped scripts or parsers when a local execution environment is actually available.
-- Record skipped checks and the reason; never claim a check ran when it did not.
+- Assume concurrent work unless exclusivity is explicit.
+- Use branches and pull requests for governance changes.
+- Scope mutations to owned paths.
+- Never use destructive repo-wide cleanup against unrelated dirt.
+- Re-read touched files.
+- Verify Markdown links, skill frontmatter, folder/name agreement, s-expression balance, and canonical uncertainty code points.
+- Run scripts or parsers only when the environment actually supports them.
+- Record skipped checks and blockers.
+- Do not create Π tags or full handoff manifests unless Fork Tax is invoked.
 
 ## Handoff
 
 Report:
 
-- files changed,
+- recovered intent,
+- files and authority boundaries changed,
 - why the change is safe,
-- verification performed or skipped,
-- receipt and mycology artifacts added,
-- branch, commit, and pull-request references.
+- verification performed or unavailable,
+- receipt/mycology artifacts,
+- branch, commit, and pull-request state,
+- and exactly one next action.

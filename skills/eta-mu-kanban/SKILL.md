@@ -1,137 +1,227 @@
 ---
 name: eta-mu-kanban
-description: Agent-first kanban board CLI via `eta-mu kanban`. List, search, find, count, update status, manage frontmatter, add comments, open in editor, and serve the web UI.
+description: Operate a Rheos/eta-mu markdown board through the strongest lawful CLI, MCP, connector, or file-only surface; preserve append-only provenance and migrate legacy board ledgers toward .ημ/.
+license: LGPL-3.0-or-later
+metadata:
+  audience: agents
+  workflow: rheos-kanban
+  version: "2"
 ---
 
-# Skill: eta-mu kanban
+# Skill: Rheos / eta-mu Kanban
 
 ## Goal
-Manage a markdown-backed kanban board through the `eta-mu kanban` CLI — designed for agent-first task management.
+
+Manage a markdown-backed board as lawful, ledger-backed motion rather than arbitrary frontmatter edits, while remaining usable when Rheos or eta-mu is not installed.
 
 ## Use This Skill When
-- User asks to list, search, find, or count kanban tasks.
-- User wants to move a task between columns (update status).
-- User wants to view or edit task frontmatter (priority, labels, status, etc.).
-- User wants to add a comment to a task.
-- User wants to open a task file in their editor.
-- User wants to start the kanban web UI.
+
+- Listing, searching, reading, sizing, creating, or moving work items.
+- Recording progress or decisions on a task.
+- Working under a project's board/FSM contract.
+- Bootstrapping Rheos or eta-mu board support.
+- Migrating `kanban/.events/ledger.edn` or another legacy board ledger into `.ημ/`.
+- Reconciling CLI, UI, MCP, task files, and generated board projections.
 
 ## Do Not Use This Skill When
-- The user is working with Trello directly (use `kanban sync trello`).
-- The user wants to create a brand new spec (use `spec-driven-dev`).
 
-## Prerequisites
-- The kanban package must be built: `cd orgs/open-hax/eta-mu/packages/kanban && pnpm build`
-- Tasks directory must exist with markdown files containing YAML frontmatter.
-- For the web UI, the Vite frontend must be built: `pnpm build` (includes tsc + vite).
+- The project has no declared board and the task does not require one.
+- The user is asking about an unrelated external board service.
+- A status mutation would bypass the declared FSM, WIP limit, dependency, review, or completion gate.
+- Only generated `board.json` is available and the task source cannot be identified.
 
-## Commands
+## Authority
 
-### Discovery
+Resolve board authority in this order:
+
+1. project constitution/process and approved decisions,
+2. project board contract (`AGENTS.md`, process policy, config),
+3. task source documents plus authoritative board event ledger,
+4. Rheos transition law,
+5. generated snapshots/UI/search projections.
+
+A card never overrides architecture decisions. A generated board never overrides task source or ledger history.
+
+## Environment first
+
+Run `environment-classifier`.
+
+Select the strongest available surface:
+
+1. **Rheos CLI** (`rheos ...`)
+2. **eta-mu compatibility CLI** (`eta-mu kanban ...`)
+3. **Rheos MCP/agent tools**
+4. **repository connector with project-declared mutation semantics**
+5. **file-only read/proposal mode**
+
+Skill availability does not prove the required executable or permission exists.
+
+## Discovery
+
+Locate:
+
+- board config (`openhax.kanban.json`, `kanban.json`, or project declaration),
+- task roots such as `docs/kanban`, `kanban/tasks`, or `docs/agile/tasks`,
+- project FSM and completion gates,
+- authoritative board ledger,
+- generated snapshots,
+- available `rheos` or `eta-mu` binaries,
+- and legacy versus target process paths.
+
+Useful commands when available:
+
 ```bash
-# List all tasks
+command -v rheos || true
+command -v eta-mu || true
+git rev-parse --show-toplevel
+```
+
+Do not install or build tooling unless the task includes setup.
+
+## Canonical data target
+
+The preferred default for new project-local board operational history is:
+
+```text
+.ημ/
+├── ledgers/
+│   └── rheos.edn
+├── runs/
+│   └── rheos/
+└── projections/
+    └── rheos/
+        └── board.json
+```
+
+A project may declare a different `.ημ/` path. Follow it.
+
+Task Markdown may remain in the project's existing human-facing board directory. The requirement is that new operational ledgers and run state converge under `.ημ/`, not that every task document be hidden there.
+
+Recognize these as legacy evidence, not garbage:
+
+- `kanban/.events/ledger.edn`
+- root or package-local event logs
+- `.eta-mu/`
+- tool-specific board databases
+- historical `board.json`
+- direct task-file transition comments
+
+## Lawful operations
+
+### Read
+
+With Rheos:
+
+```bash
+rheos read-board --project <id>
+rheos read-task <task-uuid> --project <id>
+rheos search-tasks --query "<text>"
+rheos events [task-uuid] --limit <n>
+rheos drift
+```
+
+Compatibility surface:
+
+```bash
 eta-mu kanban list --tasks-dir <path>
-eta-mu kanban list --tasks-dir <path> --verbose
-
-# Search tasks by title/uuid/labels
-eta-mu kanban search "query" --tasks-dir <path>
-
-# Find task by UUID or title substring
-eta-mu kanban find <uuid> --tasks-dir <path>
-
-# Show column counts
 eta-mu kanban count --tasks-dir <path>
+eta-mu kanban find <slug-or-id> --tasks-dir <path>
+eta-mu kanban search "<text>" --tasks-dir <path>
+eta-mu kanban content <id> --tasks-dir <path>
 ```
 
-### Task Content
+Command names vary by installed revision. Read `--help`; do not invent a command merely because an older skill listed it.
+
+### Mutate
+
+Prefer the shared dispatch surface so CLI, MCP, and UI apply the same law:
+
 ```bash
-# View parsed task content (frontmatter + sections as JSON)
-eta-mu kanban content <uuid> --tasks-dir <path>
-
-# Append a comment to a task (writes ---\ntext\n--- section)
-eta-mu kanban comment <uuid> "Comment text here" --tasks-dir <path>
-
-# Update a frontmatter field
-eta-mu kanban frontmatter <uuid> status in_progress --tasks-dir <path>
-eta-mu kanban frontmatter <uuid> priority P0 --tasks-dir <path>
-eta-mu kanban frontmatter <uuid> labels "tasks,5sp" --tasks-dir <path>
-
-# Open task file in $EDITOR
-eta-mu kanban open <uuid> --tasks-dir <path>
+rheos move <task-uuid> --to <status> --project <id>
+rheos status-update <task-uuid> --to <status> --project <id>
+rheos add-comment <task-uuid> --text "<note>" --project <id>
+rheos create-subtask <parent-uuid> --title "<title>" --project <id>
 ```
 
-### Web UI & Board
+Compatibility commands may include:
+
 ```bash
-# Start the kanban web UI (React + uxx tokens)
-eta-mu kanban serve --tasks-dir <path> --port 8791
-
-# Generate board snapshot JSON
-eta-mu kanban board snapshot --tasks-dir <path> --out <path>
+eta-mu kanban comment <id> "<note>" --tasks-dir <path>
+eta-mu kanban frontmatter <id> status <status> --tasks-dir <path>
 ```
 
-## Task File Format
+Use compatibility frontmatter mutation only when that installed revision routes it through the project FSM and ledger. If it is a raw file edit, do not use it for status transitions.
 
-Tasks are markdown files with YAML frontmatter:
+### File-only fallback
 
-```md
----
-uuid: "my-task-uuid"
-title: "Task Title"
-status: todo
-priority: P1
-labels: ["tasks", "3sp"]
-created_at: "2026-05-27T00:00:00Z"
-source: "specs/tasks/my-task.md"
-points: 3
-category: tasks
----
+When no lawful mutation surface exists:
 
-# Task Title
+- read task files and board policy,
+- produce the proposed transition/comment/subtask,
+- append an observation or blocker receipt,
+- and leave status unchanged.
 
-Body content rendered as markdown.
+Directly editing status to bypass missing tooling is not a fallback.
 
----
+A project may explicitly authorize append-only comments in task Markdown. Follow its declared format and never rewrite prior comments.
 
-This is a comment (between --- delimiters).
+## Default workflow
 
----
+1. Read board policy and environment classification.
+2. Inspect counts, ready work, dependencies, WIP, and drift.
+3. Select or create a bounded card.
+4. Record scope and expected evidence.
+5. Move through lawful transitions one hop at a time.
+6. Append progress, anomalies, decisions, and verification.
+7. Regenerate projections through the tool.
+8. Complete only after relevant gates and acceptance are recorded.
+9. Append Receipt River and Session Mycology state.
 
-More body content here.
-```
+Project policy wins over the following common defaults:
 
-### Section Parsing Rules
-- YAML frontmatter between `---` at file start is parsed by gray-matter.
-- After frontmatter, `---` on its own line toggles between body and comment sections.
-- Body sections are rendered as markdown.
-- Comment sections are rendered distinctly (muted, accent border).
+- work starts in `icebox` or `incoming`,
+- work is refined through `accepted` and `breakdown`,
+- `ready` requires explicit acceptance criteria and dependencies,
+- cards larger than the project's ready threshold are split,
+- `in_progress`, `review`, and `done` are gated,
+- generated snapshots are never hand-edited.
 
-## Valid Statuses
-`icebox`, `incoming`, `accepted`, `breakdown`, `ready`, `todo`, `in_progress`, `review`, `document`, `done`, `rejected`
+## Migration from legacy ledger paths
 
-## Global Flags
-- `--tasks-dir <path>` — Task directory (default: from config or `docs/agile/tasks`)
-- `--config <path>` — Path to kanban config file (`openhax.kanban.json`)
-- `--port <port>` — Port for serve command (default: 8791)
-- `--host <host>` — Host for serve command (default: 127.0.0.1)
+Do not move the file and declare victory.
 
-## Known Board Locations
-- **Knoxx**: `orgs/open-hax/openplanner/packages/agents/knoxx/kanban/`
-  - Config: `orgs/open-hax/openplanner/packages/agents/knoxx/kanban/openhax.kanban.json`
-  - Import script: `orgs/open-hax/openplanner/packages/agents/knoxx/scripts/import-kanban-specs.mjs`
+1. Identify current writers/readers and schema.
+2. Freeze no writer yet; inventory counts, last sequence/time, hashes, and task IDs.
+3. Declare the target `.ημ/ledgers/...` path.
+4. Copy or replay events while preserving original identity, ordering, causality, and timestamps.
+5. Point a test instance or adapter at the target.
+6. Rebuild the board projection from both sources and compare.
+7. Switch writers.
+8. Observe for divergence.
+9. Freeze/archive the legacy writer but retain the original ledger.
+10. Record cutover and rollback receipts.
 
-## PM2 Service
-The kanban web UI runs as a PM2 service:
-```bash
-cd services/eta-mu/kanban
-pm2 start ecosystem.config.cjs   # → http://127.0.0.1:8791
-pm2 stop eta-mu-kanban
-pm2 restart eta-mu-kanban
-```
+When event-ledger is adopted, conform to its envelope/idempotency/causality laws instead of inventing a parallel event format in this skill.
 
-## Workflow Integration
-When working on specs or tasks:
-1. `eta-mu kanban count` — see current board state
-2. `eta-mu kanban search "topic"` — find relevant tasks
-3. `eta-mu kanban frontmatter <uuid> status in_progress` — start work
-4. `eta-mu kanban comment <uuid> "Progress note"` — record progress
-5. `eta-mu kanban frontmatter <uuid> status done` — mark complete
+## Setup guidance
+
+If the project requests Rheos/eta-mu setup:
+
+1. use `process-bootstrap`,
+2. inspect the repository's active eta-mu build/install instructions,
+3. build or install only the needed package,
+4. configure the existing task root,
+5. declare the FSM and ledger target,
+6. test read, lawful transition, event append, drift detection, and projection rebuild,
+7. document the degraded file-only path.
+
+Do not make the repository dependent on a global daemon merely to read its tasks.
+
+## Output
+
+- environment and chosen board surface,
+- board/task/ledger authority map,
+- operations performed or proposed,
+- exact transition/check results,
+- legacy drift or migration state,
+- and remaining blockers.
