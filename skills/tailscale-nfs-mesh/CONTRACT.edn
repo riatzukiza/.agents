@@ -1,0 +1,17 @@
+(skill-contract
+  (name "tailscale-nfs-mesh")
+  (v "eta.m.skill/tailscale-nfs-mesh@0.1.0")
+  (intent "Provision machines into a Tailscale VPN mesh with NFS filesystem mounts and optional Cloudflare Tunnels.")
+  (activation
+    (priority 75)
+    (explicit ["skill:tailscale-nfs-mesh"])
+    (triggers ["set up tailscale" "provision machine" "nfs mesh" "tailscale nfs" "add machine to network"])
+    (autoload false))
+  (governance
+    (touch-layer :mutable)
+    (non-override [:mission :safety :license])
+    (requires-user-approval true))
+  (effects
+    (writes true)
+    (network true)
+    (commits false)))
