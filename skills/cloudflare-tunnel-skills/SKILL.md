@@ -60,6 +60,13 @@ Optional depending on behavior:
 - `cloudflared-setup.sh` — discovery, installation, config generation, service setup.
 - `cloudflared-config.example.yml` — config template.
 - `package.json` — script entrypoints.
+- `pnpm-lock.yaml` — immutable dependency graph for the optional NBB runtime.
+
+Generated dependencies are intentionally excluded from the portable skill tree. The preferred Node.js scripts need no install step. If the legacy NBB script is required, reproduce its dependencies from the pinned package-manager version and frozen lockfile:
+
+```bash
+corepack pnpm install --frozen-lockfile
+```
 
 ## Typical automation flow
 

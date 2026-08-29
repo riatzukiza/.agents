@@ -2,6 +2,7 @@
   "name": "cloudflare-tunnel-ops",
   "private": true,
   "type": "module",
+  "packageManager": "pnpm@10.15.0",
   "dependencies": {
     "nbb": "^1.4.208"
   },
