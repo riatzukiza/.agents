@@ -44,6 +44,42 @@ class EntryErrorsTest(unittest.TestCase):
         )
         self.assertTrue(any("node_modules" in error for error in errors))
 
+    def test_accepts_contained_symlink_chain(self) -> None:
+        errors = audit_entries(
+            [
+                ("120000", "a/dir", "../b"),
+                ("120000", "a/link", "dir/file"),
+            ]
+        )
+        self.assertEqual(errors, [])
+
+    def test_rejects_escaping_symlink_chain(self) -> None:
+        errors = audit_entries(
+            [
+                ("120000", "a/dir", "../b"),
+                ("120000", "a/link", "dir/../../outside"),
+            ]
+        )
+        self.assertTrue(any("chain escapes" in error for error in errors))
+
+    def test_rejects_symlink_cycle(self) -> None:
+        errors = audit_entries(
+            [
+                ("120000", "a/one", "two"),
+                ("120000", "a/two", "one"),
+            ]
+        )
+        self.assertTrue(any("cycle" in error for error in errors))
+
+    def test_accepts_finite_repeated_symlink_expansion(self) -> None:
+        errors = audit_entries(
+            [
+                ("120000", "a/x", "../b"),
+                ("120000", "a/link", "x/../a/x/file"),
+            ]
+        )
+        self.assertEqual(errors, [])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -7,11 +7,24 @@ import os
 import posixpath
 import subprocess
 import sys
+from collections import deque
 from collections.abc import Iterable
 from pathlib import PurePosixPath, PureWindowsPath
 
 
 SYMLINK_MODE = "120000"
+MAX_SYMLINK_EXPANSIONS = 40
+
+
+def target_is_absolute(target: str) -> bool:
+    """Return whether a target is rooted on POSIX or Windows."""
+    windows_target = PureWindowsPath(target)
+    return bool(
+        PurePosixPath(target).is_absolute()
+        or windows_target.is_absolute()
+        or windows_target.drive
+        or windows_target.root
+    )
 
 
 def entry_errors(mode: str, path: str, target: str | None = None) -> list[str]:
@@ -29,13 +42,7 @@ def entry_errors(mode: str, path: str, target: str | None = None) -> list[str]:
         errors.append(f"{path}: tracked symlink has an empty or unreadable target")
         return errors
 
-    windows_target = PureWindowsPath(target)
-    if (
-        PurePosixPath(target).is_absolute()
-        or windows_target.is_absolute()
-        or windows_target.drive
-        or windows_target.root
-    ):
+    if target_is_absolute(target):
         errors.append(f"{path}: tracked symlink target is absolute: {target!r}")
         return errors
 
@@ -51,11 +58,74 @@ def entry_errors(mode: str, path: str, target: str | None = None) -> list[str]:
     return errors
 
 
+def symlink_chain_error(
+    path: str, target: str, symlink_targets: dict[str, str]
+) -> str | None:
+    """Resolve tracked symlinks component-by-component and reject escape or cycles."""
+    pending = deque(PurePosixPath(posixpath.dirname(path)).parts)
+    pending.extend(target.replace("\\", "/").split("/"))
+    resolved: list[str] = []
+    seen_states: set[tuple[tuple[str, ...], tuple[str, ...]]] = set()
+    expansions = 0
+
+    while pending:
+        state = (tuple(resolved), tuple(pending))
+        if state in seen_states:
+            return f"{path}: tracked symlink chain contains a cycle"
+        seen_states.add(state)
+
+        component = pending.popleft()
+        if component in {"", "."}:
+            continue
+        if component == "..":
+            if not resolved:
+                return (
+                    f"{path}: tracked symlink chain escapes the repository: "
+                    f"{target!r}"
+                )
+            resolved.pop()
+            continue
+
+        resolved.append(component)
+        candidate = "/".join(resolved)
+        nested_target = symlink_targets.get(candidate)
+        if nested_target is None:
+            continue
+        expansions += 1
+        if expansions > MAX_SYMLINK_EXPANSIONS:
+            return (
+                f"{path}: tracked symlink chain exceeds "
+                f"{MAX_SYMLINK_EXPANSIONS} expansions (cycle or excessive indirection)"
+            )
+        if target_is_absolute(nested_target):
+            return (
+                f"{path}: tracked symlink chain reaches absolute target "
+                f"{nested_target!r} through {candidate!r}"
+            )
+
+        resolved.pop()
+        nested_components = nested_target.replace("\\", "/").split("/")
+        pending.extendleft(reversed(nested_components))
+
+    return None
+
+
 def audit_entries(entries: Iterable[tuple[str, str, str | None]]) -> list[str]:
     """Return all portability violations for tracked entries."""
+    entries = list(entries)
+    symlink_targets = {
+        path: target
+        for mode, path, target in entries
+        if mode == SYMLINK_MODE and target is not None
+    }
     errors: list[str] = []
     for mode, path, target in entries:
-        errors.extend(entry_errors(mode, path, target))
+        direct_errors = entry_errors(mode, path, target)
+        errors.extend(direct_errors)
+        if mode == SYMLINK_MODE and target and not direct_errors:
+            chain_error = symlink_chain_error(path, target, symlink_targets)
+            if chain_error:
+                errors.append(chain_error)
     return errors
 
 
