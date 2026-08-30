@@ -50,6 +50,7 @@ HFS_IGNORABLE_CHARACTERS = frozenset(
         0xFEFF,
     )
 )
+NTFS_GITMODULES_HASH_PREFIX = "gi7eba"
 
 
 def target_is_absolute(target: str) -> bool:
@@ -79,6 +80,52 @@ def windows_upcase(character: str) -> str:
 def contains_unicode_surrogate(value: str) -> bool:
     """Return whether text contains an unpaired UTF-16 surrogate code point."""
     return any(0xD800 <= ord(character) <= 0xDFFF for character in value)
+
+
+def hfs_visible_name(value: str) -> str:
+    """Remove only the filename characters Git treats as HFS-ignorable."""
+    return "".join(
+        character
+        for character in value
+        if character not in HFS_IGNORABLE_CHARACTERS
+    )
+
+
+def ntfs_gitmodules_alias(component: str) -> bool:
+    """Match the .gitmodules aliases protected by Git's NTFS path rules."""
+    name = component.rstrip(" .")
+    lowered = name.lower()
+    if lowered == ".gitmodules":
+        return True
+    if (
+        len(name) == 8
+        and lowered.startswith("gitmod~")
+        and name[7] in "1234"
+    ):
+        return True
+    if len(name) != 8:
+        return False
+
+    saw_tilde = False
+    index = 0
+    while index < 8:
+        character = name[index]
+        if saw_tilde:
+            if character < "0" or character > "9":
+                return False
+        elif character == "~":
+            index += 1
+            if index >= 8 or name[index] < "1" or name[index] > "9":
+                return False
+            saw_tilde = True
+        elif (
+            index >= 6
+            or ord(character) > 127
+            or character.lower() != NTFS_GITMODULES_HASH_PREFIX[index]
+        ):
+            return False
+        index += 1
+    return True
 
 
 def display_path(path: str) -> str:
@@ -130,12 +177,7 @@ def windows_path_errors(path: str) -> list[str]:
                 f"{shown_path}: tracked path component {component!r} aliases .git "
                 "under Git for Windows core.protectNTFS"
             )
-        hfs_visible_component = "".join(
-            character
-            for character in component
-            if character not in HFS_IGNORABLE_CHARACTERS
-        )
-        if hfs_visible_component.lower() == ".git":
+        if hfs_visible_name(component).lower() == ".git":
             errors.append(
                 f"{shown_path}: tracked path component {component!r} aliases .git "
                 "under Git for macOS core.protectHFS"
@@ -176,6 +218,18 @@ def entry_errors(mode: str, path: str, target: str | None = None) -> list[str]:
 
     if mode != SYMLINK_MODE:
         return errors
+
+    for component in path.split("/"):
+        protections: list[str] = []
+        if hfs_visible_name(component).lower() == ".gitmodules":
+            protections.append("core.protectHFS")
+        if ntfs_gitmodules_alias(component):
+            protections.append("core.protectNTFS")
+        if protections:
+            errors.append(
+                f"{shown_path}: tracked symlink component {component!r} aliases "
+                f"protected .gitmodules under {' and '.join(protections)}"
+            )
 
     if target is None or target == "":
         errors.append(

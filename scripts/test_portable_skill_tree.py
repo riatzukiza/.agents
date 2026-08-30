@@ -27,6 +27,10 @@ class EntryErrorsTest(unittest.TestCase):
             [],
         )
 
+    def test_accepts_regular_gitmodules_metadata(self) -> None:
+        """A normal regular .gitmodules file remains valid Git metadata."""
+        self.assertEqual(entry_errors("100644", ".gitmodules"), [])
+
     def test_rejects_windows_reserved_device_names(self) -> None:
         """Legacy Windows device names remain reserved before extensions."""
         errors = audit_entries(
@@ -80,6 +84,23 @@ class EntryErrorsTest(unittest.TestCase):
         self.assertEqual(
             sum("core.protectHFS" in error for error in errors),
             2,
+        )
+
+    def test_rejects_protected_gitmodules_symlink_aliases(self) -> None:
+        """HFS and every NTFS .gitmodules symlink alias fail closed."""
+        errors = audit_entries(
+            [
+                ("120000", "foo/.g\u200citmodules", "target"),
+                ("120000", "foo/gitmod~1", "target"),
+                ("120000", "foo/GITMOD~4...", "target"),
+                ("120000", "foo/gi7eba~1", "target"),
+                ("120000", "foo/gi7eb~12", "target"),
+                ("120000", "foo/.GITMODULES", "target"),
+            ]
+        )
+        self.assertEqual(
+            sum("protected .gitmodules" in error for error in errors),
+            6,
         )
 
     def test_rejects_windows_trailing_period_and_space(self) -> None:
