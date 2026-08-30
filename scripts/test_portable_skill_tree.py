@@ -69,6 +69,19 @@ class EntryErrorsTest(unittest.TestCase):
             3,
         )
 
+    def test_rejects_hfs_git_admin_aliases(self) -> None:
+        """HFS-ignorable Unicode cannot disguise Git administrative names."""
+        errors = audit_entries(
+            [
+                ("100644", "foo/.g\u200cit/config", None),
+                ("100644", "foo/\u200c.GIT\ufeff/config", None),
+            ]
+        )
+        self.assertEqual(
+            sum("core.protectHFS" in error for error in errors),
+            2,
+        )
+
     def test_rejects_windows_trailing_period_and_space(self) -> None:
         """Windows-incompatible trailing periods and spaces are rejected."""
         errors = audit_entries(

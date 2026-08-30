@@ -29,6 +29,27 @@ WINDOWS_RESERVED_NAMES = frozenset(
     }
 )
 WINDOWS_GIT_ADMIN_ALIASES = frozenset({".git", "git~1"})
+HFS_IGNORABLE_CHARACTERS = frozenset(
+    chr(codepoint)
+    for codepoint in (
+        0x200C,
+        0x200D,
+        0x200E,
+        0x200F,
+        0x202A,
+        0x202B,
+        0x202C,
+        0x202D,
+        0x202E,
+        0x206A,
+        0x206B,
+        0x206C,
+        0x206D,
+        0x206E,
+        0x206F,
+        0xFEFF,
+    )
+)
 
 
 def target_is_absolute(target: str) -> bool:
@@ -108,6 +129,16 @@ def windows_path_errors(path: str) -> list[str]:
             errors.append(
                 f"{shown_path}: tracked path component {component!r} aliases .git "
                 "under Git for Windows core.protectNTFS"
+            )
+        hfs_visible_component = "".join(
+            character
+            for character in component
+            if character not in HFS_IGNORABLE_CHARACTERS
+        )
+        if hfs_visible_component.lower() == ".git":
+            errors.append(
+                f"{shown_path}: tracked path component {component!r} aliases .git "
+                "under Git for macOS core.protectHFS"
             )
         if any(len(character.upper()) != 1 for character in component):
             errors.append(
