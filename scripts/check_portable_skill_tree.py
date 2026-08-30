@@ -147,7 +147,7 @@ def windows_path_key(path: str) -> str:
 def hfs_path_key(path: str) -> str:
     """Return a key for canonically decomposed, Git HFS-visible components."""
     decomposed_path = "/".join(
-        unicodedata.normalize("NFD", hfs_visible_name(component))
+        hfs_visible_name(unicodedata.normalize("NFD", component))
         for component in windows_normalized_path(path).split("/")
     )
     return windows_path_key(decomposed_path)

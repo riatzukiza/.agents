@@ -362,6 +362,26 @@ class EntryErrorsTest(unittest.TestCase):
         )
         self.assertTrue(any("HFS canonical decomposition" in error for error in errors))
 
+    def test_preserves_hfs_decomposition_boundaries_before_ignoring(self) -> None:
+        """An ignorable starter still bounds canonical combining-mark ordering."""
+        errors = audit_entries(
+            [
+                ("100644", "a/a\u0301\u200c\u0323", None),
+                ("100644", "a/a\u0323\u0301", None),
+            ]
+        )
+        self.assertEqual(errors, [])
+
+    def test_avoids_false_hfs_chain_through_decomposition_boundary(self) -> None:
+        """A distinct HFS key cannot falsely redirect a contained chain."""
+        errors = audit_entries(
+            [
+                ("120000", "a/a\u0301\u200c\u0323", "../b"),
+                ("120000", "a/link", "a\u0323\u0301/../../outside"),
+            ]
+        )
+        self.assertEqual(errors, [])
+
     def test_rejects_windows_dot_component_collision(self) -> None:
         """Windows separators and dot components cannot hide a path collision."""
         errors = audit_entries(
