@@ -27,6 +27,11 @@ def target_is_absolute(target: str) -> bool:
     )
 
 
+def windows_path_key(path: str) -> str:
+    """Return a separator-normalized, case-insensitive Windows path key."""
+    return path.replace("\\", "/").casefold()
+
+
 def entry_errors(mode: str, path: str, target: str | None = None) -> list[str]:
     """Return portability violations for one tracked Git entry."""
     errors: list[str] = []
@@ -40,6 +45,10 @@ def entry_errors(mode: str, path: str, target: str | None = None) -> list[str]:
 
     if target is None or target == "":
         errors.append(f"{path}: tracked symlink has an empty or unreadable target")
+        return errors
+
+    if "\0" in target:
+        errors.append(f"{path}: tracked symlink target contains NUL")
         return errors
 
     if target_is_absolute(target):
@@ -88,7 +97,7 @@ def symlink_chain_error(
 
         resolved.append(component)
         candidate = "/".join(resolved)
-        nested_target = symlink_targets.get(candidate)
+        nested_target = symlink_targets.get(windows_path_key(candidate))
         if nested_target is None:
             continue
         expansions += 1
@@ -113,12 +122,23 @@ def symlink_chain_error(
 def audit_entries(entries: Iterable[tuple[str, str, str | None]]) -> list[str]:
     """Return all portability violations for tracked entries."""
     entries = list(entries)
-    symlink_targets = {
-        path: target
-        for mode, path, target in entries
-        if mode == SYMLINK_MODE and target is not None
-    }
     errors: list[str] = []
+    symlink_targets: dict[str, str] = {}
+    symlink_paths: dict[str, str] = {}
+    for mode, path, target in entries:
+        if mode != SYMLINK_MODE or target is None:
+            continue
+        key = windows_path_key(path)
+        prior_path = symlink_paths.get(key)
+        if prior_path is not None and prior_path != path:
+            errors.append(
+                f"{path}: tracked symlink path collides case-insensitively "
+                f"with {prior_path}"
+            )
+            continue
+        symlink_paths[key] = path
+        symlink_targets[key] = target
+
     for mode, path, target in entries:
         direct_errors = entry_errors(mode, path, target)
         errors.extend(direct_errors)
@@ -159,6 +179,7 @@ def git_entries() -> list[tuple[str, str, str | None]]:
 
 
 def main() -> int:
+    """Audit the current Git index and return a process exit code."""
     try:
         entries = git_entries()
     except (OSError, subprocess.CalledProcessError, ValueError) as error:
