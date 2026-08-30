@@ -31,7 +31,8 @@ def windows_path_key(path: str) -> str:
     """Return a separator-normalized, case-insensitive Windows path key."""
     # NTFS case-insensitive lookup uses an uppercase table, not Unicode
     # case-folding (for example, dotless-i and ASCII I compare equal there).
-    return path.replace("\\", "/").upper()
+    portable_path = path.replace("\\", "/")
+    return posixpath.normpath(portable_path).upper()
 
 
 def ancestor_keys(path_key: str) -> list[str]:

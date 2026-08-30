@@ -119,6 +119,16 @@ class EntryErrorsTest(unittest.TestCase):
         )
         self.assertTrue(any("collides case-insensitively" in error for error in errors))
 
+    def test_rejects_windows_dot_component_collision(self) -> None:
+        """Windows separators and dot components cannot hide a path collision."""
+        errors = audit_entries(
+            [
+                ("100644", r"a\x\..\dir", None),
+                ("100644", "a/dir", None),
+            ]
+        )
+        self.assertTrue(any("collides case-insensitively" in error for error in errors))
+
     def test_rejects_case_colliding_regular_and_symlink_paths(self) -> None:
         """A regular path and case-equivalent symlink cannot coexist portably."""
         errors = audit_entries(
@@ -148,6 +158,16 @@ class EntryErrorsTest(unittest.TestCase):
             ]
         )
         self.assertTrue(any("file/directory prefix" in error for error in errors))
+
+    def test_rejects_dot_component_symlink_chain_escape(self) -> None:
+        """A Windows-equivalent dot path cannot hide a chained symlink escape."""
+        errors = audit_entries(
+            [
+                ("120000", r"a\x\..\dir", "../b"),
+                ("120000", "a/link", "DIR/../../outside"),
+            ]
+        )
+        self.assertTrue(any("chain escapes" in error for error in errors))
 
     def test_rejects_symlink_cycle(self) -> None:
         """A tracked symlink cycle is rejected."""
