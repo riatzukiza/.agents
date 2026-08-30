@@ -68,6 +68,13 @@ class EntryErrorsTest(unittest.TestCase):
             2,
         )
 
+    def test_rejects_surrogate_escaped_tracked_path(self) -> None:
+        """Invalid UTF-8 path bytes cannot pass through surrogate escape."""
+        errors = audit_entries(
+            [("100644", "skills/example/bad\udc80name", None)]
+        )
+        self.assertTrue(any("invalid Unicode surrogate" in error for error in errors))
+
     def test_rejects_expanding_upcase_without_false_collision(self) -> None:
         """Expanding Unicode uppercase is rejected without collapsing NTFS keys."""
         self.assertNotEqual(
@@ -124,6 +131,11 @@ class EntryErrorsTest(unittest.TestCase):
         """A NUL-bearing target that cannot be checked out is rejected."""
         errors = entry_errors("120000", "skills/example/link", "inside\0outside")
         self.assertTrue(any("NUL" in error for error in errors))
+
+    def test_rejects_surrogate_escaped_symlink_target(self) -> None:
+        """Invalid UTF-8 symlink bytes cannot become a Win32 target."""
+        errors = entry_errors("120000", "skills/example/link", "inside\udc80outside")
+        self.assertTrue(any("invalid Unicode surrogate" in error for error in errors))
 
     def test_rejects_tracked_dependency_tree(self) -> None:
         """Generated dependency content cannot be tracked."""

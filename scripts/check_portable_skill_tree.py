@@ -52,6 +52,11 @@ def windows_upcase(character: str) -> str:
     return upper if len(upper) == 1 else character
 
 
+def contains_unicode_surrogate(value: str) -> bool:
+    """Return whether text contains an unpaired UTF-16 surrogate code point."""
+    return any(0xD800 <= ord(character) <= 0xDFFF for character in value)
+
+
 def windows_path_key(path: str) -> str:
     """Return a separator-normalized, case-insensitive Windows path key."""
     # NTFS case-insensitive lookup uses an uppercase table, not Unicode
@@ -72,6 +77,11 @@ def windows_path_errors(path: str) -> list[str]:
     """Return Win32 filename violations for a slash-separated tracked path."""
     errors: list[str] = []
     for component in path.split("/"):
+        if contains_unicode_surrogate(component):
+            errors.append(
+                f"{path!r}: tracked path component {component!r} contains an "
+                "invalid Unicode surrogate"
+            )
         if any(
             character in WINDOWS_RESERVED_CHARACTERS or ord(character) < 32
             for character in component
@@ -119,6 +129,12 @@ def entry_errors(mode: str, path: str, target: str | None = None) -> list[str]:
 
     if "\0" in target:
         errors.append(f"{path}: tracked symlink target contains NUL")
+        return errors
+
+    if contains_unicode_surrogate(target):
+        errors.append(
+            f"{path}: tracked symlink target contains an invalid Unicode surrogate"
+        )
         return errors
 
     if target_is_absolute(target):
