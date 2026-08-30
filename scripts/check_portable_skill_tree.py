@@ -30,7 +30,12 @@ def entry_errors(mode: str, path: str, target: str | None = None) -> list[str]:
         return errors
 
     windows_target = PureWindowsPath(target)
-    if PurePosixPath(target).is_absolute() or windows_target.is_absolute() or windows_target.drive:
+    if (
+        PurePosixPath(target).is_absolute()
+        or windows_target.is_absolute()
+        or windows_target.drive
+        or windows_target.root
+    ):
         errors.append(f"{path}: tracked symlink target is absolute: {target!r}")
         return errors
 
