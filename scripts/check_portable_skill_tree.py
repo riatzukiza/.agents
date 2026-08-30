@@ -14,6 +14,20 @@ from pathlib import PurePosixPath, PureWindowsPath
 
 SYMLINK_MODE = "120000"
 MAX_SYMLINK_EXPANSIONS = 40
+WINDOWS_RESERVED_CHARACTERS = frozenset('<>:"\\|?*')
+WINDOWS_DEVICE_SUFFIXES = tuple(str(number) for number in range(1, 10)) + (
+    "¹",
+    "²",
+    "³",
+)
+WINDOWS_RESERVED_NAMES = frozenset(
+    {"CON", "PRN", "AUX", "NUL"}
+    | {
+        f"{prefix}{suffix}"
+        for prefix in ("COM", "LPT")
+        for suffix in WINDOWS_DEVICE_SUFFIXES
+    }
+)
 
 
 def target_is_absolute(target: str) -> bool:
@@ -27,12 +41,25 @@ def target_is_absolute(target: str) -> bool:
     )
 
 
+def windows_normalized_path(path: str) -> str:
+    """Return a slash-separated path with Windows separators and dots resolved."""
+    return posixpath.normpath(path.replace("\\", "/"))
+
+
+def windows_upcase(character: str) -> str:
+    """Return a conservative, length-preserving Windows-style upcase value."""
+    upper = character.upper()
+    return upper if len(upper) == 1 else character
+
+
 def windows_path_key(path: str) -> str:
     """Return a separator-normalized, case-insensitive Windows path key."""
     # NTFS case-insensitive lookup uses an uppercase table, not Unicode
-    # case-folding (for example, dotless-i and ASCII I compare equal there).
-    portable_path = path.replace("\\", "/")
-    return posixpath.normpath(portable_path).upper()
+    # case-folding. Its table maps one code unit to one code unit, so expanding
+    # Python mappings (for example, sharp-s to SS) must not collapse names.
+    return "".join(
+        windows_upcase(character) for character in windows_normalized_path(path)
+    )
 
 
 def ancestor_keys(path_key: str) -> list[str]:
@@ -41,10 +68,44 @@ def ancestor_keys(path_key: str) -> list[str]:
     return ["/".join(parts[:index]) for index in range(1, len(parts))]
 
 
+def windows_path_errors(path: str) -> list[str]:
+    """Return Win32 filename violations for a slash-separated tracked path."""
+    errors: list[str] = []
+    for component in path.split("/"):
+        if any(
+            character in WINDOWS_RESERVED_CHARACTERS or ord(character) < 32
+            for character in component
+        ):
+            errors.append(
+                f"{path}: tracked path component {component!r} contains a "
+                "Windows-reserved character"
+            )
+        if component.endswith((" ", ".")):
+            errors.append(
+                f"{path}: tracked path component {component!r} ends with a "
+                "Windows-reserved space or period"
+            )
+        if any(len(character.upper()) != 1 for character in component):
+            errors.append(
+                f"{path}: tracked path component {component!r} has no "
+                "supported length-preserving Windows upcase mapping"
+            )
+        device_stem = component.split(".", 1)[0].upper()
+        if device_stem in WINDOWS_RESERVED_NAMES:
+            errors.append(
+                f"{path}: tracked path component {component!r} uses reserved "
+                f"Windows device name {device_stem}"
+            )
+    return errors
+
+
 def entry_errors(mode: str, path: str, target: str | None = None) -> list[str]:
     """Return portability violations for one tracked Git entry."""
     errors: list[str] = []
-    parts = PurePosixPath(path).parts
+    normalized_path = windows_normalized_path(path)
+    parts = PurePosixPath(normalized_path).parts
+
+    errors.extend(windows_path_errors(path))
 
     if any(part.lower() == "node_modules" for part in parts):
         errors.append(f"{path}: generated node_modules content is tracked")
@@ -68,7 +129,7 @@ def entry_errors(mode: str, path: str, target: str | None = None) -> list[str]:
     # a target cannot pass on Linux and escape after a Windows checkout.
     portable_target = target.replace("\\", "/")
     destination = posixpath.normpath(
-        posixpath.join(posixpath.dirname(path), portable_target)
+        posixpath.join(posixpath.dirname(normalized_path), portable_target)
     )
     if destination == ".." or destination.startswith("../"):
         errors.append(f"{path}: tracked symlink target escapes the repository: {target!r}")
@@ -80,7 +141,8 @@ def symlink_chain_error(
     path: str, target: str, symlink_targets: dict[str, str]
 ) -> str | None:
     """Resolve tracked symlinks component-by-component and reject escape or cycles."""
-    pending = deque(PurePosixPath(posixpath.dirname(path)).parts)
+    normalized_path = windows_normalized_path(path)
+    pending = deque(PurePosixPath(posixpath.dirname(normalized_path)).parts)
     pending.extend(target.replace("\\", "/").split("/"))
     resolved: list[str] = []
     seen_states: set[tuple[tuple[str, ...], tuple[str, ...]]] = set()

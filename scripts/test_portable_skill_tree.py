@@ -5,7 +5,12 @@ from __future__ import annotations
 
 import unittest
 
-from check_portable_skill_tree import audit_entries, entry_errors
+from check_portable_skill_tree import (
+    audit_entries,
+    entry_errors,
+    symlink_chain_error,
+    windows_path_key,
+)
 
 
 class EntryErrorsTest(unittest.TestCase):
@@ -21,6 +26,62 @@ class EntryErrorsTest(unittest.TestCase):
             entry_errors("120000", ".opencode/skill/example", "../../skills/example"),
             [],
         )
+
+    def test_rejects_windows_reserved_device_names(self) -> None:
+        """Legacy Windows device names remain reserved before extensions."""
+        errors = audit_entries(
+            [
+                ("100644", "skills/example/CON", None),
+                ("100644", "skills/example/aux.txt", None),
+                ("100644", "skills/example/COM¹.log", None),
+                ("100644", "skills/example/LPT9", None),
+            ]
+        )
+        self.assertEqual(
+            sum("reserved Windows device name" in error for error in errors),
+            4,
+        )
+
+    def test_rejects_windows_trailing_period_and_space(self) -> None:
+        """Windows-incompatible trailing periods and spaces are rejected."""
+        errors = audit_entries(
+            [
+                ("100644", "skills/example/file.", None),
+                ("100644", "skills/example/file ", None),
+            ]
+        )
+        self.assertEqual(
+            sum("Windows-reserved space or period" in error for error in errors),
+            2,
+        )
+
+    def test_rejects_windows_reserved_and_control_characters(self) -> None:
+        """Win32-reserved punctuation and control characters are rejected."""
+        errors = audit_entries(
+            [
+                ("100644", "skills/example/bad:name", None),
+                ("100644", "skills/example/bad\x1fname", None),
+            ]
+        )
+        self.assertEqual(
+            sum("Windows-reserved character" in error for error in errors),
+            2,
+        )
+
+    def test_rejects_expanding_upcase_without_false_collision(self) -> None:
+        """Expanding Unicode uppercase is rejected without collapsing NTFS keys."""
+        self.assertNotEqual(
+            windows_path_key("a/straße"),
+            windows_path_key("a/STRASSE"),
+        )
+        errors = audit_entries(
+            [
+                ("100644", "a/straße", None),
+                ("100644", "a/STRASSE", None),
+            ]
+        )
+        self.assertTrue(any("length-preserving Windows upcase" in error for error in errors))
+        self.assertFalse(any("collides case-insensitively" in error for error in errors))
 
     def test_rejects_posix_absolute_symlink(self) -> None:
         """A POSIX-absolute target is not portable."""
@@ -46,6 +107,18 @@ class EntryErrorsTest(unittest.TestCase):
         """A Windows-separator repository escape is rejected."""
         errors = entry_errors("120000", "skills/example/link", r"..\\..\\..\\outside")
         self.assertTrue(any("escapes" in error for error in errors))
+
+    def test_normalizes_backslash_symlink_parent_before_containment(self) -> None:
+        """A backslash path is invalid but its contained target is not an escape."""
+        errors = entry_errors("120000", r"a\dir\link", "../target")
+        self.assertTrue(any("Windows-reserved character" in error for error in errors))
+        self.assertFalse(any("target escapes" in error for error in errors))
+
+    def test_normalizes_backslash_parent_in_chain_resolver(self) -> None:
+        """Chain resolution derives the parent after Windows path normalization."""
+        self.assertIsNone(
+            symlink_chain_error(r"a\dir\link", "../target", {})
+        )
 
     def test_rejects_nul_symlink_target(self) -> None:
         """A NUL-bearing target that cannot be checked out is rejected."""
