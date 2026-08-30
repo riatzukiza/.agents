@@ -7,6 +7,7 @@ import os
 import posixpath
 import subprocess
 import sys
+import unicodedata
 from collections import deque
 from collections.abc import Iterable
 from pathlib import PurePosixPath, PureWindowsPath
@@ -144,8 +145,12 @@ def windows_path_key(path: str) -> str:
 
 
 def hfs_path_key(path: str) -> str:
-    """Return a normalized key after removing Git's HFS-ignorable characters."""
-    return windows_path_key(hfs_visible_name(path))
+    """Return a key for canonically decomposed, Git HFS-visible components."""
+    decomposed_path = "/".join(
+        unicodedata.normalize("NFD", hfs_visible_name(component))
+        for component in windows_normalized_path(path).split("/")
+    )
+    return windows_path_key(decomposed_path)
 
 
 def ancestor_keys(path_key: str) -> list[str]:
@@ -378,8 +383,8 @@ def audit_entries(entries: Iterable[tuple[str, str, str | None]]) -> list[str]:
         prior_hfs_path = hfs_tracked_paths.get(hfs_key)
         if prior_hfs_path is not None and prior_hfs_path != path:
             errors.append(
-                f"{display_path(path)}: tracked path collides after removing "
-                "Git HFS-ignorable characters with "
+                f"{display_path(path)}: tracked path collides after HFS canonical "
+                "decomposition and removing Git HFS-ignorable characters with "
                 f"{display_path(prior_hfs_path)}"
             )
         prior_hfs_ancestor = next(

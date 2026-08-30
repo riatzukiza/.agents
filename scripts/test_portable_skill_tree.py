@@ -262,6 +262,16 @@ class EntryErrorsTest(unittest.TestCase):
         )
         self.assertEqual(errors, [])
 
+    def test_accepts_hfs_canonical_contained_symlink_chain(self) -> None:
+        """Canonical HFS lookup preserves a contained symlink chain."""
+        errors = audit_entries(
+            [
+                ("120000", "a/é", "../b"),
+                ("120000", "a/link", "e\u0301/file"),
+            ]
+        )
+        self.assertEqual(errors, [])
+
     def test_rejects_escaping_symlink_chain(self) -> None:
         """A chained target that redirects parent traversal outside is rejected."""
         errors = audit_entries(
@@ -278,6 +288,16 @@ class EntryErrorsTest(unittest.TestCase):
             [
                 ("120000", "a/dir", "../b"),
                 ("120000", "a/link", "d\u200cir/../../outside"),
+            ]
+        )
+        self.assertTrue(any("chain escapes" in error for error in errors))
+
+    def test_rejects_hfs_canonical_escaping_symlink_chain(self) -> None:
+        """Canonical Unicode spellings cannot hide an HFS chained escape."""
+        errors = audit_entries(
+            [
+                ("120000", "a/é", "../b"),
+                ("120000", "a/link", "e\u0301/../../outside"),
             ]
         )
         self.assertTrue(any("chain escapes" in error for error in errors))
@@ -332,6 +352,16 @@ class EntryErrorsTest(unittest.TestCase):
         )
         self.assertTrue(any("HFS-ignorable" in error for error in errors))
 
+    def test_rejects_hfs_canonical_regular_paths(self) -> None:
+        """Canonical Unicode spellings cannot distinguish HFS files."""
+        errors = audit_entries(
+            [
+                ("100644", "a/é", None),
+                ("100644", "a/e\u0301", None),
+            ]
+        )
+        self.assertTrue(any("HFS canonical decomposition" in error for error in errors))
+
     def test_rejects_windows_dot_component_collision(self) -> None:
         """Windows separators and dot components cannot hide a path collision."""
         errors = audit_entries(
@@ -378,6 +408,16 @@ class EntryErrorsTest(unittest.TestCase):
             [
                 ("100644", "a/d\u200cir/child", None),
                 ("100644", "a/dir", None),
+            ]
+        )
+        self.assertTrue(any("collides HFS-equivalently" in error for error in errors))
+
+    def test_rejects_hfs_canonical_file_directory_prefix(self) -> None:
+        """Canonical Unicode spellings cannot hide an HFS prefix conflict."""
+        errors = audit_entries(
+            [
+                ("100644", "a/e\u0301/child", None),
+                ("100644", "a/é", None),
             ]
         )
         self.assertTrue(any("collides HFS-equivalently" in error for error in errors))
