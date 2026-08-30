@@ -31,6 +31,16 @@ class EntryErrorsTest(unittest.TestCase):
         """A normal regular .gitmodules file remains valid Git metadata."""
         self.assertEqual(entry_errors("100644", ".gitmodules"), [])
 
+    def test_accepts_ntfs_alias_directory_around_symlink(self) -> None:
+        """An NTFS-like alias remains valid when it is not the symlink basename."""
+        errors = audit_entries(
+            [
+                ("120000", "foo/gitmod~1/link", "target"),
+                ("120000", "foo/gi7eba~1/other", "target"),
+            ]
+        )
+        self.assertEqual(errors, [])
+
     def test_rejects_windows_reserved_device_names(self) -> None:
         """Legacy Windows device names remain reserved before extensions."""
         errors = audit_entries(
@@ -96,11 +106,12 @@ class EntryErrorsTest(unittest.TestCase):
                 ("120000", "foo/gi7eba~1", "target"),
                 ("120000", "foo/gi7eb~12", "target"),
                 ("120000", "foo/.GITMODULES", "target"),
+                ("120000", "foo/.g\u200citmodules/link", "target"),
             ]
         )
         self.assertEqual(
             sum("protected .gitmodules" in error for error in errors),
-            6,
+            7,
         )
 
     def test_rejects_windows_trailing_period_and_space(self) -> None:

@@ -219,11 +219,12 @@ def entry_errors(mode: str, path: str, target: str | None = None) -> list[str]:
     if mode != SYMLINK_MODE:
         return errors
 
-    for component in path.split("/"):
+    components = path.split("/")
+    for index, component in enumerate(components):
         protections: list[str] = []
         if hfs_visible_name(component).lower() == ".gitmodules":
             protections.append("core.protectHFS")
-        if ntfs_gitmodules_alias(component):
+        if index == len(components) - 1 and ntfs_gitmodules_alias(component):
             protections.append("core.protectNTFS")
         if protections:
             errors.append(
