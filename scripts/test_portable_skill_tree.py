@@ -55,6 +55,20 @@ class EntryErrorsTest(unittest.TestCase):
             2,
         )
 
+    def test_rejects_ntfs_git_admin_aliases(self) -> None:
+        """Git administrative names and their NTFS short alias are rejected."""
+        errors = audit_entries(
+            [
+                ("100644", "foo/.GIT/config", None),
+                ("100644", "foo/git~1/config", None),
+                ("100644", "foo/GIT~1.../config", None),
+            ]
+        )
+        self.assertEqual(
+            sum("core.protectNTFS" in error for error in errors),
+            3,
+        )
+
     def test_rejects_windows_trailing_period_and_space(self) -> None:
         """Windows-incompatible trailing periods and spaces are rejected."""
         errors = audit_entries(

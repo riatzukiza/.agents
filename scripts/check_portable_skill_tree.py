@@ -28,6 +28,7 @@ WINDOWS_RESERVED_NAMES = frozenset(
         for suffix in WINDOWS_DEVICE_SUFFIXES
     }
 )
+WINDOWS_GIT_ADMIN_ALIASES = frozenset({".git", "git~1"})
 
 
 def target_is_absolute(target: str) -> bool:
@@ -102,6 +103,11 @@ def windows_path_errors(path: str) -> list[str]:
             errors.append(
                 f"{shown_path}: tracked path component {component!r} ends with a "
                 "Windows-reserved space or period"
+            )
+        if component.rstrip(" .").lower() in WINDOWS_GIT_ADMIN_ALIASES:
+            errors.append(
+                f"{shown_path}: tracked path component {component!r} aliases .git "
+                "under Git for Windows core.protectNTFS"
             )
         if any(len(character.upper()) != 1 for character in component):
             errors.append(
