@@ -99,6 +99,26 @@ class EntryErrorsTest(unittest.TestCase):
         )
         self.assertTrue(any("collides case-insensitively" in error for error in errors))
 
+    def test_rejects_case_colliding_regular_paths(self) -> None:
+        """Case-colliding regular files cannot form a portable tree."""
+        errors = audit_entries(
+            [
+                ("100644", "a/file", None),
+                ("100644", "a/FILE", None),
+            ]
+        )
+        self.assertTrue(any("collides case-insensitively" in error for error in errors))
+
+    def test_rejects_case_colliding_regular_and_symlink_paths(self) -> None:
+        """A regular path and case-equivalent symlink cannot coexist portably."""
+        errors = audit_entries(
+            [
+                ("100644", "a/dir", None),
+                ("120000", "a/DIR", "../b"),
+            ]
+        )
+        self.assertTrue(any("collides case-insensitively" in error for error in errors))
+
     def test_rejects_symlink_cycle(self) -> None:
         """A tracked symlink cycle is rejected."""
         errors = audit_entries(

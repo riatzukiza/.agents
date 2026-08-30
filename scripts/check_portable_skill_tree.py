@@ -124,20 +124,18 @@ def audit_entries(entries: Iterable[tuple[str, str, str | None]]) -> list[str]:
     entries = list(entries)
     errors: list[str] = []
     symlink_targets: dict[str, str] = {}
-    symlink_paths: dict[str, str] = {}
+    tracked_paths: dict[str, str] = {}
     for mode, path, target in entries:
-        if mode != SYMLINK_MODE or target is None:
-            continue
         key = windows_path_key(path)
-        prior_path = symlink_paths.get(key)
+        prior_path = tracked_paths.get(key)
         if prior_path is not None and prior_path != path:
             errors.append(
-                f"{path}: tracked symlink path collides case-insensitively "
-                f"with {prior_path}"
+                f"{path}: tracked path collides case-insensitively with {prior_path}"
             )
-            continue
-        symlink_paths[key] = path
-        symlink_targets[key] = target
+        else:
+            tracked_paths[key] = path
+        if mode == SYMLINK_MODE and target is not None:
+            symlink_targets.setdefault(key, target)
 
     for mode, path, target in entries:
         direct_errors = entry_errors(mode, path, target)
