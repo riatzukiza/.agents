@@ -89,6 +89,16 @@ class EntryErrorsTest(unittest.TestCase):
         )
         self.assertTrue(any("chain escapes" in error for error in errors))
 
+    def test_rejects_windows_upcase_escaping_symlink_chain(self) -> None:
+        """Windows upcasing of dotless-i cannot hide a chained escape."""
+        errors = audit_entries(
+            [
+                ("120000", "a/dır", "../b"),
+                ("120000", "a/link", "DIR/../../outside"),
+            ]
+        )
+        self.assertTrue(any("chain escapes" in error for error in errors))
+
     def test_rejects_case_colliding_symlink_paths(self) -> None:
         """Case-colliding tracked symlinks cannot form a portable tree."""
         errors = audit_entries(
@@ -118,6 +128,26 @@ class EntryErrorsTest(unittest.TestCase):
             ]
         )
         self.assertTrue(any("collides case-insensitively" in error for error in errors))
+
+    def test_rejects_case_insensitive_file_directory_prefix(self) -> None:
+        """One Windows-equivalent path cannot be both a file and directory."""
+        errors = audit_entries(
+            [
+                ("100644", "a", None),
+                ("100644", "A/b", None),
+            ]
+        )
+        self.assertTrue(any("descends case-insensitively" in error for error in errors))
+
+    def test_rejects_reverse_file_directory_prefix_order(self) -> None:
+        """Prefix collisions are rejected regardless of Git listing order."""
+        errors = audit_entries(
+            [
+                ("100644", "A/b", None),
+                ("100644", "a", None),
+            ]
+        )
+        self.assertTrue(any("file/directory prefix" in error for error in errors))
 
     def test_rejects_symlink_cycle(self) -> None:
         """A tracked symlink cycle is rejected."""

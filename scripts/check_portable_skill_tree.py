@@ -29,7 +29,15 @@ def target_is_absolute(target: str) -> bool:
 
 def windows_path_key(path: str) -> str:
     """Return a separator-normalized, case-insensitive Windows path key."""
-    return path.replace("\\", "/").casefold()
+    # NTFS case-insensitive lookup uses an uppercase table, not Unicode
+    # case-folding (for example, dotless-i and ASCII I compare equal there).
+    return path.replace("\\", "/").upper()
+
+
+def ancestor_keys(path_key: str) -> list[str]:
+    """Return component-aligned ancestor keys for a normalized tracked path."""
+    parts = path_key.split("/")
+    return ["/".join(parts[:index]) for index in range(1, len(parts))]
 
 
 def entry_errors(mode: str, path: str, target: str | None = None) -> list[str]:
@@ -125,6 +133,7 @@ def audit_entries(entries: Iterable[tuple[str, str, str | None]]) -> list[str]:
     errors: list[str] = []
     symlink_targets: dict[str, str] = {}
     tracked_paths: dict[str, str] = {}
+    tracked_prefixes: dict[str, str] = {}
     for mode, path, target in entries:
         key = windows_path_key(path)
         prior_path = tracked_paths.get(key)
@@ -132,8 +141,29 @@ def audit_entries(entries: Iterable[tuple[str, str, str | None]]) -> list[str]:
             errors.append(
                 f"{path}: tracked path collides case-insensitively with {prior_path}"
             )
-        else:
-            tracked_paths[key] = path
+        prior_ancestor = next(
+            (
+                tracked_paths[ancestor]
+                for ancestor in ancestor_keys(key)
+                if ancestor in tracked_paths
+            ),
+            None,
+        )
+        if prior_ancestor is not None:
+            errors.append(
+                f"{path}: tracked path descends case-insensitively from file path "
+                f"{prior_ancestor}"
+            )
+        prior_descendant = tracked_prefixes.get(key)
+        if prior_descendant is not None:
+            errors.append(
+                f"{path}: tracked path collides case-insensitively as a "
+                f"file/directory prefix with {prior_descendant}"
+            )
+
+        tracked_paths.setdefault(key, path)
+        for ancestor in ancestor_keys(key):
+            tracked_prefixes.setdefault(ancestor, path)
         if mode == SYMLINK_MODE and target is not None:
             symlink_targets.setdefault(key, target)
 
