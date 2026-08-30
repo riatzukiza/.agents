@@ -21,7 +21,7 @@ WINDOWS_DEVICE_SUFFIXES = tuple(str(number) for number in range(1, 10)) + (
     "³",
 )
 WINDOWS_RESERVED_NAMES = frozenset(
-    {"CON", "PRN", "AUX", "NUL"}
+    {"CON", "PRN", "AUX", "NUL", "CONIN$", "CONOUT$"}
     | {
         f"{prefix}{suffix}"
         for prefix in ("COM", "LPT")
@@ -48,6 +48,8 @@ def windows_normalized_path(path: str) -> str:
 
 def windows_upcase(character: str) -> str:
     """Return a conservative, length-preserving Windows-style upcase value."""
+    if ord(character) > 0xFFFF:
+        return character
     upper = character.upper()
     return upper if len(upper) == 1 else character
 
@@ -55,6 +57,11 @@ def windows_upcase(character: str) -> str:
 def contains_unicode_surrogate(value: str) -> bool:
     """Return whether text contains an unpaired UTF-16 surrogate code point."""
     return any(0xD800 <= ord(character) <= 0xDFFF for character in value)
+
+
+def display_path(path: str) -> str:
+    """Render a path safely when surrogate escape preserved invalid Git bytes."""
+    return repr(path) if contains_unicode_surrogate(path) else path
 
 
 def windows_path_key(path: str) -> str:
@@ -76,10 +83,11 @@ def ancestor_keys(path_key: str) -> list[str]:
 def windows_path_errors(path: str) -> list[str]:
     """Return Win32 filename violations for a slash-separated tracked path."""
     errors: list[str] = []
+    shown_path = display_path(path)
     for component in path.split("/"):
         if contains_unicode_surrogate(component):
             errors.append(
-                f"{path!r}: tracked path component {component!r} contains an "
+                f"{shown_path}: tracked path component {component!r} contains an "
                 "invalid Unicode surrogate"
             )
         if any(
@@ -87,23 +95,31 @@ def windows_path_errors(path: str) -> list[str]:
             for character in component
         ):
             errors.append(
-                f"{path}: tracked path component {component!r} contains a "
+                f"{shown_path}: tracked path component {component!r} contains a "
                 "Windows-reserved character"
             )
         if component.endswith((" ", ".")):
             errors.append(
-                f"{path}: tracked path component {component!r} ends with a "
+                f"{shown_path}: tracked path component {component!r} ends with a "
                 "Windows-reserved space or period"
             )
         if any(len(character.upper()) != 1 for character in component):
             errors.append(
-                f"{path}: tracked path component {component!r} has no "
+                f"{shown_path}: tracked path component {component!r} has no "
                 "supported length-preserving Windows upcase mapping"
+            )
+        if any(
+            ord(character) > 0xFFFF and character.upper() != character
+            for character in component
+        ):
+            errors.append(
+                f"{shown_path}: tracked path component {component!r} has an "
+                "unsupported supplementary-plane Windows upcase mapping"
             )
         device_stem = component.split(".", 1)[0].upper()
         if device_stem in WINDOWS_RESERVED_NAMES:
             errors.append(
-                f"{path}: tracked path component {component!r} uses reserved "
+                f"{shown_path}: tracked path component {component!r} uses reserved "
                 f"Windows device name {device_stem}"
             )
     return errors
@@ -112,33 +128,38 @@ def windows_path_errors(path: str) -> list[str]:
 def entry_errors(mode: str, path: str, target: str | None = None) -> list[str]:
     """Return portability violations for one tracked Git entry."""
     errors: list[str] = []
+    shown_path = display_path(path)
     normalized_path = windows_normalized_path(path)
     parts = PurePosixPath(normalized_path).parts
 
     errors.extend(windows_path_errors(path))
 
     if any(part.lower() == "node_modules" for part in parts):
-        errors.append(f"{path}: generated node_modules content is tracked")
+        errors.append(f"{shown_path}: generated node_modules content is tracked")
 
     if mode != SYMLINK_MODE:
         return errors
 
     if target is None or target == "":
-        errors.append(f"{path}: tracked symlink has an empty or unreadable target")
+        errors.append(
+            f"{shown_path}: tracked symlink has an empty or unreadable target"
+        )
         return errors
 
     if "\0" in target:
-        errors.append(f"{path}: tracked symlink target contains NUL")
+        errors.append(f"{shown_path}: tracked symlink target contains NUL")
         return errors
 
     if contains_unicode_surrogate(target):
         errors.append(
-            f"{path}: tracked symlink target contains an invalid Unicode surrogate"
+            f"{shown_path}: tracked symlink target contains an invalid Unicode surrogate"
         )
         return errors
 
     if target_is_absolute(target):
-        errors.append(f"{path}: tracked symlink target is absolute: {target!r}")
+        errors.append(
+            f"{shown_path}: tracked symlink target is absolute: {target!r}"
+        )
         return errors
 
     # Git stores slash-separated paths. Treat backslashes as separators too so
@@ -148,7 +169,9 @@ def entry_errors(mode: str, path: str, target: str | None = None) -> list[str]:
         posixpath.join(posixpath.dirname(normalized_path), portable_target)
     )
     if destination == ".." or destination.startswith("../"):
-        errors.append(f"{path}: tracked symlink target escapes the repository: {target!r}")
+        errors.append(
+            f"{shown_path}: tracked symlink target escapes the repository: {target!r}"
+        )
 
     return errors
 
@@ -157,6 +180,7 @@ def symlink_chain_error(
     path: str, target: str, symlink_targets: dict[str, str]
 ) -> str | None:
     """Resolve tracked symlinks component-by-component and reject escape or cycles."""
+    shown_path = display_path(path)
     normalized_path = windows_normalized_path(path)
     pending = deque(PurePosixPath(posixpath.dirname(normalized_path)).parts)
     pending.extend(target.replace("\\", "/").split("/"))
@@ -167,7 +191,7 @@ def symlink_chain_error(
     while pending:
         state = (tuple(resolved), tuple(pending))
         if state in seen_states:
-            return f"{path}: tracked symlink chain contains a cycle"
+            return f"{shown_path}: tracked symlink chain contains a cycle"
         seen_states.add(state)
 
         component = pending.popleft()
@@ -176,7 +200,7 @@ def symlink_chain_error(
         if component == "..":
             if not resolved:
                 return (
-                    f"{path}: tracked symlink chain escapes the repository: "
+                    f"{shown_path}: tracked symlink chain escapes the repository: "
                     f"{target!r}"
                 )
             resolved.pop()
@@ -190,12 +214,12 @@ def symlink_chain_error(
         expansions += 1
         if expansions > MAX_SYMLINK_EXPANSIONS:
             return (
-                f"{path}: tracked symlink chain exceeds "
+                f"{shown_path}: tracked symlink chain exceeds "
                 f"{MAX_SYMLINK_EXPANSIONS} expansions (cycle or excessive indirection)"
             )
         if target_is_absolute(nested_target):
             return (
-                f"{path}: tracked symlink chain reaches absolute target "
+                f"{shown_path}: tracked symlink chain reaches absolute target "
                 f"{nested_target!r} through {candidate!r}"
             )
 
@@ -218,7 +242,8 @@ def audit_entries(entries: Iterable[tuple[str, str, str | None]]) -> list[str]:
         prior_path = tracked_paths.get(key)
         if prior_path is not None and prior_path != path:
             errors.append(
-                f"{path}: tracked path collides case-insensitively with {prior_path}"
+                f"{display_path(path)}: tracked path collides case-insensitively "
+                f"with {display_path(prior_path)}"
             )
         prior_ancestor = next(
             (
@@ -230,14 +255,14 @@ def audit_entries(entries: Iterable[tuple[str, str, str | None]]) -> list[str]:
         )
         if prior_ancestor is not None:
             errors.append(
-                f"{path}: tracked path descends case-insensitively from file path "
-                f"{prior_ancestor}"
+                f"{display_path(path)}: tracked path descends case-insensitively "
+                f"from file path {display_path(prior_ancestor)}"
             )
         prior_descendant = tracked_prefixes.get(key)
         if prior_descendant is not None:
             errors.append(
-                f"{path}: tracked path collides case-insensitively as a "
-                f"file/directory prefix with {prior_descendant}"
+                f"{display_path(path)}: tracked path collides case-insensitively "
+                f"as a file/directory prefix with {display_path(prior_descendant)}"
             )
 
         tracked_paths.setdefault(key, path)

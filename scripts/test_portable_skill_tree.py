@@ -42,6 +42,19 @@ class EntryErrorsTest(unittest.TestCase):
             4,
         )
 
+    def test_rejects_windows_console_device_aliases(self) -> None:
+        """Win32 console input and output aliases remain reserved."""
+        errors = audit_entries(
+            [
+                ("100644", "skills/example/CONIN$", None),
+                ("100644", "skills/example/conout$.txt", None),
+            ]
+        )
+        self.assertEqual(
+            sum("reserved Windows device name" in error for error in errors),
+            2,
+        )
+
     def test_rejects_windows_trailing_period_and_space(self) -> None:
         """Windows-incompatible trailing periods and spaces are rejected."""
         errors = audit_entries(
@@ -75,6 +88,15 @@ class EntryErrorsTest(unittest.TestCase):
         )
         self.assertTrue(any("invalid Unicode surrogate" in error for error in errors))
 
+    def test_surrogate_path_diagnostics_are_utf8_safe(self) -> None:
+        """Every diagnostic remains encodable when one path has multiple errors."""
+        errors = audit_entries(
+            [("100644", "skills/example/bad\udc80:name", None)]
+        )
+        self.assertGreaterEqual(len(errors), 2)
+        for error in errors:
+            error.encode("utf-8")
+
     def test_rejects_expanding_upcase_without_false_collision(self) -> None:
         """Expanding Unicode uppercase is rejected without collapsing NTFS keys."""
         self.assertNotEqual(
@@ -88,6 +110,23 @@ class EntryErrorsTest(unittest.TestCase):
             ]
         )
         self.assertTrue(any("length-preserving Windows upcase" in error for error in errors))
+        self.assertFalse(any("collides case-insensitively" in error for error in errors))
+
+    def test_rejects_supplementary_upcase_without_false_collision(self) -> None:
+        """Non-BMP case mappings cannot collapse distinct NTFS code-unit keys."""
+        self.assertNotEqual(
+            windows_path_key("a/𐐨"),
+            windows_path_key("a/𐐀"),
+        )
+        errors = audit_entries(
+            [
+                ("100644", "a/𐐨", None),
+                ("100644", "a/𐐀", None),
+            ]
+        )
+        self.assertTrue(
+            any("supplementary-plane Windows upcase" in error for error in errors)
+        )
         self.assertFalse(any("collides case-insensitively" in error for error in errors))
 
     def test_rejects_posix_absolute_symlink(self) -> None:
