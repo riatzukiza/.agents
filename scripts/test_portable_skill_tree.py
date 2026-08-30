@@ -252,12 +252,32 @@ class EntryErrorsTest(unittest.TestCase):
         )
         self.assertEqual(errors, [])
 
+    def test_accepts_hfs_equivalent_contained_symlink_chain(self) -> None:
+        """HFS-equivalent lookup does not reject a contained symlink chain."""
+        errors = audit_entries(
+            [
+                ("120000", "a/dir", "../b"),
+                ("120000", "a/link", "d\u200cir/file"),
+            ]
+        )
+        self.assertEqual(errors, [])
+
     def test_rejects_escaping_symlink_chain(self) -> None:
         """A chained target that redirects parent traversal outside is rejected."""
         errors = audit_entries(
             [
                 ("120000", "a/dir", "../b"),
                 ("120000", "a/link", "dir/../../outside"),
+            ]
+        )
+        self.assertTrue(any("chain escapes" in error for error in errors))
+
+    def test_rejects_hfs_equivalent_escaping_symlink_chain(self) -> None:
+        """HFS-ignorable characters cannot hide a chained escape."""
+        errors = audit_entries(
+            [
+                ("120000", "a/dir", "../b"),
+                ("120000", "a/link", "d\u200cir/../../outside"),
             ]
         )
         self.assertTrue(any("chain escapes" in error for error in errors))
@@ -302,6 +322,16 @@ class EntryErrorsTest(unittest.TestCase):
         )
         self.assertTrue(any("collides case-insensitively" in error for error in errors))
 
+    def test_rejects_hfs_equivalent_regular_paths(self) -> None:
+        """HFS-ignorable characters cannot distinguish tracked files."""
+        errors = audit_entries(
+            [
+                ("100644", "a/dir", None),
+                ("100644", "a/d\u200cir", None),
+            ]
+        )
+        self.assertTrue(any("HFS-ignorable" in error for error in errors))
+
     def test_rejects_windows_dot_component_collision(self) -> None:
         """Windows separators and dot components cannot hide a path collision."""
         errors = audit_entries(
@@ -341,6 +371,16 @@ class EntryErrorsTest(unittest.TestCase):
             ]
         )
         self.assertTrue(any("file/directory prefix" in error for error in errors))
+
+    def test_rejects_hfs_equivalent_file_directory_prefix(self) -> None:
+        """HFS-ignorable characters cannot hide a file/directory conflict."""
+        errors = audit_entries(
+            [
+                ("100644", "a/d\u200cir/child", None),
+                ("100644", "a/dir", None),
+            ]
+        )
+        self.assertTrue(any("collides HFS-equivalently" in error for error in errors))
 
     def test_rejects_dot_component_symlink_chain_escape(self) -> None:
         """A Windows-equivalent dot path cannot hide a chained symlink escape."""

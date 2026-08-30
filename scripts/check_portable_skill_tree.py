@@ -143,6 +143,11 @@ def windows_path_key(path: str) -> str:
     )
 
 
+def hfs_path_key(path: str) -> str:
+    """Return a normalized key after removing Git's HFS-ignorable characters."""
+    return windows_path_key(hfs_visible_name(path))
+
+
 def ancestor_keys(path_key: str) -> list[str]:
     """Return component-aligned ancestor keys for a normalized tracked path."""
     parts = path_key.split("/")
@@ -269,9 +274,12 @@ def entry_errors(mode: str, path: str, target: str | None = None) -> list[str]:
 
 
 def symlink_chain_error(
-    path: str, target: str, symlink_targets: dict[str, str]
+    path: str,
+    target: str,
+    symlink_targets: dict[str, str],
+    hfs_symlink_targets: dict[str, str] | None = None,
 ) -> str | None:
-    """Resolve tracked symlinks component-by-component and reject escape or cycles."""
+    """Resolve portable-equivalent symlinks and reject escape or cycles."""
     shown_path = display_path(path)
     normalized_path = windows_normalized_path(path)
     pending = deque(PurePosixPath(posixpath.dirname(normalized_path)).parts)
@@ -301,6 +309,8 @@ def symlink_chain_error(
         resolved.append(component)
         candidate = "/".join(resolved)
         nested_target = symlink_targets.get(windows_path_key(candidate))
+        if nested_target is None and hfs_symlink_targets is not None:
+            nested_target = hfs_symlink_targets.get(hfs_path_key(candidate))
         if nested_target is None:
             continue
         expansions += 1
@@ -327,8 +337,11 @@ def audit_entries(entries: Iterable[tuple[str, str, str | None]]) -> list[str]:
     entries = list(entries)
     errors: list[str] = []
     symlink_targets: dict[str, str] = {}
+    hfs_symlink_targets: dict[str, str] = {}
     tracked_paths: dict[str, str] = {}
     tracked_prefixes: dict[str, str] = {}
+    hfs_tracked_paths: dict[str, str] = {}
+    hfs_tracked_prefixes: dict[str, str] = {}
     for mode, path, target in entries:
         key = windows_path_key(path)
         prior_path = tracked_paths.get(key)
@@ -360,14 +373,53 @@ def audit_entries(entries: Iterable[tuple[str, str, str | None]]) -> list[str]:
         tracked_paths.setdefault(key, path)
         for ancestor in ancestor_keys(key):
             tracked_prefixes.setdefault(ancestor, path)
+
+        hfs_key = hfs_path_key(path)
+        prior_hfs_path = hfs_tracked_paths.get(hfs_key)
+        if prior_hfs_path is not None and prior_hfs_path != path:
+            errors.append(
+                f"{display_path(path)}: tracked path collides after removing "
+                "Git HFS-ignorable characters with "
+                f"{display_path(prior_hfs_path)}"
+            )
+        prior_hfs_ancestor = next(
+            (
+                hfs_tracked_paths[ancestor]
+                for ancestor in ancestor_keys(hfs_key)
+                if ancestor in hfs_tracked_paths
+            ),
+            None,
+        )
+        if prior_hfs_ancestor is not None:
+            errors.append(
+                f"{display_path(path)}: tracked path descends HFS-equivalently "
+                f"from file path {display_path(prior_hfs_ancestor)}"
+            )
+        prior_hfs_descendant = hfs_tracked_prefixes.get(hfs_key)
+        if prior_hfs_descendant is not None:
+            errors.append(
+                f"{display_path(path)}: tracked path collides HFS-equivalently "
+                "as a file/directory prefix with "
+                f"{display_path(prior_hfs_descendant)}"
+            )
+
+        hfs_tracked_paths.setdefault(hfs_key, path)
+        for ancestor in ancestor_keys(hfs_key):
+            hfs_tracked_prefixes.setdefault(ancestor, path)
         if mode == SYMLINK_MODE and target is not None:
             symlink_targets.setdefault(key, target)
+            hfs_symlink_targets.setdefault(hfs_key, target)
 
     for mode, path, target in entries:
         direct_errors = entry_errors(mode, path, target)
         errors.extend(direct_errors)
         if mode == SYMLINK_MODE and target and not direct_errors:
-            chain_error = symlink_chain_error(path, target, symlink_targets)
+            chain_error = symlink_chain_error(
+                path,
+                target,
+                symlink_targets,
+                hfs_symlink_targets,
+            )
             if chain_error:
                 errors.append(chain_error)
     return errors
