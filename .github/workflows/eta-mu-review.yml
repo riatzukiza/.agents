@@ -11,8 +11,22 @@ permissions:
   pull-requests: read
 
 jobs:
+  portable-skill-tree:
+    name: Portable skill tree
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout pull request
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - name: Test portability policy
+        run: python3 scripts/test_portable_skill_tree.py
+      - name: Audit tracked skill tree
+        run: python3 scripts/check_portable_skill_tree.py
+
   review:
     name: Evidence-first review (eta-mu)
+    needs: portable-skill-tree
     uses: open-hax/eta-mu/.github/workflows/opencode-code-review.yml@2b918cdab2ebd30e745bb8fa86d077d7a3af0030
     with:
       setup_eta_mu_toolchain: false
