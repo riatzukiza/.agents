@@ -1,0 +1,16 @@
+(skill-contract
+  (name "cljs-policy-test-harness-before-route-order-deletion")
+  (v "ημ.skill/cljs-policy-test-harness-before-route-order-deletion@0.1.0")
+
+  (intent "Before deleting TypeScript route ordering in Proxx, make proxy tests load the active CLJS runtime, route selected legacy-order tests through CLJS shadow policy, and keep local/auto flows fail-open until corresponding CLJS clauses exist.")
+
+  (activation
+    (priority 41)
+    (explicit ["skill:cljs-policy-test-harness-before-route-order-deletion"])
+    (triggers ["cljs-policy-test-harness-before-route-order-deletion" "cljs policy test harness before route order deletion"]))
+
+  (governance
+    (touch-layer :mutable)
+    (non-override [:mission :directives :safety :license :output-shape])
+    (requires-user-approval false))
+)
