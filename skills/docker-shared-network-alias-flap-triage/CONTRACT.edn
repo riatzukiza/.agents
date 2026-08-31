@@ -1,0 +1,16 @@
+(skill-contract
+  (name "docker-shared-network-alias-flap-triage")
+  (v "ημ.skill/docker-shared-network-alias-flap-triage@0.1.0")
+
+  (intent "When public routes randomly hit different auth/config states, check for staging/prod Docker compose projects sharing a network with duplicate service aliases; verify name resolution from the proxy container and fix by project-specific container names or network isolation.")
+
+  (activation
+    (priority 41)
+    (explicit ["skill:docker-shared-network-alias-flap-triage"])
+    (triggers ["docker-shared-network-alias-flap-triage" "docker shared network alias flap triage"]))
+
+  (governance
+    (touch-layer :mutable)
+    (non-override [:mission :directives :safety :license :output-shape])
+    (requires-user-approval false))
+)
