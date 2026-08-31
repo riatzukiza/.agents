@@ -1,0 +1,16 @@
+(skill-contract
+  (name "helix-plain-defn-vs-component-invocation-guard")
+  (v "ημ.skill/helix-plain-defn-vs-component-invocation-guard@0.1.0")
+
+  (intent "When a Helix/CLJS helper is defined with defn positional args, call it directly; only use $ for defnc/components that receive a props map, otherwise data and callbacks become nil/blank while compilation still succeeds.")
+
+  (activation
+    (priority 41)
+    (explicit ["skill:helix-plain-defn-vs-component-invocation-guard"])
+    (triggers ["helix-plain-defn-vs-component-invocation-guard" "helix plain defn vs component invocation guard"]))
+
+  (governance
+    (touch-layer :mutable)
+    (non-override [:mission :directives :safety :license :output-shape])
+    (requires-user-approval false))
+)

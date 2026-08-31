@@ -1,0 +1,16 @@
+(skill-contract
+  (name "kanban-push-orchestration")
+  (v "ημ.skill/kanban-push-orchestration@0.1.0")
+
+  (intent "Orchestrating multi-card kanban pushes with subagents: per card, dispatch implementation agent with discovery-grounded prompt (baseline test counts, house rules, verification gates), then independent review agent (adversarial, claim-by-claim), bounce nits back to the SAME agent session via task_id resume (it has full context), commit only after review passes. Recover uncommitted agent work lost to accidental git checkout by resuming the agent session — it remembers its own changes.")
+
+  (activation
+    (priority 41)
+    (explicit ["skill:kanban-push-orchestration"])
+    (triggers ["kanban-push-orchestration" "kanban push orchestration"]))
+
+  (governance
+    (touch-layer :mutable)
+    (non-override [:mission :directives :safety :license :output-shape])
+    (requires-user-approval false))
+)

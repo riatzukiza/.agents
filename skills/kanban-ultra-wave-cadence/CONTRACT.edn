@@ -1,0 +1,16 @@
+(skill-contract
+  (name "kanban-ultra-wave-cadence")
+  (v "ημ.skill/kanban-ultra-wave-cadence@0.1.0")
+
+  (intent "Board-burn pattern with ultra-code: implement card -> spawn review wave -> while wave runs, implement NEXT card -> when wave lands, fix confirmed findings, gate, promote, spawn next wave. Keeps reviewer tokens and implementer time overlapped; never let a wave sit idle while you wait on it.")
+
+  (activation
+    (priority 41)
+    (explicit ["skill:kanban-ultra-wave-cadence"])
+    (triggers ["kanban-ultra-wave-cadence" "kanban ultra wave cadence"]))
+
+  (governance
+    (touch-layer :mutable)
+    (non-override [:mission :directives :safety :license :output-shape])
+    (requires-user-approval false))
+)

@@ -1,0 +1,16 @@
+(skill-contract
+  (name "staging-promotion-gate-navigation")
+  (v "ημ.skill/staging-promotion-gate-navigation@0.1.0")
+
+  (intent "Landing PRs in repos with staging->main promotion gates: staging must fast-forward to the PR head SHA (gates check is-ancestor + per-SHA deploy checks; merge commits break both); fetch depth >1 for ancestor checks; CI environments need clj-kondo/java explicitly installed; long-masked test bugs surface when newer linters run; verify required checks have reporting workflows before assuming green is enough.")
+
+  (activation
+    (priority 41)
+    (explicit ["skill:staging-promotion-gate-navigation"])
+    (triggers ["staging-promotion-gate-navigation" "staging promotion gate navigation"]))
+
+  (governance
+    (touch-layer :mutable)
+    (non-override [:mission :directives :safety :license :output-shape])
+    (requires-user-approval false))
+)
