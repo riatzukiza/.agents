@@ -124,3 +124,16 @@ Under the global contract:
 - services and standalone applications are released under GNU GPL v3 or later.
 
 Individual imported skills may retain their upstream license metadata.
+
+## Device state (`device/knoxx`)
+
+This checkout lives on the `device/knoxx` branch of the knoxx machine. Unlike
+the `device/yoga` and `device/stealth` branches — which carry device deltas
+such as `skills.disabled/` — this branch is a straight descendant of
+`origin/main` (fetched tip `e10b6ca`, the commit that includes the mycology
+promotions), with no device-specific deltas applied.
+
+Treat `device/knoxx` as the pure upstream+documentation branch: canonical law
+files and the skill catalog exactly as main ships them, plus documentation
+work layered on top. Device-specific adaptations belong on their own device
+branches, not here.

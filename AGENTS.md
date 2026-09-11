@@ -106,3 +106,12 @@ Report:
 - verification performed or skipped,
 - receipt and mycology artifacts added,
 - branch, commit, and pull-request references.
+
+## Device federation (device/knoxx)
+
+This checkout is a submodule of the home superproject (`/home/err`, branch
+`device/knoxx`); see [`GIT_MODULE_INDEX.md`](GIT_MODULE_INDEX.md). Every
+harness on the device reads this catalog through that wiring, so edits made
+here propagate to each of them — treat changes accordingly. The parent's
+gitlink advances only by explicit commits: commit the child first, then the
+new SHA in the superproject.
