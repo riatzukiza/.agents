@@ -106,3 +106,10 @@ Report:
 - verification performed or skipped,
 - receipt and mycology artifacts added,
 - branch, commit, and pull-request references.
+
+## Device federation (device/stealth)
+
+This repository is a home-superproject submodule: it is checked out at `~/.agents` (relative path `.agents` from the superproject at `/home/err`), on branch `device/stealth`.
+
+- Because harnesses across the device discover skills directly from this path, an edit here propagates to every harness that reads `~/.agents/skills` — there is no staging layer between this checkout and live agent behavior.
+- The gitlink recorded in the `/home/err` superproject is advanced only with explicit commits; never amend or rewrite history on this branch.

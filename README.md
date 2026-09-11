@@ -76,6 +76,22 @@ work
 
 A spore is never promoted in the same session that created it. Recurrence and evidence earn promotion; enthusiasm alone does not.
 
+## Device state (device/stealth)
+
+This checkout tracks the device branch `device/stealth`, a straight descendant of `origin/main`: skills, contracts, scripts, and `skills/.skill-lock.json` are canonical main content, with no device delta in the catalog itself.
+
+Unlike the yoga device checkout, there is no `skills.disabled/` parking lot here — everything under `skills/` is live.
+
+### Current device state
+
+| Measure | Value |
+|---|---|
+| Active skills (`skills/`) | 121 |
+| Machine contracts (`skills/*/CONTRACT.edn`) | 78 |
+| Disabled skills (`skills.disabled/`) | 0 (directory not present) |
+
+In-flight work, left uncommitted on purpose (owned by concurrent skill sessions — do not sweep into other commits): `skills/harness-handoff/SKILL.md`, `skills/harness-handoff/scripts/handoff.bb`, `skills/session-mycology/SKILL.md`.
+
 ## Local installation
 
 Clone this repository at its canonical location:
