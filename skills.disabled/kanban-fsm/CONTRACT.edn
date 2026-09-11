@@ -1,0 +1,52 @@
+(skill-contract
+  (name "kanban-fsm")
+  (v "ημ.skill/kanban-fsm@0.2.0")
+
+  (intent
+    "Define the canonical Kanban FSM as implemented by devel/packages/kanban and exposed via bin/eta-mu-board.")
+
+  (activation
+    (priority 65)
+    (explicit ["skill:kanban-fsm"])
+    (triggers ["kanban fsm" "status transition" "ready to todo" "in_review" "normalize status" "eta-mu-board"]))
+
+  (governance
+    (touch-layer :mutable)
+    (non-override [:mission :directives :safety :license :output-shape])
+    (requires-user-approval false))
+
+  (effects
+    (writes false)
+    (network false)
+    (commits false))
+)
+
+(kanban-fsm
+  (v "ημ.kanban/fsm@0.2.0")
+
+  (canonical-tool
+    (entrypoint "bin/eta-mu-board")
+    (package "packages/kanban")
+    (commands ["fsm show" "github refine" "github apply"]))
+
+  (states ["icebox" "incoming" "accepted" "breakdown" "blocked" "ready" "todo" "in_progress" "in_review" "testing" "document" "done" "rejected"])
+
+  (normalization
+    (token-aliases
+      (alias "in-progress" "in_progress")
+      (alias "in review"   "in_review")
+      (alias "in-review"   "in_review")
+      (alias "review"      "in_review")
+      (alias "doing"       "in_progress")
+      (alias "wip"         "in_progress")
+      (alias "backlog"     "ready")
+      (alias "triage"      "breakdown"))
+    (frontmatter-aliases
+      (alias "urgency_reason" "urgency-reason")))
+
+  (invariants
+    (must "If state==todo then frontmatter.priority exists")
+    (must "Do not bypass the canonical FSM in docs/reference/process.md when proposing next states")
+    (must "Prefer managed kanban labels through eta-mu-board github apply instead of ad-hoc label sets")
+    (must "Do not touch riatzukiza/TANF-app during automated kanban refinement/apply unless the user explicitly overrides"))
+)

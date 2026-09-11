@@ -1,0 +1,12 @@
+{:name "bluesky-publish-tool"
+ :description "Post messages and images to Bluesky using the bluesky tool"
+ :version 1
+ :domain :social
+ :platform :bluesky
+ :requires-env ["BLUESKY_IDENTIFIER" "BLUESKY_APP_PASSWORD"]
+ :tools ["bluesky"]
+ :exposes
+ {:triggers ["post to bluesky" "share on bluesky" "bsky post"]
+  :actions {:post {:tool "bluesky" :action "post"}
+            :post-image {:tool "bluesky" :action "post-image"}
+            :profile {:tool "bluesky" :action "profile"}}}}

@@ -1,0 +1,16 @@
+(skill-contract
+  (name "cljs-promise-chain-extraction")
+  (v "ημ.skill/cljs-promise-chain-extraction@0.1.0")
+
+  (intent "When a CLJS promise chain exceeds ~4 nesting levels or has more than ~8 trailing closing parens, extract the inner handlers as separate private defns. Each defn should return a Promise and take minimal args. Verify by checking compiled JS for empty .then()/.catch() calls.")
+
+  (activation
+    (priority 41)
+    (explicit ["skill:cljs-promise-chain-extraction"])
+    (triggers ["cljs-promise-chain-extraction" "cljs promise-chain-extraction"]))
+
+  (governance
+    (touch-layer :mutable)
+    (non-override [:mission :directives :safety :license :output-shape])
+    (requires-user-approval false))
+)

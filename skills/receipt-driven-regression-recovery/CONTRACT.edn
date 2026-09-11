@@ -1,0 +1,30 @@
+(skill-contract
+  (name "receipt-driven-regression-recovery")
+  (v "ημ.skill/receipt-driven-regression-recovery@0.1.0")
+
+  (intent
+    "Use the project's append-only receipts.edn ledger to recover previously-validated designs when a regression looks like new work.")
+
+  (activation
+    (priority 75)
+    (explicit ["skill:receipt-driven-regression-recovery"])
+    (triggers ["receipt driven regression" "recover from receipts" "lost design" "regression recovery"]))
+
+  (governance
+    (touch-layer :mutable)
+    (non-override [:mission :directives :safety :license :output-shape])
+    (requires-user-approval false))
+
+  (effects
+    (writes true)
+    (network false)
+    (commits false))
+
+  (protocol
+    (workflow
+      ["Tail receipts.edn for entries matching the same symptom, area, or recent decision."
+       "Search for :decision, :test-run, and :observation entries related to the regression."
+       "Compare current code against the recorded intent if a prior decision exists."
+       "Recover the design from the receipt rather than re-inventing it."
+       "Add a regression test that locks the recovered behavior."
+       "Append a receipt explaining the recovery and the test."])))

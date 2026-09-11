@@ -1,0 +1,27 @@
+(skill-contract
+  (name "autotune")
+  (v "ημ.skill/autotune@0.1.0")
+
+  (intent
+    "Apply pitch correction and audio effects to voice recordings using ffmpeg
+    and/or sox. The canonical pipeline: record or receive a WAV/MP3 input,
+    apply autotune-style pitch snapping via rubberband or sox, optionally add
+    reverb/chorus, and write the processed output. When combined with voice-tts,
+    the workflow is: TTS -> raw audio -> autotune -> final file.")
+
+  (activation
+    (priority 68)
+    (explicit ["skill:autotune"])
+    (triggers ["autotune" "auto-tune" "pitch correct" "pitch snap"
+               "tune my voice" "vocoder" "t-pain effect"]))
+
+  (governance
+    (touch-layer :mutable)
+    (non-override [:mission :directives :safety :license :output-shape])
+    (requires-user-approval false))
+
+  (effects
+    (writes true)
+    (network false)
+    (commits false))
+)

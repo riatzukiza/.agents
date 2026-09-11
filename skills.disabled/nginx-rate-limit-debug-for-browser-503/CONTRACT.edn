@@ -1,0 +1,16 @@
+(skill-contract
+  (name "nginx-rate-limit-debug-for-browser-503")
+  (v "ημ.skill/nginx-rate-limit-debug-for-browser-503@0.1.0")
+
+  (intent "When browser AJAX requests return 503 but curl works, check nginx rate limiting zones - browsers make concurrent requests that can trigger rate limits that single curl requests don't hit.")
+
+  (activation
+    (priority 41)
+    (explicit ["skill:nginx-rate-limit-debug-for-browser-503"])
+    (triggers ["nginx-rate-limit-debug-for-browser-503" "nginx rate limit debug for browser 503"]))
+
+  (governance
+    (touch-layer :mutable)
+    (non-override [:mission :directives :safety :license :output-shape])
+    (requires-user-approval false))
+)

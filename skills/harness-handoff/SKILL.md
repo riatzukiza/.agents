@@ -58,7 +58,7 @@ Rules:
 
 ## Finding Your Session ID
 
-- **opencode**: `sqlite3 ~/.local/share/opencode/opencode.db "select id from session order by time_created desc limit 1;"` (or the session slug from the TUI).
+- **opencode**: `bb ~/.agents/skills/harness-handoff/scripts/handoff.bb sessions --limit 1` — queries the opencode user service (`opencode serve`, port 8097 on stealth and yoga) instead of sqlite, so it works while the database is live. Add `--host yoga-ts --dir /path/on/that/host` to read another machine's sessions over ssh (the password is resolved on the remote side and never crosses the wire). Fallback: `sqlite3 ~/.local/share/opencode/opencode.db "select id from session order by time_created desc limit 1;"` or the session slug from the TUI. Password resolution order: live systemd unit environment → `~/.config/systemd/user/opencode-server.env` → `$OPENCODE_SERVER_PASSWORD` (a stale shell env var burned us once — trust the unit first).
 - **codex**: the UUID in the latest `~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl` filename.
 - **claude**: the `.jsonl` filename (sans extension) under `~/.claude/projects/<cwd-encoded>/`.
 

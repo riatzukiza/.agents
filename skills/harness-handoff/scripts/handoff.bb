@@ -3,12 +3,14 @@
   (:require [babashka.cli :as cli]
             [babashka.fs :as fs]
             [babashka.process :refer [sh]]
+            [cheshire.core :as json]
             [clojure.edn :as edn]
             [clojure.java.io :as io]
             [clojure.string :as str])
   (:import [java.security MessageDigest]
            [java.time Instant LocalDateTime ZoneId]
-           [java.time.format DateTimeFormatter]))
+           [java.time.format DateTimeFormatter]
+           [java.net URLEncoder]))
 
 ;; ---------------------------------------------------------------------------
 ;; helpers
@@ -175,6 +177,63 @@
       (println "no sidecar entries at" f))))
 
 ;; ---------------------------------------------------------------------------
+;; sessions (opencode server API — works while the db is live, unlike sqlite)
+
+(def server-port 8097)
+
+(defn server-password []
+  ;; Order matters: the live unit's environment is authoritative (a stale
+  ;; OPENCODE_SERVER_PASSWORD in the caller's shell burned us on 2026-08-13),
+  ;; then the env file (yoga-style units), then the caller's env as last resort.
+  (or (let [{:keys [exit out]} (sh {:err :string :out :string}
+                                   "systemctl" "--user" "show" "opencode-server" "-p" "Environment")]
+        (when (zero? exit)
+          (second (re-find #"OPENCODE_SERVER_PASSWORD=([^\"\s]+)" out))))
+      (let [f (str (fs/path (home-dir) ".config" "systemd" "user" "opencode-server.env"))]
+        (when (fs/exists? f)
+          (second (re-find #"OPENCODE_SERVER_PASSWORD=([^\s]+)" (slurp f)))))
+      (System/getenv "OPENCODE_SERVER_PASSWORD")))
+
+(defn cmd-sessions [{:keys [opts]}]
+  (let [dir (or (:dir opts) (repo-root))
+        limit (str (or (:limit opts) "5"))
+        host (:host opts)
+        url (str "http://localhost:" server-port "/session?directory="
+                 (URLEncoder/encode (str dir) "UTF-8")
+                 "&limit=" limit)
+        {:keys [exit out err]}
+        (if host
+          ;; remote: ssh to the host, resolve ITS password there, curl its
+          ;; own localhost — the password never crosses the wire.
+          (sh {:err :string :out :string}
+              "ssh" host
+              (str "PW=$(grep -o 'OPENCODE_SERVER_PASSWORD=[^ ]*'"
+                   " ~/.config/systemd/user/opencode-server.env 2>/dev/null | cut -d= -f2); "
+                   "[ -z \"$PW\" ] && PW=$(systemctl --user show opencode-server -p Environment"
+                   " | grep -o 'OPENCODE_SERVER_PASSWORD=[^\" ]*' | cut -d= -f2); "
+                   "curl -s -m 15 -u \"opencode:$PW\" '" url "'"))
+          (let [pw (or (server-password)
+                       (die "could not resolve OPENCODE_SERVER_PASSWORD — set it in the environment"))]
+            (sh {:err :string :out :string}
+                "curl" "-s" "-m" "15" "-u" (str "opencode:" pw) url)))]
+    (when-not (zero? exit)
+      (die "request failed:" (str/trim err)))
+    (when (str/blank? out)
+      (die "empty response — server down, or auth failed (401 bodies are empty)."
+           (when host " Check the password sources on") (when host host)))
+    (let [sessions (try (json/parse-string out true) (catch Exception _ :parse-error))]
+      (cond
+        (= :parse-error sessions)
+        (die "could not parse response (server down? auth failed?):" (subs out 0 (min 200 (count out))))
+
+        (empty? sessions)
+        (println "no opencode sessions for" dir (when host (str " on " host)))
+
+        :else
+        (doseq [s sessions]
+          (println (str (:id s) "  " (or (:title s) "(untitled)"))))))))
+
+;; ---------------------------------------------------------------------------
 ;; relocate
 
 (defn encode-cwd [p]
@@ -296,6 +355,8 @@
    {:cmds ["read"] :fn cmd-read
     :args->opts [:limit]}
    {:cmds ["locate"] :fn cmd-locate}
+   {:cmds ["sessions"] :fn cmd-sessions
+    :args->opts [:dir :limit :host]}
    {:cmds ["relocate"] :fn cmd-relocate
     :args->opts [:from :to]}])
 
@@ -308,4 +369,5 @@
       (println "  record   --harness H --session-id ID --task T --state S --summary S --next N [--artifacts a,b] [--notes x]")
       (println "  read     [--limit N]")
       (println "  locate")
+      (println "  sessions [--dir D] [--limit N] [--host ssh-alias]  (opencode server API; remote queries run over ssh)")
       (println "  relocate --from OLD --to NEW")))

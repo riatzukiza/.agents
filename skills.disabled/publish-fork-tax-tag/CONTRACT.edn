@@ -1,0 +1,19 @@
+{:name "publish-fork-tax-tag"
+ :description "Announce fork tax tags to social platforms after persistence"
+ :version 1
+ :domain :social
+ :workflow :fork-tax-announce
+ :requires-env-any ["OPENHAX_DISCORD_TOKEN" "BLUESKY_IDENTIFIER"]
+ :tools ["discord" "bluesky" "social_publish" "bash"]
+ :after-skills ["fork-tax"]
+ :triggers ["announce the tag" "share the release" "post fork tax"]
+ :exposes
+ {:workflow
+  {:steps
+   [{:step "verify-fork-tax" :bash ["git tag -l | tail -5"]}
+    {:step "gather-tag-info" :bash ["git show <tag> --stat"]}
+    {:step "prepare-announcement" :context ["tag-name" "summary" "commit-sha"]}
+    {:step "post-to-platforms" :tools ["discord" "bluesky" "social_publish"]}]
+   :format
+   {:discord "🏷️ **Tag: {tag}**\n\n{summary}\n\nCommit: {sha}"
+    :bluesky "🏷️ {tag} released\n\n{summary}\n#dev #release"}}}}

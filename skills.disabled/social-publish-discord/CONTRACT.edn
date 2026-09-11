@@ -1,0 +1,26 @@
+(skill-contract
+  (name "social-publish-discord")
+  (v "ημ.skill/social-publish-discord@0.2.0")
+
+  (intent "Publish Hormuz clock updates into Discord channels with sanitized mentions, optional images, and dry-run-first behavior using the discord tool")
+
+  (activation
+    (priority 50)
+    (explicit ["skill:social-publish-discord"])
+    (triggers ["social publish discord" "post hormuz to discord"]))
+
+  (tools ["discord"])
+
+  (workflow
+    (steps
+      [{:step "check-credentials" :env ["OPENHAX_DISCORD_TOKEN" "DISCORD_BOT_TOKEN"]}
+       {:step "read-snapshot" :files ["reports/v4_snapshot.md"]}
+       {:step "extract-key-data" :context ["probabilities" "signals" "timeline"]}
+       {:step "discover-channel" :tool "discord" :action "list-channels" :optional true}
+       {:step "post-message" :tool "discord" :action "send" :or "send-image"}]))
+
+  (governance
+    (touch-layer :mutable)
+    (non-override [:mission :directives :safety :license :output-shape])
+    (requires-user-approval false)
+    (dry-run-default true)))

@@ -1,0 +1,11 @@
+{
+  "name": "cloudflare-tunnel-ops",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "nbb": "^1.4.208"
+  },
+  "scripts": {
+    "tunnel": "nbb cf-tunnel-fetch.cljs"
+  }
+}

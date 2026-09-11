@@ -1,0 +1,16 @@
+(skill-contract
+  (name "ssh-tunnel-docker-routing")
+  (v "ημ.skill/ssh-tunnel-docker-routing@0.1.0")
+
+  (intent "Pattern for setting up SSH reverse tunnels that route through Docker container networks: use 0.0.0.0 binding with GatewayPorts clientspecified, use Docker bridge gateway IP (not localhost) in reverse_proxy configs, and create systemd user services with autossh for persistence.")
+
+  (activation
+    (priority 41)
+    (explicit ["skill:ssh-tunnel-docker-routing"])
+    (triggers ["ssh-tunnel-docker-routing" "ssh tunnel-docker-routing"]))
+
+  (governance
+    (touch-layer :mutable)
+    (non-override [:mission :directives :safety :license :output-shape])
+    (requires-user-approval false))
+)

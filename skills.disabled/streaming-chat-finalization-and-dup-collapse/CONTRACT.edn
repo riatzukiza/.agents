@@ -1,0 +1,16 @@
+(skill-contract
+  (name "streaming-chat-finalization-and-dup-collapse")
+  (v "ημ.skill/streaming-chat-finalization-and-dup-collapse@0.1.0")
+
+  (intent "When chat outputs repeat themselves, collapse cumulative or overlapping token deltas on both backend and frontend so streamed text stays monotonic and final messages match assistant intent.")
+
+  (activation
+    (priority 41)
+    (explicit ["skill:streaming-chat-finalization-and-dup-collapse"])
+    (triggers ["streaming-chat-finalization-and-dup-collapse" "streaming chat-finalization-and-dup-collapse"]))
+
+  (governance
+    (touch-layer :mutable)
+    (non-override [:mission :directives :safety :license :output-shape])
+    (requires-user-approval false))
+)

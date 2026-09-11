@@ -1,0 +1,24 @@
+{:name "storybook-component-tour"
+ :description "Walk through all components in a Storybook instance, capture screenshots with dark mode, and publish a comprehensive tour to Discord."
+ :version 1
+ :domain :documentation
+ :workflow :storybook-tour
+ :triggers ["tour the components"
+            "showcase the library"
+            "walk through Storybook"
+            "tour all the stories"
+            "document the component library"]
+ :prerequisites {:storybook-running "Storybook accessible at localhost:6006"
+                 :agent-browser "Browser automation skill available"
+                 :discord-credentials "OPENHAX_DISCORD_TOKEN configured"}
+ :workflow-steps [:discover-components
+                  :capture-screenshots
+                  :verify-screenshots
+                  :organize-tour
+                  :post-to-discord]
+ :tools-used [:agent-browser
+              :analyze_image
+              :discord]
+ :guards {:verify-before-post "Use analyze_image to check screenshots aren't error pages"
+          :dark-mode-always "Run set media dark after every open"
+          :grep-story-names "Never assume story naming patterns"}}

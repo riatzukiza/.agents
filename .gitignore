@@ -1,0 +1,9 @@
+# Canonical agent skill catalog. Only universal junk is ignored; everything
+# else (skills/, skills.disabled/, contracts, scripts) is canonical content.
+.DS_Store
+*.pyc
+__pycache__/
+node_modules/
+*~
+*.swp
+.#*

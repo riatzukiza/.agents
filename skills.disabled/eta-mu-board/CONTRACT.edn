@@ -1,0 +1,29 @@
+(skill-contract
+  (name "eta-mu-board")
+  (v "ημ.skill/eta-mu-board@0.1.0")
+
+  (intent
+    "Use the workspace kanban tool in packages/kanban via bin/eta-mu-board for FSM inspection, GitHub refinement, and managed label application.")
+
+  (activation
+    (priority 67)
+    (explicit ["skill:eta-mu-board"])
+    (triggers ["eta-mu-board" "kanban tool" "github refine" "github apply" "state label" "packages/kanban"]))
+
+  (governance
+    (touch-layer :mutable)
+    (non-override [:mission :directives :safety :license :output-shape])
+    (requires-user-approval false))
+
+  (effects
+    (writes true)
+    (network true)
+    (commits false))
+
+  (protocol
+    (workflow
+      ["Use bin/eta-mu-board as the canonical entrypoint for kanban work in this workspace."
+       "Inspect the FSM with eta-mu-board fsm show before normalizing or applying states."
+       "Prefer github refine -> github apply --dry-run -> github apply live."
+       "Do not touch riatzukiza/TANF-app during automated kanban refinement/apply unless the user explicitly overrides."]))
+)

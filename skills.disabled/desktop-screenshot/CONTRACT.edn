@@ -1,0 +1,17 @@
+(skill-contract
+  (name "desktop-screenshot")
+  (v "ημ.skill/desktop-screenshot@0.1.0")
+
+  (intent
+    "Capture desktop screenshots on KDE/i3 via the desktop_screenshot tool and view them via render_image (external viewer fallback in Alacritty).")
+
+  (activation
+    (priority 58)
+    (explicit ["skill:desktop-screenshot"])
+    (triggers ["screenshot" "take a screenshot" "capture screen" "screen capture" "spectacle"]))
+
+  (governance
+    (touch-layer :mutable)
+    (non-override [:mission :directives :safety :license :output-shape])
+    (requires-user-approval false))
+)

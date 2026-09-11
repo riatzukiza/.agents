@@ -1,0 +1,14 @@
+{:name "chronos"
+ :description "Time tracking for contracting work. Start/stop sessions, track billable hours, and manage projects."
+ :version "1.0.0"
+ :license "GPL-3.0-or-later"
+ :compatibility [:pi :opencode]
+ :extensions [{:name "chronos"
+              :path "~/.pi/agent/extensions/chronos.ts"}]
+ :triggers [{:pattern #"(?i)(start|stop|track|time|hours|billing|client)"
+             :confidence 0.7}
+            {:pattern #"(?i)what am i working on"
+             :confidence 0.9}
+            {:pattern #"(?i)(session|timer|chronometer)"
+             :confidence 0.6}]
+ :default-action "status"}

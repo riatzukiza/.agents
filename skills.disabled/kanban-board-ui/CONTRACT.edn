@@ -1,0 +1,34 @@
+(skill-contract
+  (name "kanban-board-ui")
+  (v "ημ.skill/kanban-board-ui@0.1.0")
+
+  (intent
+    "Run and interact with the kanban web UI: drag-and-drop board, sidebar detail view with frontmatter editing, rendered markdown, and comment system. Uses uxx token styling.")
+
+  (activation
+    (priority 72)
+    (explicit ["skill:kanban-board-ui"])
+    (triggers ["kanban ui" "kanban web" "kanban board" "kanban serve" "board ui" "drag and drop kanban" "kanban sidebar" "kanban frontmatter editor"]))
+
+  (governance
+    (touch-layer :mutable)
+    (non-override [:mission :directives :safety :license :output-shape])
+    (requires-user-approval false))
+
+  (effects
+    (writes true)
+    (network true)
+    (commits false))
+
+  (protocol
+    (workflow
+      ["Start the UI: `eta-mu kanban serve --tasks-dir <path> --port <port>` or PM2: `pm2 start services/eta-mu/kanban/ecosystem.config.cjs`"
+       "Access at http://127.0.0.1:<port>"
+       "Click cards to open sidebar; double-click frontmatter fields to edit"
+       "Drag cards between columns to change status"
+       "Use the comment textarea to add notes"
+       "Use the pencil button to open in $EDITOR"]))
+
+  (artifacts
+    (skill-file "~/.agents/skills/kanban-board-ui/SKILL.md")
+    (contract-file "~/.agents/skills/kanban-board-ui/CONTRACT.edn")))

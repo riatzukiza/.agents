@@ -1,0 +1,18 @@
+(skill-contract
+  (name "i3-window-manager")
+  (v "ημ.skill/i3-window-manager@0.1.0")
+
+  (intent
+    "Control the i3 window manager: query workspaces/windows, move/focus containers, and save/restore workspace state via i3-resurrect.")
+
+  (activation
+    (priority 60)
+    (explicit ["skill:i3-window-manager"])
+    (triggers
+      ["i3" "move window" "focus window" "switch workspace" "move to workspace" "save workspace" "restore workspace" "i3-resurrect"]))
+
+  (governance
+    (touch-layer :mutable)
+    (non-override [:mission :directives :safety :license :output-shape])
+    (requires-user-approval false))
+)
