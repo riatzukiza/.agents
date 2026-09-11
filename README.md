@@ -76,6 +76,26 @@ work
 
 A spore is never promoted in the same session that created it. Recurrence and evidence earn promotion; enthusiasm alone does not.
 
+## Device state (device/yoga)
+
+This checkout tracks the device branch `device/yoga`, which is `origin/main` plus a device delta:
+
+- [`skills.disabled/`](skills.disabled/) — a device-side parking lot for skills no harness currently loads. Moving a skill there is a recorded decision, not a deletion.
+- `node_modules/` stays untracked (ignored).
+- a curated [`.gitignore`](.gitignore) — universal junk only; skills, contracts, and scripts remain canonical content.
+
+The tag `device-snapshot-20260911` preserves the pre-reconcile root, and the reconcile commit `b5ff15a` merged the device skill catalog onto canonical `main`.
+
+### Current device state
+
+| Measure | Value |
+|---|---|
+| Active skills (`skills/`) | 122 |
+| Disabled skills (`skills.disabled/`) | 124 |
+| Machine contracts (`skills/*/CONTRACT.edn`) | 73 |
+
+Note: the mycology-promoted skill `skills/cljs-policy-test-harness-before-route-order-deletion` was removed during the device reconcile; it remains recoverable from `origin/main`.
+
 ## Local installation
 
 Clone this repository at its canonical location:
