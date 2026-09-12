@@ -1,14 +1,14 @@
 (skill-contract
   (name "promethean-rest-dns")
-  (v "ημ.skill/promethean-rest-dns@0.1.0")
+  (v "ημ.skill/promethean-rest-dns@0.2.0")
 
   (intent
-    "Create or update *.promethean.rest DNS A records through Cloudflare by copying current allowed core-host IPs while preserving unrelated zone records.")
+    "Create or update *.promethean.rest DNS A records through Cloudflare by copying current allowed core-host IPs including Knoxx, while preserving unrelated records and verifying nested TLS separately.")
 
   (activation
     (priority 67)
     (explicit ["skill:promethean-rest-dns"])
-    (triggers ["promethean dns" "cloudflare dns" "*.promethean.rest" "create subdomain" "staging.<service>.promethean.rest"]))
+    (triggers ["promethean dns" "cloudflare dns" "*.promethean.rest" "create subdomain" "nested knoxx subdomain" "staging.<service>.promethean.rest"]))
 
   (governance
     (touch-layer :mutable)

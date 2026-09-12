@@ -113,3 +113,11 @@ This repository is a home-superproject submodule: it is checked out at `~/.agent
 
 - Because harnesses across the device discover skills directly from this path, an edit here propagates to every harness that reads `~/.agents/skills` — there is no staging layer between this checkout and live agent behavior.
 - The gitlink recorded in the `/home/err` superproject is advanced only with explicit commits; never amend or rewrite history on this branch.
+
+## Promethean nested-host operations
+
+Use `promethean-rest-dns` for nested DNS and TLS provisioning, and
+`promethean-host-runtime-inventory` to verify the full hostname, certificate,
+route type, and live upstream. Knoxx is an allowed target; its placeholder
+routes are not application deployments. Preserve existing runtime placement
+using `promethean-host-slotting` and `promethean-service-deploy`.

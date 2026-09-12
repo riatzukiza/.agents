@@ -39,6 +39,7 @@ Turn requests like `Deploy X` into a complete Promethean service delivery setup,
   - `ussy2.promethean.rest`
   - `ussy3.promethean.rest`
   - `big.ussy.promethean.rest`
+  - `knoxx.promethean.rest` (preserve its existing ingress/runtime placement)
 - Default runtime roots:
   - production: `~/devel/services/<service-name>`
   - staging: `~/devel/services/<service-name>-staging`
@@ -98,3 +99,20 @@ Turn requests like `Deploy X` into a complete Promethean service delivery setup,
 - `main` push deploys production and verifies health.
 - Required GitHub vars/secrets are explicit and named predictably.
 - Future agents can re-run or extend the flow without guessing the contract.
+
+## Nested Knoxx names and TLS
+- An explicit hostname such as `staging.knoxx.promethean.rest` overrides the default slug convention.
+  Do not flatten it into `staging-knoxx` or select another base host.
+- Knoxx transport was verified as `err@knoxx.promethean.rest` on 2026-09-12. Its existing
+  production root is `/srv/open-hax/services`, with Caddy owning ports 80/443; preserve this
+  instead of creating a competing ingress under the generic `~/devel/services` convention.
+- `testing.knoxx`, `stealth.knoxx`, `yoga.knoxx`, and `staging.knoxx` currently identify
+  HTTPS placeholders on Knoxx, not separate deployed apps or the devices named by their labels.
+- Use [promethean-rest-dns](../promethean-rest-dns/SKILL.md) with `--core knoxx`, then configure
+  the exact Caddy site and verify its full hostname with normal certificate validation.
+  DNS success, TLS success, and application health are three separate checks.
+- The parent wildcard `*.promethean.rest` does not cover these names. Keep exact-host ACME
+  on stock Caddy unless a DNS-01 wildcard rollout is explicitly chosen; validate Cloudflare
+  edge coverage separately before proxying nested DNS records.
+- A real dev upstream must retain the existing Caddy auth guard and firewall boundary.
+  A successful placeholder 404 is not staging deployment success.
