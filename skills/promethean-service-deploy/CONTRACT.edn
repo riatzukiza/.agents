@@ -1,9 +1,9 @@
 (skill-contract
   (name "promethean-service-deploy")
-  (v "ημ.skill/promethean-service-deploy@0.2.0")
+  (v "ημ.skill/promethean-service-deploy@0.3.0")
 
   (intent
-    "Interpret 'Deploy X' as bootstrapping or repairing a full Promethean local -> PR -> staging -> PR -> prod deployment flow with DNS, host placement, GitHub automation, and live validation.")
+    "Interpret 'Deploy X' as bootstrapping or repairing a full Promethean host environments -> testing lease -> main merge to staging -> qualified production deployment flow with DNS, host placement, GitHub automation, and live validation.")
 
   (activation
     (priority 76)
@@ -22,8 +22,8 @@
 
   (protocol
     (workflow
-      ["Inventory the repo and determine whether a real local -> PR -> staging -> PR -> prod flow already exists."
-       "Honor explicit nested hostnames; otherwise derive staging.<slug>.promethean.rest and <slug>.promethean.rest."
+      ["Inventory the repo and determine whether a real host environments -> testing lease -> main merge to staging -> qualified production flow already exists."
+       "Honor explicit nested hostnames; otherwise derive <env>.<slug>.promethean.rest."
        "Choose allowed base hosts including Knoxx, preserving existing ingress/runtime roots; verify full-hostname TLS separately from DNS and app health."
        "Create or repair GitHub workflows, environment vars/secrets, and branch protection with honest gate tiers."
        "Verify locally, then verify live staging and live production; do not stop at YAML-only edits."]))

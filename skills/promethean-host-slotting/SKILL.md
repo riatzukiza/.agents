@@ -1,90 +1,55 @@
 ---
 name: promethean-host-slotting
-description: Choose staging and production Promethean host slots, subdomains, runtime paths, and compose-project names from the allowed base-host pool.
-license: GPL-3.0
-compatibility:
-  - opencode
-  - codex
+description: Choose per-service environment hosts, public names, private ingress paths, persistent state, and isolated runtime project names.
+license: GPL-3.0-or-later
 ---
 
-# Skill: Promethean Host Slotting
+# Promethean Host Slotting
 
-## Goal
-Pick predictable staging/production placement for a Promethean service without inventing hostnames or hiding transport/runtime constraints.
+## Use this skill when
+Selecting or extending runtime placement for a Promethean service environment.
 
-## Use This Skill When
-- A service needs `staging.<service>.promethean.rest` and `<service>.promethean.rest` placement.
-- You need to choose among the allowed base hosts.
-- You need deploy paths, compose-project names, and GitHub env-var values before wiring CI/CD.
-- SSH transport may need to use direct IPs while public traffic still uses DNS hostnames.
+## Do not use when
+Only changing DNS or validating an existing single endpoint.
 
-## Do Not Use This Skill When
-- The service is not deploying into the Promethean host fleet.
-- The host choice is already fixed and documented in the repo or task context.
-- The task is only to edit unrelated CI checks with no deployment placement changes.
+## Environment contract
+- Public names are `<env>.<service-name>.promethean.rest`; use lowercase hyphenated service names.
+- Environments: `stealth`, `yoga`, `testing`, `staging`, `production`. Preserve existing production aliases such as `knoxx.promethean.rest` until explicitly migrated.
+- Stealth is this device (`err-Stealth-16-AI-Studio-A1VGG`, observed LAN `192.168.12.128`). Yoga is `err@192.168.12.68` (`err-Yoga-7-16ARP8`). Recheck addresses and hostname before mutation.
+- The public Knoxx ingress is `err@knoxx.promethean.rest`, IPv4 `157.245.125.134`. A service hostname is an application route, not an SSH target.
+- A code owner can claim testing by applying `testing` to an open PR targeting `main`. Read the latest label-event timestamp, not `updated_at`. Any other open testing label aged two hours or less blocks it; older claims expire. Reapplying a label resets its lease.
+- Read CODEOWNERS from main and verify the label actor. Missing CODEOWNERS refuses admission; the initial app files name the existing repository admins. Never trust owner changes in the candidate PR.
+- Repeat admission inside a serialized per-service testing deployment slot immediately before deployment, and require the built commit to equal the admitted head. A denied PR needs a fresh label event after the blocker expires.
+- A successful PR merge into `main` deploys its exact merge commit to staging. Main does not deploy production.
+- Production requires the same immutable revision to pass integration, e2e, and four disjoint mutation batches with at least 250 evaluated mutations each. A failing baseline, no tests, compilation failure, timeout, survivor, duplicate mutation, or stale evidence rejects promotion.
+- Build PR code on ephemeral runners with no deployment credentials. Deployment controllers come from trusted, pinned Services code; deployment credentials enter only a fresh deployment job. Do not run candidate scripts in privileged pull_request_target jobs.
+- Distinguish policy authored, workflow merged, GitHub environment configured, event exercised, and live deployment verified. A draft workflow is not an active gate.
 
-## Inputs
-- Service slug/name.
-- Optional explicit staging/prod host overrides.
-- Allowed base hosts:
-  - `ussy.promethean.rest`
-  - `ussy2.promethean.rest`
-  - `ussy3.promethean.rest`
-  - `big.ussy.promethean.rest`
-  - `knoxx.promethean.rest` (preserve its existing ingress/runtime placement)
-- SSH reachability, DNS reachability, and any discovered existing live placement.
+## Placement procedure
+1. Honor the explicit host choice and inventory it. The fleet pool also includes ussy, ussy2, ussy3 and big.ussy; do not scan or relocate to them for a Stealth/Yoga-only request.
+2. Separate public ingress placement from application placement. On Knoxx, Caddy owns 80/443 under `/srv/open-hax/services/caddy`; retain that owner.
+3. Local device runtime roots are `~/.local/share/promethean/services/<service>-<env>`, Compose projects `<service>-<env>`, private application binds on loopback, and environment-specific persistent state.
+4. Reuse a verified private transport. Current host routes use user-systemd reverse SSH forwards to Knoxx loopback, then Caddy-only bridge relays. Do not assume Stealth has Tailscale connectivity: it was logged out during the 2026-09-13 setup.
+5. Keep application, database, identity/session secrets, volumes and resource budgets isolated. Never give an application the host Docker socket.
+6. Allocate and check ports before installation. Record local bind, remote forward and Caddy relay separately. Restrict relay ingress to the actual Caddy source address and verify a connection from the running proxy container.
+7. Emit the SSH target, exact public name, state root, Compose project, image digest, upstream route, proxy source and verification commands.
 
-## Steps
-1. Normalize the service slug.
-   - Use a lowercase hyphenated service name for paths, compose projects, and subdomains.
-2. Derive the public hostnames.
-   - Staging: `staging.<slug>.promethean.rest`
-   - Production: `<slug>.promethean.rest`
-3. Prefer existing truth over new guesses.
-   - If the service already has a live host, compose project, or runtime root, preserve it unless the user explicitly wants migration.
-4. Probe the allowed base hosts.
-   - Check public DNS resolution.
-   - Check SSH reachability.
-   - Note any transport-vs-public-host differences.
-5. Use this default host preference when no stronger signal exists.
-   - Production: `ussy.promethean.rest`, then `big.ussy.promethean.rest`, then `ussy2.promethean.rest`, then `ussy3.promethean.rest`.
-   - Staging: `ussy3.promethean.rest`, then `ussy2.promethean.rest`, then `big.ussy.promethean.rest`, then `ussy.promethean.rest`.
-6. Prefer separate staging and production hosts when a safe reachable pair exists.
-   - If separation is not practical, reuse one host but isolate by path, compose project, and public hostname.
-7. Emit deterministic runtime conventions.
-   - Production path: `~/devel/services/<slug>`
-   - Staging path: `~/devel/services/<slug>-staging`
-   - Production compose project: `<slug>` unless an existing stack proves otherwise.
-   - Staging compose project: `<slug>-staging` unless an existing stack proves otherwise.
-8. Emit GitHub environment-variable values.
-   - `STAGING_SSH_HOST`, `STAGING_PUBLIC_HOST`, `STAGING_DEPLOY_PATH`, `STAGING_COMPOSE_PROJECT_NAME`, `STAGING_BASE_URL`
-   - `PRODUCTION_SSH_HOST`, `PRODUCTION_PUBLIC_HOST`, `PRODUCTION_DEPLOY_PATH`, `PRODUCTION_COMPOSE_PROJECT_NAME`, `PRODUCTION_BASE_URL`
-   - include `*_VERIFY_RESOLVE_ADDRESS` when HTTPS validation must preserve the public hostname but runner DNS is flaky.
+## Current private port allocation (2026-09-13; revalidate)
+| Service/environment | Application loopback | Knoxx SSH loopback | Caddy bridge relay |
+|---|---:|---:|---:|
+| Axxium/Stealth | 18877 | 19777 | 172.31.255.1:19077 |
+| Axxium/Yoga | 18877 | 19778 | 172.31.255.1:19078 |
+| Knoxx/Stealth | 18880 | 19780 | 172.31.255.1:19080 |
+| Knoxx/Yoga | 18880 | 19781 | 172.31.255.1:19081 |
 
-## Output
-- Selected staging and production base hosts.
-- Public staging and production hostnames.
-- Runtime paths and compose-project names.
-- A GitHub vars checklist future deploy workflows can consume directly.
+Caddy's source on the dedicated bridge is `172.31.255.2`. Port reuse on different application hosts is intentional. An installed route is not proof its upstream is running; inventory actual state.
 
-## Notes
-- Keep SSH transport address and public hostname separate when necessary.
-- Do not invent hosts outside the allowed base-host pool.
-- If multiple safe options remain, state the default heuristic and any uncertainty explicitly.
+## Installed environment runtime (2026-09-13)
 
-## Nested Knoxx names and TLS
-- An explicit hostname such as `staging.knoxx.promethean.rest` overrides the default slug convention.
-  Do not flatten it into `staging-knoxx` or select another base host.
-- Knoxx transport was verified as `err@knoxx.promethean.rest` on 2026-09-12. Its existing
-  production root is `/srv/open-hax/services`, with Caddy owning ports 80/443; preserve this
-  instead of creating a competing ingress under the generic `~/devel/services` convention.
-- `testing.knoxx`, `stealth.knoxx`, `yoga.knoxx`, and `staging.knoxx` currently identify
-  HTTPS placeholders on Knoxx, not separate deployed apps or the devices named by their labels.
-- Use [promethean-rest-dns](../promethean-rest-dns/SKILL.md) with `--core knoxx`, then configure
-  the exact Caddy site and verify its full hostname with normal certificate validation.
-  DNS success, TLS success, and application health are three separate checks.
-- The parent wildcard `*.promethean.rest` does not cover these names. Keep exact-host ACME
-  on stock Caddy unless a DNS-01 wildcard rollout is explicitly chosen; validate Cloudflare
-  edge coverage separately before proxying nested DNS records.
-- A real dev upstream must retain the existing Caddy auth guard and firewall boundary.
-  A successful placeholder 404 is not staging deployment success.
+- Stealth is `192.168.12.128`; Yoga is `192.168.12.68`. Both have isolated Axxium and Knoxx compose projects under `~/.local/share/promethean/services/`. Stealth Tailscale is logged out; use LAN SSH where applicable.
+- Knoxx ingress owns public TLS. Host applications reach its private relays through user-systemd SSH forwards. `testing` and `staging` slots live at `/srv/open-hax/environments/<env>/<service>`; their separate forced-command keys accept only admitted image archives.
+- The source-controlled controller is in `open-hax/services`; app callers activate after review and merge to main. A configured hostname with a 503 placeholder is not a deployed application.
+- For a new service, add a reviewed build recipe, fixed compose template, restricted receiver slot and health probe before connecting its DNS/TLS route. Never let PR code supply the host compose file or deployment script.
+- Local translation requires an explicitly configured model provider and embedding model/dimensions. Yoga's verified provider is local Ollama: `gemma4:e4b`, with `nomic-embed-text:latest` embeddings at 768 dimensions. Background event runtimes can remain disabled while manual publication translation dispatch runs.
+- CMS now uses `/api/cms/documents`, organization-scoped local content and generated publication resources. New documents enter review; publication intent is separate from the immutable translated candidate and its review history. Do not route CMS document saves through the retired ingestion proxy.
+- Identity-offline proof stops only the source Axxium application container, then uses a fresh recipient login and actual browser content/review/translation actions. Record whether the source was restored; it is intentionally stopped for the current acceptance run.

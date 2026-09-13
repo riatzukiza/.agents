@@ -121,3 +121,5 @@ Use `promethean-rest-dns` for nested DNS and TLS provisioning, and
 route type, and live upstream. Knoxx is an allowed target; its placeholder
 routes are not application deployments. Preserve existing runtime placement
 using `promethean-host-slotting` and `promethean-service-deploy`.
+
+Use `pr-promotion-workflows` with these skills for testing-label leases, main-to-staging merges and evidence-gated production. Device environments use `<env>.<service>.promethean.rest`; inventory private transports and verify a fresh recipient login after any authorized source identity-service shutdown.

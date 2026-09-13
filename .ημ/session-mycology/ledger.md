@@ -16,3 +16,12 @@
   spore: none
   receipt-refs: knoxx-nested-https
   note: Inventory ingress and credential location first. Exact-host ACME already handles nested names. Caddy respond text kept literal backslash-n, caught by full response verification and corrected. Existing skills updated; no new spore needed.
+- ts: 2026-09-13T03:11:22.000568010Z
+  session: /home/err/.agents
+  task: Cross-host identity and environment promotion
+  p-efficiency: 0.25
+  p-friction: 0.92
+  p-skill-candidate: 0.8
+  spore: none
+  receipt-refs: none
+  note: Start acceptance with real browser save and typed-data round trips. Static pages and green compilation missed retired CMS dependencies, invalid EDN identifiers, local identity binding, and missing embedding configuration. Use absolute paths for all generated artifacts.
