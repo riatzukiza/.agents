@@ -16,7 +16,7 @@ proxy placeholders, references, and unreachable or ambiguous hosts, including ne
 ## Use This Skill When
 - Inventorying Promethean hosts, runtimes, public subdomains, or certificates.
 - Checking what actually serves `testing.knoxx.promethean.rest` or another nested name.
-- Preparing durable JSON and Markdown runtime/route records.
+- Preparing durable EDN and Markdown runtime/route records.
 
 ## Do Not Use This Skill When
 - Only creating DNS: use `promethean-rest-dns` (DNS alone does not configure TLS).
@@ -79,51 +79,20 @@ proxy placeholders, references, and unreachable or ambiguous hosts, including ne
    - Wildcard ACME requires DNS-01, an installed provider plugin, usable scoped credentials, and durable storage.
    - Cloudflare edge and origin certificates are separate; public success through a proxy is not origin proof.
    - Distinguish “renewal configured” from an actually observed successful renewal event.
-8. Write dated JSON and Markdown under `docs/reports/inventory/` in the active repository.
+8. Write dated EDN and Markdown under `docs/reports/inventory/` in the active repository.
    In a projectless Codex task, use its `outputs/` directory instead. Record unreachable hosts,
    DNS failures, unverified origin/edge modes, and ambiguous upstreams without smoothing them over.
 9. Append start, decisions, verification, and handoff to the project's existing Receipt River
    (`.ημ/receipts.edn` or `receipts.edn`); preserve prior entries and do not introduce new `receipts.log` files.
 
-## JSON record shape
-```json
-{
-  "generatedAt": "ISO-8601",
-  "records": [{
-    "host": "knoxx.promethean.rest",
-    "sshTarget": "err@knoxx.promethean.rest",
-    "runtime": {
-      "docker": {"available": true, "runningCount": 7},
-      "podman": {"available": false},
-      "systemd": {"available": true},
-      "proxmox": {"available": false}
-    },
-    "publicContainerRoutes": [],
-    "hostProcessRoutes": [],
-    "proxyOnlyRoutes": [{
-      "hostname": "testing.knoxx.promethean.rest",
-      "kind": "placeholder",
-      "upstream": null,
-      "dns": {"ipv4": ["157.245.125.134"], "proxied": false},
-      "tls": {
-        "probe": "public", "verified": true,
-        "sans": ["testing.knoxx.promethean.rest"],
-        "issuer": "record from handshake", "notAfter": "record from handshake",
-        "automation": "Caddy exact-host ACME; persistent storage",
-        "renewalObserved": false
-      },
-      "http": {"status": 308, "httpsStatus": 404, "expected": true}
-    }],
-    "referencesOnly": [],
-    "containers": [],
-    "notes": []
-  }]
-}
+## EDN record shape
+```clojure
+{:generated-at "ISO-8601" :records [{:host "knoxx.promethean.rest" :ssh-target "err@knoxx.promethean.rest" :runtime {:docker {:available true :running-count 7} :podman {:available false} :systemd {:available true} :proxmox {:available false}} :public-container-routes [] :host-process-routes [] :proxy-only-routes [{:hostname "testing.knoxx.promethean.rest" :kind "placeholder" :upstream nil :dns {:ipv4 ["157.245.125.134"] :proxied false} :tls {:probe "public" :verified true :sans ["testing.knoxx.promethean.rest"] :issuer "record from handshake" :not-after "record from handshake" :automation "Caddy exact-host ACME; persistent storage" :renewal-observed false} :http {:status 308 :https-status 404 :expected true}}] :references-only [] :containers [] :notes []}]}
 ```
-The shape is illustrative, not a new scan result. Use `null` plus an explanation when a field was not checked.
+The shape is illustrative, not a new scan result. Use `nil` plus an explanation when a field was not checked.
 
 ## Output
-- JSON inventory and Markdown report, with evidence timestamp and host boundary.
+- EDN inventory and Markdown report, with evidence timestamp and host boundary.
 - Summary separating public TLS validity, routing, application health, and unresolved checks.
 - For Proxmox hosts such as `big.ussy`, include systemd and `/etc/pve` evidence even without Docker.
 
@@ -141,3 +110,13 @@ The shape is illustrative, not a new scan result. Use `null` plus an explanation
 - Local translation requires an explicitly configured model provider and embedding model/dimensions. Yoga's verified provider is local Ollama: `gemma4:e4b`, with `nomic-embed-text:latest` embeddings at 768 dimensions. Background event runtimes can remain disabled while manual publication translation dispatch runs.
 - CMS now uses `/api/cms/documents`, organization-scoped local content and generated publication resources. New documents enter review; publication intent is separate from the immutable translated candidate and its review history. Do not route CMS document saves through the retired ingestion proxy.
 - Identity-offline proof stops only the source Axxium application container, then uses a fresh recipient login and actual browser content/review/translation actions. Record whether the source was restored; it is intentionally stopped for the current acceptance run.
+
+## Clio CMS storage (2026-09-13)
+
+- Knoxx on Stealth and Yoga consumes `eta-mu/packages/document-history` pinned to `61a60f0e9d19768475ef5abd5251bbdccf1d3015`. The shared package calls Clio directly; Knoxx owns organization authorization and publication policy.
+- CMS history lives at `/state/content/.ημ/cms/<organization>/`: retain `ledgers/*.edn` and `schemas/`; `snapshots/<document>/<hash>/metadata.edn`, `document.md` and `snapshot.edn` are disposable projections. Preserve stable `seeds/*.lock` inodes. Hidden pending ledger files are unaccepted interrupted writes.
+- Each save records full EDN metadata and Markdown, authenticated actor, timestamp and editor-observed parents. Distinct physical ledgers replay as one logical history. Timestamps do not replace causal parents; concurrent heads remain until explicit reconciliation.
+- PATCH `/api/cms/documents/:id` requires `parents`; never fetch current heads and substitute them for a stale editor's observed revision. Read history at `/api/cms/documents/:id/history`. Publication and translation refuse unresolved conflicts.
+- Legacy JSON/Markdown originals remain untouched after a one-time Clio import. Back up schemas and accepted ledgers together; regenerate snapshots instead of treating them as authority. Existing publication intents and approved translations are retained.
+- Install/rebuild the pinned native `fs-ext-extra-prebuilt` 2.2.9 dependency for the image's Node ABI. The current isolated runtime is `knoxx-backend:clio-fd7b5ae` / `knoxx-frontend:clio-fd7b5ae`, source revision `fd7b5ae9591b94187ad04445f6ab7904b70135f1`.
+- Rheos still has Markdown-first task mutations and incomplete audit events. Its canonical-fold and Markdown-sync work owns adopting this shared package; do not describe Rheos as migrated.
