@@ -1,6 +1,6 @@
 ---
 name: promethean-host-runtime-inventory
-description: SSH into Promethean hosts, inventory active Docker/Podman/systemd/Proxmox runtimes, map public subdomains to live services, and write both JSON records and a markdown report.
+description: Inventory Promethean hosts over SSH, map nested public names to live runtimes or placeholders, and verify DNS, certificate coverage, and HTTP behavior separately.
 license: GPL-3.0
 compatibility:
   - opencode
@@ -10,82 +10,134 @@ compatibility:
 # Skill: Promethean Host Runtime Inventory
 
 ## Goal
-Produce an honest Promethean fleet snapshot that distinguishes container-backed routes, host-process-backed routes, and unreachable or ambiguous hosts.
+Produce an evidence-based fleet snapshot distinguishing container routes, host processes,
+proxy placeholders, references, and unreachable or ambiguous hosts, including nested TLS coverage.
 
 ## Use This Skill When
-- The user asks to inventory `*.promethean.rest` hosts, containers, subdomains, or live runtime placement.
-- You need to answer questions like "what is running on ussy/ussy2/ussy3/big.ussy?"
-- You need durable host inventory artifacts, not just an in-chat summary.
-- You need a repeatable report that maps public hostnames to Docker containers versus host processes.
+- Inventorying Promethean hosts, runtimes, public subdomains, or certificates.
+- Checking what actually serves `testing.knoxx.promethean.rest` or another nested name.
+- Preparing durable JSON and Markdown runtime/route records.
 
 ## Do Not Use This Skill When
-- The task is only to check a single service health endpoint with no host-level inventory.
-- The target systems are not Promethean hosts or the user only wants DNS records without runtime inspection.
-- You cannot use SSH and no other runtime evidence source is available.
+- Only creating DNS: use `promethean-rest-dns` (DNS alone does not configure TLS).
+- Only checking a single HTTP endpoint without runtime inspection.
+- No SSH or alternative source of runtime evidence exists, or hosts are outside this fleet.
+
+## Environment contract
+- Public names are `<env>.<service-name>.promethean.rest`; use lowercase hyphenated service names.
+- Environments: `stealth`, `yoga`, `testing`, `staging`, `production`. Preserve existing production aliases such as `knoxx.promethean.rest` until explicitly migrated.
+- Stealth is this device (`err-Stealth-16-AI-Studio-A1VGG`, observed LAN `192.168.12.128`). Yoga is `err@192.168.12.68` (`err-Yoga-7-16ARP8`). Recheck addresses and hostname before mutation.
+- The public Knoxx ingress is `err@knoxx.promethean.rest`, IPv4 `157.245.125.134`. A service hostname is an application route, not an SSH target.
+- A code owner can claim testing by applying `testing` to an open PR targeting `main`. Read the latest label-event timestamp, not `updated_at`. Any other open testing label aged two hours or less blocks it; older claims expire. Reapplying a label resets its lease.
+- Read CODEOWNERS from main and verify the label actor. Missing CODEOWNERS refuses admission; the initial app files name the existing repository admins. Never trust owner changes in the candidate PR.
+- Repeat admission inside a serialized per-service testing deployment slot immediately before deployment, and require the built commit to equal the admitted head. A denied PR needs a fresh label event after the blocker expires.
+- A successful PR merge into `main` deploys its exact merge commit to staging. Main does not deploy production.
+- Production requires the same immutable revision to pass integration, e2e, and four disjoint mutation batches with at least 250 evaluated mutations each. A failing baseline, no tests, compilation failure, timeout, survivor, duplicate mutation, or stale evidence rejects promotion.
+- Build PR code on ephemeral runners with no deployment credentials. Deployment controllers come from trusted, pinned Services code; deployment credentials enter only a fresh deployment job. Do not run candidate scripts in privileged pull_request_target jobs.
+- Distinguish policy authored, workflow merged, GitHub environment configured, event exercised, and live deployment verified. A draft workflow is not an active gate.
 
 ## Inputs
-- A host list, defaulting to the Promethean fleet when relevant:
-  - `ussy.promethean.rest`
-  - `ussy2.promethean.rest`
-  - `ussy3.promethean.rest`
-  - `big.ussy.promethean.rest`
-- Likely SSH usernames from prior evidence; prefer repository/spec truth before guessing.
-- Reverse-proxy/runtime config paths when known, especially Caddy files under deployed service roots.
-- A target artifact date or timestamp for deterministic output filenames.
+- Explicit requested hosts take precedence; do not scan the fleet for a Knoxx-only request.
+- Fleet pool: `knoxx.promethean.rest`, `ussy.promethean.rest`, `ussy2.promethean.rest`,
+  `ussy3.promethean.rest`, `big.ussy.promethean.rest`.
+- SSH user/host, actual runtime/proxy source paths, public names, and report timestamp.
+- Known Knoxx evidence (2026-09-12): `err@knoxx.promethean.rest`, public IPv4 `157.245.125.134`,
+  host identity `open-hax-services-production`; revalidate before reuse.
 
 ## Steps
-1. Reuse prior evidence first.
-   - Search repo specs, receipts, and deployment notes for working SSH usernames, runtime roots, and known route files.
-2. Probe SSH honestly.
-   - Verify the actual reachable SSH user/host combination before assuming `docker` exists.
-3. Inventory active runtimes on each reachable host.
-   - Prefer `docker ps` when Docker exists.
-   - Fall back to Podman, systemd services, and Proxmox/LXC/QEMU evidence when the host is not Docker-backed.
-4. Inspect active public-routing config.
-   - Read live Caddy/nginx/proxy config on the remote host.
-   - Distinguish hostname declarations from actual upstream targets.
-5. Classify routes carefully.
-   - `publicContainerRoutes`: hostname/path backed by currently running containers.
-   - `hostProcessRoutes`: hostname/path backed by host processes or localhost services instead of containers.
-   - `referencesOnly`: env/config references to hostnames that the current host does not actually serve.
-6. Write durable artifacts.
-   - JSON records: `docs/reports/inventory/promethean-host-runtime-inventory-<date>.json`
-   - Markdown report: `docs/reports/inventory/promethean-host-runtime-inventory-<date>.md`
-7. Preserve caveats.
-   - Record unreachable hosts, TLS failures, 404s, or ambiguous routes instead of smoothing them over.
-8. Update receipts for non-trivial runs.
-   - Log the start, completion, and verification in `receipts.log` without exposing secrets.
+1. Reuse specifications, receipts, and deployment notes for SSH users and runtime roots.
+   A service hostname is not necessarily an SSH host, and a device label is not runtime placement.
+2. Verify SSH with batch mode and a bounded connection timeout. Inventory Docker first,
+   then Podman, systemd, or Proxmox/LXC/QEMU when applicable. Do not install a runtime just to inventory it.
+3. Discover the owner of ports 80/443 and actual mounts/Compose labels. On Knoxx:
+   - Container: `caddy-caddy-1`, Caddy 2.8.4, image `caddy:2.8-alpine`.
+   - Config: `/srv/open-hax/services/caddy/Caddyfile` and `compose.yaml`.
+   - Persistent certificate storage: `/srv/open-hax/state/caddy/data`.
+   - Deployment source: `open-hax/services/digitalocean/services/caddy/Caddyfile`.
+   - Read named public-host env values only; never dump all container environment or `.env` files.
+4. Read the live route configuration and, where available, active adapted config. Redact credentials,
+   password hashes, private keys, and authorization headers before any tool output/artifact.
+   Inspect public certificate files or TLS handshakes; private-key reads are unnecessary.
+5. Classify each declared route using live evidence:
+   - `publicContainerRoutes`: actual running application container upstream.
+   - `hostProcessRoutes`: verified host listener/process upstream.
+   - `proxyOnlyRoutes`: static response, redirect-only, or placeholder with no application upstream.
+   - `referencesOnly`: hostname mentioned in config/env but not served here.
+   Record unverified upstreams explicitly instead of guessing a class from a hostname.
+6. Verify **each full hostname**, including nested names, independently:
+   - Public A/AAAA/CNAME answers, expected origin, and Cloudflare proxy mode if API access exists.
+   - Public TLS handshake with SNI equal to that hostname, normal CA trust, and hostname validation.
+   - Certificate SANs, issuer, expiry, and verification result. If DNS fails, record that separately;
+     an optional direct-origin probe must keep the public SNI/Host and be labeled as an origin probe.
+   - HTTP→HTTPS redirect and HTTPS status. Test expected auth rejection without credentials.
+   - A `404` placeholder can have fully valid TLS; do not report it as a healthy application.
+     A `401` on a guarded dev route can be expected; a `502` means the upstream needs investigation.
+7. Verify certificate automation configuration:
+   - Exact Caddy sites use automatic ACME issuance/renewal when challenges can reach the host.
+   - `*.promethean.rest` does not cover `testing.knoxx.promethean.rest`.
+   - `*.knoxx.promethean.rest` covers one label below Knoxx, not Knoxx itself or another deeper level.
+   - Wildcard ACME requires DNS-01, an installed provider plugin, usable scoped credentials, and durable storage.
+   - Cloudflare edge and origin certificates are separate; public success through a proxy is not origin proof.
+   - Distinguish “renewal configured” from an actually observed successful renewal event.
+8. Write dated JSON and Markdown under `docs/reports/inventory/` in the active repository.
+   In a projectless Codex task, use its `outputs/` directory instead. Record unreachable hosts,
+   DNS failures, unverified origin/edge modes, and ambiguous upstreams without smoothing them over.
+9. Append start, decisions, verification, and handoff to the project's existing Receipt River
+   (`.ημ/receipts.edn` or `receipts.edn`); preserve prior entries and do not introduce new `receipts.log` files.
 
-## Output
-- A JSON inventory file with one record per host.
-- A markdown report summarizing runtime type, running services, public hostnames, and ambiguities.
-- A concise chat summary that separates facts from interpretation.
-
-## JSON Record Shape
+## JSON record shape
 ```json
 {
   "generatedAt": "ISO-8601",
-  "records": [
-    {
-      "host": "ussy.promethean.rest",
-      "sshTarget": "error@ussy.promethean.rest",
-      "runtime": {
-        "docker": { "available": true, "runningCount": 30 },
-        "podman": { "available": false, "runningCount": 0 },
-        "systemd": { "available": true },
-        "proxmox": { "available": false }
+  "records": [{
+    "host": "knoxx.promethean.rest",
+    "sshTarget": "err@knoxx.promethean.rest",
+    "runtime": {
+      "docker": {"available": true, "runningCount": 7},
+      "podman": {"available": false},
+      "systemd": {"available": true},
+      "proxmox": {"available": false}
+    },
+    "publicContainerRoutes": [],
+    "hostProcessRoutes": [],
+    "proxyOnlyRoutes": [{
+      "hostname": "testing.knoxx.promethean.rest",
+      "kind": "placeholder",
+      "upstream": null,
+      "dns": {"ipv4": ["157.245.125.134"], "proxied": false},
+      "tls": {
+        "probe": "public", "verified": true,
+        "sans": ["testing.knoxx.promethean.rest"],
+        "issuer": "record from handshake", "notAfter": "record from handshake",
+        "automation": "Caddy exact-host ACME; persistent storage",
+        "renewalObserved": false
       },
-      "publicContainerRoutes": [],
-      "hostProcessRoutes": [],
-      "referencesOnly": [],
-      "containers": [],
-      "notes": []
-    }
-  ]
+      "http": {"status": 308, "httpsStatus": 404, "expected": true}
+    }],
+    "referencesOnly": [],
+    "containers": [],
+    "notes": []
+  }]
 }
 ```
+The shape is illustrative, not a new scan result. Use `null` plus an explanation when a field was not checked.
 
-## Notes
-- A hostname appearing in config is not enough; tie it to a live upstream and say whether that upstream is a container or a host process.
-- A running container is not enough; say whether it has a public hostname, only an internal port, or merely references another host.
-- For Proxmox hosts like `big.ussy`, inventory systemd and `/etc/pve` state even when Docker is absent.
+## Output
+- JSON inventory and Markdown report, with evidence timestamp and host boundary.
+- Summary separating public TLS validity, routing, application health, and unresolved checks.
+- For Proxmox hosts such as `big.ussy`, include systemd and `/etc/pve` evidence even without Docker.
+
+## References
+- [Promethean DNS and nested TLS workflow](../promethean-rest-dns/SKILL.md)
+- [Caddy automatic HTTPS](https://caddyserver.com/docs/automatic-https)
+- [Cloudflare Universal SSL limitations](https://developers.cloudflare.com/ssl/edge-certificates/universal-ssl/limitations/)
+
+## Installed environment runtime (2026-09-13)
+
+- Stealth is `192.168.12.128`; Yoga is `192.168.12.68`. Both have isolated Axxium and Knoxx compose projects under `~/.local/share/promethean/services/`. Stealth Tailscale is logged out; use LAN SSH where applicable.
+- Knoxx ingress owns public TLS. Host applications reach its private relays through user-systemd SSH forwards. `testing` and `staging` slots live at `/srv/open-hax/environments/<env>/<service>`; their separate forced-command keys accept only admitted image archives.
+- The source-controlled controller is in `open-hax/services`; app callers activate after review and merge to main. A configured hostname with a 503 placeholder is not a deployed application.
+- For a new service, add a reviewed build recipe, fixed compose template, restricted receiver slot and health probe before connecting its DNS/TLS route. Never let PR code supply the host compose file or deployment script.
+- Local translation requires an explicitly configured model provider and embedding model/dimensions. Yoga's verified provider is local Ollama: `gemma4:e4b`, with `nomic-embed-text:latest` embeddings at 768 dimensions. Background event runtimes can remain disabled while manual publication translation dispatch runs.
+- CMS now uses `/api/cms/documents`, organization-scoped local content and generated publication resources. New documents enter review; publication intent is separate from the immutable translated candidate and its review history. Do not route CMS document saves through the retired ingestion proxy.
+- Identity-offline proof stops only the source Axxium application container, then uses a fresh recipient login and actual browser content/review/translation actions. Record whether the source was restored; it is intentionally stopped for the current acceptance run.
