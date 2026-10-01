@@ -1,0 +1,104 @@
+;; pr-flow state machine — the PR lifecycle, as data.
+;;
+;; This FSM governs the *PR flow*, not the card board. Card status is Rheos's
+;; authority; each state only *names* the Rheos transition it expects
+;; (:board/expects) and the agent performs it through Rheos (eta-mu kanban …),
+;; never by editing frontmatter status by hand.
+;;
+;; Epistemic tier of this file: provisional (ημ epiphany ladder). It was
+;; distilled 2026-10-01 from session logs, receipts and spores; it becomes
+;; accepted only by an explicit user review event.
+{:flow/id :pr-flow
+ :flow/version "0.1.0"
+ :flow/tier :provisional
+ :flow/initial :muse
+ :flow/terminal #{:reflected}
+ :flow/defaults {:review/max-loops 5        ; user-confirmed 2026-10-01
+                 :review/blocking #{:p0 :p1}
+                 :merge/method :merge}
+
+ :flow/states
+ {:muse
+  {:skill "pr-muse-connect"
+   :doc "The user thinks aloud; we connect documents, code, programs, cards, issues and PRs. Runs throughout, not just first."
+   :inputs [:user/musing :repo/evidence]
+   :outputs [:muse/link-map :muse/inbox-note]
+   :exit "Intent is concrete enough to name an outcome and at least one card."}
+
+  :plan
+  {:skill "pr-sprint-planning"
+   :doc "Create or update an epic and substories (Rheos Markdown cards) with outcome, scope, non-goals, acceptance criteria, points, links."
+   :inputs [:muse/link-map]
+   :outputs [:card/epic :card/stories :branch]
+   :board/expects {:to #{"incoming" "accepted" "breakdown"}}
+   :exit "Epic + stories exist on a branch, uuid-linked (epic/parent/blocked_by)."}
+
+  :planning-review
+  {:skill "pr-sprint-planning"
+   :uses ["pr-review-settlement"]
+   :doc "PR opened ready with auto-merge off (drafts are ignored by Codex and others; user decision 2026-10-01); CodeRabbit and other agents asked to review the agile artifacts like sprint planning: scope, AC, points, splits, dependencies."
+   :inputs [:card/epic :card/stories]
+   :outputs [:pr/open-no-automerge :review/rounds]
+   :cli ["pr.cljs request REPO PR planning" "pr.cljs wait REPO PR" "pr.cljs threads REPO PR"]
+   :exit "Every planning comment settled (Fixed|Deferred|Rejected|Handled + reply) and resolved, or loop budget reached and escalated."}
+
+  :card-ready
+  {:skill "pr-sprint-planning"
+   :doc "Move each reviewed story through the board to ready."
+   :board/expects {:to #{"ready"}}
+   :exit "Stories are ready (Rheos), estimates final."}
+
+  :red
+  {:skill "pr-red-green"
+   :doc "Laws and tests first: Malli schemas/laws in .cljc, failing tests that encode the acceptance criteria."
+   :board/expects {:to #{"todo" "in_progress"}}
+   :outputs [:commit/red]
+   :exit "New tests fail for the right reason; commit pushed with the red evidence."}
+
+  :green
+  {:skill "pr-red-green"
+   :doc "Domain logic (pure) then infra adapters that obey the laws; all tests and gates pass."
+   :outputs [:commit/green]
+   :board/expects {:to #{"testing" "review"}}
+   :exit "Local gates green; pushed."}
+
+  :code-review
+  {:skill "pr-review-settlement"
+   :doc "Iterate with CodeRabbit and other agents until no P0/P1 is unfixed and every other comment is fixed, deferred or rejected with a reason."
+   :cli ["pr.cljs request REPO PR code" "pr.cljs wait REPO PR" "pr.cljs threads REPO PR" "pr.cljs settle REPO PR THREAD BODY"]
+   :exit "law/unsettled-blockers empty; every thread settled + resolved; review-body items answered."}
+
+  :merge-gate
+  {:skill "pr-review-to-merge"
+   :doc "All checks green and all comments settled → mark ready and enable auto-merge; the merge happens on GitHub."
+   :cli ["pr.cljs gate REPO PR --apply"]
+   :exit "Auto-merge enabled on the exact head that passed the gate."}
+
+  :merged
+  {:skill "pr-review-to-merge"
+   :doc "Verify the merge landed; advance stacked PRs; bump submodule pointers in parents; move cards through document → done via Rheos."
+   :board/expects {:to #{"document" "done"}}}
+
+  :reflected
+  {:skill "session-mycology"
+   :uses ["receipt-river"]
+   :doc "Append receipts; score friction; incubate at most one spore. Do not promote a spore in the session that created it."}}
+
+ :flow/transitions
+ [[:muse :plan]
+  [:plan :planning-review]
+  [:planning-review :planning-review]   ; another review round (bounded)
+  [:planning-review :plan]              ; review asked for a re-plan/split
+  [:planning-review :card-ready]
+  [:card-ready :red]
+  [:red :green]
+  [:green :red]                         ; a missing law found while implementing
+  [:green :code-review]
+  [:code-review :code-review]           ; another review round (bounded)
+  [:code-review :red]                   ; a finding needs a new law/test
+  [:code-review :merge-gate]
+  [:merge-gate :code-review]            ; gate blocked: new head, new findings
+  [:merge-gate :merged]
+  [:merged :reflected]
+  ;; muse is ambient: the user may reopen any stage by thinking aloud.
+  [:plan :muse] [:planning-review :muse] [:red :muse] [:green :muse] [:code-review :muse]]}

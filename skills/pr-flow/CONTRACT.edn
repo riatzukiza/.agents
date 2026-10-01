@@ -1,0 +1,31 @@
+(skill-contract
+  (name "pr-flow")
+  (v "ημ.skill/pr-flow@0.1.0")
+
+  (intent
+    "Route every pull-request interaction through the pr-flow state machine (flow.edn): muse, plan, planning review, ready, red, green, code review, merge gate, merged, reflected. Ships an nbb CLI over pure .cljc laws for GitHub review mechanics.")
+
+  (activation
+    (priority 80)
+    (explicit ["skill:pr-flow"])
+    (triggers ["pull request" "PR" "draft PR" "coderabbit" "@coderabbitai" "review comment" "review thread"
+               "resolve thread" "auto-merge" "merge the PR" "sprint planning" "epic and stories"]))
+
+  (governance
+    (touch-layer :mutable)
+    (non-override [:mission :directives :safety :license :output-shape])
+    (requires-user-approval false))
+
+  (effects
+    (writes true)
+    (network true)
+    (commits true))
+
+  (invariants
+    (state-machine "flow.edn is lawful per pr-flow.flow/problems; every named skill exists.")
+    (card-authority "Card status moves only through Rheos; flow states only name the expected transition.")
+    (settle-before-resolve "Every review thread gets a Fixed|Handled|Deferred|Rejected reply before it is resolved.")
+    (blockers-fixed "P0/P1 findings are fixed; deferral or rejection does not clear them.")
+    (bounded-loops "Review rounds are capped (default 5); at the cap, escalate to the user.")
+    (no-bypass "Rate-limited or skipped review is not a pass; never admin-merge around review.")
+    (tier "This skill graph is provisional until the user accepts it.")))
