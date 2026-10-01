@@ -65,6 +65,15 @@
                                          {:author "coderabbitai" :body "Fixed? great"}))]
       (is (not (:settled? t))))))
 
+(deftest handled-does-not-clear-blockers
+  (let [t (law/classify-thread (thread "_🔴 Critical_" "Handled: already fine"))]
+    (is (= 1 (count (law/unsettled-blockers [t]))))))
+
+(deftest codex-titles-and-badges
+  (let [body "**<sub><sub>![P1 Badge](https://img.shields.io/badge/P1-orange?style=flat)</sub></sub>  Reuse the SHA that actually passed the gate**\n\nIf another commit..."]
+    (is (= :p1 (law/severity body)))
+    (is (= "Reuse the SHA that actually passed the gate" (law/title-of body)))))
+
 (deftest coderabbit-check-states
   (is (= :pending (law/coderabbit-state [{:name "CodeRabbit" :state "PENDING" :description "Review in progress"}])))
   (is (= :rate-limited (law/coderabbit-state [{:name "CodeRabbit" :state "SUCCESS" :description "Review rate limited"}])))
@@ -87,8 +96,19 @@
     (testing "skipped review is not a pass"
       (is (not (:pass? (law/merge-gate {:threads [] :checks [{:name "CodeRabbit" :state "SUCCESS" :description "Review skipped"}]})))))
     (testing "a review of an older head is not a review of this head"
-      (is (not (:pass? (law/merge-gate {:threads [] :checks done :head "b" :reviewed-heads #{"a"}}))))
-      (is (:pass? (law/merge-gate {:threads [] :checks done :head "b" :reviewed-heads #{"a" "b"}}))))
+      (is (not (:pass? (law/merge-gate {:threads [] :checks done :head "b" :reviewed-heads {"coderabbit" #{"a"}}}))))
+      (is (:pass? (law/merge-gate {:threads [] :checks done :head "b" :reviewed-heads {"coderabbit" #{"a" "b"}}}))))
+    (testing "failed review blocks"
+      (is (not (:pass? (law/merge-gate {:threads [] :checks [{:name "CodeRabbit" :state "FAILURE" :description "Review failed"}]})))))
+    (testing "every required reviewer must cover the head"
+      (is (not (:pass? (law/merge-gate {:threads [] :checks done :head "b"
+                                        :required-reviewers #{"coderabbit" "codex"}
+                                        :reviewed-heads {"coderabbit" #{"b"}}}))))
+      (is (:pass? (law/merge-gate {:threads [] :checks done :head "b"
+                                   :required-reviewers #{"coderabbit" "codex"}
+                                   :reviewed-heads {"coderabbit" #{"b"} "codex" #{"b"}}}))))
+    (testing "truncated thread data fails closed"
+      (is (not (:pass? (law/merge-gate {:threads [] :checks done :incomplete? true})))))
     (testing "unanswered review-body nitpicks block"
       (is (not (:pass? (law/merge-gate {:threads [] :checks done :review-bodies-unanswered 1})))))))
 

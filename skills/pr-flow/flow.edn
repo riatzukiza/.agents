@@ -15,6 +15,9 @@
  :flow/terminal #{:reflected}
  :flow/defaults {:review/max-loops 5        ; user-confirmed 2026-10-01
                  :review/blocking #{:p0 :p1}
+                 ;; Reviewers whose full pass must cover the gated head. Repos add
+                 ;; their own (Knoxx: codex) with --reviewers.
+                 :review/required #{"coderabbit"}
                  :merge/method :merge}
 
  :flow/states

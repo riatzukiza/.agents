@@ -25,11 +25,11 @@ Every comment gets a **reply before it is resolved**. The reply opens with one o
 | Opening | Means | Allowed for |
 | --- | --- | --- |
 | `Fixed in <sha>: …` | changed, with the test or evidence that shows it | all |
-| `Handled: …` | already correct, or covered elsewhere; show where | all |
+| `Handled: …` | already correct, or covered elsewhere; show where | P2, P3 (and review-body items) |
 | `Deferred to <card-uuid or issue>: …` | real, but out of scope; the card must exist | P2, P3 |
 | `Rejected: <reason>` | wrong or harmful; cite the code path or evidence | P2, P3 |
 
-P0 and P1 must be **fixed**. Deferring or rejecting them does not clear the gate (`law/unsettled-blockers`). If you believe a P0/P1 finding is wrong, reply with the evidence, leave the thread **open**, and ask the user to adjudicate.
+P0 and P1 must be **fixed**. Only `Fixed` clears them; `Handled`, `Deferred` and `Rejected` do not (`law/unsettled-blockers`). If you believe a P0/P1 finding is wrong, reply with the evidence, leave the thread **open**, and ask the user to adjudicate.
 
 Severity comes from the comment banner:
 - 🔴 Critical maps to P0.
@@ -57,6 +57,10 @@ Severity comes from the comment banner:
 - Use the thread id (`PRRT_…`) from GraphQL `reviewThreads`. `settle` replies with `addPullRequestReviewThreadReply`, then calls `resolveReviewThread`. The REST equivalent is `POST repos/O/R/pulls/N/comments/<comment-id>/replies`. Note the `N`: `pulls/comments/<id>/replies` is wrong.
 - CodeRabbit answers settlement replies: it verifies the claimed commit and either confirms ("✅ Review thread resolved") or pushes back. Read those replies before the next round; a pushback reopens the item.
 - Settlement replies also show up as "reviews" in the reviews API. Only a full pass (body headed "Actionable comments posted") counts as review coverage of a head.
+
+## Required reviewers
+
+The gate requires a full pass on the exact head from every reviewer in `:review/required` (default `coderabbit`). Pass `--reviewers coderabbit,codex` where the repository also requires Codex (Knoxx does). Codex labels findings with `P1 Badge` and `P2 Badge` images; the severity parser reads them.
 
 ## Other agents
 

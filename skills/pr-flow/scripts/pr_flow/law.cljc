@@ -52,8 +52,10 @@
   [body]
   (let [text (-> (or body "")
                  (str/replace #"<!--[\s\S]*?-->" "")
-                 (str/replace #"<details>[\s\S]*?</details>" ""))
-        bold (second (re-find #"\*\*([^*\n]+)\*\*" text))
+                 (str/replace #"<details>[\s\S]*?</details>" "")
+                 (str/replace #"</?sub>" "")
+                 (str/replace #"!\[[^\]]*\]\([^)]*\)" ""))
+        bold (some-> (re-find #"\*\*([^*\n]+)\*\*" text) second str/trim not-empty)
         prose (->> (str/split-lines text)
                    (map str/trim)
                    (remove #(or (str/blank? %) (str/starts-with? % "<") (re-find #"^_.*_$" %)))
@@ -96,11 +98,12 @@
            :settled? (some? settlement))))
 
 (defn unsettled-blockers
-  "Blocking threads not fixed. Deferring or rejecting a P0/P1 does not clear it."
+  "Blocking threads not fixed. Only `Fixed` clears a P0/P1: deferring,
+   rejecting or calling it `Handled` does not. A disputed blocker stays open
+   until the user adjudicates it."
   [threads]
   (filter (fn [{:keys [severity resolution]}]
-            (and (blocking? severity)
-                 (not (#{:fixed :handled} resolution))))
+            (and (blocking? severity) (not= :fixed resolution)))
           threads))
 
 ;; --- review state ---------------------------------------------------------
@@ -139,29 +142,38 @@
 (defn merge-gate
   "Evaluate whether a PR may be marked ready and set to auto-merge.
    input: {:threads [classified] :checks [...] :review-bodies-unanswered n
-           :head sha :reviewed-heads #{sha}}  ; head checks apply only when :head is given
+           :head sha
+           :required-reviewers #{\"coderabbit\" \"codex\" ...}  ; default #{\"coderabbit\"}
+           :reviewed-heads {reviewer #{sha}}                ; full review passes per reviewer
+           :incomplete? bool}                               ; any paginated connection truncated
+   Head checks apply only when :head is given.
    Returns {:pass? bool :reasons [..]}."
-  [{:keys [threads checks review-bodies-unanswered head reviewed-heads]}]
+  [{:keys [threads checks review-bodies-unanswered head required-reviewers reviewed-heads incomplete?]}]
   (let [cr (coderabbit-state checks)
         sums (check-summary checks)
+        required (or (not-empty required-reviewers) #{"coderabbit"})
+        uncovered (when head
+                    (sort (remove #(contains? (set (get reviewed-heads %)) head) required)))
+        blockers (unsettled-blockers threads)
+        unsettled (remove :settled? threads)
+        unresolved (remove :resolved? threads)
         reasons (cond-> []
+                  incomplete? (conj "Review data was truncated (more than one page); refusing to judge a partial view")
                   (= cr :pending) (conj "CodeRabbit review still in progress")
                   (= cr :rate-limited) (conj "CodeRabbit rate-limited; re-request review after the cooldown")
                   (= cr :absent) (conj "No CodeRabbit check; request a review first")
                   (= cr :skipped) (conj "CodeRabbit skipped this head (draft, non-default base, or file cap); request a review explicitly")
-                  (and head (not (contains? (set reviewed-heads) head)))
-                  (conj (str "No CodeRabbit review covers head " (subs head 0 (min 7 (count head))) "; re-request on this head"))
+                  (= cr :failed) (conj "CodeRabbit review failed; request a successful review")
+                  (seq uncovered)
+                  (conj (str "No full review of head " (subs head 0 (min 7 (count head))) " by: " (str/join ", " uncovered)))
                   (pos? (get sums :fail 0)) (conj (str (get sums :fail) " failing check(s)"))
                   (pos? (get sums :pending 0)) (conj (str (get sums :pending) " pending check(s)"))
-                  (seq (unsettled-blockers threads))
-                  (conj (str (count (unsettled-blockers threads)) " P0/P1 thread(s) not fixed"))
-                  (seq (remove :settled? threads))
-                  (conj (str (count (remove :settled? threads)) " thread(s) without a settlement reply"))
-                  (seq (remove :resolved? threads))
-                  (conj (str (count (remove :resolved? threads)) " unresolved thread(s)"))
+                  (seq blockers) (conj (str (count blockers) " P0/P1 thread(s) not fixed"))
+                  (seq unsettled) (conj (str (count unsettled) " thread(s) without a settlement reply"))
+                  (seq unresolved) (conj (str (count unresolved) " unresolved thread(s)"))
                   (pos? (or review-bodies-unanswered 0))
                   (conj (str review-bodies-unanswered " review summary item(s) (nitpicks/outside-diff) not answered in a PR comment")))]
-    {:pass? (empty? reasons) :coderabbit cr :checks sums :reasons reasons}))
+    {:pass? (empty? reasons) :coderabbit cr :checks sums :head head :reasons reasons}))
 
 ;; --- loop budget ----------------------------------------------------------
 

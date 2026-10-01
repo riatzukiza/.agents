@@ -4,7 +4,8 @@
 ;;   nbb -cp <skill>/scripts <skill>/scripts/pr.cljs <command> <owner/repo> <pr> [...]
 ;;
 ;; Commands
-;;   status  REPO PR            gate summary: draft, checks, CodeRabbit, threads by severity
+;;   status  REPO PR [--reviewers coderabbit,codex]
+;;                              gate summary: draft, checks, CodeRabbit, threads by severity
 ;;   threads REPO PR [--all]    review threads (unresolved by default) with id, severity, settlement
 ;;   wait    REPO PR [--timeout S] [--interval S]
 ;;                              poll until CodeRabbit is no longer pending; exit 0 done, 3 rate-limited, 4 timeout
@@ -14,7 +15,7 @@
 ;;                              reply to a thread, then resolve it; BODY must open with
 ;;                              Fixed|Deferred|Rejected|Handled (or "-" to read stdin)
 ;;   flow [STATE]               validate flow.edn; print the states, or one state's skill, exit and next states
-;;   gate    REPO PR [--apply] [--method merge|squash|rebase]   (default merge: the user wants merge commits)
+;;   gate    REPO PR [--apply] [--method merge|squash|rebase] [--reviewers coderabbit,codex]   (default merge: the user wants merge commits)
 ;;                              evaluate the merge gate; with --apply and a pass, mark ready + enable auto-merge
 ;;
 ;; gh auth: runs gh as-is first; if GitHub answers "Resource not accessible by
@@ -70,44 +71,84 @@
 ;; --- reads ----------------------------------------------------------------
 
 (def ^:private threads-query
-  "query($owner:String!,$name:String!,$n:Int!){repository(owner:$owner,name:$name){pullRequest(number:$n){
-     isDraft reviewThreads(first:100){nodes{id isResolved isOutdated path line
-       comments(first:50){nodes{author{login} body url createdAt}}}}}}}")
+  "query($owner:String!,$name:String!,$n:Int!,$after:String){repository(owner:$owner,name:$name){pullRequest(number:$n){
+     isDraft reviewThreads(first:100,after:$after){pageInfo{hasNextPage endCursor}
+       nodes{id isResolved isOutdated path line
+         comments(first:100){pageInfo{hasNextPage} nodes{author{login} body url createdAt}}}}}}}")
 
-(defn fetch-threads [repo n]
-  (let [[owner name] (split-repo repo)
-        data (gh-json "api" "graphql" "-f" (str "query=" threads-query)
-                      "-F" (str "owner=" owner) "-F" (str "name=" name) "-F" (str "n=" n))
-        pr (get-in data [:data :repository :pullRequest])]
-    {:draft? (:isDraft pr)
-     :threads (->> (get-in pr [:reviewThreads :nodes])
-                   (mapv (fn [t]
-                           (law/classify-thread
-                            {:id (:id t) :resolved? (:isResolved t) :outdated? (:isOutdated t)
-                             :path (:path t) :line (:line t)
-                             :comments (mapv (fn [c] {:author (get-in c [:author :login]) :body (:body c)
-                                                      :url (:url c) :created-at (:createdAt c)})
-                                             (get-in t [:comments :nodes]))}))))}))
+(defn- threads-page [owner name n after]
+  (let [args (cond-> ["api" "graphql" "-f" (str "query=" threads-query)
+                      "-F" (str "owner=" owner) "-F" (str "name=" name) "-F" (str "n=" n)]
+               after (into ["-f" (str "after=" after)]))]
+    (get-in (apply gh-json args) [:data :repository :pullRequest])))
+
+(defn fetch-threads
+  "All review threads, following reviewThreads pagination. A thread whose
+   comments exceed one page marks the result :incomplete? so the gate fails
+   closed instead of judging a partial conversation."
+  [repo n]
+  (let [[owner name] (split-repo repo)]
+    (loop [after nil acc [] draft? nil]
+      (let [pr (threads-page owner name n after)
+            conn (:reviewThreads pr)
+            acc (into acc (:nodes conn))]
+        (if (get-in conn [:pageInfo :hasNextPage])
+          (recur (get-in conn [:pageInfo :endCursor]) acc (:isDraft pr))
+          {:draft? (if (nil? draft?) (:isDraft pr) draft?)
+           :incomplete? (boolean (some #(get-in % [:comments :pageInfo :hasNextPage]) acc))
+           :threads (mapv (fn [t]
+                            (law/classify-thread
+                             {:id (:id t) :resolved? (:isResolved t) :outdated? (:isOutdated t)
+                              :path (:path t) :line (:line t)
+                              :comments (mapv (fn [c] {:author (get-in c [:author :login]) :body (:body c)
+                                                       :url (:url c) :created-at (:createdAt c)})
+                                              (get-in t [:comments :nodes]))}))
+                          acc)})))))
+
+(defn reviewer-key
+  "Normalise a review author login to a reviewer name used in --reviewers."
+  [login]
+  (let [l (str/lower-case (str login))]
+    (cond (re-find #"coderabbit" l) "coderabbit"
+          (re-find #"codex" l) "codex"
+          :else (str/replace l #"\[bot\]$" ""))))
+
+(defn- full-review?
+  "Thread replies are also recorded as reviews. CodeRabbit's full pass carries
+   an 'Actionable comments posted' header; other reviewers count when the
+   review has a body or a decisive state."
+  [{:keys [body state user]}]
+  (if (= "coderabbit" (reviewer-key (:login user)))
+    (boolean (re-find #"(?i)actionable comments posted|no actionable comments" (str body)))
+    (or (not (str/blank? body)) (#{"APPROVED" "CHANGES_REQUESTED"} state))))
 
 (defn fetch-heads
-  "Current head SHA and the set of commit SHAs CodeRabbit reviews were posted on."
+  "Current head SHA and, per reviewer, the commit SHAs it fully reviewed."
   [repo n]
   (let [head (str/trim (gh! "pr" "view" (str n) "-R" repo "--json" "headRefOid" "-q" ".headRefOid"))
         reviews (gh-json "api" (str "repos/" repo "/pulls/" n "/reviews") "--paginate")]
     {:head head
      :reviewed-heads (->> reviews
-                          (filter #(re-find #"(?i)coderabbit" (str (get-in % [:user :login]))))
-                          ;; Thread replies are also recorded as reviews; only a
-                          ;; full pass carries the "Actionable comments posted" header.
-                          (filter #(re-find #"(?i)actionable comments posted|no actionable comments" (str (:body %))))
-                          (map :commit_id) set)}))
+                          (filter full-review?)
+                          (reduce (fn [m r] (update m (reviewer-key (get-in r [:user :login])) (fnil conj #{}) (:commit_id r)))
+                                  {}))}))
 
-(defn fetch-checks [repo n]
-  ;; `gh pr checks` exits 8 while checks are pending; that is data, not failure.
-  (let [r (run-gh ["pr" "checks" (str n) "-R" repo "--json" "name,state,description"] (env-without-tokens))]
-    (if (str/blank? (:out r))
-      []
-      (js->clj (js/JSON.parse (:out r)) :keywordize-keys true))))
+(defn fetch-checks
+  "PR check rows. `gh pr checks` exits 8 while checks are pending; that is data,
+   not failure. Tries the normal environment first (token-only CI needs it) and
+   falls back to the keyring only on a token-permission refusal. Any other
+   failure throws, so a blank result never reads as 'no CodeRabbit'."
+  [repo n]
+  (let [args ["pr" "checks" (str n) "-R" repo "--json" "name,state,description"]
+        ok? (fn [r] (and (#{0 8} (:exit r)) (not (str/blank? (:out r)))))
+        r (run-gh args js/process.env)
+        r (if (and (not (ok? r)) (re-find #"Resource not accessible|Bad credentials|HTTP 40[13]" (:err r)))
+            (run-gh args (env-without-tokens))
+            r)]
+    (cond
+      (ok? r) (js->clj (js/JSON.parse (:out r)) :keywordize-keys true)
+      (re-find #"no checks reported" (:err r)) []
+      :else (throw (ex-info (str "gh pr checks failed: " (str/trim (:err r))) r)))))
 
 (defn review-bodies-unanswered
   "CodeRabbit puts nitpicks and outside-diff findings in the review body, where
@@ -135,12 +176,13 @@
     (println (str "    " (law/title-of (:body (first comments)))))
     (println (str "    " (:url (first comments))))))
 
-(defn status [repo n]
-  (let [{:keys [draft? threads]} (fetch-threads repo n)
+(defn status [repo n reviewers]
+  (let [{:keys [draft? threads incomplete?]} (fetch-threads repo n)
         checks (fetch-checks repo n)
         heads (fetch-heads repo n)
         gate (law/merge-gate (merge heads
-                                    {:threads threads :checks checks
+                                    {:threads threads :checks checks :incomplete? incomplete?
+                                     :required-reviewers reviewers
                                      :review-bodies-unanswered (review-bodies-unanswered repo n)}))]
     (println (str repo "#" n (when draft? "  [draft]") "  head " (subs (:head heads) 0 7)))
     (println (str "  coderabbit: " (name (:coderabbit gate)) "   checks: " (pr-str (:checks gate))))
@@ -178,22 +220,22 @@
          "-F" (str "t=" thread-id))
     (println (str "settled " thread-id " as " (name (law/resolution-of body))))))
 
-(defn gate [repo n apply? method]
-  (let [g (status repo n)]
+(defn gate [repo n apply? method reviewers]
+  (let [g (status repo n reviewers)
+        head (:head g)]                 ; the head the verdict is about; never re-fetched
     (when (and apply? (:pass? g))
-      (let [head (:head (fetch-heads repo n))]
-        (gh! "pr" "ready" (str n) "-R" repo)
-        (try
-          (gh! "pr" "merge" (str n) "-R" repo "--auto" (str "--" method) "--match-head-commit" head)
-          (println (str "ready + auto-merge (" method ") enabled on " head))
-          (catch :default e
-            ;; Repos without allow_auto_merge or without required checks refuse
-            ;; --auto. The gate above already verified checks, threads and
-            ;; review on this exact head, so merge now, pinned to that head.
-            (if (re-find #"(?i)auto merge is not allowed|clean status|not allowed for this repository" (ex-message e))
-              (do (gh! "pr" "merge" (str n) "-R" repo (str "--" method) "--match-head-commit" head)
-                  (println (str "auto-merge unavailable; merged (" method ") at gated head " head)))
-              (throw e))))))
+      (gh! "pr" "ready" (str n) "-R" repo)
+      (try
+        (gh! "pr" "merge" (str n) "-R" repo "--auto" (str "--" method) "--match-head-commit" head)
+        (println (str "ready + auto-merge (" method ") enabled on " head))
+        (catch :default e
+          ;; Repos without allow_auto_merge or without required checks refuse
+          ;; --auto. The gate above already verified checks, threads and
+          ;; review on this exact head, so merge now, pinned to that head.
+          (if (re-find #"(?i)auto merge is not allowed|clean status|not allowed for this repository" (ex-message e))
+            (do (gh! "pr" "merge" (str n) "-R" repo (str "--" method) "--match-head-commit" head)
+                (println (str "auto-merge unavailable; merged (" method ") at gated head " head)))
+            (throw e)))))
     (when (and apply? (not (:pass? g)))
       (js/process.exit 2))))
 
@@ -237,18 +279,25 @@
     (nth args (inc i) default)
     default))
 
+(defn- reviewers-flag
+  "--reviewers coderabbit,codex → #{\"coderabbit\" \"codex\"}; default from flow.edn."
+  [args]
+  (if-let [v (flag args "--reviewers" nil)]
+    (set (remove str/blank? (str/split v #",")))
+    (get-in (load-flow) [:flow/defaults :review/required])))
+
 (defn -main [& args]
   (let [[cmd repo n & more] args]
     (try
       (case cmd
         "flow" (show-flow repo)
-        "status" (status repo n)
+        "status" (status repo n (reviewers-flag more))
         "threads" (let [{:keys [threads]} (fetch-threads repo n)]
                     (print-threads (if (some #{"--all"} more) threads (remove :resolved? threads))))
         "wait" (wait repo n (js/parseInt (flag more "--timeout" "1800")) (js/parseInt (flag more "--interval" "30")))
         "request" (request repo n (first more) (flag more "--note" nil))
         "settle" (settle repo n (first more) (second more))
-        "gate" (gate repo n (some #{"--apply"} more) (flag more "--method" "merge"))
+        "gate" (gate repo n (some #{"--apply"} more) (flag more "--method" "merge") (reviewers-flag more))
         (do (println "usage: pr.cljs flow [STATE] | status|threads|wait|request|settle|gate REPO PR ...") (js/process.exit 1)))
       (catch :default e
         (binding [*print-fn* *print-err-fn*] (println (ex-message e)))

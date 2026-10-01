@@ -74,7 +74,7 @@ Laws live in `scripts/pr_flow/law.cljc` (severity, settlement, merge gate, loop 
 - **Merge method.** Use merge commits, not squash (the user's correction). `gate --apply` uses `--merge --match-head-commit <gated head>`.
 - **Auto-merge availability.** `allow_auto_merge` and required checks are repository settings. If `--auto` is refused, `gate --apply` merges directly at the gated head. Turning repository settings on is the user's call; ask before changing them.
 - **Read your merges.** After merging or updating from main, look at what the merge brought in before claiming nothing changed.
-- **CI tooling.** Check the CI checks too. Missing tools on CI runners (clojure-lsp, clj-kondo, java) have repeatedly turned required checks into silent no-ops or permanent failures.
+- **CI tooling.** Check the CI checks too. Missing tools on CI runners (clojure-lsp, clj-kondo, java) have repeatedly turned required checks into silent no-ops or permanent failures. Known traps: `DeLaGuardo/setup-clojure` silently ignores a `clojure-lsp:` input, so install the release binary instead. `clojure-lsp` resolves the classpath through `bb print-deps` whenever `bb.edn` exists, so CI needs `bb` too. When a gate discards a tool's stderr, add a temporary step that runs the tool with visible output.
 
 ## References
 
