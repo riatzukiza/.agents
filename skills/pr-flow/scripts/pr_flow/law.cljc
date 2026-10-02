@@ -112,9 +112,14 @@
 (defn review-body-findings
   "Extract each outside-diff or nitpick finding and its stable CodeRabbit ID."
   [body]
-  (->> (re-seq #"<summary><em>([^<]*)</em> · ([\s\S]*?) · <code>[^<]*</code></summary>[\s\S]*?<!-- cr-comment:v1:([a-z0-9]+) -->" (str body))
-       (mapv (fn [[_ banner title id]]
-               {:id id :severity (severity banner) :title title}))))
+  (let [identified (->> (re-seq #"<summary><em>([^<]*)</em> · ([\s\S]*?) · <code>[^<]*</code></summary>[\s\S]*?<!-- cr-comment:v1:([a-z0-9]+) -->" (str body))
+                        (mapv (fn [[_ banner title id]]
+                                {:id id :severity (severity banner) :title title})))
+        known (set (map :id identified))
+        other (for [[_ id] (re-seq #"<!-- cr-comment:v1:([a-z0-9]+) -->" (str body))
+                    :when (not (known id))]
+                {:id id :severity :p1 :title "Unclassified review-body finding; fix before merge"})]
+    (into identified other)))
 
 (defn- answered-finding? [review comments {:keys [id severity]}]
   (some (fn [{:keys [body created_at]}]
@@ -156,7 +161,7 @@
   "Repository-specific reviewer requirements cannot be removed by a CLI flag."
   [defaults repo requested]
   (let [repo-name (last (str/split repo #"/"))]
-    (into (or requested (:review/required defaults))
+    (into (into (:review/required defaults) (or requested #{}))
           (get-in defaults [:review/by-repo-name repo-name] #{}))))
 
 (defn unsettled-blockers

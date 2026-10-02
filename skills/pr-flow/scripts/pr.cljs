@@ -229,8 +229,9 @@
         full (filter #(and (= "coderabbit" (reviewer-key (get-in % [:user :login])))
                            (full-review? %)) reviews)
         comments (gh-pages (str "repos/" repo "/issues/" n "/comments"))
-        markers (keep (fn [c] (when-let [[_ stage] (re-find #"<!-- pr-flow-stage:(planning|code) -->" (str (:body c)))]
-                                {:stage stage :created_at (:created_at c)})) comments)
+        markers (keep (fn [c] (when (authorized-author? repo (get-in c [:user :login]))
+                                (when-let [[_ stage] (re-find #"<!-- pr-flow-stage:(planning|code) -->" (str (:body c)))]
+                                  {:stage stage :created_at (:created_at c)}))) comments)
         rounds (law/stage-review-rounds full markers kind)
         open-findings (count (remove :resolved? (:threads (fetch-threads repo n))))
         max-loops (get-in (load-flow) [:flow/defaults :review/max-loops])

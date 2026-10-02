@@ -108,6 +108,14 @@
     (is (= [{:id "abc123" :severity :p1 :title "Use <code>foo</code>"}]
            (law/review-body-findings body)))))
 
+(deftest nitpick-without-item-banner-fails-closed
+  (let [body "<summary>🧹 Nitpick comments (1)</summary>text <!-- cr-comment:v1:xyz789 -->"
+        review {:id 202 :submitted_at "2026-10-01T00:00:00Z" :body body}
+        deferred {:created_at "2026-10-01T00:01:00Z" :body "Handled: review-id:202\n- Deferred cr-comment:v1:xyz789: later"}
+        fixed (assoc deferred :body "Handled: review-id:202\n- Fixed cr-comment:v1:xyz789: corrected")]
+    (is (= 1 (law/unanswered-review-count [review] [deferred])))
+    (is (= 0 (law/unanswered-review-count [review] [fixed])))))
+
 (deftest review-rounds-are-stage-scoped
   (let [reviews [{:submitted_at "2026-10-01T00:01:00Z"}
                  {:submitted_at "2026-10-01T01:01:00Z"}
@@ -178,7 +186,9 @@
     (is (= #{"coderabbit" "codex"}
            (law/required-reviewers-for defaults "open-hax/knoxx" #{"coderabbit"})))
     (is (= #{"coderabbit"}
-           (law/required-reviewers-for defaults "open-hax/foresight" nil)))))
+           (law/required-reviewers-for defaults "open-hax/foresight" nil)))
+    (is (= #{"coderabbit" "codex"}
+           (law/required-reviewers-for defaults "open-hax/foresight" #{"codex"})))))
 
 (deftest flow-is-lawful
   (is (= [] (flow/problems the-flow)))
