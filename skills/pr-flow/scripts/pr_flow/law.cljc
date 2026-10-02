@@ -80,22 +80,32 @@
 (defn bot? [login]
   (boolean (and login (re-find #"(?i)\[bot\]$|coderabbit|copilot|kimi|codex|opencode|github-actions" login))))
 
+(def ^:private confirmation
+  "A reviewer reply that accepts the settlement rather than disputing it."
+  #"(?i)review thread resolved|✅|\bverified\b|addresses (this|the) (finding|issue|comment)|thanks for (confirming|the (fix|update|clarification))")
+
 (defn classify-thread
   "thread: {:id :resolved? :outdated? :path :line
              :comments [{:author :body :url :created-at}]}
-   Returns the thread with :severity, :reviewer, :resolution, :settled?."
+   Returns the thread with :severity, :reviewer, :resolution, :settled?, and
+   :contested? — true when a reviewer replied after the last settlement
+   without confirming it. A contested thread blocks the gate until it is
+   settled again, even if GitHub shows it resolved."
   [{:keys [comments] :as thread}]
   (let [opener (first comments)
-        replies (rest comments)
-        settlement (->> replies
-                        (remove #(bot? (:author %)))
-                        (keep #(resolution-of (:body %)))
-                        last)]
+        replies (vec (rest comments))
+        settle-idx (->> (map-indexed vector replies)
+                        (filter (fn [[_ c]] (and (not (bot? (:author c))) (resolution-of (:body c)))))
+                        (map first) last)
+        settlement (when settle-idx (resolution-of (:body (nth replies settle-idx))))
+        later (when settle-idx (subvec replies (inc settle-idx)))
+        contested? (boolean (some #(and (bot? (:author %)) (not (re-find confirmation (str (:body %))))) later))]
     (assoc thread
            :reviewer (:author opener)
            :severity (severity (:body opener))
            :resolution settlement
-           :settled? (some? settlement))))
+           :settled? (and (some? settlement) (not contested?))
+           :contested? contested?)))
 
 (defn unsettled-blockers
   "Blocking threads not fixed. Only `Fixed` clears a P0/P1: deferring,
@@ -156,6 +166,7 @@
                     (sort (remove #(contains? (set (get reviewed-heads %)) head) required)))
         blockers (unsettled-blockers threads)
         unsettled (remove :settled? threads)
+        contested (filter :contested? threads)
         unresolved (remove :resolved? threads)
         reasons (cond-> []
                   incomplete? (conj "Review data was truncated (more than one page); refusing to judge a partial view")
@@ -169,6 +180,7 @@
                   (pos? (get sums :fail 0)) (conj (str (get sums :fail) " failing check(s)"))
                   (pos? (get sums :pending 0)) (conj (str (get sums :pending) " pending check(s)"))
                   (seq blockers) (conj (str (count blockers) " P0/P1 thread(s) not fixed"))
+                  (seq contested) (conj (str (count contested) " thread(s) where a reviewer disputed the settlement; reopen and settle again"))
                   (seq unsettled) (conj (str (count unsettled) " thread(s) without a settlement reply"))
                   (seq unresolved) (conj (str (count unresolved) " unresolved thread(s)"))
                   (pos? (or review-bodies-unanswered 0))

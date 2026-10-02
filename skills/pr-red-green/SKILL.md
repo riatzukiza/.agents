@@ -16,7 +16,7 @@ metadata:
 
 ## Do not use this skill when
 
-- The card is not reviewed or ready. Go back to `pr-sprint-planning`.
+- The card has not finished planning review (it never passed through `ready`). Go back to `pr-sprint-planning`. A reviewed card already in `todo` or `in_progress` belongs here.
 
 ## Red: laws and tests first
 

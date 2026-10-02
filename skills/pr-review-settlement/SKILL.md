@@ -1,6 +1,6 @@
 ---
 name: pr-review-settlement
-description: The review loop of pr-flow, used for both planning and code review. Wait for CodeRabbit and other agents on the exact head, triage every finding by severity (P0–P3), fix, defer or reject each with a reply that explains the outcome, resolve the thread, and re-request review until no P0/P1 is unfixed or the loop budget escalates.
+description: The review loop of pr-flow, used for both planning and code review. Wait for CodeRabbit and other agents on the exact head, triage every finding by severity (P0–P3), fix, defer, reject, or mark it handled (already correct; P2/P3 only), each with a reply that explains the outcome, resolve the thread, and re-request review until no P0/P1 is unfixed or the loop budget escalates.
 license: GPL-3.0-or-later
 metadata:
   tier: provisional
@@ -55,7 +55,7 @@ Severity comes from the comment banner:
 ## Mechanics
 
 - Use the thread id (`PRRT_…`) from GraphQL `reviewThreads`. `settle` replies with `addPullRequestReviewThreadReply`, then calls `resolveReviewThread`. The REST equivalent is `POST repos/O/R/pulls/N/comments/<comment-id>/replies`. Note the `N`: `pulls/comments/<id>/replies` is wrong.
-- CodeRabbit answers settlement replies: it verifies the claimed commit and either confirms ("✅ Review thread resolved") or pushes back. Read those replies before the next round; a pushback reopens the item.
+- CodeRabbit answers settlement replies: it verifies the claimed commit and either confirms ("✅ Review thread resolved") or pushes back. `law/classify-thread` marks a thread `:contested?` when a reviewer replies after the last settlement without confirming it. The gate then blocks, even if GitHub shows the thread resolved. To re-settle, fix or answer the pushback, then run `settle` again with a new reply; GitHub's `unresolveReviewThread` mutation can reopen the thread first if humans should see it open.
 - Settlement replies also show up as "reviews" in the reviews API. Only a full pass (body headed "Actionable comments posted") counts as review coverage of a head.
 
 ## Required reviewers

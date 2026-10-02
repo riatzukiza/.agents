@@ -8,6 +8,8 @@ metadata:
 
 # PR review to merge
 
+> **Within pr-flow, pr-flow's rules win where they differ.** PRs, including stack layers, are opened ready with auto-merge off, not as drafts, because Codex ignores drafts. Merges use merge commits, not squash. A disputed **P2/P3** finding is settled with `Rejected: <reason>` and resolved, while a disputed **P0/P1** finding stays open for the user to adjudicate (`pr-review-settlement`). This copy is otherwise unchanged from open-hax/knoxx `.agents/skills/pr-review-to-merge` at `0fdaae13`.
+
 ## Use this skill when
 
 - The user authorizes merging a PR or advancing an ordered PR stack.

@@ -69,6 +69,17 @@
   (let [t (law/classify-thread (thread "_🔴 Critical_" "Handled: already fine"))]
     (is (= 1 (count (law/unsettled-blockers [t]))))))
 
+(deftest pushback-after-settlement-blocks
+  (let [base (thread "_🟡 Minor_" "Rejected: intended")
+        pushed (law/classify-thread (update base :comments conj {:author "coderabbitai[bot]" :body "That reasoning does not hold; the path is still reachable."}))
+        confirmed (law/classify-thread (update base :comments conj {:author "coderabbitai[bot]" :body "Verified in abc. ✅ Review thread resolved."}))
+        resettled (law/classify-thread (update base :comments into [{:author "coderabbitai[bot]" :body "Still wrong."}
+                                                                   {:author "riatzukiza" :body "Fixed in def: covered now"}]))]
+    (is (:contested? pushed))
+    (is (not (:pass? (law/merge-gate {:threads [(assoc pushed :resolved? true)] :checks [{:name "CodeRabbit" :state "SUCCESS" :description "Review completed"}]}))))
+    (is (not (:contested? confirmed)))
+    (is (not (:contested? resettled)))))
+
 (deftest codex-titles-and-badges
   (let [body "**<sub><sub>![P1 Badge](https://img.shields.io/badge/P1-orange?style=flat)</sub></sub>  Reuse the SHA that actually passed the gate**\n\nIf another commit..."]
     (is (= :p1 (law/severity body)))
