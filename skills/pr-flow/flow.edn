@@ -18,6 +18,7 @@
                  ;; Reviewers whose full pass must cover the gated head. Repos add
                  ;; their own (Knoxx: codex) with --reviewers.
                  :review/required #{"coderabbit"}
+                 :review/by-repo-name {"knoxx" #{"coderabbit" "codex"}}
                  :merge/method :merge}
 
  :flow/states

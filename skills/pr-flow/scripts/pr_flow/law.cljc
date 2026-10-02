@@ -109,19 +109,55 @@
            :settled? (and (some? settlement) (not contested?))
            :contested? contested?)))
 
+(defn review-body-findings
+  "Extract each outside-diff or nitpick finding and its stable CodeRabbit ID."
+  [body]
+  (->> (re-seq #"<summary><em>([^<]*)</em> · ([\s\S]*?) · <code>[^<]*</code></summary>[\s\S]*?<!-- cr-comment:v1:([a-z0-9]+) -->" (str body))
+       (mapv (fn [[_ banner title id]]
+               {:id id :severity (severity banner) :title title}))))
+
+(defn- answered-finding? [review comments {:keys [id severity]}]
+  (some (fn [{:keys [body created_at]}]
+          (and created_at
+               (not (neg? (compare created_at (:submitted_at review))))
+               (re-find (re-pattern (str "(?i)review-id:" (:id review) "\\b")) (str body))
+               (some (fn [[_ verb marker]]
+                       (and (= marker id)
+                            (or (not (blocking? severity))
+                                (= "fixed" (str/lower-case verb)))))
+                     (re-seq #"(?mi)^\s*[-*]\s*(Fixed|Deferred|Rejected|Handled)\b[^\n]*?cr-comment:v1:([a-z0-9]+)\b" (str body)))))
+        comments))
+
 (defn unanswered-review-count
-  "Each flagged review needs a later itemized settlement naming its review ID.
-   A generic Handled comment cannot settle every review body at once."
+  "A flagged review clears only when each identified item has an authorized,
+   later settlement; P0/P1 items require Fixed. Unknown items fail closed."
   [reviews comments]
-  (count
-   (remove (fn [{:keys [id submitted_at]}]
-             (some (fn [{:keys [body created_at]}]
-                     (and id created_at (not (neg? (compare created_at submitted_at)))
-                          (resolution-of body)
-                          (re-find (re-pattern (str "(?i)review-id:" id "\\b")) (str body))
-                          (re-find #"(?m)^\s*(?:[-*]|\d+\.)\s+" (str body))))
-                   comments))
-           reviews)))
+  (reduce +
+          (for [review reviews
+                :let [findings (review-body-findings (:body review))]]
+            (if (seq findings)
+              (count (remove #(answered-finding? review comments %) findings))
+              1))))
+
+(defn stage-review-rounds
+  "Count full review timestamps only within the latest consecutive stage run.
+   Comments are persisted PR markers; legacy PRs without markers count all."
+  [reviews stage-comments stage]
+  (let [markers (sort-by :created_at stage-comments)
+        latest (last markers)]
+    (if (and latest (not= stage (:stage latest)))
+      0
+      (let [current (reverse (take-while #(= stage (:stage %)) (reverse markers)))
+            start (:created_at (first current))]
+        (count (filter #(or (nil? start)
+                            (not (neg? (compare (:submitted_at %) start)))) reviews))))))
+
+(defn required-reviewers-for
+  "Repository-specific reviewer requirements cannot be removed by a CLI flag."
+  [defaults repo requested]
+  (let [repo-name (last (str/split repo #"/"))]
+    (into (or requested (:review/required defaults))
+          (get-in defaults [:review/by-repo-name repo-name] #{}))))
 
 (defn unsettled-blockers
   "Blocking threads not fixed. Only `Fixed` clears a P0/P1: deferring,
@@ -195,6 +231,8 @@
                   (conj (str "No full review of head " (subs head 0 (min 7 (count head))) " by: " (str/join ", " uncovered)))
                   (pos? (get sums :fail 0)) (conj (str (get sums :fail) " failing check(s)"))
                   (pos? (get sums :pending 0)) (conj (str (get sums :pending) " pending check(s)"))
+                  (some #(and (:required? %) (#{"skipped" "skipping" "cancelled"} (str/lower-case (str (:state %))))) checks)
+                  (conj "A required check was skipped or cancelled")
                   (seq blockers) (conj (str (count blockers) " P0/P1 thread(s) not fixed"))
                   (seq contested) (conj (str (count contested) " thread(s) where a reviewer disputed the settlement; reopen and settle again"))
                   (seq unsettled) (conj (str (count unsettled) " thread(s) without a settlement reply"))

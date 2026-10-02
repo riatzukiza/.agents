@@ -147,11 +147,27 @@
         r (run-gh args js/process.env)
         r (if (and (not (ok? r)) (re-find #"Resource not accessible|Bad credentials|HTTP 40[13]" (:err r)))
             (run-gh args (env-without-tokens))
-            r)]
+            r)
+        required-args (conj args "--required")
+        required (run-gh required-args js/process.env)
+        required (if (and (not (ok? required)) (re-find #"Resource not accessible|Bad credentials|HTTP 40[13]" (:err required)))
+                   (run-gh required-args (env-without-tokens)) required)
+        required-names (cond
+                         (ok? required) (set (map :name (js->clj (js/JSON.parse (:out required)) :keywordize-keys true)))
+                         (re-find #"no checks reported" (:err required)) #{}
+                         :else (throw (ex-info "Cannot identify required checks" required)))]
     (cond
-      (ok? r) (js->clj (js/JSON.parse (:out r)) :keywordize-keys true)
+      (ok? r) (mapv #(assoc % :required? (contains? required-names (:name %)))
+                    (js->clj (js/JSON.parse (:out r)) :keywordize-keys true))
       (re-find #"no checks reported" (:err r)) []
       :else (throw (ex-info (str "gh pr checks failed: " (str/trim (:err r))) r)))))
+
+(defn- authorized-author? [repo login]
+  (when (and login (not (law/bot? login)))
+    (try
+      (#{"admin" "maintain" "write"} (:permission (gh-json "api" (str "repos/" repo "/collaborators/" login "/permission"))))
+      (catch :default e
+        (if (re-find #"HTTP 404|Not Found" (ex-message e)) false (throw e))))))
 
 (defn review-bodies-unanswered
   "CodeRabbit puts nitpicks and outside-diff findings in the review body, where
@@ -163,7 +179,8 @@
                      (filter #(law/bot? (get-in % [:user :login])))
                      (filter #(re-find #"(?i)nitpick comments|outside diff range|duplicate comments" (str (:body %)))))
         comments (->> (gh-pages (str "repos/" repo "/issues/" n "/comments"))
-                      (remove #(law/bot? (get-in % [:user :login]))))]
+                      (filter #(and (re-find #"(?i)review-id:" (str (:body %)))
+                                    (authorized-author? repo (get-in % [:user :login])))))]
     (law/unanswered-review-count flagged comments)))
 
 ;; --- output ---------------------------------------------------------------
@@ -209,13 +226,18 @@
 
 (defn request [repo n kind note]
   (let [reviews (gh-pages (str "repos/" repo "/pulls/" n "/reviews"))
-        rounds (count (filter #(and (= "coderabbit" (reviewer-key (get-in % [:user :login])))
-                                   (full-review? %)) reviews))
+        full (filter #(and (= "coderabbit" (reviewer-key (get-in % [:user :login])))
+                           (full-review? %)) reviews)
+        comments (gh-pages (str "repos/" repo "/issues/" n "/comments"))
+        markers (keep (fn [c] (when-let [[_ stage] (re-find #"<!-- pr-flow-stage:(planning|code) -->" (str (:body c)))]
+                                {:stage stage :created_at (:created_at c)})) comments)
+        rounds (law/stage-review-rounds full markers kind)
         open-findings (count (remove :resolved? (:threads (fetch-threads repo n))))
         max-loops (get-in (load-flow) [:flow/defaults :review/max-loops])
         verdict (law/loop-verdict {:rounds rounds :open-blockers open-findings :max-loops max-loops})
         body (cond-> (or (get briefs kind) (throw (ex-info "kind must be planning|code" {:kind kind})))
-               note (str "\n\n" note))]
+               note (str "\n\n" note))
+        body (str body "\n\n<!-- pr-flow-stage:" kind " -->")]
     (when (= :escalate verdict)
       (throw (ex-info "Review loop budget exhausted; escalate open findings instead of requesting another review"
                       {:rounds rounds :open-findings open-findings :max-loops max-loops})))
@@ -304,23 +326,25 @@
 
 (defn- reviewers-flag
   "--reviewers coderabbit,codex → #{\"coderabbit\" \"codex\"}; default from flow.edn."
-  [args]
-  (if-let [v (flag args "--reviewers" nil)]
-    (set (remove str/blank? (str/split v #",")))
-    (get-in (load-flow) [:flow/defaults :review/required])))
+  [repo args]
+  (let [defaults (:flow/defaults (load-flow))
+        requested (if-let [v (flag args "--reviewers" nil)]
+                    (set (remove str/blank? (str/split v #",")))
+                    nil)]
+    (law/required-reviewers-for defaults repo requested)))
 
 (defn -main [& args]
   (let [[cmd repo n & more] args]
     (try
       (case cmd
         "flow" (show-flow repo)
-        "status" (status repo n (reviewers-flag more))
+        "status" (status repo n (reviewers-flag repo more))
         "threads" (let [{:keys [threads]} (fetch-threads repo n)]
                     (print-threads (if (some #{"--all"} more) threads (remove :resolved? threads))))
         "wait" (wait repo n (js/parseInt (flag more "--timeout" "1800")) (js/parseInt (flag more "--interval" "30")))
         "request" (request repo n (first more) (flag more "--note" nil))
         "settle" (settle repo n (first more) (second more))
-        "gate" (gate repo n (some #{"--apply"} more) (flag more "--method" "merge") (reviewers-flag more))
+        "gate" (gate repo n (some #{"--apply"} more) (flag more "--method" "merge") (reviewers-flag repo more))
         (do (println "usage: pr.cljs flow [STATE] | status|threads|wait|request|settle|gate REPO PR ...") (js/process.exit 1)))
       (catch :default e
         (binding [*print-fn* *print-err-fn*] (println (ex-message e)))

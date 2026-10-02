@@ -90,12 +90,33 @@
     (is (not (:contested? (disputed "coderabbitai[bot]" "✅ Review thread resolved."))))))
 
 (deftest review-body-answer-must-name-review
-  (let [reviews [{:id 101 :submitted_at "2026-10-01T00:00:00Z"}
-                 {:id 102 :submitted_at "2026-10-01T00:00:00Z"}]
-        comments [{:created_at "2026-10-01T00:01:00Z" :body "Handled: review-id:101\n- Item 1 fixed."}]]
-    (is (= 1 (law/unanswered-review-count reviews comments)))
-    (is (= 2 (law/unanswered-review-count reviews [{:created_at "2026-10-01T00:01:00Z" :body "Handled: everything."}])))
-    (is (= 0 (law/unanswered-review-count reviews (conj comments {:created_at "2026-10-01T00:02:00Z" :body "Handled: review-id:102\n- Item 2 deferred."}))))))
+  (let [body (str "<summary><em>🟠 Major</em> · Must fix · <code>x:1</code></summary>"
+                  "details <!-- cr-comment:v1:abc123 -->"
+                  "<summary><em>🟡 Minor</em> · May defer · <code>x:2</code></summary>"
+                  "details <!-- cr-comment:v1:def456 -->")
+        review {:id 101 :submitted_at "2026-10-01T00:00:00Z" :body body}
+        answer {:created_at "2026-10-01T00:01:00Z"
+                :body "Handled: review-id:101\n- Fixed cr-comment:v1:abc123: corrected\n- Deferred cr-comment:v1:def456: card 2"}]
+    (is (= 2 (count (law/review-body-findings body))))
+    (is (= 0 (law/unanswered-review-count [review] [answer])))
+    (is (= 1 (law/unanswered-review-count [review] [(assoc answer :body "Handled: review-id:101\n- Deferred cr-comment:v1:abc123: card 1\n- Deferred cr-comment:v1:def456: card 2")])))
+    (is (= 1 (law/unanswered-review-count [review] [(assoc answer :body "Handled: review-id:101\n- Fixed cr-comment:v1:abc123: corrected")])))
+    (is (= 2 (law/unanswered-review-count [review] [(assoc answer :body "Handled: generic\n- Fixed cr-comment:v1:abc123")])))))
+
+(deftest review-body-title-may-contain-html
+  (let [body "<summary><em>🟠 Major</em> · Use <code>foo</code> · <code>x:1</code></summary><blockquote>body <!-- cr-comment:v1:abc123 -->"]
+    (is (= [{:id "abc123" :severity :p1 :title "Use <code>foo</code>"}]
+           (law/review-body-findings body)))))
+
+(deftest review-rounds-are-stage-scoped
+  (let [reviews [{:submitted_at "2026-10-01T00:01:00Z"}
+                 {:submitted_at "2026-10-01T01:01:00Z"}
+                 {:submitted_at "2026-10-01T02:01:00Z"}]
+        markers [{:stage "planning" :created_at "2026-10-01T00:00:00Z"}
+                 {:stage "code" :created_at "2026-10-01T02:00:00Z"}]]
+    (is (= 1 (law/stage-review-rounds reviews markers "code")))
+    (is (= 0 (law/stage-review-rounds reviews markers "planning")))
+    (is (= 3 (law/stage-review-rounds reviews [] "code")))))
 
 (deftest codex-titles-and-badges
   (let [body "**<sub><sub>![P1 Badge](https://img.shields.io/badge/P1-orange?style=flat)</sub></sub>  Reuse the SHA that actually passed the gate**\n\nIf another commit..."]
@@ -138,7 +159,10 @@
     (testing "truncated thread data fails closed"
       (is (not (:pass? (law/merge-gate {:threads [] :checks done :incomplete? true})))))
     (testing "unanswered review-body nitpicks block"
-      (is (not (:pass? (law/merge-gate {:threads [] :checks done :review-bodies-unanswered 1})))))))
+      (is (not (:pass? (law/merge-gate {:threads [] :checks done :review-bodies-unanswered 1})))))
+    (testing "skipped required check blocks but optional skip does not"
+      (is (not (:pass? (law/merge-gate {:threads [] :checks (conj done {:name "required" :state "SKIPPED" :required? true})}))))
+      (is (:pass? (law/merge-gate {:threads [] :checks (conj done {:name "optional" :state "SKIPPED" :required? false})}))))))
 
 (deftest loop-budget
   (is (= :converged (law/loop-verdict {:rounds 9 :open-blockers 0})))
@@ -148,6 +172,13 @@
 (def skill-root (path/join here ".."))
 (def skills-dir (path/join skill-root ".."))
 (def the-flow (edn/read-string (str (fs/readFileSync (path/join skill-root "flow.edn") "utf8"))))
+
+(deftest knoxx-mandatory-reviewers
+  (let [defaults (:flow/defaults the-flow)]
+    (is (= #{"coderabbit" "codex"}
+           (law/required-reviewers-for defaults "open-hax/knoxx" #{"coderabbit"})))
+    (is (= #{"coderabbit"}
+           (law/required-reviewers-for defaults "open-hax/foresight" nil)))))
 
 (deftest flow-is-lawful
   (is (= [] (flow/problems the-flow)))

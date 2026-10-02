@@ -16,6 +16,7 @@
   (invariants
     (one-active-pr true)
     (reviewers-for-knoxx ["coderabbit" "codex"])
+    (reviewer-defaults "pr-flow/flow.edn :flow/defaults :review/by-repo-name; mandatory reviewer sets cannot be removed by --reviewers")
     (require-current-head-reviews true)
     (require-passing-required-checks true)
     (require-resolved-review-conversations true)
