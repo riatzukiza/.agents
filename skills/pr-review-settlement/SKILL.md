@@ -46,7 +46,7 @@ Severity comes from the comment banner:
 4. **Commit and push** with explicit paths and ordinary commits. Never amend or force-push.
 5. **Settle** each thread with `pr.cljs settle REPO N THREAD_ID "<Opening> …"`, which replies and then resolves. Outdated threads still need verification first.
 6. **Answer review-body items** (nitpicks, outside-diff, duplicates) in a PR comment with `review-id:<numeric GitHub review ID>`. Each bullet starts with `Fixed`, `Deferred`, `Rejected`, or `Handled` and names the finding's `cr-comment:v1:<ID>` marker. P0/P1 items require `Fixed`; a generic reply cannot settle a review.
-7. **Re-request** with `pr.cljs request REPO N code` on the new head. Every round counts toward `:review/max-loops` (default 5).
+7. **Re-request** with `pr.cljs request REPO N KIND` on the new head, using the same `planning` or `code` kind as the initial request. Every round counts toward `:review/max-loops` (default 5) for that stage.
 8. **Decide** using `law/loop-verdict`:
    - `:converged` (no P0/P1 open) goes to the merge gate.
    - `:iterate` goes back to step 1.
