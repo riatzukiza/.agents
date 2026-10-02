@@ -82,7 +82,7 @@
 
 (def ^:private confirmation
   "A reviewer reply that accepts the settlement rather than disputing it."
-  #"(?i)review thread resolved|✅|\bverified\b|addresses (this|the) (finding|issue|comment)|thanks for (confirming|the (fix|update|clarification))")
+  #"(?i)review thread resolved|✅ review thread resolved|(?:^|[.!]\s*)verified(?: the fix)?[.!]?\s*$|(?:^|[.!]\s*)this addresses (?:the|my) (?:finding|issue|comment)[.!]?\s*$")
 
 (defn classify-thread
   "thread: {:id :resolved? :outdated? :path :line
@@ -99,13 +99,29 @@
                         (map first) last)
         settlement (when settle-idx (resolution-of (:body (nth replies settle-idx))))
         later (when settle-idx (subvec replies (inc settle-idx)))
-        contested? (boolean (some #(and (bot? (:author %)) (not (re-find confirmation (str (:body %))))) later))]
+        settler (when settle-idx (:author (nth replies settle-idx)))
+        contested? (boolean (some #(and (not= settler (:author %))
+                                       (not (re-find confirmation (str (:body %))))) later))]
     (assoc thread
            :reviewer (:author opener)
            :severity (severity (:body opener))
            :resolution settlement
            :settled? (and (some? settlement) (not contested?))
            :contested? contested?)))
+
+(defn unanswered-review-count
+  "Each flagged review needs a later itemized settlement naming its review ID.
+   A generic Handled comment cannot settle every review body at once."
+  [reviews comments]
+  (count
+   (remove (fn [{:keys [id submitted_at]}]
+             (some (fn [{:keys [body created_at]}]
+                     (and id created_at (not (neg? (compare created_at submitted_at)))
+                          (resolution-of body)
+                          (re-find (re-pattern (str "(?i)review-id:" id "\\b")) (str body))
+                          (re-find #"(?m)^\s*(?:[-*]|\d+\.)\s+" (str body))))
+                   comments))
+           reviews)))
 
 (defn unsettled-blockers
   "Blocking threads not fixed. Only `Fixed` clears a P0/P1: deferring,

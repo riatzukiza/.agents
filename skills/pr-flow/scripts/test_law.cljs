@@ -80,6 +80,23 @@
     (is (not (:contested? confirmed)))
     (is (not (:contested? resettled)))))
 
+(deftest ambiguous-confirmation-and-human-pushback
+  (let [base (thread "_🟡 Minor_" "Fixed in abc: repaired")
+        disputed (fn [author body]
+                   (law/classify-thread (update base :comments conj {:author author :body body})))]
+    (is (:contested? (disputed "coderabbitai[bot]" "Verified: this still reproduces.")))
+    (is (:contested? (disputed "human-reviewer" "I still see the bug.")))
+    (is (not (:contested? (disputed "riatzukiza" "Follow-up details from the fixer."))))
+    (is (not (:contested? (disputed "coderabbitai[bot]" "✅ Review thread resolved."))))))
+
+(deftest review-body-answer-must-name-review
+  (let [reviews [{:id 101 :submitted_at "2026-10-01T00:00:00Z"}
+                 {:id 102 :submitted_at "2026-10-01T00:00:00Z"}]
+        comments [{:created_at "2026-10-01T00:01:00Z" :body "Handled: review-id:101\n- Item 1 fixed."}]]
+    (is (= 1 (law/unanswered-review-count reviews comments)))
+    (is (= 2 (law/unanswered-review-count reviews [{:created_at "2026-10-01T00:01:00Z" :body "Handled: everything."}])))
+    (is (= 0 (law/unanswered-review-count reviews (conj comments {:created_at "2026-10-01T00:02:00Z" :body "Handled: review-id:102\n- Item 2 deferred."}))))))
+
 (deftest codex-titles-and-badges
   (let [body "**<sub><sub>![P1 Badge](https://img.shields.io/badge/P1-orange?style=flat)</sub></sub>  Reuse the SHA that actually passed the gate**\n\nIf another commit..."]
     (is (= :p1 (law/severity body)))
@@ -137,7 +154,12 @@
   (is (= [:plan] (flow/next-states the-flow :muse)))
   (testing "a broken flow is caught"
     (is (seq (flow/problems (update the-flow :flow/transitions conj [:muse :nowhere]))))
-    (is (seq (flow/problems (assoc-in the-flow [:flow/states :orphan] {:skill "x"}))))))
+    (is (seq (flow/problems (assoc-in the-flow [:flow/states :orphan] {:skill "x"}))))
+    (let [disconnected (-> the-flow
+                           (assoc-in [:flow/states :island-a] {:skill "x"})
+                           (assoc-in [:flow/states :island-b] {:skill "x"})
+                           (update :flow/transitions into [[:island-a :island-b] [:island-b :island-a]]))]
+      (is (some #(and (= :unreachable-state (:problem %)) (= :island-a (:state %))) (flow/problems disconnected))))))
 
 (deftest every-named-skill-exists
   (doseq [s (flow/skills the-flow)]

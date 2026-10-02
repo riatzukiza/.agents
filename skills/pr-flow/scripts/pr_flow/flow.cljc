@@ -4,12 +4,22 @@
 
 (defn states [flow] (set (keys (:flow/states flow))))
 
+(defn reachable-states [flow]
+  (loop [seen #{} frontier [(:flow/initial flow)]]
+    (if-let [s (first frontier)]
+      (if (seen s)
+        (recur seen (rest frontier))
+        (recur (conj seen s)
+               (concat (rest frontier)
+                       (for [[from to] (:flow/transitions flow) :when (= from s)] to))))
+      seen)))
+
 (defn problems
   "Return a vector of well-formedness problems; empty means lawful."
   [flow]
   (let [ss (states flow)
         ts (:flow/transitions flow)
-        targets (set (map second ts))
+        reachable (reachable-states flow)
         sources (set (map first ts))]
     (cond-> []
       (not (ss (:flow/initial flow)))
@@ -20,7 +30,7 @@
               {:problem :transition-to-unknown-state :edge [a b]}))
 
       :always
-      (into (for [s ss :when (and (not= s (:flow/initial flow)) (not (targets s)))]
+      (into (for [s ss :when (not (reachable s))]
               {:problem :unreachable-state :state s}))
 
       :always

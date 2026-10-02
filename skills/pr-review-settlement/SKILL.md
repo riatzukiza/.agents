@@ -45,7 +45,7 @@ Severity comes from the comment banner:
 3. **Verify each fix** locally with the repository's gate. Add a regression test where the finding was a bug.
 4. **Commit and push** with explicit paths and ordinary commits. Never amend or force-push.
 5. **Settle** each thread with `pr.cljs settle REPO N THREAD_ID "<Opening> …"`, which replies and then resolves. Outdated threads still need verification first.
-6. **Answer review-body items** (nitpicks, outside-diff, duplicates) in one PR comment that opens with `Handled:` and itemises each with its outcome.
+6. **Answer review-body items** (nitpicks, outside-diff, duplicates) in an itemized PR comment that opens with `Handled:` and names each review as `review-id:<numeric GitHub review ID>`. State the outcome for each item; do not let one generic reply settle later reviews.
 7. **Re-request** with `pr.cljs request REPO N code` on the new head. Every round counts toward `:review/max-loops` (default 5).
 8. **Decide** using `law/loop-verdict`:
    - `:converged` (no P0/P1 open) goes to the merge gate.

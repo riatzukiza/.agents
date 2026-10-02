@@ -63,6 +63,9 @@
 (defn gh-json [& args]
   (js->clj (js/JSON.parse (apply gh! args)) :keywordize-keys true))
 
+(defn gh-pages [endpoint]
+  (mapcat identity (gh-json "api" endpoint "--paginate" "--slurp")))
+
 (defn- split-repo [repo]
   (let [[owner name] (str/split repo #"/")]
     (when-not (and owner name) (throw (ex-info "REPO must be owner/name" {:repo repo})))
@@ -126,7 +129,7 @@
   "Current head SHA and, per reviewer, the commit SHAs it fully reviewed."
   [repo n]
   (let [head (str/trim (gh! "pr" "view" (str n) "-R" repo "--json" "headRefOid" "-q" ".headRefOid"))
-        reviews (gh-json "api" (str "repos/" repo "/pulls/" n "/reviews") "--paginate")]
+        reviews (gh-pages (str "repos/" repo "/pulls/" n "/reviews"))]
     {:head head
      :reviewed-heads (->> reviews
                           (filter full-review?)
@@ -153,18 +156,15 @@
 (defn review-bodies-unanswered
   "CodeRabbit puts nitpicks and outside-diff findings in the review body, where
    they cannot be thread-resolved. Count reviews with such sections that were
-   posted after our last settlement PR comment."
+   lack an itemized PR comment naming that review's ID."
   [repo n]
-  (let [reviews (gh-json "api" (str "repos/" repo "/pulls/" n "/reviews") "--paginate")
+  (let [reviews (gh-pages (str "repos/" repo "/pulls/" n "/reviews"))
         flagged (->> reviews
                      (filter #(law/bot? (get-in % [:user :login])))
                      (filter #(re-find #"(?i)nitpick comments|outside diff range|duplicate comments" (str (:body %)))))
-        comments (gh-json "api" (str "repos/" repo "/issues/" n "/comments") "--paginate")
-        last-answer (->> comments
-                         (remove #(law/bot? (get-in % [:user :login])))
-                         (filter #(law/resolution-of (str/replace (str (:body %)) #"^\s*#+[^\n]*\n" "")))
-                         (map :created_at) sort last)]
-    (count (filter #(or (nil? last-answer) (pos? (compare (:submitted_at %) last-answer))) flagged))))
+        comments (->> (gh-pages (str "repos/" repo "/issues/" n "/comments"))
+                      (remove #(law/bot? (get-in % [:user :login]))))]
+    (law/unanswered-review-count flagged comments)))
 
 ;; --- output ---------------------------------------------------------------
 
@@ -180,10 +180,10 @@
   (let [{:keys [draft? threads incomplete?]} (fetch-threads repo n)
         checks (fetch-checks repo n)
         heads (fetch-heads repo n)
-        gate (law/merge-gate (merge heads
+        gate (assoc (law/merge-gate (merge heads
                                     {:threads threads :checks checks :incomplete? incomplete?
                                      :required-reviewers reviewers
-                                     :review-bodies-unanswered (review-bodies-unanswered repo n)}))]
+                                     :review-bodies-unanswered (review-bodies-unanswered repo n)})) :draft? draft?)]
     (println (str repo "#" n (when draft? "  [draft]") "  head " (subs (:head heads) 0 7)))
     (println (str "  coderabbit: " (name (:coderabbit gate)) "   checks: " (pr-str (:checks gate))))
     (println (str "  threads: " (count threads) " total, " (count (remove :resolved? threads)) " unresolved; by severity "
@@ -205,15 +205,28 @@
                "Review the implementation against the card's laws and acceptance criteria. "
                "Label each finding P0-P3; P0/P1 will be fixed before merge, others fixed, deferred or rejected with a reason.")})
 
+(declare load-flow)
+
 (defn request [repo n kind note]
-  (let [body (cond-> (or (get briefs kind) (throw (ex-info "kind must be planning|code" {:kind kind})))
+  (let [reviews (gh-pages (str "repos/" repo "/pulls/" n "/reviews"))
+        rounds (count (filter #(and (= "coderabbit" (reviewer-key (get-in % [:user :login])))
+                                   (full-review? %)) reviews))
+        open-findings (count (remove :resolved? (:threads (fetch-threads repo n))))
+        max-loops (get-in (load-flow) [:flow/defaults :review/max-loops])
+        verdict (law/loop-verdict {:rounds rounds :open-blockers open-findings :max-loops max-loops})
+        body (cond-> (or (get briefs kind) (throw (ex-info "kind must be planning|code" {:kind kind})))
                note (str "\n\n" note))]
+    (when (= :escalate verdict)
+      (throw (ex-info "Review loop budget exhausted; escalate open findings instead of requesting another review"
+                      {:rounds rounds :open-findings open-findings :max-loops max-loops})))
     (println (str/trim (gh! "pr" "comment" (str n) "-R" repo "--body" body)))))
 
-(defn settle [_repo _n thread-id body]
+(defn settle [repo n thread-id body]
   (let [body (if (= body "-") (str (fs/readFileSync 0 "utf8")) body)]
     (when-not (law/resolution-of body)
       (throw (ex-info "BODY must open with Fixed|Deferred|Rejected|Handled" {:body (subs body 0 (min 60 (count body)))})))
+    (when-not (some #(= thread-id (:id %)) (:threads (fetch-threads repo n)))
+      (throw (ex-info "Thread does not belong to the requested PR" {:repo repo :pr n :thread-id thread-id})))
     (gh! "api" "graphql" "-f" "query=mutation($t:ID!,$b:String!){addPullRequestReviewThreadReply(input:{pullRequestReviewThreadId:$t,body:$b}){comment{url}}}"
          "-F" (str "t=" thread-id) "-f" (str "b=" body))
     (gh! "api" "graphql" "-f" "query=mutation($t:ID!){resolveReviewThread(input:{threadId:$t}){thread{isResolved}}}"
@@ -221,10 +234,13 @@
     (println (str "settled " thread-id " as " (name (law/resolution-of body))))))
 
 (defn gate [repo n apply? method reviewers]
-  (let [g (status repo n reviewers)
-        head (:head g)]                 ; the head the verdict is about; never re-fetched
+  (let [g (status repo n reviewers)]
     (when (and apply? (:pass? g))
-      (gh! "pr" "ready" (str n) "-R" repo)
+      (when (:draft? g) (gh! "pr" "ready" (str n) "-R" repo))
+      (let [post-ready (if (:draft? g) (status repo n reviewers) g)
+            head (:head post-ready)]
+        (when-not (and (:pass? post-ready) (= head (:head g)))
+          (throw (ex-info "Ready transition changed head or started new checks; gate blocked" {:before g :after post-ready})))
       (try
         (gh! "pr" "merge" (str n) "-R" repo "--auto" (str "--" method) "--match-head-commit" head)
         (println (str "ready + auto-merge (" method ") enabled on " head))
@@ -235,7 +251,7 @@
           (if (re-find #"(?i)auto merge is not allowed|clean status|not allowed for this repository" (ex-message e))
             (do (gh! "pr" "merge" (str n) "-R" repo (str "--" method) "--match-head-commit" head)
                 (println (str "auto-merge unavailable; merged (" method ") at gated head " head)))
-            (throw e)))))
+            (throw e))))))
     (when (and apply? (not (:pass? g)))
       (js/process.exit 2))))
 
@@ -255,9 +271,16 @@
 (defn load-flow []
   (edn/read-string (str (fs/readFileSync (path/join here ".." "flow.edn") "utf8"))))
 
+(defn- missing-skills [f]
+  (let [skills-dir (path/join here ".." "..")]
+    (->> (flow/skills f)
+         (remove #(fs/existsSync (path/join skills-dir % "SKILL.md")))
+         (map (fn [skill] {:problem :missing-skill :skill skill}))
+         vec)))
+
 (defn show-flow [state]
   (let [f (load-flow)
-        ps (flow/problems f)]
+        ps (into (flow/problems f) (missing-skills f))]
     (when (seq ps)
       (doseq [p ps] (println "PROBLEM" (pr-str p)))
       (js/process.exit 1))

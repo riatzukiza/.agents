@@ -15,7 +15,7 @@
     (authorization "Do not infer merge permission from review or skill installation; reuse existing explicit authorization."))
   (invariants
     (one-active-pr true)
-    (reviewers-for-knoxx ["coderabbitai" "codex"])
+    (reviewers-for-knoxx ["coderabbit" "codex"])
     (require-current-head-reviews true)
     (require-passing-required-checks true)
     (require-resolved-review-conversations true)
