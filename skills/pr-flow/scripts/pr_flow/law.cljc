@@ -164,6 +164,24 @@
     (into (into (:review/required defaults) (or requested #{}))
           (get-in defaults [:review/by-repo-name repo-name] #{}))))
 
+(defn completed-no-findings-review?
+  "CodeRabbit may finish a full review with no REST review record. Accept its
+   completion reply only after a trusted exact-head request. The merge gate
+   separately requires the current-head CodeRabbit check to be completed."
+  [head comments]
+  (let [requests (->> comments
+                      (filter #(and (:trusted? %)
+                                    (re-find #"(?i)@coderabbitai full review|@coderabbitai review" (str (:body %)))
+                                    (str/includes? (str (:body %)) (str "pr-flow-review:" head))))
+                      (sort-by :created_at))
+        request (last requests)]
+    (boolean
+     (and request
+          (some #(and (re-find #"(?i)coderabbit" (str (:author %)))
+                      (pos? (compare (:created_at %) (:created_at request)))
+                      (re-find #"(?i)full review finished" (str (:body %))))
+                comments)))))
+
 (defn unsettled-blockers
   "Blocking threads not fixed. Only `Fixed` clears a P0/P1: deferring,
    rejecting or calling it `Handled` does not. A disputed blocker stays open

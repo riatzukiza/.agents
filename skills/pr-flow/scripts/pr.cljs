@@ -125,16 +125,27 @@
     (boolean (re-find #"(?i)actionable comments posted|no actionable comments" (str body)))
     (or (not (str/blank? body)) (#{"APPROVED" "CHANGES_REQUESTED"} state))))
 
+(declare authorized-author?)
+
 (defn fetch-heads
-  "Current head SHA and, per reviewer, the commit SHAs it fully reviewed."
+  "Current head SHA and per-reviewer evidence, including CodeRabbit's
+   no-findings completion reply when no REST review record was created."
   [repo n]
   (let [head (str/trim (gh! "pr" "view" (str n) "-R" repo "--json" "headRefOid" "-q" ".headRefOid"))
-        reviews (gh-pages (str "repos/" repo "/pulls/" n "/reviews"))]
+        reviews (gh-pages (str "repos/" repo "/pulls/" n "/reviews"))
+        comments (->> (gh-pages (str "repos/" repo "/issues/" n "/comments"))
+                      (mapv (fn [c]
+                              (let [login (get-in c [:user :login])]
+                                {:author login :body (:body c) :created_at (:created_at c)
+                                 :trusted? (and (str/includes? (str (:body c)) (str "pr-flow-review:" head))
+                                                (authorized-author? repo login))}))))
+        acknowledged? (law/completed-no-findings-review? head comments)]
     {:head head
-     :reviewed-heads (->> reviews
-                          (filter full-review?)
-                          (reduce (fn [m r] (update m (reviewer-key (get-in r [:user :login])) (fnil conj #{}) (:commit_id r)))
-                                  {}))}))
+     :reviewed-heads (cond-> (->> reviews
+                                  (filter full-review?)
+                                  (reduce (fn [m r] (update m (reviewer-key (get-in r [:user :login])) (fnil conj #{}) (:commit_id r)))
+                                          {}))
+                       acknowledged? (update "coderabbit" (fnil conj #{}) head))}))
 
 (defn fetch-checks
   "PR check rows. `gh pr checks` exits 8 while checks are pending; that is data,
@@ -238,7 +249,8 @@
         verdict (law/loop-verdict {:rounds rounds :open-blockers open-findings :max-loops max-loops})
         body (cond-> (or (get briefs kind) (throw (ex-info "kind must be planning|code" {:kind kind})))
                note (str "\n\n" note))
-        body (str body "\n\n<!-- pr-flow-stage:" kind " -->")]
+        head (str/trim (gh! "pr" "view" (str n) "-R" repo "--json" "headRefOid" "-q" ".headRefOid"))
+        body (str body "\n\n<!-- pr-flow-stage:" kind " --> <!-- pr-flow-review:" head " -->")]
     (when (= :escalate verdict)
       (throw (ex-info "Review loop budget exhausted; escalate open findings instead of requesting another review"
                       {:rounds rounds :open-findings open-findings :max-loops max-loops})))

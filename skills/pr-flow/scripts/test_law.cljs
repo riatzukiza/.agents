@@ -190,6 +190,17 @@
     (is (= #{"coderabbit" "codex"}
            (law/required-reviewers-for defaults "open-hax/foresight" #{"codex"})))))
 
+(deftest no-findings-review-completion-is-head-scoped
+  (let [request {:author "riatzukiza" :trusted? true :created_at "2026-10-02T04:58:35Z"
+                 :body "@coderabbitai full review <!-- pr-flow-review:abc123 -->"}
+        completion {:author "coderabbitai" :created_at "2026-10-02T04:58:45Z"
+                    :body "Full review finished."}]
+    (is (law/completed-no-findings-review? "abc123" [request completion]))
+    (is (not (law/completed-no-findings-review? "other" [request completion])))
+    (is (not (law/completed-no-findings-review? "abc123" [(assoc request :trusted? false) completion])))
+    (is (not (law/completed-no-findings-review? "abc123" [request (assoc completion :body "Full review triggered.")])))
+    (is (not (law/completed-no-findings-review? "abc123" [completion (assoc request :created_at "2026-10-02T05:00:00Z")])))))
+
 (deftest flow-is-lawful
   (is (= [] (flow/problems the-flow)))
   (is (= [:plan] (flow/next-states the-flow :muse)))
