@@ -154,3 +154,11 @@
   spore: none
   receipt-refs: pr-flow-native-issue-agreement
   note: Adapt authenticated source records at the CLI boundary, retain native finding IDs and timestamps, then apply the same proposal/final rejection laws. Creation and edit time differ; generated nested examples and withdrawals must not grant agreement. A completed narrow assessment is separate from a full review, round or approval. Read native reviewer bodies before merging small follow-up fixes; preserve current-head invalidation and historical receipt bytes.
+
+## 2026-10-03T13:36:59.946211+00:00 — exact reviewer check tuples
+
+- Receipt origin: `pr-flow-exact-reviewer-check-tuples`; base `9ee8831ffe001b025d425a239a2d30e95378ea6a`.
+- Scores: p-efficiency=0.80, p-friction=0.25, p-skill-candidate=0.35. No spore incubated or promoted.
+- Lesson: optional model output classification needs exact native job/workflow pairs; protected contexts and native approval identity remain separate authorities. Verify neighboring evidence/compiler/test jobs and required versions in the same regression fixture.
+- Evidence: frozen-base RED17 policy failures and4 CLI failures; GREEN109 tests1347 assertions, lint0/0. Full9ee ledger prefixes preserved.
+- Boundary: unrelated existing CodeRabbit-name counting gap is reproduced for parent, without changing requiredness/convergence/scope law or claiming qualification of ambiguous native review coverage. Local commit only; parent owns publication and external actions.

@@ -637,11 +637,16 @@
                                   [p {:head head :channel (:channel r) :id (:id r)}]))}))
 
 (defn reviewer-check
-  "Only named reviewer outputs are optional. Evidence gates and required
-   checks stay deterministic obligations, even when their name mentions AI."
+  "Recognize exact labels and reviewed job/workflow tuples as provider outputs.
+   This is not review identity or approval evidence. Requiredness and explicit
+   mandatory reviewers still override optional classification in merge-gate."
   [check]
-  (get {"CodeRabbit" "coderabbit" "Codex" "codex" "MiMo" "mimo" "Kimi" "kimi"}
-       (:name check)))
+  (or (get {["Review pull request with OpenCode" "OpenCode Kimi PR Review"] "kimi"
+            ["Evidence-first review (eta-mu) / Review pull request with OpenCode MiMo"
+             "eta-mu evidence review"] "mimo"}
+           [(:name check) (:workflow check)])
+      (get {"CodeRabbit" "coderabbit" "Codex" "codex" "MiMo" "mimo" "Kimi" "kimi"}
+           (:name check))))
 
 (defn cooldown-ms
   "Parse a wait/retry duration from a rate-limit reply, not allowance counts."

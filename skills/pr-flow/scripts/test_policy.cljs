@@ -1,6 +1,8 @@
 #!/usr/bin/env nbb
 (ns test-policy
-  (:require [cljs.test :refer [deftest is run-tests]]
+  (:require ["fs" :as fs] ["path" :as path]
+            [nbb.core :refer [*file*]]
+            [cljs.test :refer [deftest is run-tests]]
             [pr-flow.law :as law]))
 
 (def head (apply str (repeat 40 "a")))
@@ -42,6 +44,81 @@
   (doseq [state ["FAILURE" "PENDING" "SKIPPED" "CANCELLED"]]
     (is (not (:pass? (law/merge-gate (update baseline :checks conj {:name "laws" :state state :required? true}))))))
   (is (not (:pass? (law/merge-gate (update baseline :checks conj {:name "OpenCode evidence review gate" :state "FAILURE" :required? false}))))))
+
+(def native-checks
+  (js->clj (js/JSON.parse (fs/readFileSync
+                          (path/join (path/dirname *file*) "fixtures" "native-reviewer-checks.json") "utf8"))
+           :keywordize-keys true))
+(defn check-row [check] (assoc check :required? (:required check)))
+
+(deftest exact-native-output-tuples-retain-optional-failure-states
+  (doseq [{:keys [provider check]} (:reviewer_outputs native-checks)]
+    (is (= provider (law/reviewer-check check)))
+    (doseq [state ["FAILURE" "PENDING" "IN_PROGRESS" "SKIPPED" "CANCELLED"]]
+      (let [row (assoc (check-row check) :state state)
+            input (update baseline :checks conj row)]
+        (is (:pass? (law/merge-gate input)))
+        ;; Classification cannot create approval or completed cohort rounds.
+        (is (not (:pass? (law/merge-gate (assoc input :approved-heads {})))))
+        (is (not (:pass? (law/merge-gate (assoc input :rounds 0)))))
+        (is (not (:pass? (law/merge-gate
+                         (update input :checks #(conj (vec (butlast %)) (assoc row :required? true)))))))
+        (is (not (:pass? (law/merge-gate
+                         (assoc input :required-reviewers #{provider}
+                                :approved-heads (assoc (:approved-heads input) provider #{head})))))))))
+  (let [rows (mapv check-row (concat (map :check (:reviewer_outputs native-checks))
+                                    (:deterministic_checks native-checks) (:required_checks native-checks)))]
+    (is (:pass? (law/merge-gate (assoc baseline :checks rows))))
+    (is (= ["FAILURE" "IN_PROGRESS"] (mapv :state (take 2 rows)))))
+  (doseq [[name provider] [["CodeRabbit" "coderabbit"] ["Codex" "codex"] ["MiMo" "mimo"] ["Kimi" "kimi"]]]
+    (is (= provider (law/reviewer-check {:name name})))))
+
+(deftest named-provider-adjacent-and-unknown-checks-stay-deterministic
+  (doseq [check (concat (:deterministic_checks native-checks) (:required_checks native-checks)
+                       [{:name "OpenCode evidence review gate" :workflow "eta-mu evidence review"}
+                        {:name "MiMo review" :workflow "eta-mu evidence review"}]
+                       (mapcat (fn [{:keys [check]}]
+                                 [(dissoc check :workflow)
+                                  (assoc check :workflow "unrecognized workflow")
+                                  (update check :workflow #(str % " gate"))
+                                  (update check :name #(str % " tests"))
+                                  (update check :name #(str "Required / " %))])
+                               (:reviewer_outputs native-checks)))]
+    (is (nil? (law/reviewer-check check)))
+    ;; CodeRabbit-named deterministic rows expose a separate base9ee counting
+    ;; gap in check-summary. Keep their classification control; do not change
+    ;; that law in this tuple-only repair. The handoff records its reproduction.
+    (when-not (= "coderabbit-review-gate" (:name check))
+      (doseq [state ["FAILURE" "IN_PROGRESS"]]
+        (is (not (:pass? (law/merge-gate
+                         (update baseline :checks conj (assoc (check-row check) :state state))))))))))
+
+(deftest output-names-never-authenticate-generic-actions-reviewers
+  (doseq [{:keys [check]} (:reviewer_outputs native-checks)]
+    (let [r (merge check (review "github-actions[bot]" "APPROVED" head))
+          evidence (law/review-evidence head [r] [] law/default-reviewer-identities)]
+      (is (nil? (law/trusted-reviewer r law/default-reviewer-identities)))
+      (is (empty? (:approved-heads evidence)))
+      (is (empty? (law/completed-review-rounds [r] [] law/default-reviewer-identities)))
+      (is (not (:pass? (law/merge-gate (assoc baseline :checks [(check-row check)]
+                                            :approved-heads (:approved-heads evidence)))))))))
+
+(deftest exact-output-pending-attempts-remain-deduplicated
+  (doseq [{:keys [provider check]} (:reviewer_outputs native-checks)]
+    (let [request {:id 50 :trusted? true :created_at "2026-10-03T01:00:00Z"
+                   :body (str "<!-- pr-flow-review:" head " --> <!-- pr-flow-reviewer:" provider " -->")}
+          input {:head head :reviewer provider :comments []
+                 :checks [(assoc check :headSha head :state "IN_PROGRESS")]}]
+      (is (= :pending (:status (law/request-verdict input))))
+      (is (= :pending (:status (law/request-verdict (assoc input :comments [request])))))
+      (is (= :request (:status (law/request-verdict
+                               (assoc input :comments [request]
+                                      :checks [(assoc check :headSha head :state "FAILURE"
+                                                      :completedAt "2026-10-03T01:01:00Z")])))))
+      (is (= :pending (:status (law/request-verdict
+                               (assoc input :comments [request]
+                                      :checks [(assoc check :headSha old-head :state "FAILURE"
+                                                      :completedAt "2026-10-03T01:01:00Z")]))))))))
 
 (deftest mandatory-override-remains-all-of
   (let [defaults {:review/required #{} :review/by-repo-name {"knoxx" #{"coderabbit" "codex"}}}]

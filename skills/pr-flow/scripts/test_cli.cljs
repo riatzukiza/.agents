@@ -111,6 +111,31 @@
     (is (str/includes? (:out (execute config "status" "riatzukiza/.agents" "8")) "gate: BLOCKED")))
   (is (str/includes? (:out (execute base "status" "riatzukiza/.agents" "8" "--reviewers" "codex")) "gate: BLOCKED")))
 
+(deftest cli-native-check-tuples-preserve-requiredness-and-approval-authority
+  (let [native (js->clj (js/JSON.parse (fs/readFileSync
+                                      (path/join here "fixtures" "native-reviewer-checks.json") "utf8"))
+                       :keywordize-keys true)
+        checks (vec (concat (map :check (:reviewer_outputs native))
+                            (:deterministic_checks native) (:required_checks native)))
+        config (assoc base :checks checks)
+        optional (execute config "gate" "owner/repo" "450" "--apply")]
+    (is (= 0 (:exit optional)) (str (:out optional) (:err optional)))
+    (is (= 1 (count (writes optional "merge"))))
+    (is (some #(some #{"--required"} (:args %)) (:calls optional)))
+    (doseq [i [0 1]]
+      (let [required (execute (assoc-in config [:checks i :required] true)
+                              "gate" "owner/repo" "450" "--apply")]
+        (is (= 2 (:exit required)) (str (:out required) (:err required)))
+        (is (str/includes? (:out required) "A required reviewer/check"))
+        (is (empty? (writes required "merge")))))
+    (let [unknown (execute (assoc-in config [:checks 0 :workflow] "Different OpenCode workflow")
+                           "gate" "owner/repo" "450" "--apply")
+          spoof (execute (assoc config :reviews [(assoc-in approval [:user :login] "github-actions[bot]")])
+                         "gate" "owner/repo" "450" "--apply")]
+      (doseq [blocked [unknown spoof]]
+        (is (= 2 (:exit blocked)))
+        (is (empty? (writes blocked "merge")))))))
+
 (deftest cli-formal-approval-with-admitted-partial-scope-stays-blocked
   (let [partial (assoc approval :body (str "The staged diff was truncated at 31 of 85 files; "
                                           "the truncated tail was bound to deterministic gates rather than exhaustively read.\nConfirmed findings: none."))
