@@ -196,3 +196,10 @@
 - Exact reviewer check tuples: frozen-base RED 17 policy failures and 4 CLI failures; GREEN 109 tests, 1,347 assertions; lint 0 errors / 0 warnings. Full 9ee ledger prefixes were preserved.
 - Count prefiltered obligations: RED 104 pure failures and 15 CLI failures; GREEN 112 tests, 1,744 assertions; lint 0 errors / 0 warnings; lawful flow. The original unsafe pass was blocked; three earlier full ledger prefixes and ordinary local commits were preserved.
 - Historical entries and their count values remain byte-identical. Append-only clarification preserves their surrounding audit details and provenance.
+
+## 2026-10-03T16:30:11.473688+00:00 — complete-check evidence without lost review history
+
+- Efficiency: 0.55; friction: 0.72; skill-candidate: 0.64; spore: none.
+- Evidence: native reviews 5401430363 and 5401482488; frozen source 0a869cd72341ac5877368408aa778059b6bf7b58; GREEN 145 tests, 2,586 assertions; lint 0 errors / 0 warnings. Portable nil-body RED exists in Babashka; NBB already tolerated nil.
+- Lesson: verify optional-provider execution separately from issue-comment completion credit, and preserve completed stage history with authenticated checks on its own commit. A current check cannot prove a historical head; historical evidence cannot grant current approval. Keep full native IDs and byte prefixes.
+- Better path: pass one stable native check snapshot into approval and round laws, bracket GH check reads with exact head, retrieve history only for authorized native completion requests, and keep formal reviews distinct. No reviewer availability exception or feature activation was inferred.
