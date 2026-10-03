@@ -728,6 +728,31 @@
     (is (= :pending (:status (law/request-verdict
                              (assoc input :comments [request coverage] :checks [{:name "CodeRabbit" :state "PENDING"}])))))))
 
+(deftest checked-coverage-alone-is-not-native-review-completion
+  (let [request {:id 1 :trusted? true :created_at "2026-10-03T01:00:00Z"
+                 :body (str "@coderabbitai full review <!-- pr-flow-review:" head
+                            " --> <!-- pr-flow-reviewer:coderabbit --> <!-- pr-flow-round:1 -->")}
+        quota {:id 2 :user {:login "coderabbitai[bot]" :type "Bot"} :created_at "2026-10-03T01:01:00Z"
+               :body "Review rate limited. Next included review available in 50 minutes."}
+        marker (str "<!-- final_review_risk_coverage:{\"kind\":\"reviewed\",\"sourceCommitId\":\""
+                    head "\",\"coveredCommitId\":\"" head "\"} -->")
+        coverage {:id 3 :user {:login "coderabbitai[bot]" :type "Bot"} :created_at "2026-10-03T01:02:00Z"
+                  :body marker}
+        checks [{:name "CodeRabbit" :state "SUCCESS" :headSha head}]
+        input {:head head :reviewer "coderabbit" :round 1 :comments [request quota coverage]
+               :reviews [] :checks checks :identities identities :now-ms (js/Date.parse "2026-10-03T02:00:00Z")}]
+    (doseq [body [marker (str "```text\nFull review finished.\n```\n" marker)
+                  (str "> Full review finished.\n" marker)]]
+      (let [comments [request quota (assoc coverage :body body)]]
+        (is (empty? (law/completed-review-rounds [] comments identities checks)))
+        (is (empty? (law/coderabbit-issue-completion-heads comments identities)))
+        (is (= :request (:status (law/request-verdict (assoc input :comments comments)))))
+        (is (= :cooldown (:status (law/request-verdict
+                                      (assoc input :comments comments :now-ms (js/Date.parse "2026-10-03T01:30:00Z"))))))))
+    (let [done (assoc coverage :body (str "Full review finished.\n" marker))]
+      (is (= 1 (count (law/completed-review-rounds [] [request done] identities checks))))
+      (is (= :completed (:status (law/request-verdict (assoc input :comments [request done]))))))))
+
 (deftest coverage-marker-cannot-complete-an-attempt-ended-by-quota
   (let [request {:id 10 :trusted? true :created_at "2026-10-03T01:00:00Z"
                  :body (str "@coderabbitai full review <!-- pr-flow-review:" head " --> <!-- pr-flow-reviewer:coderabbit --> <!-- pr-flow-round:1 -->")}

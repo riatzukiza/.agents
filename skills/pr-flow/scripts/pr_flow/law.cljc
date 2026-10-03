@@ -755,8 +755,10 @@
                                (case provider
                                  "coderabbit"
                                  (let [coverage (coderabbit-covered-heads (:body c))]
-                                   (when (or (re-find #"(?m)^Full review finished\.$" (str (:body c)))
-                                             (= 1 (count coverage)))
+                                   ;; A checked coverage marker is input binding,
+                                   ;; not a native completion of the request.
+                                   (when (re-find #"(?m)^Full review finished\.[ \t]*$"
+                                                  (or (reviewer-prose (:body c)) ""))
                                      (cond-> completed (= 1 (count coverage)) (assoc :commit_id (first coverage)))))
                                  "codex"
                                  (when (and (valid-head? (:resolved-commit-id c))

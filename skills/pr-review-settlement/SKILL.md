@@ -149,7 +149,7 @@ Every finding gets a reply **before** its thread is resolved:
 | Opening | Meaning |
 | --- | --- |
 | `Fixed in <sha>: …` | changed; cite the test or evidence |
-| `Handled: …` | already addressed; identify where and how verified |
+| `Handled: …` | P2/P3 and non-blocking review-body items only: already addressed; identify where and how verified. For P0/P1, cite the existing fix with `Fixed in <sha>: …` |
 | `Deferred to <card-uuid or issue>: …` | justified scoped follow-up only when completed rounds are strictly above the configured minimum (default five); the follow-up exists |
 | `Rejected: …` | detailed reasoning and evidence, corroborated by an independent non-CodeRabbit agent |
 
