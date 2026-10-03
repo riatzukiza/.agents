@@ -3,6 +3,7 @@
   (:require ["fs" :as fs] ["os" :as os] ["path" :as path] ["child_process" :as cp]
             [cljs.test :refer [deftest is run-tests]] [clojure.string :as str]
             [clojure.edn :as edn]
+            [test-issue-agreement :as native]
             [nbb.core :refer [*file*]]))
 (def here (path/dirname *file*))
 (def the-flow (edn/read-string (fs/readFileSync (path/join here ".." "flow.edn") "utf8")))
@@ -46,7 +47,8 @@
                            (assoc :comments (into (completed-stage-comments rounds other (:prior-stage config "code")) (:comments config)))
                            (update :reviews #(into history %))
                            (dissoc :prior-stage-rounds :prior-stage))
-                 (:reviewsSequence config) (update :reviewsSequence #(mapv (fn [reviews] (into history reviews)) %)))
+                 (:reviewsSequence config) (update :reviewsSequence #(mapv (fn [reviews] (into history reviews)) %))
+                 (:commentsSequence config) (update :commentsSequence #(mapv (fn [comments] (into (completed-stage-comments rounds other (:prior-stage config "code")) comments)) %)))
         env (js/Object.assign #js {} js/process.env #js {:PR_FLOW_TEST_DATA data :PATH (str tmp ":" (.-PATH js/process.env))})]
     (try
       (when-let [flow-data (:flow-data config)]
@@ -479,6 +481,150 @@
     (is (= 1 (:exit gh-error)))
     (is (str/includes? (:err gh-error) "fixture GraphQL error reported by gh"))
     (is (empty? (writes gh-error "merge")))))
+
+(def native-thread
+  {:id (:thread_id native/fixture) :isResolved false :isOutdated false
+   :path ".github/workflows/opencode-code-review.yml" :line 95
+   :comments {:pageInfo {:hasNextPage false}
+              :nodes [(:root native/fixture) (:proposal native/fixture)]}})
+(def native-final
+  {:databaseId 4172979880 :author {:login "riatzukiza" :__typename "User"}
+   :body native/final-body :createdAt "2026-10-03T11:38:00Z" :updatedAt "2026-10-03T11:38:00Z"})
+(def native-settled-thread
+  (-> native-thread (assoc :isResolved true) (update-in [:comments :nodes] conj native-final)))
+(def native-config
+  (assoc base :head (:head native/fixture) :prAuthor "riatzukiza"
+         :reviews [(assoc approval :commit_id (:head native/fixture))]
+         :comments [(:agreement native/fixture)] :threads [native-thread] :allowMutations true))
+(def native-codex
+  (js->clj (js/JSON.parse (fs/readFileSync (path/join here "fixtures/native-codex-completion.json") "utf8"))
+           :keywordize-keys true))
+
+(deftest native-off-thread-agreement-is-hydrated-in-every-cli-path
+  (let [settle (execute native-config "settle" "open-hax/proxx" "445" (:id native-thread) native/final-body)
+        settled (assoc native-config :threads [native-settled-thread])
+        gate (execute settled "gate" "open-hax/proxx" "445" "--apply")
+        threads (execute settled "threads" "open-hax/proxx" "445" "--all")]
+    (is (= 0 (:exit settle)) (:err settle))
+    (is (= 2 (count (mutations settle))))
+    (is (= 0 (:exit gate)) (str (:out gate) (:err gate)))
+    (is (= 1 (count (writes gate "merge"))))
+    (is (str/includes? (:out threads) "github-issue-comment"))
+    (is (str/includes? (:out threads) "5968785159"))
+    (is (str/includes? (:out threads) (:html_url native/agreement)))
+    (doseq [r [settle gate threads]]
+      (is (some #(= ["api" "repos/open-hax/proxx/issues/445/comments" "--paginate" "--slurp"] (:args %)) (:calls r)))
+      (is (some #(some (fn [arg] (and (str/includes? arg "query(") (str/includes? arg "databaseId"))) (:args %)) (:calls r))))))
+
+(deftest invalid-native-issue-evidence-has-no-settlement-or-merge-effects
+  (doseq [config [(assoc native-config :comments [])
+                  (assoc-in native-config [:comments 0 :body] "I agree with the author.")
+                  (update-in native-config [:comments 0 :body] str/replace (:head native/fixture) other)
+                  (update-in native-config [:comments 0 :body] str/replace (:id native-thread) "PRRT_another")
+                  (assoc-in native-config [:comments 0 :user :type] "User")
+                  (assoc-in native-config [:comments 0 :user :login] "fake-opencode[bot]")
+                  (assoc-in native-config [:threads 0 :comments :nodes 0 :databaseId] 4172695095)
+                  (assoc native-config :head other :reviews [(assoc approval :commit_id other)])
+                  (assoc native-config :authorized false)]]
+    (let [settle (execute config "settle" "open-hax/proxx" "445" (:id native-thread) native/final-body)
+          gate (execute (assoc config :threads [(-> native-settled-thread
+                                                   (assoc-in [:comments :nodes 0 :databaseId]
+                                                             (get-in config [:threads 0 :comments :nodes 0 :databaseId])))])
+                        "gate" "open-hax/proxx" "445" "--apply")]
+      (is (= 1 (:exit settle)))
+      (is (empty? (mutations settle)))
+      (is (= 2 (:exit gate)))
+      (is (empty? (writes gate "merge"))))))
+
+(deftest issue-assessment-is-not-approval-round-credit-or-a-required-check-waiver
+  (let [config (assoc native-config :threads [native-settled-thread])
+        no-approval (execute (assoc config :reviews []) "gate" "open-hax/proxx" "445" "--apply")
+        no-rounds (execute (dissoc config :prior-stage-rounds) "gate" "open-hax/proxx" "445" "--apply")
+        cancelled (execute (assoc-in config [:checks 0 :state] "CANCELLED") "gate" "open-hax/proxx" "445" "--apply")]
+    (doseq [r [no-approval no-rounds cancelled]]
+      (is (= 2 (:exit r)))
+      (is (empty? (writes r "merge"))))
+    (is (str/includes? (:out no-rounds) "completed code rounds: 0"))))
+
+(deftest native-withdrawal-during-collection-blocks-the-fresh-gate
+  (let [withdrawal (assoc (:agreement native/fixture) :id 5968785160
+                          :created_at "2026-10-03T11:39:00Z" :updated_at "2026-10-03T11:39:00Z"
+                          :body (str "Finding: " (:id native-thread) " comment4172695094\nI withdraw my agreement; this still reproduces."))
+        r (execute (assoc native-config :threads [native-settled-thread]
+                          :commentsSequence [[(:agreement native/fixture)] [(:agreement native/fixture) withdrawal]])
+                   "gate" "open-hax/proxx" "445" "--apply")]
+    (is (= 2 (:exit r)))
+    (is (str/includes? (:out r) "Review evidence changed while collecting"))
+    (is (empty? (writes r "merge")))))
+
+(deftest native-withdrawal-before-settlement-effects-blocks-the-write
+  (let [withdrawal (assoc (:agreement native/fixture) :id 5968785160
+                          :created_at "2026-10-03T11:39:00Z" :updated_at "2026-10-03T11:39:00Z"
+                          :body (str "Finding: " (:id native-thread) " comment4172695094\nI withdraw my agreement; this still reproduces."))
+        r (execute (assoc native-config :commentsSequence [[(:agreement native/fixture)] [(:agreement native/fixture) withdrawal]])
+                   "settle" "open-hax/proxx" "445" (:id native-thread) native/final-body)]
+    (is (= 1 (:exit r)))
+    (is (str/includes? (:err r) "Review evidence changed before rejection"))
+    (is (empty? (mutations r)))))
+
+(deftest incomplete-issue-context-cannot-be-a-zero-comment-pass
+  (doseq [pages [nil [] [nil] [[(:agreement native/fixture)] nil] [[(:agreement native/fixture) nil]]]
+          args [["threads" "open-hax/proxx" "445" "--all"]
+                ["settle" "open-hax/proxx" "445" (:id native-thread) native/final-body]
+                ["gate" "open-hax/proxx" "445" "--apply"]]]
+    (let [r (apply execute (assoc native-config :threads [native-settled-thread] :commentPageResponses [pages]) args)]
+      (is (= 1 (:exit r)))
+      (is (str/includes? (:err r) "Invalid PR issue-comment page"))
+      (is (empty? (mutations r)))
+      (is (empty? (writes r "merge"))))))
+
+(deftest graphql-repository-identities-remain-strings
+  (doseq [repo ["123/456" "owner/123" "123/repo" "owner/true" "owner/null"]]
+    (let [r (execute base "status" repo "8")]
+      (is (= 0 (:exit r)) (:err r))
+      (is (str/includes? (:out r) "gate: PASS")))))
+
+(deftest malformed-reviewer-options-fail-before-evidence-or-merge-effects
+  (doseq [options [["--reviewers"] ["--reviewers" ""] ["--reviewers" "  "]
+                   ["--reviewers="] ["--reviewers=  "] ["--reviewers" "--apply"]
+                   ["--reviewers=unknown"] ["--reviewers" "codex,"]
+                   ["--reviewers" "codex" "--reviewers="] ["--reviewers=codex" "--reviewers=mimo"]]
+          cmd ["status" "gate"]]
+    (let [r (apply execute base cmd "riatzukiza/.agents" "8" (concat ["--apply"] options))]
+      (is (= 1 (:exit r)))
+      (is (empty? (:calls r))))))
+
+(deftest both-reviewer-syntaxes-preserve-the-explicit-mandatory-set
+  (doseq [options [["--reviewers" "coderabbit,codex"] ["--reviewers=coderabbit,codex"]]]
+    (let [r (apply execute base "gate" "riatzukiza/.agents" "8" (concat ["--apply"] options))]
+      (is (= 2 (:exit r)))
+      (is (str/includes? (:out r) "gate: BLOCKED"))
+      (is (empty? (writes r "merge"))))))
+
+(deftest codex-hydration-does-not-change-an-unchanged-native-thread-snapshot
+  (doseq [sha [(:head native/fixture) (:resolved_commit_id native-codex)]]
+    (let [completion (update (:comment native-codex) :body str/replace "730924f8ed" (subs sha 0 10))
+          config (assoc native-config :threads [native-settled-thread] :resolvedCommit sha
+                        :comments [(:agreement native/fixture) completion])
+          status (execute config "status" "open-hax/proxx" "445")
+          gate (execute config "gate" "open-hax/proxx" "445" "--apply")]
+      (is (= 0 (:exit status)) (:err status))
+      (is (str/includes? (:out status) "gate: PASS"))
+      (is (= 0 (:exit gate)) (str (:out gate) (:err gate)))
+      (is (= 1 (count (writes gate "merge")))))))
+
+(deftest native-source-id-or-url-withdrawal-blocks-effectful-paths
+  (doseq [body ["I withdraw my agreement in issuecomment-5968785159; this still reproduces."
+                (str "I withdraw my agreement at " (:html_url native/agreement) "; this still reproduces.")]]
+    (let [withdrawal (assoc (:agreement native/fixture) :id 5968785160
+                            :created_at "2026-10-03T11:39:00Z" :updated_at "2026-10-03T11:39:00Z" :body body)
+          config (assoc native-config :comments [(:agreement native/fixture) withdrawal])
+          gate (execute (assoc config :threads [native-settled-thread]) "gate" "open-hax/proxx" "445" "--apply")
+          settle (execute config "settle" "open-hax/proxx" "445" (:id native-thread) native/final-body)]
+      (is (= 2 (:exit gate)))
+      (is (empty? (writes gate "merge")))
+      (is (= 1 (:exit settle)))
+      (is (empty? (mutations settle))))))
 
 (defmethod cljs.test/report [:cljs.test/default :end-run-tests] [m]
   (when-not (cljs.test/successful? m) (set! (.-exitCode js/process) 1)))

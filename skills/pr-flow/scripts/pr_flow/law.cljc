@@ -124,11 +124,16 @@
 (defn- rejection-prose [body]
   ;; Keep evidence links, but never accept quoted examples as live proposals.
   (some-> (str body)
+          (remove-matches #"(?s)<!-- This is an auto-generated comment: tweet message by coderabbit\.ai -->.*?<!-- end of auto-generated comment: tweet message by coderabbit\.ai -->")
+          (#(when-not (re-find #"(?i)<!--\s*(?:This is an auto-generated comment:|end of auto-generated comment:)" %) %))
+          (remove-matches #"(?is)<details\b[^>]*>.*?</details>")
           (str/replace #"<blockquote>[\s\S]*?</blockquote>" "")
           (remove-matches #"(?m)^[ \t]*>[^\n]*(?:\n|$)")
           verdict-prose
           (str/replace #"<!--[\s\S]*?-->" "")
-          str/trim))
+          str/trim
+          ;; Unbalanced/nested generated HTML is not safely recoverable.
+          (#(when-not (re-find #"(?i)</?(?:details|summary|blockquote)\b" %) %))))
 
 (defn- evidence-reference? [evidence]
   (boolean (re-find #"https?://[^\s]+|(?:[a-zA-Z0-9_.-]+/)+[a-zA-Z0-9_.-]+|[a-zA-Z0-9_.-]+\.(?:cljc?|cljs|md|edn|json|ya?ml|jsx?|tsx?|py|sh)(?::[0-9]+)?" (str evidence))))
@@ -143,7 +148,30 @@
     (let [reasons (map second (re-seq #"(?m)^Reason:[ \t]*([^\n]*)$" prose))
           evidence (map second (re-seq #"(?m)^Evidence:[ \t]*([^\n]*)$" prose))]
       (when (and (= 1 (count reasons)) (= 1 (count evidence)))
-        (details (first reasons) (first evidence))))))
+        (when-let [[_ reason-line reason-block evidence-line evidence-block]
+                   (re-find #"(?ms)^Reason:[ \t]*([^\n]*)\n([\s\S]*?)^Evidence:[ \t]*([^\n]*)(?:\n([\s\S]*))?$" prose)]
+          (details (if (str/blank? reason-line) reason-block reason-line)
+                   (if (str/blank? evidence-line) evidence-block evidence-line)))))))
+
+(defn- thread-binding [body]
+  (let [lines (map second (re-seq #"(?m)^Finding:[ \t]*([^\n]+)$" (or (rejection-prose body) "")))
+        line (first lines)
+        threads (re-seq #"\bPRRT_[a-zA-Z0-9_-]+\b" (str line))
+        roots (map second (re-seq #"\bcomment([1-9][0-9]*)\b" (str line)))]
+    (when (= 1 (count lines) (count threads) (count roots))
+      [(first threads) (first roots)])))
+
+(defn- timestamp [s]
+  (when (string? s)
+    (when-let [[_ seconds fraction] (re-matches #"([0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2})(?:\.([0-9]{1,3}))?Z" s)]
+      (str seconds "." (subs (str fraction "000") 0 3) "Z"))))
+
+(defn- comment-time [c]
+  (let [created (timestamp (or (:created-at c) (:created_at c)))
+        edited-value (or (:updated-at c) (:updated_at c))
+        edited (timestamp edited-value)]
+    (when (and created (or (and (not= :github-issue-comment (:source-channel c)) (nil? edited-value)) edited))
+      (last (sort (remove nil? [created edited]))))))
 
 (defn- native-agent [comment identities]
   ;; Rejection corroboration may use a configured OpenCode/Claude App without
@@ -157,12 +185,66 @@
                (not (contains? (set (get identities "coderabbit")) login)))
       (first matches))))
 
+(defn- withdrawal-prose [body]
+  (when-let [prose (rejection-prose body)]
+    (when (re-find #"(?i)\b(?:i|we) (?:hereby )?(?:withdraw|revoke|retract|rescind)\b[^\n.!?]{0,80}\bagreement\b|\b(?:my|our) (?:rejection )?agreement\b[^\n.!?]{0,40}\b(?:is |has been )?(?:withdrawn|revoked|retracted|rescinded)\b" prose)
+      prose)))
+
+(defn- withdrawn-sources [c sources identities]
+  ;; Direct reference binds a withdrawal to its original authenticated native
+  ;; agreement, not to arbitrary PR discussion or another agent's assessment.
+  (when (and (= :github-issue-comment (:source-channel c)) (native-agent c identities))
+    (when-let [prose (withdrawal-prose (:body c))]
+      (let [urls (set (map #(str/replace % #"[.,;]+$" "") (re-seq #"https?://[^\s)\]>]+" prose)))
+            plain (remove-matches prose #"https?://[^\s)\]>]+")
+            ids (set (map second (re-seq #"(?i)\b(?:issue ?comment|comment(?:\s+id)?|agreement(?:\s+comment)?)[ \t:#=-]*([1-9][0-9]*)\b" plain)))
+            finding-lines (map second (re-seq #"(?m)^Finding:[ \t]*([^\n]+)$" prose))]
+        (set (for [source sources
+                   :when (and (= (comment-login c) (comment-login source))
+                              (or (contains? ids (str (:id source)))
+                                  (contains? urls (:html_url source))
+                                  ;; A native same-agent thread-only withdrawal
+                                  ;; is ambiguous about the response ID, so the
+                                  ;; known agreement for that thread cannot pass.
+                                  (= [(first (thread-binding (:body source)))] (vec finding-lines))))]
+               (:id source)))))))
+
+(defn- thread-evidence-comments [{:keys [id root-comment-id comments issue-comments head identities]}]
+  (let [scope (when (and (integer? root-comment-id) (pos? root-comment-id)) [id (str root-comment-id)])
+        identities (or identities default-reviewer-identities)
+        scoped (filter #(and scope (= :github-issue-comment (:source-channel %))
+                              (= scope (thread-binding (:body %)))) issue-comments)
+        sources (filter #(and (native-agent % identities) (integer? (:id %)) (pos? (:id %))
+                              (= (str "Rejection agreement for " head ":")
+                                 (first (str/split-lines (or (rejection-prose (:body %)) ""))))) scoped)
+        relevant (keep (fn [c]
+                         (let [withdrawn (withdrawn-sources c sources identities)]
+                           (when (or (some #{c} scoped) (seq withdrawn))
+                             (cond-> c (seq withdrawn) (assoc :withdrawn-source-ids withdrawn))))) issue-comments)
+        times (mapv comment-time comments)]
+    (if-not (seq relevant) (vec comments)
+      (when (and (every? some? times) (= times (sort times)) (every? comment-time relevant))
+        (vec (sort-by comment-time
+                      (concat comments (map #(assoc % :author (or (:author %) (get-in % [:user :login]))) relevant))))))))
+
 (defn- rejection-evidence
-  [head identities pr-author comments settlement-index final-details scope]
+  ([head identities pr-author comments settlement-index final-details scope]
+   (rejection-evidence head identities pr-author comments settlement-index final-details scope nil))
+  ([head identities pr-author comments settlement-index final-details scope thread-scope]
   (when (and (valid-head? head) (not (str/blank? pr-author)) final-details)
     (let [settler (comment-login (nth comments settlement-index))
           marker (fn [kind] (str "Rejection " kind " for " head ":" (when scope (str " " scope))))
-          marker? (fn [kind c] (= (marker kind) (first (str/split-lines (or (rejection-prose (:body c)) "")))))
+          marker? (fn [kind c]
+                    (let [prose (or (rejection-prose (:body c)) "")]
+                      (and (= (marker kind) (first (str/split-lines prose)))
+                           (= 1 (count (re-seq #"(?m)^Rejection (?:proposal|agreement) for " prose)))
+                           (or (not= :github-issue-comment (:source-channel c))
+                               (and thread-scope (= thread-scope (thread-binding (:body c)))
+                                    (integer? (:id c)) (pos? (:id c)) (native-agent c identities)
+                                    (not (re-find #"(?i)\b(?:i|we) (?:do not|don't|cannot|can't|no longer) agree|\b(?:withdraw|revoke) (?:my|our|the) agreement|\bdisagree with (?:the )?(?:proposal|rejection)|\b(?:rejection|proposal|agreement) (?:is )?(?:wrong|incorrect|invalid|rejected)"
+                                                  prose))
+                                    (not (re-find #"(?i)^(?:(?:i|we) (?:fully )?)?(?:agree(?:d)?(?: with (?:(?:the|this|that|proposed|author's) )?(?:proposal|author|rejection|assessment|conclusion|change))?|lgtm|looks good(?: to me)?|yes|approved)[.! ✅]*$"
+                                                  (str (:reason (rejection-details (:body c)))))))))))
           proposal-index (last (keep-indexed
                                (fn [i c] (when (and (= settler (comment-login c))
                                                     (not= false (:authorized? c)) (marker? "proposal" c)) i))
@@ -173,6 +255,11 @@
                                         :let [c (nth comments i) login (comment-login c)]
                                         :when (and (not= settler login) (not= (str/lower-case pr-author) login)
                                                    (native-agent c identities) (marker? "agreement" c)
+                                                   (or (not= :github-issue-comment (:source-channel c))
+                                                       (and (not= login (comment-login (first (remove #(= :github-issue-comment (:source-channel %)) comments))))
+                                                            (= thread-scope (thread-binding (:body proposal)))
+                                                            (pos? (compare (timestamp (:created_at c)) (comment-time proposal)))
+                                                            (pos? (compare (comment-time (nth comments settlement-index)) (comment-time c)))))
                                                    (rejection-details (:body c))
                                                    (not (str/blank? (or (:url c) (:html_url c)))))] i)))
           agreement (when agreement-index (nth comments agreement-index))
@@ -182,12 +269,17 @@
                                 (and (not= settler (comment-login c))
                                      (or (nil? scope) (every? #(str/includes? (str (:body c)) %)
                                                              (str/split scope #" ")))
-                                     (not (marker? "agreement" c))
-                                     (or (nil? prose) (and (not (str/blank? prose)) (not (confirmed? (:body c))))))))
+                                     (or (contains? (:withdrawn-source-ids c) (:id agreement))
+                                         (and (not (seq (:withdrawn-source-ids c)))
+                                              (not (marker? "agreement" c))
+                                              (or (nil? prose)
+                                                  (and (not (str/blank? prose))
+                                                       (not (confirmed? (:body c))))))))))
                             (subvec comments (inc agreement-index))))]
       (when (and (not (str/blank? settler)) agreement (not disputed?)
                  (= final-details (rejection-details (:body proposal))))
-        {:reviewer (native-agent agreement identities) :url (or (:url agreement) (:html_url agreement))}))))
+        {:reviewer (native-agent agreement identities) :url (or (:url agreement) (:html_url agreement))
+         :channel (or (:source-channel agreement) :github-review-thread) :source-id (:id agreement)})))))
 
 (defn classify-thread
   "thread: {:id :resolved? :outdated? :path :line
@@ -217,8 +309,11 @@
         rejection (when (and (= :rejected settlement) (not contested?))
                     (let [reply (nth replies settle-idx)]
                       (when (str/starts-with? (or (rejection-prose (:body reply)) "") "Rejected:")
-                        (rejection-evidence head (or identities default-reviewer-identities) pr-author
-                                            (vec comments) (inc settle-idx) (rejection-details (:body reply)) nil))))]
+                        (when-let [evidence-comments (thread-evidence-comments thread)]
+                          (let [index (first (keep-indexed #(when (= reply %2) %1) evidence-comments))]
+                            (rejection-evidence head (or identities default-reviewer-identities) pr-author
+                                                evidence-comments index (rejection-details (:body reply)) nil
+                                                [(:id thread) (str (:root-comment-id thread))]))))))]
     (assoc thread
            :reviewer (:author opener)
            :severity (severity (:body opener))
@@ -227,6 +322,8 @@
            :contested? contested?
            :rejection-approved? (boolean rejection)
            :rejection-reviewer (:reviewer rejection)
+           :rejection-channel (:channel rejection)
+           :rejection-source-id (:source-id rejection)
            :rejection-url (:url rejection))))
 
 (defn- explicit-item-priority [banner title]

@@ -82,7 +82,14 @@
   "query($owner:String!,$name:String!,$n:Int!,$after:String){repository(owner:$owner,name:$name){pullRequest(number:$n){
      isDraft headRefOid author{login} reviewThreads(first:100,after:$after){pageInfo{hasNextPage endCursor}
        nodes{id isResolved isOutdated path line
-         comments(first:100){pageInfo{hasNextPage} nodes{author{login __typename} body url createdAt}}}}}}}")
+         comments(first:100){pageInfo{hasNextPage} nodes{databaseId author{login __typename} body url createdAt updatedAt}}}}}}}")
+
+(defn- fetch-issue-comments [repo n]
+  (let [pages (gh-json "api" (str "repos/" repo "/issues/" n "/comments") "--paginate" "--slurp")]
+    (when-not (and (vector? pages) (seq pages) (every? vector? pages)
+                   (every? #(and (map? %) (string? (:body %))) (mapcat identity pages)))
+      (throw (ex-info "Invalid PR issue-comment page; cannot establish complete native evidence" {:repo repo :pr n})))
+    (vec (mapcat identity pages))))
 
 (defn- thread-connection? [conn cursor-required?]
   (let [page (:pageInfo conn)]
@@ -93,7 +100,7 @@
 
 (defn- threads-page [owner name n after]
   (let [args (cond-> ["api" "graphql" "-f" (str "query=" threads-query)
-                      "-F" (str "owner=" owner) "-F" (str "name=" name) "-F" (str "n=" n)]
+                      "-f" (str "owner=" owner) "-f" (str "name=" name) "-F" (str "n=" n)]
                after (into ["-f" (str "after=" after)]))
         response (apply gh-json args)
         pr (get-in response [:data :repository :pullRequest])
@@ -114,9 +121,12 @@
 (defn fetch-threads
   "All review threads, following reviewThreads pagination. A thread whose
    comments exceed one page marks the result :incomplete? so the gate fails
-   closed instead of judging a partial conversation."
-  [repo n]
+   closed instead of judging a partial conversation. Native PR issue-comment
+   context is collected completely or supplied by the same approval snapshot."
+  ([repo n] (fetch-threads repo n (fetch-issue-comments repo n)))
+  ([repo n issue-comments]
   (let [[owner name] (split-repo repo)
+        issue-comments (mapv #(assoc % :source-channel :github-issue-comment) issue-comments)
         authorized? (memoize (partial authorized-author? repo))]
     (loop [after nil acc [] draft? nil]
       (let [pr (threads-page owner name n after)
@@ -133,13 +143,15 @@
                               :path (:path t) :line (:line t)
                               :head (:headRefOid pr) :pr-author (get-in pr [:author :login])
                               :identities (reviewer-identities)
-                              :comments (mapv (fn [c] {:author (get-in c [:author :login]) :body (:body c)
+                              :root-comment-id (get-in t [:comments :nodes 0 :databaseId])
+                              :issue-comments issue-comments
+                              :comments (mapv (fn [c] {:id (:databaseId c) :author (get-in c [:author :login]) :body (:body c)
                                                        :user {:login (get-in c [:author :login])
                                                               :type (get-in c [:author :__typename])}
                                                        :authorized? (boolean (authorized? (get-in c [:author :login])))
-                                                       :url (:url c) :created-at (:createdAt c)})
+                                                       :url (:url c) :created-at (:createdAt c) :updated-at (:updatedAt c)})
                                               (get-in t [:comments :nodes]))}))
-                          acc)})))))
+                          acc)}))))))
 
 (declare load-flow)
 
@@ -158,6 +170,7 @@
   [repo n]
   (let [head (str/trim (gh! "pr" "view" (str n) "-R" repo "--json" "headRefOid" "-q" ".headRefOid"))
         reviews (gh-pages (str "repos/" repo "/pulls/" n "/reviews"))
+        raw-comments (fetch-issue-comments repo n)
         comments (mapv
                   (fn [c]
                     (if (and (= "codex" (law/trusted-reviewer c (reviewer-identities)))
@@ -168,9 +181,9 @@
                                  (:sha (gh-json "api" (str "repos/" repo "/commits/" (first markers)))))
                           c))
                       c))
-                  (gh-pages (str "repos/" repo "/issues/" n "/comments")))]
+                  raw-comments)]
     (assoc (law/review-evidence head reviews comments (reviewer-identities)) :head head
-           :reviews reviews :comments comments)))
+           :reviews reviews :comments comments :raw-comments raw-comments)))
 
 (defn fetch-checks
   "PR check rows. `gh pr checks` exits 8 while checks are pending; that is data,
@@ -237,16 +250,19 @@
 ;; --- output ---------------------------------------------------------------
 
 (defn print-threads [threads]
-  (doseq [{:keys [id path line severity resolved? resolution reviewer comments]} threads]
+  (doseq [{:keys [id path line severity resolved? resolution reviewer comments
+                 rejection-channel rejection-source-id rejection-url]} threads]
     (println (str (name severity) "  " (if resolved? "resolved  " "OPEN      ")
                   (if resolution (name resolution) "-unsettled-") "  " reviewer "  " path ":" line))
     (println (str "    id=" id))
     (println (str "    " (law/title-of (:body (first comments)))))
-    (println (str "    " (:url (first comments))))))
+    (println (str "    " (:url (first comments))))
+    (when rejection-channel
+      (println (str "    rejection evidence: " (name rejection-channel) " id=" rejection-source-id " " rejection-url)))))
 
 (defn status [repo n reviewers]
   (let [heads (fetch-heads repo n)
-        thread-snapshot (fetch-threads repo n)
+        thread-snapshot (fetch-threads repo n (:raw-comments heads))
         {:keys [draft? threads incomplete?]} thread-snapshot
         checks (fetch-checks repo n)
         progress (review-progress repo heads reviewers)
@@ -347,16 +363,20 @@
                                  " rounds verified findings should be fixed or independently rejected; no deferral sent") {})))))
       (when (= :rejected (law/resolution-of body))
         (let [author (str/trim (gh! "api" "user" "--jq" ".login"))
+              now (.toISOString (js/Date.))
               candidate (law/classify-thread
                          (update thread :comments conj
                                  {:author author :user {:login author :type "User"}
-                                  :authorized? (boolean (authorized-author? repo author)) :body body}))]
+                                  :authorized? (boolean (authorized-author? repo author)) :body body
+                                  :created-at now :updated-at now}))]
           (when-not (and (:settled? candidate) (:rejection-approved? candidate)
                          (empty? (law/unsettled-blockers [candidate])))
             (throw (ex-info "Rejection needs detailed reasoning/evidence and current-head independent non-CodeRabbit agreement; no reply or resolution sent" {})))
           (when-not (= (:head thread)
                        (str/trim (gh! "pr" "view" (str n) "-R" repo "--json" "headRefOid" "-q" ".headRefOid")))
-            (throw (ex-info "PR head changed before rejection; no settlement sent" {}))))))
+            (throw (ex-info "PR head changed before rejection; no settlement sent" {})))
+          (when-not (= snapshot (fetch-threads repo n))
+            (throw (ex-info "Review evidence changed before rejection; no settlement sent" {}))))))
     (gh! "api" "graphql" "-f" "query=mutation($t:ID!,$b:String!){addPullRequestReviewThreadReply(input:{pullRequestReviewThreadId:$t,body:$b}){comment{url}}}"
          "-F" (str "t=" thread-id) "-f" (str "b=" body))
     (gh! "api" "graphql" "-f" "query=mutation($t:ID!){resolveReviewThread(input:{threadId:$t}){thread{isResolved}}}"
@@ -452,14 +472,20 @@
 (defn- reviewers-flag
   "--reviewers coderabbit,codex → #{\"coderabbit\" \"codex\"}; default from flow.edn."
   [repo args]
-  (let [defaults (:flow/defaults (load-flow))
-        requested (if-let [v (flag args "--reviewers" nil)]
-                    (let [reviewers (set (str/split v #","))]
-                      (when-not (and (seq reviewers) (every? law/eligible-reviewers reviewers))
-                        (throw (ex-info "--reviewers requires known mandatory reviewer names" {:reviewers reviewers})))
-                      reviewers)
-                    nil)]
-    (law/required-reviewers-for defaults repo requested)))
+  (let [positions (keep-indexed #(when (or (= "--reviewers" %2) (str/starts-with? %2 "--reviewers=")) %1) args)
+        _ (when (> (count positions) 1)
+            (throw (ex-info "--reviewers must be supplied only once" {})))
+        requested (when-let [i (first positions)]
+                    (let [option (nth args i)
+                          v (if (= "--reviewers" option) (nth args (inc i) nil)
+                                (subs option (count "--reviewers=")))]
+                      (when (or (str/blank? v) (str/starts-with? v "--"))
+                        (throw (ex-info "--reviewers requires a comma-separated value" {})))
+                      (let [reviewers (set (str/split v #"," -1))]
+                        (when-not (and (seq reviewers) (every? law/eligible-reviewers reviewers))
+                          (throw (ex-info "--reviewers requires known mandatory reviewer names" {:reviewers reviewers})))
+                        reviewers)))]
+    (law/required-reviewers-for (:flow/defaults (load-flow)) repo requested)))
 
 (defn -main [& args]
   (let [[cmd repo n & more] args]

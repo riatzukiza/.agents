@@ -20,6 +20,20 @@ if (args[0] === 'api' && args[1] === 'graphql') {
     } else process.exit(77);
     process.exit(0);
   }
+  // Match gh api -F scalar inference before GraphQL String/Int validation.
+  const field = name => {
+    const i = args.findIndex(x => x.startsWith(`${name}=`));
+    const value = i < 0 ? undefined : args[i].slice(name.length + 1);
+    if (args[i - 1] === '-F') {
+      if (/^-?\d+$/.test(value)) return Number(value);
+      if (value === 'true' || value === 'false') return value === 'true';
+      if (value === 'null') return null;
+    }
+    return value;
+  };
+  if (typeof field('owner') !== 'string' || typeof field('name') !== 'string' || !Number.isInteger(field('n'))) {
+    process.stderr.write('GraphQL owner/name require String; n requires Int'); process.exit(1);
+  }
   const sequence = config.threadsSequence || [config.threads || []];
   const nodes = config.newThreadsAfterReviews && state.reviews ? config.newThreadsAfterReviews : sequence[Math.min(state.threads || 0, sequence.length - 1)];
   const threadPageIndex = state.threads || 0;
@@ -36,7 +50,16 @@ if (args[0] === 'api' && args[1] === 'graphql') {
   out([sequence[Math.min(state.reviews || 0, sequence.length - 1)]]);
   state.reviews = (state.reviews || 0) + 1; persist();
 }
-else if (args[0] === 'api' && args[1].endsWith('/comments')) out([config.comments || []]);
+else if (args[0] === 'api' && args[1].endsWith('/comments')) {
+  const index = state.comments || 0;
+  state.comments = index + 1; persist();
+  if (config.commentPageResponses) {
+    out(config.commentPageResponses[Math.min(index, config.commentPageResponses.length - 1)]);
+  } else {
+    const sequence = config.commentsSequence || [config.comments || []];
+    out([sequence[Math.min(index, sequence.length - 1)]]);
+  }
+}
 else if (args[0] === 'api' && args[1].includes('/commits/')) out({sha: config.resolvedCommit || config.head});
 else if (args[0] === 'api' && args[1].includes('/collaborators/')) out({permission: config.authorized === false ? 'read' : 'admin'});
 else if (args[0] === 'api' && args[1] === 'user') out(args.includes('-q') || args.includes('--jq') ? (config.viewer || 'riatzukiza') : {login: config.viewer || 'riatzukiza'});

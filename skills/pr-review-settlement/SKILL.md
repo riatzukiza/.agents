@@ -83,6 +83,41 @@ resolve the thread. A new proposal or head needs fresh agreement. Configure a
 verified OpenCode app identity before relying on its native evidence; never
 guess its login or widen the approval quorum identity list for that purpose.
 
+An installed App may publish its completed assessment as a **PR issue comment**
+rather than a thread reply. The CLI supports that native channel when the
+authenticated allowlisted non-CodeRabbit Bot uses the exact first line
+`Rejection agreement for <full current head SHA>:` and exactly one live
+`Finding: <PRRT_thread ID> comment<numeric root comment ID>` line. The writer's
+matching in-thread proposal must name those same two native IDs. The Bot's
+`Reason:` and `Evidence:` may be inline or multiline sections, but must contain
+specific reasoning and code, test or documentation references. Missing,
+ambiguous, quoted, fenced or generated markers and generic assent do not count.
+
+The native issue comment must be created after the latest matching proposal
+(including any proposal edit), and published/last edited before the writer's
+final supported `Rejected:` reply. The finding opener cannot corroborate its
+own finding; author self-agreement and non-writer settlements remain blocked.
+A new proposal or head needs fresh agreement; neither a different thread nor a
+different root comment can reuse it. Later scoped reviewer pushback or withdrawn
+agreement blocks the rejection. The CLI reads complete paginated native issue
+context, including same-Bot withdrawals explicitly referencing the original
+agreement's native issue-comment ID or exact source URL. Such a withdrawal
+revokes that source even without a repeated `Finding:` pair, including after
+settlement; a withdrawal of an older source does not revoke a later independent
+agreement. A same-Bot withdrawal naming only this thread leaves its agreement
+ambiguous and blocked. Quoted examples, wrong-source references and unrelated
+discussion cannot revoke another finding's evidence. The CLI reads native issue
+comments through GitHub on every thread/settle/gate path and reports
+`github-issue-comment`, the native comment ID and source URL separately from
+`github-review-thread` evidence. Rejection writes recheck the complete native
+conversation snapshot and head before replying/resolving; concurrent changes
+require re-evaluation. Never repost a Bot transcript to fill this
+channel.
+
+The actual published assessment remains evidence if its originating workflow
+is subsequently cancelled. This is not an approval, a full review, a completed
+review round, or a waiver of any required check: those laws remain separate.
+
 For a review-body item, include its scope on both first lines:
 `Rejection proposal for <SHA>: review-id:<review ID> cr-comment:v1:<item ID>`
 and `Rejection agreement for <SHA>: review-id:<review ID> cr-comment:v1:<item ID>`.

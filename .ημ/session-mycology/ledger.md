@@ -144,3 +144,13 @@
   spore: none
   receipt-refs: pr-flow-policy-sidecar-integration, pr-flow-opencode-native-identity, pr-flow-final-integration
   note: Merge independent implementations by exact source region and requalify the combined policy. A main ledger can have every record present without its bytes being a prefix; preserve current main first and append exact branch-exclusive blocks in their original order. App installation verifies identity and reach, not a native agreement or approval.
+
+- ts: 2026-10-03T12:36:20.508803+00:00
+  session: /home/err/spaces/review-repair/agents-policy-integration
+  task: Bind native off-thread rejection assessments without expanding review authority
+  p-efficiency: 0.82
+  p-friction: 0.48
+  p-skill-candidate: 0.45
+  spore: none
+  receipt-refs: pr-flow-native-issue-agreement
+  note: Adapt authenticated source records at the CLI boundary, retain native finding IDs and timestamps, then apply the same proposal/final rejection laws. Creation and edit time differ; generated nested examples and withdrawals must not grant agreement. A completed narrow assessment is separate from a full review, round or approval. Read native reviewer bodies before merging small follow-up fixes; preserve current-head invalidation and historical receipt bytes.

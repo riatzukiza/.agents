@@ -1,0 +1,45 @@
+{
+  "source": {
+    "agreement": "https://api.github.com/repos/open-hax/proxx/issues/comments/5968785159",
+    "thread": "PRRT_kwDORjtCas6omXMd",
+    "root_comment_id": 4172695094,
+    "proposal_comment_id": 4172979879
+  },
+  "head": "7ec0665426bcd63695c3842a1c731e9377fec01a",
+  "pr_author": "riatzukiza",
+  "thread_id": "PRRT_kwDORjtCas6omXMd",
+  "root": {
+    "databaseId": 4172695094,
+    "author": {
+      "login": "github-actions",
+      "__typename": "Bot"
+    },
+    "body": "Correctness: `GITHUB_WORKFLOW_SHA` (validated here) and `GITHUB_WORKFLOW_REF` (embedded into the provenance object at line 116) are only populated when a workflow is called as a reusable workflow; for a directly-triggered `pull_request` workflow like this one both are unset. The `.every(sha)` check therefore throws 'Invalid execution provenance' on every run, so the job fails after a successful model review and before artifact upload/publication — the workflow can never complete end-to-end. Fix: either drop these fields for event-driven runs, or resolve the workflow file SHA via the REST API (e.g. `github.rest.repos.getContent` for the workflow path at the base ref) in the github-script publish step instead of relying on runner env vars.",
+    "url": "https://github.com/open-hax/proxx/pull/445#discussion_r4172695094",
+    "createdAt": "2026-10-03T10:09:25Z",
+    "updatedAt": "2026-10-03T10:09:25Z"
+  },
+  "proposal": {
+    "databaseId": 4172979879,
+    "author": {
+      "login": "riatzukiza",
+      "__typename": "User"
+    },
+    "body": "Rejection proposal for 7ec0665426bcd63695c3842a1c731e9377fec01a:\nFinding: PRRT_kwDORjtCas6omXMd, comment4172695094, https://github.com/open-hax/proxx/pull/445#discussion_r4172695094; .github/workflows/opencode-code-review.yml:95. This proposal supersedes the older8c56 proposal for this same item.\nReason: the requested removal or REST replacement of GITHUB_WORKFLOW_SHA/REF is unnecessary. GitHub documents them as default workflow variables; directly triggered exact-current-head native run37119043304 completed provenance validation, artifact upload and publication. The finding claims these fields are unset on every direct pull_request run, contradicted by actual execution. Retaining them preserves workflow-source binding. This reasoning does not authenticate PR-controlled YAML or establish generic bot approval quorum.\nEvidence: https://docs.github.com/en/actions/reference/workflows-and-actions/variables ; https://github.com/open-hax/proxx/actions/runs/37119043304 ; native review5400496453 binds exact7ec0665426bcd63695c3842a1c731e9377fec01a, runtime4cc05611e5f495311afc5de99aac4fe373eaba65 and basecb4b4db35fffbb40b39c3e44ef79259d0ffdd222. Inspect the uploaded kimi-provenance.json for workflowSha/workflowRef and all successful provenance/upload/publication steps. Earlier direct runs37115116136/37116235432 independently corroborate the same unchanged variables mechanism, but are not current-head approvals.\nDisposition remains pending independent agreement; no existing author rejection is treated as sufficient under canonicalac475dcb.\n",
+    "url": "https://github.com/open-hax/proxx/pull/445#discussion_r4172979879",
+    "createdAt": "2026-10-03T11:34:10Z",
+    "updatedAt": "2026-10-03T11:34:10Z"
+  },
+  "agreement": {
+    "id": 5968785159,
+    "user": {
+      "login": "opencode-agent[bot]",
+      "type": "Bot",
+      "id": 219766164
+    },
+    "created_at": "2026-10-03T11:37:18Z",
+    "updated_at": "2026-10-03T11:37:18Z",
+    "html_url": "https://github.com/open-hax/proxx/pull/445#issuecomment-5968785159",
+    "body": "Rejection agreement for 7ec0665426bcd63695c3842a1c731e9377fec01a:\n\nFinding: PRRT_kwDORjtCas6omXMd comment4172695094, workflow line 95.\n\nReason:\nMy independent verification confirms the asserted defect (\"GITHUB_WORKFLOW_SHA and GITHUB_WORKFLOW_REF exist only in reusable workflows and are unset in direct pull_request workflows\") is incorrect for this workflow. These are GitHub default environment variables present in workflow runs (including `pull_request` triggers), not limited to `workflow_call`. The provenance validation logic in the current workflow at 7ec0665 does not fail on direct `pull_request` runs because those variables are populated in practice. The actual exact-head execution demonstrates the check passes end-to-end rather than producing the asserted hard failure.\n\nEvidence:\n- **Current workflow (7ec0665):** `.github/workflows/opencode-code-review.yml` lines 90–117 show the provenance object collects `workflowSha: process.env.GITHUB_WORKFLOW_SHA` and `workflowRef: process.env.GITHUB_WORKFLOW_REF` and validates required SHA fields via `.every(sha)` before artifact upload and publication. The validation gates on presence/format, not on reusable-workflow context.\n- **Official documentation:** [GitHub Actions default environment variables](https://docs.github.com/en/actions/reference/workflows-and-actions/variables#default-environment-variables) lists `GITHUB_WORKFLOW_SHA` and `GITHUB_WORKFLOW_REF` as available to workflow runs (default variables), with no restriction to reusable workflows. This directly contradicts the “only in reusable workflows” claim.\n- **Actual run metadata/steps:** [run37119043304](https://github.com/open-hax/proxx/actions/runs/37119043304) completed successfully through provenance validation, artifact upload, and review publication for exact head 7ec0665426bcd63695c3842a1c731e9377fec01a. The workflow steps show provenance validation and upload succeeding prior to publication.\n- **Full uploaded provenance artifact:** the run’s uploaded `kimi-provenance.json` (preserved in the run artifacts) contains `workflowSha` and `workflowRef` values for this direct `pull_request` run and is consistent with the published review metadata. Native review [5400496453](https://github.com/open-hax/proxx/pull/445#issuecomment-5400496453) binds exact head 7ec0665, runtime `4cc05611e5f495311afc5de99aac4fe373eaba65`, and base `cb4b4db35fffbb40b39c3e44ef79259d0ffdd222`, corroborating successful end-to-end execution with those fields present.\n\nConclusion on fix: removing these fields or replacing them with a REST lookup does **not** fix a real defect for this variable finding. There is no demonstrated failure mode on direct `pull_request` workflows; the observed behavior is that both variables are present and the provenance path passes. A REST lookup would add an extra external dependency and complexity without addressing any concrete defect, while removing the fields would reduce the recorded execution-source binding. The change is therefore unnecessary to correct the asserted issue. This agreement is strictly limited to the variable finding (GITHUB_WORKFLOW_SHA/REF) and does not extend to orchestration trust claims or other review-body findings.\n\n[github run](/open-hax/proxx/actions/runs/37120076384)"
+  }
+}
