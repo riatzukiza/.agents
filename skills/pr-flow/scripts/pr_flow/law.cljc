@@ -148,12 +148,39 @@
            :settled? (and (some? settlement) (not contested?))
            :contested? contested?)))
 
+(defn- legacy-body-findings [body]
+  ;; Old CodeRabbit items put the banner immediately inside a file's
+  ;; summary/blockquote, with the ID after nested generated prompts. Remove
+  ;; fenced examples first, including the outer Markdown quote used for
+  ;; outside-diff sections. An unfinished fence cannot justify a downgrade.
+  (let [text (remove-matches (str body)
+                            #"(?ms)^([ \t]*(?:>[ \t]?)*)(`{3,}|~{3,})[^\n]*\n.*?^\1\2[ \t]*$")]
+    (when-not (re-find #"(?m)^[ \t]*(?:>[ \t]?)*(?:`{3,}|~{3,})" text)
+      (mapv
+       (fn [[_ prefix start end banner prose id]]
+         (let [number (fn [s] #?(:clj (Long/parseLong s) :cljs (js/parseInt s 10)))
+               valid-range? (or (nil? end) (<= (number start) (number end)))
+               extra-banner? (some #(and (str/starts-with? % prefix)
+                                         (re-find #"^`[0-9]+(?:-[0-9]+)?`:.*\|" (subs % (count prefix))))
+                                   (str/split-lines prose))]
+           {:id id
+            :severity (if (and valid-range? (not extra-banner?))
+                        (get {"🔴 Critical" :p0 "🟠 Major" :p1
+                              "🟡 Minor" :p2 "🔵 Trivial" :p3} banner :p1)
+                        :p1)
+            :title (title-of prose)}))
+       ;; Same quote prefix on the header, banner, ID and closing boundary;
+       ;; never cross a sibling/nested blockquote or another finding marker.
+       (re-seq #"(?m)^([ \t]*(?:>[ \t]?)*)(?:<summary>[^<\n]+</summary><blockquote>)[ \t]*\n(?:[ \t]*(?:>[ \t]*)*\n)*\1`([1-9][0-9]{0,8})(?:-([1-9][0-9]{0,8}))?`: _[^_\n]+_ \| _([^_\n]+)_ \| _[^_\n]+_[ \t]*\n((?:(?!</?blockquote>|<!-- cr-comment:v1:)[\s\S])*?)^\1<!-- cr-comment:v1:([a-z0-9]+) -->[ \t]*\n(?:(?!</?blockquote>|<!-- cr-comment:v1:)[\s\S])*?^\1</blockquote></details>" text)))))
+
 (defn review-body-findings
   "Extract each outside-diff or nitpick finding and its stable CodeRabbit ID."
   [body]
-  (let [identified (->> (re-seq #"<summary><em>([^<]*)</em> · ([\s\S]*?) · <code>[^<]*</code></summary>[\s\S]*?<!-- cr-comment:v1:([a-z0-9]+) -->" (str body))
-                        (mapv (fn [[_ banner title id]]
-                                {:id id :severity (severity banner) :title title})))
+  (let [modern (->> (re-seq #"<summary><em>([^<]*)</em> · ([\s\S]*?) · <code>[^<]*</code></summary>[\s\S]*?<!-- cr-comment:v1:([a-z0-9]+) -->" (str body))
+                   (mapv (fn [[_ banner title id]]
+                           {:id id :severity (severity banner) :title title})))
+        modern-ids (set (map :id modern))
+        identified (into modern (remove #(modern-ids (:id %)) (legacy-body-findings body)))
         known (set (map :id identified))
         other (for [[_ id] (re-seq #"<!-- cr-comment:v1:([a-z0-9]+) -->" (str body))
                     :when (not (known id))]

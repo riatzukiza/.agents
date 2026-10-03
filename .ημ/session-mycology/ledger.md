@@ -94,3 +94,13 @@
   spore: none
   receipt-refs: 2026-10-03T10:02:54Z, 2026-10-03T10:04:44Z
   note: Writer authorization alone does not establish independence from the finding opener; test every marker format at the shared per-item law and preserve native review-state supersession as a distinct operation.
+
+- ts: 2026-10-03T10:41:20.496593+00:00
+  session: /home/err/spaces/review-repair/agents-legacy-review-severity
+  task: Isolate and verify legacy CodeRabbit per-item severity extraction
+  p-efficiency: 0.82
+  p-friction: 0.7
+  p-skill-candidate: 0.45
+  spore: none
+  receipt-refs: legacy-review-severity-isolated observation and test-run
+  note: Concurrent global policy changed settlement expectations in a shared tree. Reconstruct only owned parser/tests on an immutable base; prove exact IDs and explicit banners before integration, and requalify later under the receiving policy.

@@ -6,6 +6,7 @@
             [cljs.test :refer [deftest is testing run-tests]]
             [clojure.edn :as edn]
             [nbb.core :refer [*file*]]
+            [test-legacy]
             [pr-flow.flow :as flow]
             [pr-flow.law :as law]))
 
@@ -268,4 +269,4 @@
 (defmethod cljs.test/report [:cljs.test/default :end-run-tests] [m]
   (when-not (cljs.test/successful? m) (set! (.-exitCode js/process) 1)))
 
-(run-tests)
+(run-tests 'test-law 'test-legacy)
