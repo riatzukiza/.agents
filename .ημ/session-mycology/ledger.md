@@ -16,3 +16,13 @@
   spore: none
   receipt-refs: 2026-10-02T02:40:00Z, 2026-10-02T02:48:34Z
   note: Review summary findings outside the diff need explicit per-review accounting; the updated skill now describes that path and the CLI checks it.
+
+- ts: 2026-10-03T07:00:03.307628Z
+  session: agents8-quorum-one
+  task: Separate exact-head approval from observed coverage and implement guarded requests
+  p-efficiency: 0.82
+  p-friction: 0.55
+  p-skill-candidate: 0.45
+  spore: none
+  receipt-refs: 2026-10-03T07:00:03.307628Z
+  note: Test-first laws and an isolated gh fixture establish approval, identity, head-race, cooldown, budget and literal-input boundaries; hosted execution remains separate evidence.

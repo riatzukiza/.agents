@@ -40,6 +40,21 @@ Explicit invocation wins. Otherwise activate skills only when their gates match.
 - Do not silently rewrite imported third-party skills as if they were native.
 - Never commit secrets, tokens, authorization headers, private keys, session cookies, or private user data.
 
+## Rheos board authority and Markdown input
+
+Rheos is the sole operational authority for board status, frontmatter,
+comments, transitions and event history. Do not introduce another parser,
+validator, migration script or board-state command surface. Use Rheos CLI,
+API, MCP or UI for those operations; missing behavior is an upstream gap.
+
+Cards may be created and edited manually as Markdown. Hand-authored outcomes,
+scope, non-goals, acceptance criteria and verification are first-class Rheos
+input and are reviewed as diffs. This permission does not authorize manual
+status transitions or fabricated ledger events. Keep comma-separated scalar
+labels for parser compatibility, explicit UUID identity, and omit empty
+dependency fields. Preserve existing board state and append-only event history.
+Never use administrator bypass to replace required review or CI evidence.
+
 ## Skill changes
 
 When adding or materially revising a skill:

@@ -1,6 +1,6 @@
 (skill-contract
   (name "pr-flow")
-  (v "ημ.skill/pr-flow@0.1.0")
+  (v "ημ.skill/pr-flow@0.2.0")
 
   (intent
     "Route every pull-request interaction through the pr-flow state machine (flow.edn): muse, plan, planning review, ready, red, green, code review, merge gate, merged, reflected. Ships an nbb CLI over pure .cljc laws for GitHub review mechanics.")
@@ -27,5 +27,8 @@
     (settle-before-resolve "Every review thread gets a Fixed|Handled|Deferred|Rejected reply before it is resolved.")
     (blockers-fixed "P0/P1 findings are fixed; deferral or rejection does not clear them.")
     (bounded-loops "Review rounds are capped (default 5); at the cap, escalate to the user.")
-    (no-bypass "Rate-limited or skipped review is not a pass; never admin-merge around review.")
+    (approval-quorum "One trusted native GitHub APPROVED review on the exact head from CodeRabbit, Codex, MiMo or Kimi; all remain invited.")
+    (coverage-not-approval "Issue coverage markers, COMMENTED reviews, CLI AgenticKey evidence and acknowledgements are not approval.")
+    (mandatory-overrides "--reviewers and reviewed repository overrides retain all-of approval requirements; Knoxx retains both.")
+    (no-bypass "Optional waits retain their true state; required CI, evidence gates, all findings and branch protection are never bypassed.")
     (tier "This skill graph is provisional until the user accepts it.")))

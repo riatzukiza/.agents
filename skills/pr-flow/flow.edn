@@ -9,16 +9,21 @@
 ;; distilled 2026-10-01 from session logs, receipts and spores; it becomes
 ;; accepted only by an explicit user review event.
 {:flow/id :pr-flow
- :flow/version "0.1.0"
+ :flow/version "0.2.0"
  :flow/tier :provisional
  :flow/initial :muse
  :flow/terminal #{:reflected}
  :flow/defaults {:review/max-loops 5        ; user-confirmed 2026-10-01
                  :review/blocking #{:p0 :p1}
-                 ;; Reviewers whose full pass must cover the gated head. Repos add
-                 ;; their own (Knoxx: codex) with --reviewers.
-                 :review/required #{"coderabbit"}
+                 ;; Invitations and positive approvals are distinct obligations.
+                 :review/invited #{"coderabbit" "codex" "mimo" "kimi"}
+                 :review/approval-quorum 1
+                 :review/required #{}
                  :review/by-repo-name {"knoxx" #{"coderabbit" "codex"}}
+                 :review/identities {"coderabbit" #{"coderabbitai[bot]"}
+                                     "codex" #{"chatgpt-codex-connector[bot]"}
+                                     "mimo" #{"eta-mu-ai[bot]"}
+                                     "kimi" #{}}
                  :merge/method :merge}
 
  :flow/states
@@ -74,7 +79,7 @@
 
   :merge-gate
   {:skill "pr-review-to-merge"
-   :doc "All checks green and all comments settled → mark ready and enable auto-merge; the merge happens on GitHub."
+   :doc "One trusted exact-head APPROVED review, mandatory overrides, passing deterministic/required CI and settled findings → authorized exact-head merge."
    :cli ["pr.cljs gate REPO PR --apply"]
    :exit "Auto-merge enabled on the exact head that passed the gate."}
 

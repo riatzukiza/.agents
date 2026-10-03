@@ -157,30 +157,140 @@
         (count (filter #(or (nil? start)
                             (not (neg? (compare (:submitted_at %) start)))) reviews))))))
 
+;; --- trusted hosted review evidence ---------------------------------------
+
+(def eligible-reviewers #{"coderabbit" "codex" "mimo" "kimi"})
+(def default-reviewer-identities
+  ;; GitHub REST identities observed in this workflow. Kimi must be bound to
+  ;; its verified GitHub App identity by reviewed repository configuration.
+  {"coderabbit" #{"coderabbitai[bot]"}
+   "codex" #{"chatgpt-codex-connector[bot]"}
+   "mimo" #{"eta-mu-ai[bot]"}
+   "kimi" #{}})
+
+(defn valid-head? [head]
+  (boolean (and (string? head) (re-matches #"[0-9a-f]{40}" head))))
+
+(defn trusted-reviewer
+  "Match exact Bot identities; substring matches and CLI provider claims are
+   never authority. An identity configured for two providers is ambiguous."
+  [{:keys [user provider]} identities]
+  (let [login (str/lower-case (str (:login user)))
+        matches (for [[reviewer logins] identities
+                      :when (and (eligible-reviewers reviewer)
+                                 (contains? (set logins) login))] reviewer)]
+    (when (and (= "Bot" (:type user)) (= 1 (count matches))
+               (or (nil? provider) (= provider (first matches))))
+      (first matches))))
+
+(defn coderabbit-covered-heads
+  "Decode only the observed final_review_risk_coverage fields. This marker
+   establishes coverage, never APPROVED state. Duplicated fields fail closed."
+  [body]
+  (set
+   (keep (fn [[_ payload]]
+           (let [field (fn [key]
+                         (let [values (map second (re-seq (re-pattern (str "\"" key "\"\\s*:\\s*\"([^\"]*)\"")) payload))]
+                           (when (= 1 (count values)) (first values))))
+                 source (field "sourceCommitId") covered (field "coveredCommitId")]
+             (when (and (= "reviewed" (field "kind"))
+                        (valid-head? source) (= source covered)) covered)))
+         (re-seq #"<!--\s*final_review_risk_coverage:\s*\{([^}]*)\}\s*-->" (str body)))))
+
+(defn review-evidence
+  "GitHub reviews and issue comments remain separate evidence tiers. Only a
+   trusted app's latest decisive review on this exact head grants approval."
+  [head reviews comments identities]
+  (let [trusted (->> reviews
+                     (keep (fn [r]
+                             (when-let [p (trusted-reviewer r identities)]
+                               (when (and (valid-head? head) (= head (:commit_id r))
+                                          (string? (:submitted_at r)))
+                                 (assoc r :reviewer p)))))
+                     (sort-by (juxt :submitted_at :id)))
+        decisive (reduce (fn [m r]
+                           (if (#{"APPROVED" "CHANGES_REQUESTED" "DISMISSED"} (:state r))
+                             (assoc m (:reviewer r) r) m)) {} trusted)
+        approved (into {} (for [[p r] decisive :when (= "APPROVED" (:state r))] [p #{head}]))
+        covered (reduce (fn [m r]
+                          (if (or (not (str/blank? (:body r)))
+                                  (#{"APPROVED" "CHANGES_REQUESTED"} (:state r)))
+                            (update m (:reviewer r) (fnil conj #{}) head) m)) {} trusted)
+        covered (reduce (fn [m c]
+                          (if (and (valid-head? head)
+                                   (= "coderabbit" (trusted-reviewer c identities))
+                                   ((coderabbit-covered-heads (:body c)) head))
+                            (update m "coderabbit" (fnil conj #{}) head) m)) covered comments)]
+    {:approved-heads approved :reviewed-heads covered}))
+
+(defn reviewer-check
+  "Only named reviewer outputs are optional. Evidence gates and required
+   checks stay deterministic obligations, even when their name mentions AI."
+  [check]
+  (get {"CodeRabbit" "coderabbit" "Codex" "codex" "MiMo" "mimo" "Kimi" "kimi"}
+       (:name check)))
+
+(defn cooldown-ms
+  "Parse a wait/retry duration from a rate-limit reply, not allowance counts."
+  [body]
+  (when-let [[_ duration] (re-find #"(?i)(?:wait|retry(?: again)?(?: in| after)?|try again in|cooldown:?)[^0-9]*([^\n.<]+)" (str body))]
+    (let [parts (re-seq #"(?i)([0-9]+)\s*(hours?|minutes?|seconds?)" duration)]
+      (when (seq parts)
+        (reduce + (for [[_ n unit] parts]
+                    (* #?(:clj (Long/parseLong n) :cljs (js/parseInt n 10))
+                       (cond (str/starts-with? (str/lower-case unit) "hour") 3600000
+                             (str/starts-with? (str/lower-case unit) "minute") 60000
+                             :else 1000))))))))
+
+(defn- instant-ms [value]
+  (when (string? value)
+    #?(:clj (try (.toEpochMilli (java.time.Instant/parse value)) (catch Exception _ nil))
+       :cljs (let [ms (js/Date.parse value)] (when-not (js/isNaN ms) ms)))))
+
+(defn request-verdict
+  "Manual requests are bounded: exact-head pending requests are reused,
+   quota replies yield retry timestamps, and reaching the cap never posts."
+  [{:keys [head reviewer comments checks rounds max-loops now-ms identities]
+    :or {max-loops 5 identities default-reviewer-identities}}]
+  (let [requests (filter #(and (:trusted? %)
+                               (str/includes? (str (:body %)) (str "pr-flow-review:" head " -->"))
+                               (or (str/includes? (str (:body %)) (str "pr-flow-reviewer:" reviewer " -->"))
+                                   (and (= "coderabbit" reviewer)
+                                        (not (str/includes? (str (:body %)) "pr-flow-reviewer:"))
+                                        (re-find #"(?i)@coderabbitai (?:full )?review" (str (:body %)))))) comments)
+        request (last (sort-by :created_at requests))
+        replies (filter #(= reviewer (trusted-reviewer % identities)) comments)
+        limit (->> replies
+                   (filter #(re-find #"(?i)rate.?limit|review limit|quota.*(?:reached|exceeded)" (str (:body %))))
+                   (sort-by #(or (:updated_at %) (:created_at %) "")) last)
+        delay (some-> limit :body cooldown-ms)
+        limit-at (when limit (instant-ms (or (:updated_at limit) (:created_at limit))))
+        retry-at (when (and delay limit-at) (+ limit-at delay))
+        covered? (some #(and (= "coderabbit" reviewer)
+                             ((coderabbit-covered-heads (:body %)) head)
+                             (or (nil? request)
+                                 (not (neg? (compare (or (:updated_at %) (:created_at %) "") (:created_at request)))))) replies)
+        pending? (some #(and (= reviewer (reviewer-check %))
+                            (#{"PENDING" "QUEUED" "IN_PROGRESS"} (str/upper-case (str (:state %))))) checks)]
+    (cond
+      (or (not (valid-head? head)) (not (eligible-reviewers reviewer))) {:status :invalid}
+      (>= (or rounds 0) max-loops) {:status :budget-exhausted :rounds rounds :max-loops max-loops}
+      (and limit (or (nil? retry-at) (nil? now-ms))) {:status :rate-limited}
+      (and retry-at (< now-ms retry-at)) {:status :cooldown :retry-at-ms retry-at}
+      pending? {:status :pending}
+      covered? {:status :completed}
+      ;; An expired quota reply ended that attempt. A later operator may make
+      ;; one new manual request; this law never schedules a retry itself.
+      (and request (or (nil? limit-at)
+                       (<= limit-at (or (instant-ms (:created_at request)) 0)))) {:status :pending}
+      :else {:status :request})))
+
 (defn required-reviewers-for
   "Repository-specific reviewer requirements cannot be removed by a CLI flag."
   [defaults repo requested]
   (let [repo-name (last (str/split repo #"/"))]
     (into (into (:review/required defaults) (or requested #{}))
           (get-in defaults [:review/by-repo-name repo-name] #{}))))
-
-(defn completed-no-findings-review?
-  "CodeRabbit may finish a full review with no REST review record. Accept its
-   completion reply only after a trusted exact-head request. The merge gate
-   separately requires the current-head CodeRabbit check to be completed."
-  [head comments]
-  (let [requests (->> comments
-                      (filter #(and (:trusted? %)
-                                    (re-find #"(?i)@coderabbitai full review|@coderabbitai review" (str (:body %)))
-                                    (str/includes? (str (:body %)) (str "pr-flow-review:" head))))
-                      (sort-by :created_at))
-        request (last requests)]
-    (boolean
-     (and request
-          (some #(and (re-find #"(?i)coderabbit" (str (:author %)))
-                      (pos? (compare (:created_at %) (:created_at request)))
-                      (re-find #"(?i)full review finished" (str (:body %))))
-                comments)))))
 
 (defn unsettled-blockers
   "Blocking threads not fixed. Only `Fixed` clears a P0/P1: deferring,
@@ -197,7 +307,7 @@
   "From PR check rows [{:name :state :description}] derive CodeRabbit's state:
    :absent :pending :completed :rate-limited :skipped :failed."
   [checks]
-  (if-let [{:keys [state description]} (first (filter #(re-find #"(?i)coderabbit" (str (:name %))) checks))]
+  (if-let [{:keys [state description]} (first (filter #(= "coderabbit" (str/lower-case (str (:name %)))) checks))]
     (let [d (str/lower-case (str description))
           s (str/lower-case (str state))]
       (cond
@@ -205,8 +315,9 @@
         (re-find #"skip" d) :skipped
         (#{"pending" "queued" "in_progress"} s) :pending
         (re-find #"in progress" d) :pending
-        (#{"fail" "failure" "error"} s) :failed
-        :else :completed))
+        (#{"skipped" "skipping" "cancelled"} s) :skipped
+        (#{"success" "pass"} s) :completed
+        :else :failed))
     :absent))
 
 (defn check-summary
@@ -225,50 +336,48 @@
 ;; --- merge gate -----------------------------------------------------------
 
 (defn merge-gate
-  "Evaluate whether a PR may be marked ready and set to auto-merge.
-   input: {:threads [classified] :checks [...] :review-bodies-unanswered n
-           :head sha
-           :required-reviewers #{\"coderabbit\" \"codex\" ...}  ; default #{\"coderabbit\"}
-           :reviewed-heads {reviewer #{sha}}                ; full review passes per reviewer
-           :incomplete? bool}                               ; any paginated connection truncated
-   Head checks apply only when :head is given.
-   Returns {:pass? bool :reasons [..]}."
-  [{:keys [threads checks review-bodies-unanswered head required-reviewers reviewed-heads incomplete?]}]
+  "One positive exact-head hosted review is the default quorum. Mandatory
+   reviewer overrides remain all-of; all deterministic checks and findings
+   remain obligations. Observed coverage is never approval."
+  [{:keys [threads checks review-bodies-unanswered head snapshot-head
+           required-reviewers approved-heads incomplete? approval-quorum]
+    :or {approval-quorum 1}}]
   (let [cr (coderabbit-state checks)
-        sums (check-summary checks)
-        required (or (not-empty required-reviewers) #{"coderabbit"})
-        uncovered (when head
-                    (sort (remove #(contains? (set (get reviewed-heads %)) head) required)))
+        mandatory (or required-reviewers #{})
+        approved (set (for [[p heads] approved-heads
+                            :when (and (eligible-reviewers p) (contains? (set heads) head))] p))
+        missing (sort (remove approved mandatory))
+        obligations (filter #(or (:required? %) (nil? (reviewer-check %))
+                                 (mandatory (reviewer-check %))) checks)
+        sums (check-summary obligations)
         blockers (unsettled-blockers threads)
         unsettled (remove :settled? threads)
         contested (filter :contested? threads)
         unresolved (remove :resolved? threads)
+        valid-quorum? (and (integer? approval-quorum) (<= 1 approval-quorum (count eligible-reviewers)))
         reasons (cond-> []
-                  incomplete? (conj "Review data was truncated (more than one page); refusing to judge a partial view")
-                  (= cr :pending) (conj "CodeRabbit review still in progress")
-                  (= cr :rate-limited) (conj "CodeRabbit rate-limited; re-request review after the cooldown")
-                  (= cr :absent) (conj "No CodeRabbit check; request a review first")
-                  (= cr :skipped) (conj "CodeRabbit skipped this head (draft, non-default base, or file cap); request a review explicitly")
-                  (= cr :failed) (conj "CodeRabbit review failed; request a successful review")
-                  (seq uncovered)
-                  (conj (str "No full review of head " (subs head 0 (min 7 (count head))) " by: " (str/join ", " uncovered)))
-                  (pos? (get sums :fail 0)) (conj (str (get sums :fail) " failing check(s)"))
-                  (pos? (get sums :pending 0)) (conj (str (get sums :pending) " pending check(s)"))
+                  (not valid-quorum?)
+                  (conj "Invalid approval quorum")
+                  (not (valid-head? head)) (conj "Missing or invalid exact PR head")
+                  (and snapshot-head (not= head snapshot-head)) (conj "PR head changed while collecting evidence")
+                  incomplete? (conj "Review data was truncated; refusing a partial view")
+                  (and valid-quorum? (< (count approved) approval-quorum)) (conj "No trusted exact-head APPROVED review meets the quorum")
+                  (seq missing) (conj (str "Missing exact-head approval from mandatory reviewers: " (str/join ", " missing)))
+                  (some #(and (reviewer-check %) (not= :completed (coderabbit-state [(assoc % :name "CodeRabbit")]))) obligations)
+                  (conj "A required reviewer/check is pending, skipped, failed or rate-limited")
+                  (pos? (get sums :fail 0)) (conj (str (get sums :fail) " failing deterministic/required check(s)"))
+                  (pos? (get sums :pending 0)) (conj (str (get sums :pending) " pending deterministic/required check(s)"))
                   (some #(and (:required? %) (#{"skipped" "skipping" "cancelled"} (str/lower-case (str (:state %))))) checks)
                   (conj "A required check was skipped or cancelled")
                   (seq blockers) (conj (str (count blockers) " P0/P1 thread(s) not fixed"))
-                  (seq contested) (conj (str (count contested) " thread(s) where a reviewer disputed the settlement; reopen and settle again"))
+                  (seq contested) (conj (str (count contested) " disputed settlement(s)"))
                   (seq unsettled) (conj (str (count unsettled) " thread(s) without a settlement reply"))
                   (seq unresolved) (conj (str (count unresolved) " unresolved thread(s)"))
-                  (pos? (or review-bodies-unanswered 0))
-                  (conj (str review-bodies-unanswered " review summary item(s) (nitpicks/outside-diff) not answered in a PR comment")))]
-    {:pass? (empty? reasons) :coderabbit cr :checks sums :head head :reasons reasons}))
+                  (pos? (or review-bodies-unanswered 0)) (conj (str review-bodies-unanswered " unanswered review summary item(s)")))]
+    {:pass? (empty? reasons) :head head :reasons reasons :coderabbit cr :checks sums
+     :approving-reviewers approved :approval-quorum approval-quorum}))
 
-;; --- loop budget ----------------------------------------------------------
-
-(def default-max-loops
-  "Review rounds before escalating to the user instead of iterating again."
-  5)
+(def default-max-loops 5)
 
 (defn loop-verdict
   "rounds: completed review rounds; open-blockers: count of P0/P1 still open."

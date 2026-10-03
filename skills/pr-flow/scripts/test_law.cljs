@@ -138,39 +138,30 @@
   (is (= :skipped (law/coderabbit-state [{:name "CodeRabbit" :state "SUCCESS" :description "Review skipped"}])))
   (is (= :absent (law/coderabbit-state [{:name "ci" :state "SUCCESS"}]))))
 
+(def gate-head (apply str (repeat 40 "a")))
+(defn gated [input]
+  (law/merge-gate (merge {:head gate-head :approved-heads {"mimo" #{gate-head}}} input)))
+
 (deftest merge-gate
   (let [done [{:name "CodeRabbit" :state "SUCCESS" :description "Review completed"}
               {:name "test" :state "SUCCESS"}]
         settled (assoc (law/classify-thread (thread "_🟡 Minor_" "Rejected: intended")) :resolved? true)]
-    (is (:pass? (law/merge-gate {:threads [settled] :checks done})))
-    (testing "resolved without a settlement reply blocks"
-      (is (not (:pass? (law/merge-gate {:threads [(assoc (law/classify-thread (thread "_🟡 Minor_")) :resolved? true)]
-                                        :checks done})))))
-    (testing "rate-limited is not a pass"
-      (is (not (:pass? (law/merge-gate {:threads [] :checks [{:name "CodeRabbit" :state "SUCCESS" :description "Review rate limited"}]})))))
-    (testing "failing check blocks"
-      (is (not (:pass? (law/merge-gate {:threads [] :checks (conj done {:name "lint" :state "FAILURE"})})))))
-    (testing "skipped review is not a pass"
-      (is (not (:pass? (law/merge-gate {:threads [] :checks [{:name "CodeRabbit" :state "SUCCESS" :description "Review skipped"}]})))))
-    (testing "a review of an older head is not a review of this head"
-      (is (not (:pass? (law/merge-gate {:threads [] :checks done :head "b" :reviewed-heads {"coderabbit" #{"a"}}}))))
-      (is (:pass? (law/merge-gate {:threads [] :checks done :head "b" :reviewed-heads {"coderabbit" #{"a" "b"}}}))))
-    (testing "failed review blocks"
-      (is (not (:pass? (law/merge-gate {:threads [] :checks [{:name "CodeRabbit" :state "FAILURE" :description "Review failed"}]})))))
-    (testing "every required reviewer must cover the head"
-      (is (not (:pass? (law/merge-gate {:threads [] :checks done :head "b"
-                                        :required-reviewers #{"coderabbit" "codex"}
-                                        :reviewed-heads {"coderabbit" #{"b"}}}))))
-      (is (:pass? (law/merge-gate {:threads [] :checks done :head "b"
-                                   :required-reviewers #{"coderabbit" "codex"}
-                                   :reviewed-heads {"coderabbit" #{"b"} "codex" #{"b"}}}))))
-    (testing "truncated thread data fails closed"
-      (is (not (:pass? (law/merge-gate {:threads [] :checks done :incomplete? true})))))
-    (testing "unanswered review-body nitpicks block"
-      (is (not (:pass? (law/merge-gate {:threads [] :checks done :review-bodies-unanswered 1})))))
-    (testing "skipped required check blocks but optional skip does not"
-      (is (not (:pass? (law/merge-gate {:threads [] :checks (conj done {:name "required" :state "SKIPPED" :required? true})}))))
-      (is (:pass? (law/merge-gate {:threads [] :checks (conj done {:name "optional" :state "SKIPPED" :required? false})}))))))
+    (is (:pass? (gated {:threads [settled] :checks done})))
+    (is (not (:pass? (gated {:threads [(assoc (law/classify-thread (thread "_🟡 Minor_")) :resolved? true)] :checks done}))))
+    (doseq [check [{:name "CodeRabbit" :state "SUCCESS" :description "Review rate limited"}
+                   {:name "CodeRabbit" :state "SUCCESS" :description "Review skipped"}
+                   {:name "CodeRabbit" :state "FAILURE" :description "Review failed"}]]
+      (is (:pass? (gated {:checks [check]})))
+      (is (not (:pass? (gated {:checks [check] :required-reviewers #{"coderabbit"}})))))
+    (is (not (:pass? (gated {:checks (conj done {:name "lint" :state "FAILURE"})}))))
+    (is (not (:pass? (gated {:checks done :approved-heads {"mimo" #{(apply str (repeat 40 "b"))}}}))))
+    (is (not (:pass? (gated {:checks done :required-reviewers #{"coderabbit" "codex"}}))))
+    (is (:pass? (gated {:checks done :required-reviewers #{"coderabbit" "codex"}
+                        :approved-heads {"coderabbit" #{gate-head} "codex" #{gate-head}}})))
+    (is (not (:pass? (gated {:checks done :incomplete? true}))))
+    (is (not (:pass? (gated {:checks done :review-bodies-unanswered 1}))))
+    (is (not (:pass? (gated {:checks (conj done {:name "required" :state "SKIPPED" :required? true})}))))
+    (is (:pass? (gated {:checks (conj done {:name "optional" :state "SKIPPED" :required? false})})))))
 
 (deftest loop-budget
   (is (= :converged (law/loop-verdict {:rounds 9 :open-blockers 0})))
@@ -185,21 +176,10 @@
   (let [defaults (:flow/defaults the-flow)]
     (is (= #{"coderabbit" "codex"}
            (law/required-reviewers-for defaults "open-hax/knoxx" #{"coderabbit"})))
-    (is (= #{"coderabbit"}
+    (is (= #{}
            (law/required-reviewers-for defaults "open-hax/foresight" nil)))
-    (is (= #{"coderabbit" "codex"}
+    (is (= #{"codex"}
            (law/required-reviewers-for defaults "open-hax/foresight" #{"codex"})))))
-
-(deftest no-findings-review-completion-is-head-scoped
-  (let [request {:author "riatzukiza" :trusted? true :created_at "2026-10-02T04:58:35Z"
-                 :body "@coderabbitai full review <!-- pr-flow-review:abc123 -->"}
-        completion {:author "coderabbitai" :created_at "2026-10-02T04:58:45Z"
-                    :body "Full review finished."}]
-    (is (law/completed-no-findings-review? "abc123" [request completion]))
-    (is (not (law/completed-no-findings-review? "other" [request completion])))
-    (is (not (law/completed-no-findings-review? "abc123" [(assoc request :trusted? false) completion])))
-    (is (not (law/completed-no-findings-review? "abc123" [request (assoc completion :body "Full review triggered.")])))
-    (is (not (law/completed-no-findings-review? "abc123" [completion (assoc request :created_at "2026-10-02T05:00:00Z")])))))
 
 (deftest flow-is-lawful
   (is (= [] (flow/problems the-flow)))

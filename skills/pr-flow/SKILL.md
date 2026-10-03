@@ -1,6 +1,6 @@
 ---
 name: pr-flow
-description: Entry point for every pull-request interaction. A state machine (flow.edn) that routes muse → epic/stories → PR (ready, auto-merge off) with CodeRabbit planning review → ready cards → red (laws, tests) → green (domain, infra) → bounded code review → auto-merge, naming the skill, inputs, outputs and exit for each state, with an nbb CLI for the GitHub mechanics.
+description: Entry point for every pull-request interaction. A state machine (flow.edn) that routes muse → epic/stories → PR (ready, auto-merge off) with CodeRabbit planning review → ready cards → red (laws, tests) → green (domain, infra) → bounded code review → an exact-head approval quorum → authorized merge, naming the skill, inputs, outputs and exit for each state, with an nbb CLI for the GitHub mechanics.
 license: GPL-3.0-or-later
 metadata:
   tier: provisional
@@ -51,27 +51,28 @@ Card status belongs to Rheos. A state's `:board/expects` only names the transiti
 P="nbb -cp ~/.agents/skills/pr-flow/scripts ~/.agents/skills/pr-flow/scripts/pr.cljs"
 $P flow [STATE]
 $P status  owner/repo N            # draft, checks, CodeRabbit, threads by severity, gate verdict
-$P request owner/repo N planning|code [--note TEXT]
+$P request owner/repo N planning|code [--note TEXT] [--reviewer coderabbit|codex]
 $P wait    owner/repo N [--timeout 1800 --interval 30]   # 0 done, 3 rate-limited, 4 timeout
 $P threads owner/repo N [--all]
 $P settle  owner/repo N THREAD_ID "Fixed in <sha>: …"    # reply, then resolve; refuses other openings
 $P gate    owner/repo N [--apply] [--method merge]   # merge commits by default, never squash unless the repo requires it
 ```
 
-Laws live in `scripts/pr_flow/law.cljc` (severity, settlement, merge gate, loop budget) and `scripts/pr_flow/flow.cljc` (FSM well-formedness). They are pure `.cljc`, and the CLI is the only effectful layer. Tests: `nbb -cp scripts scripts/test_law.cljs`.
+Laws live in `scripts/pr_flow/law.cljc` (severity, settlement, merge gate, loop budget) and `scripts/pr_flow/flow.cljc` (FSM well-formedness). They are pure `.cljc`, and the CLI is the only effectful layer. Tests from the repository root: `nbb -cp skills/pr-flow/scripts skills/pr-flow/scripts/test_law.cljs`, `test_policy.cljs` and `test_cli.cljs`. The `PR flow laws and CLI` hosted job runs all three on the actual PR head. Local results are preparation, not hosted qualification.
 
 ## Hard-won rules
 
 - **gh auth.** A fine-grained `GH_TOKEN` can push but may fail `createPullRequest` with "Resource not accessible by personal access token". The CLI retries with the token unset so gh uses its keyring login. For raw `gh`, use `env -u GH_TOKEN -u GITHUB_TOKEN gh …`.
-- **Rate limits.** A rate-limited or skipped CodeRabbit run is **not** a pass. Wait out the window and re-request; never admin-merge around it.
-- **Exact head.** Review evidence belongs to one head SHA. A new push invalidates it, so re-run `wait` and `status`.
+- **Approval quorum.** One trusted exact-head GitHub `APPROVED` review from CodeRabbit, Codex, MiMo or Kimi satisfies the default quorum. `COMMENTED`, `CHANGES_REQUESTED`, acknowledgements, stale reviews and no-findings coverage do not grant approval. All four remain invited. All findings from every reviewer must be settled; required CI and evidence gates must pass.
+- **Rate limits.** Pending, failed, rate-limited or skipped optional reviews stay in those states. They do not block a different valid approving reviewer when the remaining gates pass. A mandatory reviewer or required check is never waived. Requests are manual, deduplicated for the exact head, and delayed until the parsed cooldown expires; an unknown cooldown needs operator attention.
+- **Exact head and identity.** Only allowlisted GitHub Bot logins in reviewed `:review/identities` can grant approval. The latest decisive state on the exact 40-hex head controls; a later dismissal or request for changes revokes that provider’s approval. A new push invalidates the old head, and a changed head during evidence collection blocks merging. Kimi is invited but needs its verified app identity configured before its approval can count.
 - **No-findings reviews.** CodeRabbit may finish a full review without creating a REST review record. An authorized exact-head request marker followed by CodeRabbit's "Full review finished" reply, together with a completed current-head CodeRabbit check, is review evidence. A trigger acknowledgement alone is not.
 - **Outdated threads.** An outdated thread still needs verification before you settle it.
 - **Review bodies.** Nitpicks and outside-diff findings live in the review body, not in threads. Answer every finding in an itemized PR comment with `review-id:<numeric GitHub review ID>`; each line names its `cr-comment:v1:<ID>` and opens with `Fixed`, `Deferred`, `Rejected`, or `Handled`. P0/P1 findings require `Fixed`. The gate accepts only comments by repository writers.
 - **Review rounds.** Review requests record `pr-flow-stage:planning|code` in a PR comment by a repository writer. The five-round budget applies to the current consecutive stage; earlier planning rounds do not consume code-review rounds. Public commenters cannot reset the stage marker.
-- **Required reviewers and checks.** The CLI combines the default reviewer set, the repo map in `flow.edn`, and any `--reviewers` value. A flag cannot remove CodeRabbit or Knoxx's Codex requirement. Skipped or cancelled required checks block the gate.
+- **Mandatory overrides and checks.** `--reviewers coderabbit,codex` requires **both** exact-head approvals in addition to quorum. Repository requirements are unioned with that explicit override. Knoxx retains its existing CodeRabbit-and-Codex requirement until a reviewed repository policy changes it. All deterministic/required check failures or pending states block; skipped or cancelled required checks block. Optional reviewer checks are classified separately.
 - **Reviewer reach.** CodeRabbit does not auto-review drafts, or PRs whose base is not the default branch (every stacked PR). Request explicitly. Codex and other agents may ignore drafts entirely (`@codex review` only reaches a ready PR), so when they are required, mark the PR ready and keep auto-merge off until the gate passes.
-- **Quota.** CodeRabbit subscriptions cover only the account or org they were bought on, and limits are per developer per hour. Observed 2026-10-01: the personal account `riatzukiza/*` is on Essentials at 5 reviews per hour. The `open-hax` and `octave-commons` orgs are on the free OSS program at 1 review per hour, because OSS limits scale with star count. The footer of each review says how many reviews remain. "Review limit reached" means wait. Never repeat a pending request, and never treat an acknowledgement, a skipped run or a stale review as completion. For an idempotent retry, use `@coderabbitai full review` with an HTML marker naming the head SHA.
+- **Quota.** CodeRabbit subscriptions cover only the account or org they were bought on, and limits are per developer per hour. Observed 2026-10-01: the personal account `riatzukiza/*` is on Essentials at 5 reviews per hour. The `open-hax` and `octave-commons` orgs are on the free OSS program at 1 review per hour, because OSS limits scale with star count. The footer of each review says how many reviews remain. "Review limit reached" means wait. Never repeat a pending request, and never treat an acknowledgement, a skipped run or a stale review as completion. The CLI uses manual `@coderabbitai full review` with exact-head and reviewer markers, pending deduplication and parsed cooldowns. Reaching the stage budget blocks another request even if earlier findings are settled; changing reviewer does not reset the shared budget. This PR’s historical six rounds do not authorize a seventh.
 - **Size caps.** CodeRabbit skips PRs over 100 files, so split them. When a PR passes about 100 comments, merge it with follow-up cards, or close it with remarks.
 - **Comment floods.** Docstring and nitpick floods go to issues or cards. Ask the reviewer to file them, grouped, and settle the threads as `Deferred to <issue>`.
 - **Merge method.** Use merge commits, not squash (the user's correction). `gate --apply` uses `--merge --match-head-commit <gated head>`.
@@ -82,3 +83,17 @@ Laws live in `scripts/pr_flow/law.cljc` (severity, settlement, merge gate, loop 
 ## References
 
 `pr-muse-connect`, `pr-sprint-planning`, `pr-review-settlement`, `pr-red-green`, `pr-review-to-merge`, `receipt-river`, `session-mycology`, `eta-mu-kanban`, `ultra-code` (review waves), `staging-promotion-gate-navigation`.
+
+## Coverage, approvals and execution boundaries
+
+The CLI reads CodeRabbit’s authenticated issue-comment
+`final_review_risk_coverage` marker as observed coverage only. It never converts
+“No actionable comments” or “Full review finished” into a GitHub approval.
+CodeRabbit and Codex requests use their explicit mention surfaces; MiMo and
+Kimi use configured hosted workflows. All remain invited even after quorum.
+
+AgenticKey-authenticated CLI review is a separate provider and evidence artifact.
+It cannot impersonate native CodeRabbit approval or satisfy the hosted GitHub
+approval quorum. Do not publish a synthetic approving review to fill the quorum.
+Preserve named credentials, current-head evidence gates and branch protection;
+missing credentials are an operator blocker, not permission to suppress a job.

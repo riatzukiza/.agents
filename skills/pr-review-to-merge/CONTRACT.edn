@@ -1,6 +1,6 @@
 (skill-contract
   (name "pr-review-to-merge")
-  (v "ημ.skill/pr-review-to-merge@0.1.0")
+  (v "ημ.skill/pr-review-to-merge@0.2.0")
   (intent "Own an explicitly authorized PR or ordered stack through verified merge and continuation.")
   (activation
     (priority 68)
@@ -17,7 +17,10 @@
     (one-active-pr true)
     (reviewers-for-knoxx ["coderabbit" "codex"])
     (reviewer-defaults "pr-flow/flow.edn :flow/defaults :review/by-repo-name; mandatory reviewer sets cannot be removed by --reviewers")
-    (require-current-head-reviews true)
+    (approval-quorum 1)
+    (approval-providers ["coderabbit" "codex" "mimo" "kimi"])
+    (require-trusted-exact-head-approved-state true)
+    (coverage-is-not-approval true)
     (require-passing-required-checks true)
     (require-resolved-review-conversations true)
     (require-head-sha-merge-guard true)

@@ -1,6 +1,6 @@
 #!/usr/bin/env nbb
 (ns test-policy
-  (:require [cljs.test :refer [deftest is testing run-tests]]
+  (:require [cljs.test :refer [deftest is run-tests]]
             [pr-flow.law :as law]))
 
 (def head (apply str (repeat 40 "a")))
@@ -12,10 +12,6 @@
 (defn review [login state sha]
   {:id 1 :user {:login login :type "Bot"} :state state :commit_id sha
    :submitted_at "2026-10-03T01:00:00Z"})
-(defn pure [sym & args]
-  (if-let [f (ns-resolve 'pr-flow.law sym)]
-    (apply f args)
-    (do (is false (str "missing policy law " sym)) nil)))
 (def baseline {:head head :approved-heads {"mimo" #{head}}
                :required-reviewers #{} :approval-quorum 1
                :checks [{:name "laws" :state "SUCCESS" :required? true}]
@@ -23,6 +19,8 @@
 
 (deftest one-approval-and-all-findings
   (is (:pass? (law/merge-gate baseline)))
+  (doseq [quorum [nil 0 -1 5 "1"]]
+    (is (not (:pass? (law/merge-gate (assoc baseline :approval-quorum quorum))))))
   (doseq [provider ["coderabbit" "codex" "mimo" "kimi"]]
     (is (:pass? (law/merge-gate (assoc baseline :approved-heads {provider #{head}})))))
   (doseq [approvals [{} {"mimo" #{old-head}} {"agentickey" #{head}}]]
@@ -53,7 +51,7 @@
   (is (not (:pass? (law/merge-gate (assoc baseline :required-reviewers #{"codex" "mimo"}))))))
 
 (deftest approval-identity-state-and-revocation
-  (let [evidence #(pure 'review-evidence head % [] identities)]
+  (let [evidence #(law/review-evidence head % [] identities)]
     (doseq [provider ["coderabbit" "codex" "mimo" "kimi"]]
       (let [login (first (get identities provider))]
         (is (= #{head} (get-in (evidence [(review login "APPROVED" head)]) [:approved-heads provider])))))
@@ -72,31 +70,31 @@
   (let [body (str "No actionable comments. <!-- final_review_risk_coverage:{\"sourceCommitId\":\"" head
                   "\",\"coveredCommitId\":\"" head "\",\"kind\":\"reviewed\"} -->")
         comment {:user {:login "coderabbitai[bot]" :type "Bot"} :body body :updated_at "2026-10-03T01:00:00Z"}
-        e (pure 'review-evidence head [] [comment] identities)]
+        e (law/review-evidence head [] [comment] identities)]
     (is (= #{head} (get-in e [:reviewed-heads "coderabbit"])))
     (is (empty? (:approved-heads e)))
-    (is (empty? (:approved-heads (pure 'review-evidence head [] [(assoc comment :body (str "APPROVED " body))] identities))))
-    (is (empty? (:reviewed-heads (pure 'review-evidence old-head [] [comment] identities))))
-    (is (empty? (:reviewed-heads (pure 'review-evidence head [] [(assoc-in comment [:user :login] "fake-coderabbit[bot]")] identities))))))
+    (is (empty? (:approved-heads (law/review-evidence head [] [(assoc comment :body (str "APPROVED " body))] identities))))
+    (is (empty? (:reviewed-heads (law/review-evidence old-head [] [comment] identities))))
+    (is (empty? (:reviewed-heads (law/review-evidence head [] [(assoc-in comment [:user :login] "fake-coderabbit[bot]")] identities))))))
 
 (deftest request-dedupe-cooldown-and-hard-budget
   (let [request {:trusted? true :created_at "2026-10-03T01:00:00Z"
                  :body (str "@coderabbitai full review <!-- pr-flow-review:" head " --> <!-- pr-flow-reviewer:coderabbit -->")}
         input {:head head :reviewer "coderabbit" :comments [request] :checks [] :rounds 1 :max-loops 6
                :now-ms 1790989260000 :identities identities}]
-    (is (= :pending (:status (pure 'request-verdict input))))
-    (is (= :request (:status (pure 'request-verdict (assoc input :head old-head)))))
-    (is (= :request (:status (pure 'request-verdict (assoc input :comments [(assoc request :trusted? false)])))))
-    (is (= :budget-exhausted (:status (pure 'request-verdict (assoc input :rounds 6 :comments [])))))
-    (is (= :cooldown (:status (pure 'request-verdict
+    (is (= :pending (:status (law/request-verdict input))))
+    (is (= :request (:status (law/request-verdict (assoc input :head old-head)))))
+    (is (= :request (:status (law/request-verdict (assoc input :comments [(assoc request :trusted? false)])))))
+    (is (= :budget-exhausted (:status (law/request-verdict (assoc input :rounds 6 :comments [])))))
+    (is (= :cooldown (:status (law/request-verdict
                                   (assoc input :comments [{:user {:login "coderabbitai[bot]" :type "Bot"}
                                                           :updated_at "2026-10-03T01:00:00Z"
                                                           :body "Review limit reached. Please wait 53 minutes and 12 seconds."}])))))
-    (is (= 3192000 (pure 'cooldown-ms "Review limit reached. Please wait 53 minutes and 12 seconds.")))
-    (is (= :rate-limited (:status (pure 'request-verdict
+    (is (= 3192000 (law/cooldown-ms "Review limit reached. Please wait 53 minutes and 12 seconds.")))
+    (is (= :rate-limited (:status (law/request-verdict
                                       (assoc input :comments [{:user {:login "coderabbitai[bot]" :type "Bot"}
                                                               :body "Review limit reached."}])))))
-    (is (= :pending (:status (pure 'request-verdict (assoc input :comments [] :checks [{:name "CodeRabbit" :state "PENDING"}])))))))
+    (is (= :pending (:status (law/request-verdict (assoc input :comments [] :checks [{:name "CodeRabbit" :state "PENDING"}])))))))
 
 (defmethod cljs.test/report [:cljs.test/default :end-run-tests] [m]
   (when-not (cljs.test/successful? m) (set! (.-exitCode js/process) 1)))

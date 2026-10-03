@@ -9,7 +9,7 @@
 ;;   threads REPO PR [--all]    review threads (unresolved by default) with id, severity, settlement
 ;;   wait    REPO PR [--timeout S] [--interval S]
 ;;                              poll until CodeRabbit is no longer pending; exit 0 done, 3 rate-limited, 4 timeout
-;;   request REPO PR planning|code [--note TEXT]
+;;   request REPO PR planning|code [--note TEXT] [--reviewer coderabbit|codex]
 ;;                              post an @coderabbitai review request with the matching brief
 ;;   settle  REPO PR THREAD-ID BODY
 ;;                              reply to a thread, then resolve it; BODY must open with
@@ -44,9 +44,11 @@
     (js-delete env "GITHUB_TOKEN")
     env))
 
-(defn- run-gh [args env]
-  (let [r (cp/spawnSync "gh" (clj->js args) #js {:encoding "utf8" :env env :maxBuffer (* 64 1024 1024)})]
-    {:exit (.-status r) :out (str (.-stdout r)) :err (str (.-stderr r))}))
+(defn- run-gh
+  ([args env] (run-gh args env nil))
+  ([args env input]
+   (let [r (cp/spawnSync "gh" (clj->js args) #js {:encoding "utf8" :input input :env env :maxBuffer (* 64 1024 1024)})]
+     {:exit (.-status r) :out (str (.-stdout r)) :err (str (.-stderr r))})))
 
 (defn gh!
   "Run gh; return stdout. Throws with stderr on failure."
@@ -108,44 +110,28 @@
                                               (get-in t [:comments :nodes]))}))
                           acc)})))))
 
-(defn reviewer-key
-  "Normalise a review author login to a reviewer name used in --reviewers."
-  [login]
-  (let [l (str/lower-case (str login))]
-    (cond (re-find #"coderabbit" l) "coderabbit"
-          (re-find #"codex" l) "codex"
-          :else (str/replace l #"\[bot\]$" ""))))
+(declare load-flow)
 
-(defn- full-review?
-  "Thread replies are also recorded as reviews. CodeRabbit's full pass carries
-   an 'Actionable comments posted' header; other reviewers count when the
-   review has a body or a decisive state."
-  [{:keys [body state user]}]
-  (if (= "coderabbit" (reviewer-key (:login user)))
-    (boolean (re-find #"(?i)actionable comments posted|no actionable comments" (str body)))
-    (or (not (str/blank? body)) (#{"APPROVED" "CHANGES_REQUESTED"} state))))
+(defn- reviewer-identities []
+  (merge law/default-reviewer-identities
+         (get-in (load-flow) [:flow/defaults :review/identities])))
 
-(declare authorized-author?)
+(defn reviewer-key [login]
+  (law/trusted-reviewer {:user {:login login :type "Bot"}} (reviewer-identities)))
+
+(defn- full-review? [{:keys [body state user]}]
+  (when-let [reviewer (law/trusted-reviewer {:user user} (reviewer-identities))]
+    (if (= "coderabbit" reviewer)
+      (boolean (re-find #"(?i)actionable comments posted|no actionable comments" (str body)))
+      (or (not (str/blank? body)) (#{"APPROVED" "CHANGES_REQUESTED"} state)))))
 
 (defn fetch-heads
-  "Current head SHA and per-reviewer evidence, including CodeRabbit's
-   no-findings completion reply when no REST review record was created."
+  "Collect hosted GitHub approval and observed coverage as distinct facts."
   [repo n]
   (let [head (str/trim (gh! "pr" "view" (str n) "-R" repo "--json" "headRefOid" "-q" ".headRefOid"))
         reviews (gh-pages (str "repos/" repo "/pulls/" n "/reviews"))
-        comments (->> (gh-pages (str "repos/" repo "/issues/" n "/comments"))
-                      (mapv (fn [c]
-                              (let [login (get-in c [:user :login])]
-                                {:author login :body (:body c) :created_at (:created_at c)
-                                 :trusted? (and (str/includes? (str (:body c)) (str "pr-flow-review:" head))
-                                                (authorized-author? repo login))}))))
-        acknowledged? (law/completed-no-findings-review? head comments)]
-    {:head head
-     :reviewed-heads (cond-> (->> reviews
-                                  (filter full-review?)
-                                  (reduce (fn [m r] (update m (reviewer-key (get-in r [:user :login])) (fnil conj #{}) (:commit_id r)))
-                                          {}))
-                       acknowledged? (update "coderabbit" (fnil conj #{}) head))}))
+        comments (gh-pages (str "repos/" repo "/issues/" n "/comments"))]
+    (assoc (law/review-evidence head reviews comments (reviewer-identities)) :head head)))
 
 (defn fetch-checks
   "PR check rows. `gh pr checks` exits 8 while checks are pending; that is data,
@@ -206,16 +192,21 @@
 
 (defn status [repo n reviewers]
   (let [{:keys [draft? threads incomplete?]} (fetch-threads repo n)
-        checks (fetch-checks repo n)
         heads (fetch-heads repo n)
+        checks (fetch-checks repo n)
+        summary-items (review-bodies-unanswered repo n)
+        snapshot-head (str/trim (gh! "pr" "view" (str n) "-R" repo "--json" "headRefOid" "-q" ".headRefOid"))
         gate (assoc (law/merge-gate (merge heads
                                     {:threads threads :checks checks :incomplete? incomplete?
                                      :required-reviewers reviewers
-                                     :review-bodies-unanswered (review-bodies-unanswered repo n)})) :draft? draft?)]
+                                     :snapshot-head snapshot-head
+                                     :approval-quorum (get-in (load-flow) [:flow/defaults :review/approval-quorum] 1)
+                                     :review-bodies-unanswered summary-items})) :draft? draft?)]
     (println (str repo "#" n (when draft? "  [draft]") "  head " (subs (:head heads) 0 7)))
     (println (str "  coderabbit: " (name (:coderabbit gate)) "   checks: " (pr-str (:checks gate))))
     (println (str "  threads: " (count threads) " total, " (count (remove :resolved? threads)) " unresolved; by severity "
                   (pr-str (frequencies (map :severity (remove :resolved? threads))))))
+    (println (str "  exact-head approvals: " (pr-str (:approving-reviewers gate)) "  observed coverage: " (pr-str (:reviewed-heads heads))))
     (println (str "  gate: " (if (:pass? gate) "PASS" "BLOCKED")))
     (doseq [r (:reasons gate)] (println (str "    - " r)))
     gate))
@@ -223,38 +214,51 @@
 ;; --- writes ---------------------------------------------------------------
 
 (def briefs
-  {"planning" (str "@coderabbitai review\n\n"
+  {"planning" (str "@coderabbitai full review\n\n"
                    "This PR carries agile artifacts. Review it like sprint planning: "
                    "(1) is the outcome and scope clear, (2) are acceptance criteria testable, "
                    "(3) is each estimate fair or should a card split into substories, "
                    "(4) are epic/parent/blocked_by links correct and complete, "
                    "(5) what risks or non-goals are missing. Label each finding P0-P3.")
-   "code" (str "@coderabbitai review\n\n"
+   "code" (str "@coderabbitai full review\n\n"
                "Review the implementation against the card's laws and acceptance criteria. "
                "Label each finding P0-P3; P0/P1 will be fixed before merge, others fixed, deferred or rejected with a reason.")})
 
 (declare load-flow)
 
-(defn request [repo n kind note]
-  (let [reviews (gh-pages (str "repos/" repo "/pulls/" n "/reviews"))
-        full (filter #(and (= "coderabbit" (reviewer-key (get-in % [:user :login])))
-                           (full-review? %)) reviews)
-        comments (gh-pages (str "repos/" repo "/issues/" n "/comments"))
-        markers (keep (fn [c] (when (authorized-author? repo (get-in c [:user :login]))
-                                (when-let [[_ stage] (re-find #"<!-- pr-flow-stage:(planning|code) -->" (str (:body c)))]
-                                  {:stage stage :created_at (:created_at c)}))) comments)
+(defn request [repo n kind note reviewer]
+  (when-not (#{"coderabbit" "codex"} reviewer)
+    (throw (ex-info "MiMo/Kimi must use their configured hosted workflows; CLI evidence cannot impersonate a GitHub review" {:reviewer reviewer})))
+  (let [head (str/trim (gh! "pr" "view" (str n) "-R" repo "--json" "headRefOid" "-q" ".headRefOid"))
+        reviews (gh-pages (str "repos/" repo "/pulls/" n "/reviews"))
+        full (filter full-review? reviews)
+        comments (mapv (fn [c]
+                         (assoc c :trusted? (and (str/includes? (str (:body c)) "pr-flow-review:")
+                                                  (authorized-author? repo (get-in c [:user :login])))))
+                       (gh-pages (str "repos/" repo "/issues/" n "/comments")))
+        markers (keep (fn [c] (when (:trusted? c)
+                               (when-let [[_ stage] (re-find #"<!-- pr-flow-stage:(planning|code) -->" (str (:body c)))]
+                                 {:stage stage :created_at (:created_at c)}))) comments)
         rounds (law/stage-review-rounds full markers kind)
-        open-findings (count (remove :resolved? (:threads (fetch-threads repo n))))
-        max-loops (get-in (load-flow) [:flow/defaults :review/max-loops])
-        verdict (law/loop-verdict {:rounds rounds :open-blockers open-findings :max-loops max-loops})
-        body (cond-> (or (get briefs kind) (throw (ex-info "kind must be planning|code" {:kind kind})))
-               note (str "\n\n" note))
-        head (str/trim (gh! "pr" "view" (str n) "-R" repo "--json" "headRefOid" "-q" ".headRefOid"))
-        body (str body "\n\n<!-- pr-flow-stage:" kind " --> <!-- pr-flow-review:" head " -->")]
-    (when (= :escalate verdict)
-      (throw (ex-info "Review loop budget exhausted; escalate open findings instead of requesting another review"
-                      {:rounds rounds :open-findings open-findings :max-loops max-loops})))
-    (println (str/trim (gh! "pr" "comment" (str n) "-R" repo "--body" body)))))
+        verdict (law/request-verdict {:head head :reviewer reviewer :comments comments :checks (fetch-checks repo n)
+                                      :rounds rounds :max-loops (get-in (load-flow) [:flow/defaults :review/max-loops])
+                                      :now-ms (js/Date.now) :identities (reviewer-identities)})
+        brief (or (get briefs kind) (throw (ex-info "kind must be planning|code" {:kind kind})))
+        brief (if (= reviewer "codex") (str/replace brief "@coderabbitai full review" "@codex review") brief)
+        body (str brief (when note (str "\n\n" note))
+                  "\n\n<!-- pr-flow-stage:" kind " --> <!-- pr-flow-review:" head " --> <!-- pr-flow-reviewer:" reviewer " -->")]
+    (if (= :request (:status verdict))
+      (do
+        (when-not (= head (str/trim (gh! "pr" "view" (str n) "-R" repo "--json" "headRefOid" "-q" ".headRefOid")))
+          (throw (ex-info "PR head changed before review request; no request sent" {:head head})))
+        (let [result (run-gh ["pr" "comment" (str n) "-R" repo "--body-file" "-"] js/process.env body)]
+          (when-not (zero? (:exit result)) (throw (ex-info "Review request failed" {:exit (:exit result) :err (:err result)})))
+          (println (str/trim (:out result)))))
+      (do
+        (println (str "No request sent: " (name (:status verdict))
+                      (when-let [ms (:retry-at-ms verdict)] (str "; retry after " (.toISOString (js/Date. ms))))))
+        (when (#{:budget-exhausted :invalid :rate-limited} (:status verdict))
+          (throw (ex-info "Review request needs operator attention; no retry scheduled" verdict)))))))
 
 (defn settle [repo n thread-id body]
   (let [body (if (= body "-") (str (fs/readFileSync 0 "utf8")) body)]
@@ -342,7 +346,10 @@
   [repo args]
   (let [defaults (:flow/defaults (load-flow))
         requested (if-let [v (flag args "--reviewers" nil)]
-                    (set (remove str/blank? (str/split v #",")))
+                    (let [reviewers (set (str/split v #","))]
+                      (when-not (and (seq reviewers) (every? law/eligible-reviewers reviewers))
+                        (throw (ex-info "--reviewers requires known mandatory reviewer names" {:reviewers reviewers})))
+                      reviewers)
                     nil)]
     (law/required-reviewers-for defaults repo requested)))
 
@@ -355,7 +362,7 @@
         "threads" (let [{:keys [threads]} (fetch-threads repo n)]
                     (print-threads (if (some #{"--all"} more) threads (remove :resolved? threads))))
         "wait" (wait repo n (js/parseInt (flag more "--timeout" "1800")) (js/parseInt (flag more "--interval" "30")))
-        "request" (request repo n (first more) (flag more "--note" nil))
+        "request" (request repo n (first more) (flag more "--note" nil) (flag more "--reviewer" "coderabbit"))
         "settle" (settle repo n (first more) (second more))
         "gate" (gate repo n (some #{"--apply"} more) (flag more "--method" "merge") (reviewers-flag repo more))
         (do (println "usage: pr.cljs flow [STATE] | status|threads|wait|request|settle|gate REPO PR ...") (js/process.exit 1)))

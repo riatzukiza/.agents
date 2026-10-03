@@ -1,0 +1,32 @@
+name: PR flow policy
+
+on:
+  pull_request:
+    paths:
+      - 'skills/pr-flow/**'
+      - 'skills/pr-review-settlement/**'
+      - 'skills/pr-review-to-merge/**'
+      - '.github/workflows/pr-flow-laws.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  policy:
+    name: PR flow laws and CLI
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Run pure laws and isolated CLI boundary tests
+        run: |
+          npm exec --yes --package=nbb@1.3.204 -- nbb -cp skills/pr-flow/scripts skills/pr-flow/scripts/test_law.cljs
+          npm exec --yes --package=nbb@1.3.204 -- nbb -cp skills/pr-flow/scripts skills/pr-flow/scripts/test_policy.cljs
+          npm exec --yes --package=nbb@1.3.204 -- nbb -cp skills/pr-flow/scripts skills/pr-flow/scripts/test_cli.cljs
+          npm exec --yes --package=nbb@1.3.204 -- nbb -cp skills/pr-flow/scripts skills/pr-flow/scripts/pr.cljs flow
