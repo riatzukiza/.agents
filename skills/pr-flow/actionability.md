@@ -1,10 +1,11 @@
 # Candidate informational disposition
 
-Preparation from `9ee8831ffe001b025d425a239a2d30e95378ea6a`. The parent accepted
-this bounded design on 2026-10-03 and authorized isolated implementation only.
-This candidate is provisional: it has not been published, installed, reviewed on
-GitHub, or supplied with a fresh native assessment. Neither captured walkthrough
-is currently qualified by this document or the synthetic tests.
+Introduced from `9ee8831ffe001b025d425a239a2d30e95378ea6a`. The parent accepted
+this bounded design on 2026-10-03. It remains provisional: source publication and
+local tests do not qualify operational use. Current hosted source review,
+retained revocation history and a fresh independent native assessment remain
+necessary. Neither captured walkthrough is qualified by this document or the
+synthetic tests. Frozen handoffs record preparation-time state separately.
 
 ## Authority and scope
 
