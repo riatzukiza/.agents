@@ -2,7 +2,7 @@
   "Pure laws for the PR flow: severity, thread classification, review state,
    and the merge gate. No I/O; the CLI in ../pr.cljs feeds it GitHub data
    already decoded into Clojure maps."
-  (:require [clojure.string :as str]))
+  (:require [clojure.string :as str] [pr-flow.actionability :as actionability]))
 
 (def default-min-review-rounds 5)
 
@@ -281,6 +281,28 @@
         {:reviewer (native-agent agreement identities) :url (or (:url agreement) (:html_url agreement))
          :channel (or (:source-channel agreement) :github-review-thread) :source-id (:id agreement)})))))
 
+(defn- actionability-thread
+  "Reuse the existing native withdrawal grammar with ONLY the separately
+   admitted actionability identity. No rejection-list or approval admission."
+  [{:keys [issue-comments actionability-policy] :as thread}]
+  (let [assessor? #(actionability/assessor-identity? % actionability-policy)
+        sources (filter (fn [c]
+                          (let [r (actionability/protocol c)]
+                            (and (assessor? c) (= :assessment (:kind r)) (= (:head thread) (:head r))
+                                 (= (actionability/target thread) (vec (take 5 (:payload r))))))) issue-comments)
+        identities {"opencode" (set (map :login (:identities actionability-policy)))}
+        withdrawn (mapcat (fn [c]
+                           (when (assessor? c)
+                             (let [ids (withdrawn-sources c sources identities)]
+                               (for [s sources :when (and (contains? ids (:id s))
+                                                         (comment-time c) (comment-time s)
+                                                         (pos? (compare (comment-time c) (comment-time s))))]
+                                 (:id s))))) issue-comments)]
+    (assoc thread :actionability-source-withdrawals (set withdrawn))))
+
+(defn finding-obligation? [thread]
+  (actionability/finding-obligation? (actionability-thread thread)))
+
 (defn classify-thread
   "thread: {:id :resolved? :outdated? :path :line
              :comments [{:author :body :url :created-at}]}
@@ -289,7 +311,8 @@
    without confirming it. A contested thread blocks the gate until it is
    settled again, even if GitHub shows it resolved."
   [{:keys [comments head identities pr-author] :as thread}]
-  (let [opener (first comments)
+  (let [thread (actionability-thread thread)
+        opener (first comments)
         replies (vec (rest comments))
         settle-idx (->> (map-indexed vector replies)
                         (filter (fn [[_ c]] (and (not= (:author opener) (:author c))
@@ -315,6 +338,7 @@
                                                 evidence-comments index (rejection-details (:body reply)) nil
                                                 [(:id thread) (str (:root-comment-id thread))]))))))]
     (assoc thread
+           :actionability (actionability/disposition thread)
            :reviewer (:author opener)
            :severity (severity (:body opener))
            :resolution settlement
@@ -783,7 +807,7 @@
   (filter (fn [{:keys [severity resolution rejection-approved? settled?]}]
             (and (blocking? severity) (not= :fixed resolution)
                  (not (and (= :rejected resolution) rejection-approved? settled?))))
-          threads))
+          (filter finding-obligation? threads)))
 
 ;; --- review state ---------------------------------------------------------
 
@@ -866,17 +890,18 @@
         obligations (filter #(or (:required? %) (nil? (reviewer-check %))
                                  (mandatory (reviewer-check %))) checks)
         sums (check-summary obligations)
-        blockers (unsettled-blockers threads)
-        unsettled (remove :settled? threads)
-        contested (filter :contested? threads)
+        findings (filter finding-obligation? threads)
+        blockers (unsettled-blockers findings)
+        unsettled (remove :settled? findings)
+        contested (filter :contested? findings)
         unresolved (remove :resolved? threads)
         min-rounds (or min-review-rounds default-min-review-rounds)
         early-deferrals (when (or (not (integer? rounds)) (<= rounds min-rounds))
-                          (filter #(= :deferred (:resolution %)) threads))
+                          (filter #(= :deferred (:resolution %)) findings))
         unanimous? (and (seq review-participants) (every? approved review-participants))
         open-findings (+ (count (filter #(or (not (:settled? %)) (not (:resolved? %))
                                              (:contested? %) (some #{%} blockers)
-                                             (some #{%} early-deferrals)) threads))
+                                             (some #{%} early-deferrals)) findings))
                          (or review-bodies-unanswered 0))
         loop-state (loop-verdict {:rounds rounds :open-findings open-findings
                                  :unanimous-approval? (boolean unanimous?)

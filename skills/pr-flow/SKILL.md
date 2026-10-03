@@ -33,7 +33,8 @@ Run `pr.cljs flow` to print it, or `pr.cljs flow <state>` for one state's skill,
 exit condition, CLI and next states.
 
 Executable `:flow/defaults` are `:review/min-rounds`, `:review/approval-quorum`,
-`:review/required`, `:review/by-repo-name` and `:review/identities`. Review
+`:review/required`, `:review/by-repo-name`, `:review/identities` and the separate
+provisional `:review/actionability` admission profile. Review
 settlement rules live in `law/classify-thread` and `law/unsettled-blockers`; the default merge-commit method lives in
 the CLI. Neither is configured by this data file. Its policy comments are
 non-executable notes. Invitations remain an operator obligation using each
@@ -73,7 +74,7 @@ $P settle  owner/repo N THREAD_ID "Fixed in <sha>: …"    # reply, then resolve
 $P gate    owner/repo N [--apply] [--method merge]   # merge commits by default, never squash unless the repo requires it
 ```
 
-Laws live in `scripts/pr_flow/law.cljc` (severity, settlement, merge gate, review convergence) and `scripts/pr_flow/flow.cljc` (FSM well-formedness). They are pure `.cljc`, and the CLI is the only effectful layer. Tests from the repository root: `nbb -cp skills/pr-flow/scripts skills/pr-flow/scripts/test_law.cljs`, `test_policy.cljs` and `test_cli.cljs`. The `PR flow laws and CLI` hosted job runs all three on the actual PR head. Local results are preparation, not hosted qualification.
+Laws live in `scripts/pr_flow/law.cljc` (severity, settlement, merge gate, review convergence), `scripts/pr_flow/actionability.cljc` (bounded native informational disposition) and `scripts/pr_flow/flow.cljc` (FSM well-formedness). They are pure `.cljc`, and the CLI is the only effectful layer. Tests from the repository root: `nbb -cp skills/pr-flow/scripts skills/pr-flow/scripts/test_law.cljs`, `test_policy.cljs` and `test_cli.cljs`. The law suite includes the native informational fixtures. The `PR flow laws and CLI` hosted job runs all three on the actual PR head. Local results are preparation, not hosted qualification.
 
 ## Hard-won rules
 
@@ -122,6 +123,15 @@ Authenticated native PR issue-comment rejection assessments use the distinct
 head, native thread/root-comment binding and proposal/agreement/final chronology
 are mandatory. They supply neither merge approval nor full-review/round credit;
 required checks remain enforced even if an assessment's workflow later cancels.
+The separate [candidate informational disposition](actionability.md) is scoped
+to resolved author-only native User threads with empty enclosing reviews. Default
+all other threads to findings. Fresh independently admitted native evidence can
+remove a finding obligation, never create settlement/approval/round credit or
+waive unresolved conversations. When such evidence exists, status/threads/settle/
+gate also append local Receipt River admission/revocation observations; these
+commands are not strictly file-read-only on that path. This candidate is not
+activated by author prose, an identity list shared with rejection, or these
+local tests. Parent retains source review, publication and fresh native assessment.
 CodeRabbit and Codex requests use their explicit mention surfaces; MiMo and
 Kimi use configured hosted workflows. All remain invited even after quorum.
 

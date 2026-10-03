@@ -154,3 +154,13 @@
   spore: none
   receipt-refs: pr-flow-native-issue-agreement
   note: Adapt authenticated source records at the CLI boundary, retain native finding IDs and timestamps, then apply the same proposal/final rejection laws. Creation and edit time differ; generated nested examples and withdrawals must not grant agreement. A completed narrow assessment is separate from a full review, round or approval. Read native reviewer bodies before merging small follow-up fixes; preserve current-head invalidation and historical receipt bytes.
+
+- ts: 2026-10-03T14:28:31.476341+00:00
+  session: codex/pr-flow-informational-disposition
+  task: Bound informational conversation admission without self-settlement or reviewer-law drift
+  p-efficiency: 0.82
+  p-friction: 0.28
+  p-skill-candidate: 0.45
+  spore: none
+  receipt-refs: "2026-10-03T14:28:31.476341+00:00 pr-flow-informational-disposition"
+  note: "Use a single ordered native context manifest and separate identity profile; reuse existing source withdrawal law. Pair current fixtures with exact-base RED proof, keep hosted tests independent of shallow-history availability, and persist revocation observations append-only. Semantic correctness and distributed persistence remain explicit qualification boundaries."
