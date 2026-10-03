@@ -2,8 +2,10 @@
 (ns test-cli
   (:require ["fs" :as fs] ["os" :as os] ["path" :as path] ["child_process" :as cp]
             [cljs.test :refer [deftest is run-tests]] [clojure.string :as str]
+            [clojure.edn :as edn]
             [nbb.core :refer [*file*]]))
 (def here (path/dirname *file*))
+(def the-flow (edn/read-string (fs/readFileSync (path/join here ".." "flow.edn") "utf8")))
 (def head (apply str (repeat 40 "a")))
 (def other (apply str (repeat 40 "b")))
 (def approval {:id 1 :user {:login "eta-mu-ai[bot]" :type "Bot"} :state "APPROVED"
@@ -37,6 +39,7 @@
 (defn execute [config & args]
   (let [tmp (fs/mkdtempSync (path/join (os/tmpdir) "pr-flow-cli-"))
         data (path/join tmp "data.json") gh (path/join tmp "gh")
+        scripts (if (:flow-data config) (path/join tmp "pr-flow" "scripts") here)
         rounds (:prior-stage-rounds config 0)
         history (completed-stage-reviews rounds other)
         config (cond-> (-> config
@@ -46,10 +49,14 @@
                  (:reviewsSequence config) (update :reviewsSequence #(mapv (fn [reviews] (into history reviews)) %)))
         env (js/Object.assign #js {} js/process.env #js {:PR_FLOW_TEST_DATA data :PATH (str tmp ":" (.-PATH js/process.env))})]
     (try
+      (when-let [flow-data (:flow-data config)]
+        ;; Exercise real file configuration without touching the owned checkout.
+        (fs/cpSync here scripts #js {:recursive true})
+        (fs/writeFileSync (path/join scripts ".." "flow.edn") (pr-str flow-data)))
       (when (:testToken config) (aset env "GH_TOKEN" "fixture-token") (aset env "GITHUB_TOKEN" "fixture-token"))
-      (fs/writeFileSync data (js/JSON.stringify (clj->js config)))
+      (fs/writeFileSync data (js/JSON.stringify (clj->js (dissoc config :flow-data))))
       (fs/copyFileSync (path/join here "fixture-gh.cjs") gh) (fs/chmodSync gh 493)
-      (let [r (cp/spawnSync "nbb" (clj->js (into ["-cp" here (path/join here "pr.cljs")] args)) #js {:env env :encoding "utf8" :timeout 5000})
+      (let [r (cp/spawnSync "nbb" (clj->js (into ["-cp" scripts (path/join scripts "pr.cljs")] args)) #js {:env env :encoding "utf8" :timeout 5000})
             calls-path (str data ".calls")
             calls (if (fs/existsSync calls-path)
                     (mapv #(js->clj (js/JSON.parse %) :keywordize-keys true)
@@ -61,6 +68,32 @@
 (defn mutations [result]
   (filter #(and (= ["api" "graphql"] (vec (take 2 (:args %))))
                 (some (fn [arg] (str/starts-with? arg "query=mutation")) (:args %))) (:calls result)))
+
+(deftest configured-flow-minimum-aligns-settle-and-gate
+  (let [body "Deferred to issue https://github.com/owner/repo/issues/9: scoped follow-up"
+        opener {:author {:login "human-reviewer"} :body "P3: docstring correction"}
+        thread {:id "deferred-thread" :isResolved false
+                :comments {:pageInfo {:hasNextPage false} :nodes [opener]}}
+        settled (-> thread (assoc :isResolved true)
+                    (update-in [:comments :nodes] conj {:author {:login "riatzukiza"} :body body}))
+        finding {:id 20 :user {:login "human-reviewer" :type "User"} :state "COMMENTED"
+                 :commit_id head :submitted_at "2026-10-03T01:01:00Z"
+                 :body "<summary><em>🟡 Minor</em> · Follow-up · <code>x:1</code></summary><!-- cr-comment:v1:abc123 -->"}
+        answer {:user {:login "riatzukiza" :type "User"} :created_at "2026-10-03T01:02:00Z"
+                :body "Handled: review-id:20\n- Deferred cr-comment:v1:abc123: issue https://github.com/owner/repo/issues/9"}]
+    (doseq [[minimum rounds] [[2 2] [2 3] [7 6] [7 7] [7 8]]]
+      (let [allowed? (> rounds minimum)
+            config (assoc base :prior-stage-rounds rounds :allowMutations true
+                          :flow-data (assoc-in the-flow [:flow/defaults :review/min-rounds] minimum))
+            settle (execute (assoc config :threads [thread]) "settle" "riatzukiza/.agents" "8" "deferred-thread" body)
+            thread-gate (execute (assoc config :threads [settled]) "gate" "riatzukiza/.agents" "8" "--apply")
+            body-gate (execute (assoc config :reviews [approval finding] :comments [answer])
+                               "gate" "riatzukiza/.agents" "8" "--apply")]
+        (is (= (if allowed? 0 1) (:exit settle)) (:err settle))
+        (is (= (if allowed? 2 0) (count (mutations settle))))
+        (doseq [gate [thread-gate body-gate]]
+          (is (= (if allowed? 0 2) (:exit gate)) (str (:err gate) (:out gate)))
+          (is (= (if allowed? 1 0) (count (writes gate "merge")))))))))
 
 (deftest hosted-approvals-wired-through-cli
   (let [r (execute base "status" "riatzukiza/.agents" "8")]

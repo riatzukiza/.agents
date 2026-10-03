@@ -117,4 +117,5 @@
   [:merge-gate :merged]
   [:merged :reflected]
   ;; muse is ambient: the user may reopen any stage by thinking aloud.
-  [:plan :muse] [:planning-review :muse] [:red :muse] [:green :muse] [:code-review :muse]]}
+  [:plan :muse] [:planning-review :muse] [:card-ready :muse]
+  [:red :muse] [:green :muse] [:code-review :muse] [:merge-gate :muse]]}

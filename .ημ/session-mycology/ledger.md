@@ -124,3 +124,13 @@
   spore: none
   receipt-refs: legacy-title-priority-and-thread-page-guard observation and test-run
   note: Test the real executable transport before attributing API error suppression. Then exercise successful decoded null/partial pages separately; guard required evidence without rejecting valid empty pages, and keep priority labels scoped to the actual finding title.
+
+- ts: 2026-10-03T11:23:39.116750+00:00
+  session: pr8-ac475-flow-qualification
+  task: Reproduce and repair configured review-minimum and flow-definition defects
+  p-efficiency: 0.88
+  p-friction: 0.22
+  p-skill-candidate: 0.35
+  spore: none
+  receipt-refs: pr8-ac475-flow-qualification
+  note: Test configuration through real temporary flow files across settlement and both gate channels; below, equal and above the threshold expose drift that default-only tests miss. Independently validate terminal declarations and active-stage reopening from the shipped graph. Keep parallel parser and GraphQL changes under their existing owner.
