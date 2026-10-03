@@ -92,6 +92,8 @@
     (is (= #{head} (get-in (law/review-evidence head [] [cr] identities) [:approved-heads "coderabbit"])))
     (is (= #{head} (get-in (law/review-evidence head [] [codex] identities) [:approved-heads "codex"])))
     (is (= #{head} (get-in (law/review-evidence head [passing] [] identities) [:approved-heads "mimo"])))
+    (is (= #{head} (get-in (law/review-evidence head [(assoc passing :body "No issues found.\n```text\nExample code\n```")] [] identities)
+                           [:approved-heads "mimo"])))
     (doseq [bad [(assoc cr :body marker)
                  (assoc cr :body (str "Full review triggered. " marker))
                  (assoc cr :body (str "No actionable comments were generated in the recent review. " marker))
@@ -100,7 +102,9 @@
                  (dissoc codex :resolved-commit-id)
                  (assoc codex :body "Codex Review: queued. No issues reported yet.")]]
       (is (empty? (:approved-heads (law/review-evidence head [] [bad] identities)))))
-    (doseq [body ["No confirmed findings yet; review queued." "Confirmed findings: none.\nReview incomplete." "No issues found.\nUnreviewed files remain."]]
+    (doseq [body ["No confirmed findings yet; review queued." "Confirmed findings: none.\nReview incomplete." "No issues found.\nUnreviewed files remain."
+                 "Quoted PR example:\n```text\nConfirmed findings: none.\n```\nThe review has no verdict yet."
+                 "Quoted PR example:\n~~~\nNo issues found.\n~~~\nThe review has no verdict yet."]]
       (is (empty? (:approved-heads (law/review-evidence head [(assoc passing :body body)] [] identities)))))
     (is (empty? (:approved-heads (law/review-evidence old-head [passing] [cr codex] identities))))
     (let [revocation (assoc (review "coderabbitai[bot]" "CHANGES_REQUESTED" head)

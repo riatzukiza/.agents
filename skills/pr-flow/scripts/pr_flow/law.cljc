@@ -197,6 +197,13 @@
                         (valid-head? source) (= source covered)) covered)))
          (re-seq #"<!--\s*final_review_risk_coverage:\s*\{([^}]*)\}\s*-->" (str body)))))
 
+(defn verdict-prose
+  "Exclude quoted code examples from provider verdict recognition. An
+   unterminated fenced block is ambiguous and supplies no passing prose."
+  [body]
+  (let [prose (str/replace (str body) #"(?ms)^[ \t]*(`{3,}|~{3,})[^\n]*\n.*?^[ \t]*\1[ \t]*$" "")]
+    (when-not (re-find #"(?m)^[ \t]*(?:`{3,}|~{3,})" prose) prose)))
+
 (defn review-evidence
   "Trust completed explicit verdicts as well as formal approvals, while
    retaining their distinct channels and immutable commit coverage."
@@ -216,7 +223,7 @@
                                  (assoc r :positive? true :channel :github-approved)
                                  (and (= "COMMENTED" (:state r))
                                       (not (re-find #"(?i)review (?:incomplete|rate limited)|partial review|unreviewed files|unable to complete (?:the )?review" (str (:body r))))
-                                      (re-find #"(?im)^\s*(?:\*\*)?(?:Confirmed findings:\s*none|No confirmed findings|No issues found)(?:\*\*)?\s*(?:[.—-]|$)" (str (:body r))))
+                                      (re-find #"(?im)^\s*(?:\*\*)?(?:Confirmed findings:\s*none|No confirmed findings|No issues found)(?:\*\*)?\s*(?:[.—-]|$)" (or (verdict-prose (:body r)) "")))
                                  (assoc r :positive? true :channel :explicit-review-verdict))) trusted)
         comment-verdicts
         (keep (fn [c]
