@@ -1,0 +1,16 @@
+(skill-contract
+  (name "legacy-desktop-binary-container-spike")
+  (v "ημ.skill/legacy-desktop-binary-container-spike@0.1.0")
+
+  (intent "Before extracting a desktop sandbox around a pinned legacy binary, run a minimal Docker runtime spike that verifies package dependencies, service lifecycle, and one GUI integration path.")
+
+  (activation
+    (priority 41)
+    (explicit ["skill:legacy-desktop-binary-container-spike"])
+    (triggers ["legacy-desktop-binary-container-spike" "legacy desktop binary container spike"]))
+
+  (governance
+    (touch-layer :mutable)
+    (non-override [:mission :directives :safety :license :output-shape])
+    (requires-user-approval false))
+)
