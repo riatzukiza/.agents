@@ -5,6 +5,7 @@
             ["path" :as path]
             [cljs.test :refer [deftest is testing run-tests]]
             [clojure.edn :as edn]
+            [clojure.string :as str]
             [nbb.core :refer [*file*]]
             [pr-flow.flow :as flow]
             [pr-flow.law :as law]))
@@ -137,7 +138,7 @@
                   :submitted_at "2026-10-03T01:00:00Z"}
           answer {:user {:login "different-writer" :type "User"} :created_at "2026-10-03T01:01:00Z"
                   :body (str "Handled: review-id:404\n- " verb " " marker ": verified outcome")}
-          count-with #(law/unanswered-review-count [review] [%])]
+          count-with #(law/unanswered-review-count [review] [%] {:rounds 6})]
       (is (= 0 (count-with answer)))
       (is (= 1 (count-with (assoc-in answer [:user :login] "human-reviewer"))))
       (is (= 1 (count-with (assoc-in answer [:user :login] "HUMAN-REVIEWER"))))
@@ -165,8 +166,8 @@
         answer {:user {:login "different-writer" :type "User"} :created_at "2026-10-01T00:01:00Z"
                 :body "Handled: review-id:101\n- Fixed cr-comment:v1:abc123: corrected\n- Deferred cr-comment:v1:def456: card 2"}]
     (is (= 2 (count (law/review-body-findings body))))
-    (is (= 0 (law/unanswered-review-count [review] [answer])))
-    (is (= 1 (law/unanswered-review-count [review] [(assoc answer :body "Handled: review-id:101\n- Deferred cr-comment:v1:abc123: card 1\n- Deferred cr-comment:v1:def456: card 2")])))
+    (is (= 0 (law/unanswered-review-count [review] [answer] {:rounds 6})))
+    (is (= 1 (law/unanswered-review-count [review] [(assoc answer :body "Handled: review-id:101\n- Deferred cr-comment:v1:abc123: card 1\n- Deferred cr-comment:v1:def456: card 2")] {:rounds 6})))
     (is (= 1 (law/unanswered-review-count [review] [(assoc answer :body "Handled: review-id:101\n- Fixed cr-comment:v1:abc123: corrected")])))
     (is (= 2 (law/unanswered-review-count [review] [(assoc answer :body "Handled: generic\n- Fixed cr-comment:v1:abc123")])))))
 
@@ -207,12 +208,12 @@
 
 (def gate-head (apply str (repeat 40 "a")))
 (defn gated [input]
-  (law/merge-gate (merge {:head gate-head :approved-heads {"mimo" #{gate-head}}} input)))
+  (law/merge-gate (merge {:head gate-head :rounds 5 :approved-heads {"mimo" #{gate-head}}} input)))
 
 (deftest merge-gate
   (let [done [{:name "CodeRabbit" :state "SUCCESS" :description "Review completed"}
               {:name "test" :state "SUCCESS"}]
-        settled (assoc (law/classify-thread (thread "_🟡 Minor_" "Rejected: intended")) :resolved? true)]
+        settled (assoc (law/classify-thread (thread "_🟡 Minor_" "Fixed in abc: verified")) :resolved? true)]
     (is (:pass? (gated {:threads [settled] :checks done})))
     (is (not (:pass? (gated {:threads [(assoc (law/classify-thread (thread "_🟡 Minor_")) :resolved? true)] :checks done}))))
     (doseq [check [{:name "CodeRabbit" :state "SUCCESS" :description "Review rate limited"}
@@ -230,10 +231,146 @@
     (is (not (:pass? (gated {:checks (conj done {:name "required" :state "SKIPPED" :required? true})}))))
     (is (:pass? (gated {:checks (conj done {:name "optional" :state "SKIPPED" :required? false})})))))
 
-(deftest loop-budget
-  (is (= :converged (law/loop-verdict {:rounds 9 :open-blockers 0})))
-  (is (= :iterate (law/loop-verdict {:rounds 2 :open-blockers 1})))
-  (is (= :escalate (law/loop-verdict {:rounds 5 :open-blockers 1}))))
+(deftest review-rounds-have-a-soft-minimum
+  (doseq [rounds [0 1 4]]
+    (is (= :iterate (law/loop-verdict {:rounds rounds :open-findings 0}))))
+  (doseq [rounds [5 6 9]]
+    (is (= :converged (law/loop-verdict {:rounds rounds :open-findings 0})))
+    (is (= :iterate (law/loop-verdict {:rounds rounds :open-findings 1 :unanimous-approval? true}))))
+  (is (= :converged (law/loop-verdict {:rounds 1 :open-findings 0 :unanimous-approval? true})))
+  (is (= :iterate (law/loop-verdict {:rounds 0 :open-findings 0 :unanimous-approval? true})))
+  (is (= :iterate (law/loop-verdict {:rounds 5})))
+  (is (= :iterate (law/loop-verdict {})))
+  (is (= :iterate (law/loop-verdict {:rounds 5 :open-findings 0 :min-review-rounds 6}))))
+
+(deftest merge-gate-enforces-rounds-or-current-head-unanimity
+  (let [participants #{"coderabbit" "codex" "mimo"}
+        approvals (zipmap participants (repeat #{gate-head}))
+        early {:rounds 1 :review-participants participants :approved-heads approvals}]
+    (is (:pass? (gated early)))
+    (is (not (:pass? (gated (assoc early :rounds 0)))))
+    (is (not (:pass? (gated (assoc early :review-participants #{})))))
+    (is (not (:pass? (gated (dissoc early :review-participants)))))
+    (is (not (:pass? (gated (assoc early :approved-heads {"mimo" #{gate-head}})))))
+    (is (not (:pass? (gated (assoc-in early [:approved-heads "codex"] #{(apply str (repeat 40 "b"))})))))
+    (is (not (:pass? (gated (assoc early :review-bodies-unanswered 1)))))
+    (is (:pass? (gated {:rounds 5 :review-participants participants})))
+    (is (not (:pass? (law/merge-gate {:head gate-head :approved-heads {"mimo" #{gate-head}}}))))))
+
+(def rejection-details
+  "Reason: Admission rejects nil before this branch, so the proposed guard changes no reachable behavior.\nEvidence: src/domain/shape.cljc:42")
+
+(defn rejection-thread []
+  {:id "rejection-thread" :head gate-head :pr-author "riatzukiza" :resolved? true
+   :identities law/default-reviewer-identities
+   :comments [{:author "coderabbitai[bot]" :user {:login "coderabbitai[bot]" :type "Bot"} :body "P1: add a nil guard"}
+              {:author "riatzukiza" :authorized? true :body (str "Rejection proposal for " gate-head ":\n" rejection-details)}
+              {:author "chatgpt-codex-connector[bot]" :user {:login "chatgpt-codex-connector[bot]" :type "Bot"}
+               :url "https://github.com/owner/repo/pull/8#discussion_r123"
+               :body (str "Rejection agreement for " gate-head ":\nReason: I traced admission and agree that this guard is redundant.\nEvidence: src/domain/shape.cljc:42")}
+              {:author "riatzukiza" :authorized? true :body (str "Rejected:\n" rejection-details)}]})
+
+(deftest outright-rejection-needs-independent-native-agreement
+  (let [input (rejection-thread)
+        classified (law/classify-thread input)]
+    (is (:rejection-approved? classified))
+    (is (:settled? classified))
+    (is (= "codex" (:rejection-reviewer classified)))
+    (is (= "https://github.com/owner/repo/pull/8#discussion_r123" (:rejection-url classified)))
+    (is (empty? (law/unsettled-blockers [classified])))
+    (is (:pass? (gated {:threads [classified]})))
+    (doseq [bad [(update input :comments #(vec (concat (take 2 %) (drop 3 %))))
+                 (assoc-in input [:comments 2 :author] "coderabbitai[bot]")
+                 (-> input (assoc-in [:comments 2 :author] "riatzukiza")
+                     (assoc-in [:comments 2 :user] {:login "riatzukiza" :type "User"}))
+                 (assoc-in input [:comments 2 :user :type] "User")
+                 (assoc-in input [:comments 2 :user :login] "pretend-codex[bot]")
+                 (assoc-in input [:comments 2 :body] "I agree. ✅")
+                 (assoc-in input [:comments 2 :body] (str "Rejection agreement for " (apply str (repeat 40 "b")) ":\n" rejection-details))
+                 (assoc-in input [:comments 3 :body] "Rejected: I prefer the current implementation.")
+                 (assoc-in input [:comments 3 :body] "Rejected:\nReason: Not needed.\nEvidence: none")
+                 (assoc-in input [:comments 3 :body] "Rejected:\nReason: A different reason.\nEvidence: src/domain/other.cljc:9")
+                 (dissoc input :head)
+                 (dissoc input :pr-author)
+                 (-> input (update-in [:comments 1] dissoc :author) (update-in [:comments 3] dissoc :author))
+                 (-> input (assoc-in [:comments 1 :author] " ") (assoc-in [:comments 3 :author] " "))
+                 (assoc input :pr-author "chatgpt-codex-connector[bot]")]]
+      (let [t (law/classify-thread bad)]
+        (is (not (:rejection-approved? t)))
+        (is (not (:settled? t)))
+        (is (not (:pass? (gated {:threads [t]}))))))))
+
+(deftest rejection-agreement-cannot-be-recycled-or-quoted
+  (let [{:keys [comments] :as input} (rejection-thread)
+        [opener proposal agreement settlement] comments]
+    (doseq [changed [(assoc input :comments [opener agreement proposal settlement])
+                     (assoc input :comments [opener proposal agreement proposal settlement])
+                     (assoc-in input [:comments 2 :body] (str "> " (:body agreement)))
+                     (assoc-in input [:comments 2 :body] (str "```text\n" (:body agreement) "\n```"))
+                     (assoc input :comments [opener proposal agreement
+                                            {:author "human-reviewer" :body "This admission path does not cover calls from the other adapter."}
+                                            settlement])
+                     (update input :comments conj {:author "chatgpt-codex-connector[bot]" :body "I withdraw my agreement; this still reproduces."})]]
+      (is (not (:rejection-approved? (law/classify-thread changed)))))
+    (testing "a configured native OpenCode identity can corroborate without joining the approval quorum"
+      (let [open-code (-> input
+                          (assoc-in [:identities "opencode"] #{"opencode[bot]"})
+                          (assoc-in [:comments 2 :author] "opencode[bot]")
+                          (assoc-in [:comments 2 :user] {:login "opencode[bot]" :type "Bot"}))]
+        (is (:rejection-approved? (law/classify-thread open-code)))
+        (is (= "opencode" (:rejection-reviewer (law/classify-thread open-code))))))))
+
+(deftest first-five-rounds-do-not-clear-verified-findings-by-deferral
+  (let [deferred (assoc (law/classify-thread (thread "P3: docstring correction" "Deferred to issue https://github.com/owner/repo/issues/9")) :resolved? true)]
+    (doseq [rounds [1 4 5]]
+      (is (not (:pass? (gated {:threads [deferred] :rounds rounds
+                              :review-participants #{"mimo"}})))))
+    (is (:pass? (gated {:threads [deferred] :rounds 6})))
+    (is (not (:pass? (gated {:threads [(assoc deferred :severity :p1)] :rounds 6}))))))
+
+(deftest completed-rounds-require-the-whole-configured-cohort
+  (let [participants #{"coderabbit" "codex" "mimo"}
+        pass (fn [provider round] {:reviewer provider :round-id round :commit_id gate-head
+                                  :submitted_at (str "2026-10-03T0" round ":00:00Z")})
+        complete (vec (for [round (range 1 6) provider participants] (pass provider round)))]
+    (is (= 5 (law/stage-review-rounds complete [] "code" participants)))
+    (is (= 0 (law/stage-review-rounds (filter #(= 1 (:round-id %)) (remove #(= "mimo" (:reviewer %)) complete)) [] "code" participants)))
+    (is (= 4 (law/stage-review-rounds (remove #(and (= 5 (:round-id %)) (= "mimo" (:reviewer %))) complete) [] "code" participants)))
+    (is (= 5 (law/stage-review-rounds (concat complete complete) [] "code" participants)))
+    (is (= 0 (law/stage-review-rounds complete [] "code" #{})))
+    (is (= 0 (law/stage-review-rounds complete [] "code" (conj participants "kimi"))))
+    (is (= 5 (law/stage-review-rounds (map #(dissoc % :round-id) complete) [] "code" participants)))
+    (is (= 4 (law/stage-review-rounds (map #(if (and (= 5 (:round-id %)) (= "mimo" (:reviewer %)))
+                                            (assoc % :commit_id (apply str (repeat 40 "b"))) %) complete)
+                                     [] "code" participants)))))
+
+(deftest body-rejections-have-the-same-independent-head-and-item-binding
+  (let [review {:id 101 :user {:login "coderabbitai[bot]" :type "Bot"}
+                :submitted_at "2026-10-03T00:00:00Z"
+                :body "<summary><em>🟠 Major</em> · Guard · <code>x:1</code></summary><!-- cr-comment:v1:abc123 -->"}
+        scope "review-id:101 cr-comment:v1:abc123"
+        context {:head gate-head :identities law/default-reviewer-identities :pr-author "riatzukiza" :rounds 1}
+        proposal {:authorized? true :user {:login "riatzukiza" :type "User"} :created_at "2026-10-03T01:00:00Z"
+                  :body (str "Rejection proposal for " gate-head ": " scope "\n" rejection-details)}
+        agreement {:authorized? false :user {:login "chatgpt-codex-connector[bot]" :type "Bot"}
+                   :html_url "https://github.com/owner/repo/issues/8#issuecomment-123"
+                   :created_at "2026-10-03T02:00:00Z"
+                   :body (str "Rejection agreement for " gate-head ": " scope "\nReason: I traced admission and agree that this guard is redundant.\nEvidence: src/domain/shape.cljc:42")}
+        answer {:authorized? true :user {:login "riatzukiza" :type "User"} :created_at "2026-10-03T03:00:00Z"
+                :body "Handled: review-id:101\n- Rejected cr-comment:v1:abc123: Reason: Admission rejects nil before this branch, so the proposed guard changes no reachable behavior.; Evidence: src/domain/shape.cljc:42"}
+        count-with #(law/unanswered-review-count [review] % context)]
+    (is (= 0 (count-with [proposal agreement answer])))
+    (is (= 1 (count-with [answer])))
+    (is (= 1 (count-with [proposal answer])))
+    (is (= 1 (count-with [proposal (update agreement :body str/replace "abc123" "def456") answer])))
+    (is (= 1 (count-with [proposal (assoc-in agreement [:user :type] "User") answer])))
+    (is (= 1 (count-with [proposal agreement (assoc answer :authorized? false)])))
+    (is (= 1 (count-with [proposal agreement answer
+                         (assoc agreement :created_at "2026-10-03T04:00:00Z"
+                                :body "review-id:101 cr-comment:v1:abc123: I withdraw agreement; this still reproduces.")])))
+    (is (= 1 (law/unanswered-review-count [review] [proposal agreement answer] (assoc context :head (apply str (repeat 40 "b"))))))
+    (is (= 0 (count-with [proposal agreement answer
+                         {:user {:login "human-reviewer" :type "User"} :created_at "2026-10-03T04:00:00Z" :body "Unrelated discussion."}])))))
 
 (def skill-root (path/join here ".."))
 (def skills-dir (path/join skill-root ".."))

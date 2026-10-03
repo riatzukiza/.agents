@@ -12,7 +12,7 @@
 (defn review [login state sha]
   {:id 1 :user {:login login :type "Bot"} :state state :commit_id sha
    :submitted_at "2026-10-03T01:00:00Z"})
-(def baseline {:head head :approved-heads {"mimo" #{head}}
+(def baseline {:head head :rounds 5 :approved-heads {"mimo" #{head}}
                :required-reviewers #{} :approval-quorum 1
                :checks [{:name "laws" :state "SUCCESS" :required? true}]
                :threads []})
@@ -179,7 +179,7 @@
                             :submitted_at "2026-10-03T01:03:00Z")]
       (is (empty? (:approved-heads (law/review-evidence head [revocation] [cr] identities)))))))
 
-(deftest request-dedupe-cooldown-and-hard-budget
+(deftest request-dedupe-cooldown-and-soft-minimum
   (let [request {:trusted? true :created_at "2026-10-03T01:00:00Z"
                  :body (str "@coderabbitai full review <!-- pr-flow-review:" head " --> <!-- pr-flow-reviewer:coderabbit -->")}
         input {:head head :reviewer "coderabbit" :comments [request] :checks [] :rounds 1 :max-loops 6
@@ -187,7 +187,7 @@
     (is (= :pending (:status (law/request-verdict input))))
     (is (= :request (:status (law/request-verdict (assoc input :head old-head)))))
     (is (= :request (:status (law/request-verdict (assoc input :comments [(assoc request :trusted? false)])))))
-    (is (= :budget-exhausted (:status (law/request-verdict (assoc input :rounds 6 :comments [])))))
+    (is (= :request (:status (law/request-verdict (assoc input :rounds 6 :comments [])))))
     (is (= :cooldown (:status (law/request-verdict
                                   (assoc input :comments [{:user {:login "coderabbitai[bot]" :type "Bot"}
                                                           :updated_at "2026-10-03T01:00:00Z"
@@ -218,7 +218,7 @@
       (is (= reset-ms (:retry-at-ms verdict)))
       ;; Only eligibility changes at expiry; this pure law never sends a request.
       (is (= :request (:status (law/request-verdict (assoc input :now-ms reset-ms)))))
-      (is (= :budget-exhausted (:status (law/request-verdict (assoc input :now-ms reset-ms :rounds 5)))))
+      (is (= :request (:status (law/request-verdict (assoc input :now-ms reset-ms :rounds 5)))))
       (is (= :pending (:status (law/request-verdict (assoc input :now-ms reset-ms :checks [{:name "CodeRabbit" :state "PENDING"}])))))))
   (is (= 8000 (law/cooldown-ms "Your next included review will be available in 8 seconds.")))
   (doseq [body ["Your allowance is 1 review per hour; 0 remain."
@@ -253,6 +253,61 @@
     (is (= 1 (count (law/completed-review-rounds [] [request done] identities))))
     (is (empty? (law/completed-review-rounds [] [(assoc request :trusted? false) done] identities)))
     (is (empty? (law/completed-review-rounds [] [request (assoc done :body "Full review triggered.")] identities)))))
+
+(deftest full-review-completion-retains-request-head-round-and-stage
+  (let [request {:id 5 :trusted? true :created_at "2026-10-03T01:00:00Z"
+                 :body (str "<!-- pr-flow-stage:planning --> <!-- pr-flow-round:2 --> <!-- pr-flow-review:" head " --> <!-- pr-flow-reviewer:coderabbit -->")}
+        done {:id 6 :user {:login "coderabbitai[bot]" :type "Bot"} :created_at "2026-10-03T01:00:20Z" :body "Full review finished."}
+        rounds (law/completed-review-rounds [] [request done] identities)]
+    (is (= [{:reviewer "coderabbit" :round-id 2 :stage "planning" :commit_id head}]
+           (mapv #(select-keys % [:reviewer :round-id :stage :commit_id]) rounds)))
+    (is (= 0 (law/stage-review-rounds rounds [{:stage "code" :created_at "2026-10-03T01:00:10Z"}] "code" #{"coderabbit"})))
+    (is (empty? (law/completed-review-rounds [] [request (assoc done :body "Full review finished.\nReview incomplete.")] identities)))
+    (doseq [body ["Acknowledged." "## Review queued\nWorking on it." "Confirmed findings: none yet; review queued."]]
+      (is (not (law/full-review? (assoc (review "eta-mu-ai[bot]" "COMMENTED" head) :body body) identities))))
+    (is (law/full-review? (assoc (review "eta-mu-ai[bot]" "COMMENTED" head) :body "Full review finished.") identities))
+    (is (law/full-review? (assoc (review "chatgpt-codex-connector[bot]" "COMMENTED" head)
+                               :body "Here are some automated review suggestions for this pull request.\nP1: Fix the shape.") identities))
+    (is (not (law/full-review? (assoc (review "eta-mu-ai[bot]" "DISMISSED" head) :body "Full review finished.") identities)))))
+
+(deftest next-round-on-an-unchanged-head-does-not-reuse-prior-completion
+  (let [request {:id 5 :trusted? true :created_at "2026-10-03T01:00:00Z"
+                 :body (str "@coderabbitai full review <!-- pr-flow-review:" head " --> <!-- pr-flow-reviewer:coderabbit --> <!-- pr-flow-round:1 -->")}
+        done {:id 6 :user {:login "coderabbitai[bot]" :type "Bot"} :created_at "2026-10-03T01:00:20Z"
+              :body (str "<!-- final_review_risk_coverage: {\"kind\":\"reviewed\",\"sourceCommitId\":\"" head "\",\"coveredCommitId\":\"" head "\"} -->")}
+        markerless (assoc request :body (str "@coderabbitai full review <!-- pr-flow-review:" head " --> <!-- pr-flow-reviewer:coderabbit -->"))
+        current (assoc request :id 7 :created_at "2026-10-03T01:01:00Z"
+                       :body (str "@coderabbitai full review <!-- pr-flow-review:" head " --> <!-- pr-flow-reviewer:coderabbit --> <!-- pr-flow-round:2 -->"))
+        input {:head head :reviewer "coderabbit" :comments [request done] :checks [] :round 2 :identities identities}]
+    (is (= :request (:status (law/request-verdict input))))
+    (is (= :completed (:status (law/request-verdict (assoc input :round 1)))))
+    (is (= :pending (:status (law/request-verdict (assoc input :comments [markerless])))))
+    (is (= :pending (:status (law/request-verdict (assoc input :comments [request done current])))))
+    (is (= :request (:status (law/request-verdict (assoc input :comments [(assoc request :trusted? false)])))))))
+
+(deftest codex-native-no-findings-completes-its-request-cohort-without-rest
+  (let [request {:id 5 :trusted? true :created_at "2026-10-03T01:00:00Z"
+                 :body (str "<!-- pr-flow-stage:code --> <!-- pr-flow-round:1 --> <!-- pr-flow-review:" head " --> <!-- pr-flow-reviewer:codex -->")}
+        done {:id 6 :user {:login "chatgpt-codex-connector[bot]" :type "Bot"}
+              :created_at "2026-10-03T01:00:20Z" :resolved-commit-id head
+              :body "Codex Review: Didn't find any major issues. :tada:"}
+        completed #(law/completed-review-rounds [] [request %] identities)
+        rounds (completed done)]
+    (is (= [{:reviewer "codex" :round-id 1 :stage "code" :commit_id head}]
+           (mapv #(select-keys % [:reviewer :round-id :stage :commit_id]) rounds)))
+    (is (= 1 (law/stage-review-rounds rounds [] "code" #{"codex"})))
+    (doseq [bad [(dissoc done :resolved-commit-id)
+                 (assoc done :resolved-commit-id old-head)
+                 (assoc-in done [:user :type] "User")
+                 (assoc-in done [:user :login] "fake-codex[bot]")
+                 (assoc done :body "Codex Review: queued. No issues reported yet.")
+                 (assoc done :body "```text\nCodex Review: Didn't find any major issues.\n```")
+                 (assoc done :body "Codex Review: Didn't find any major issues.\nReview incomplete.")]]
+      (is (empty? (completed bad))))
+    (is (empty? (law/completed-review-rounds [] [(assoc request :trusted? false) done] identities)))
+    (let [reviewed (assoc (review "chatgpt-codex-connector[bot]" "APPROVED" head)
+                          :id 7 :submitted_at "2026-10-03T01:00:30Z")]
+      (is (= 1 (count (law/completed-review-rounds [reviewed] [request done] identities)))))))
 
 (deftest latest-required-context-on-current-head
   (let [old {:name "required" :state "FAILURE" :required? true :headSha head :startedAt "2026-10-03T01:00:00Z" :workflow "CI"}

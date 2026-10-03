@@ -25,7 +25,7 @@ The following skills are part of the repository's operating substrate:
 - `grok-intention` — use when intent is dense, symbolic, compressed, or recoverable from repository context.
 - `sing-the-songs-of-your-people` — use for truthful corpus-native synthesis, not decorative mystification.
 - `skill-authoring` — use when creating or materially revising a reusable skill.
-- `pr-flow` — use for every PR interaction; its state machine routes planning, review settlement, and authorized merge.
+- [`pr-flow`](skills/pr-flow/SKILL.md) — read for every PR interaction; the canonical skill pack owns review and authorized merge policy. Global harness instructions should point here rather than copy its policy.
 
 Explicit invocation wins. Otherwise activate skills only when their gates match.
 

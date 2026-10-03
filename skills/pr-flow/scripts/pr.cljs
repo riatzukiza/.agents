@@ -80,9 +80,9 @@
 
 (def ^:private threads-query
   "query($owner:String!,$name:String!,$n:Int!,$after:String){repository(owner:$owner,name:$name){pullRequest(number:$n){
-     isDraft reviewThreads(first:100,after:$after){pageInfo{hasNextPage endCursor}
+     isDraft headRefOid author{login} reviewThreads(first:100,after:$after){pageInfo{hasNextPage endCursor}
        nodes{id isResolved isOutdated path line
-         comments(first:100){pageInfo{hasNextPage} nodes{author{login} body url createdAt}}}}}}}")
+         comments(first:100){pageInfo{hasNextPage} nodes{author{login __typename} body url createdAt}}}}}}}")
 
 (defn- threads-page [owner name n after]
   (let [args (cond-> ["api" "graphql" "-f" (str "query=" threads-query)
@@ -90,7 +90,7 @@
                after (into ["-f" (str "after=" after)]))]
     (get-in (apply gh-json args) [:data :repository :pullRequest])))
 
-(declare authorized-author?)
+(declare authorized-author? reviewer-identities)
 
 (defn fetch-threads
   "All review threads, following reviewThreads pagination. A thread whose
@@ -106,12 +106,17 @@
         (if (get-in conn [:pageInfo :hasNextPage])
           (recur (get-in conn [:pageInfo :endCursor]) acc (:isDraft pr))
           {:draft? (if (nil? draft?) (:isDraft pr) draft?)
+           :head (:headRefOid pr) :pr-author (get-in pr [:author :login])
            :incomplete? (boolean (some #(get-in % [:comments :pageInfo :hasNextPage]) acc))
            :threads (mapv (fn [t]
                             (law/classify-thread
                              {:id (:id t) :resolved? (:isResolved t) :outdated? (:isOutdated t)
                               :path (:path t) :line (:line t)
+                              :head (:headRefOid pr) :pr-author (get-in pr [:author :login])
+                              :identities (reviewer-identities)
                               :comments (mapv (fn [c] {:author (get-in c [:author :login]) :body (:body c)
+                                                       :user {:login (get-in c [:author :login])
+                                                              :type (get-in c [:author :__typename])}
                                                        :authorized? (boolean (authorized? (get-in c [:author :login])))
                                                        :url (:url c) :created-at (:createdAt c)})
                                               (get-in t [:comments :nodes]))}))
@@ -126,11 +131,8 @@
 (defn reviewer-key [login]
   (law/trusted-reviewer {:user {:login login :type "Bot"}} (reviewer-identities)))
 
-(defn- full-review? [{:keys [body state user]}]
-  (when-let [reviewer (law/trusted-reviewer {:user user} (reviewer-identities))]
-    (if (= "coderabbit" reviewer)
-      (boolean (re-find #"(?i)actionable comments posted|no actionable comments" (str body)))
-      (or (not (str/blank? body)) (#{"APPROVED" "CHANGES_REQUESTED"} state)))))
+(defn- full-review? [review]
+  (law/full-review? review (reviewer-identities)))
 
 (defn fetch-heads
   "Collect hosted approval, commit binding and incomplete scope separately."
@@ -188,12 +190,30 @@
 (defn review-bodies-unanswered
   "Every provider's identified or body-only findings need authorized,
    itemized settlements, using the same review snapshot as approval evidence."
-  [repo {:keys [head reviews comments]}]
+  [repo {:keys [head reviews comments]} context]
   (let [flagged (law/outstanding-review-bodies head reviews)
-        comments (->> comments
-                      (filter #(and (re-find #"(?i)review-id:" (str (:body %)))
-                                    (authorized-author? repo (get-in % [:user :login])))))]
-    (law/unanswered-review-count flagged comments)))
+        authorized? (memoize (partial authorized-author? repo))
+        comments (mapv #(assoc % :authorized? (boolean (authorized? (get-in % [:user :login])))) comments)]
+    (law/unanswered-review-count flagged comments context)))
+
+(defn review-progress
+  "Completed rounds in the active stage, each covering the configured agents."
+  [repo {:keys [reviews comments]} mandatory]
+  (let [identities (reviewer-identities)
+        authorized? (memoize (partial authorized-author? repo))
+        comments (mapv #(assoc % :trusted? (and (str/includes? (str (:body %)) "pr-flow-review:")
+                                              (authorized? (get-in % [:user :login])))) comments)
+        markers (keep (fn [c] (when (:trusted? c)
+                               (when-let [[_ stage] (re-find #"<!-- pr-flow-stage:(planning|code) -->" (str (:body c)))]
+                                 {:stage stage :created_at (:created_at c)}))) comments)
+        stage (or (:stage (last (sort-by :created_at markers))) "code")
+        participants (into (set mandatory)
+                           (for [[provider logins] identities
+                                 :when (and (law/eligible-reviewers provider) (seq logins))] provider))
+        completed (law/completed-review-rounds (filter full-review? reviews) comments identities)]
+    {:rounds (law/stage-review-rounds completed markers stage participants)
+     :review-participants participants :stage stage
+     :min-review-rounds (get-in (load-flow) [:flow/defaults :review/min-rounds] 5)}))
 
 ;; --- output ---------------------------------------------------------------
 
@@ -210,13 +230,16 @@
         thread-snapshot (fetch-threads repo n)
         {:keys [draft? threads incomplete?]} thread-snapshot
         checks (fetch-checks repo n)
-        summary-items (review-bodies-unanswered repo heads)
+        progress (review-progress repo heads reviewers)
+        summary-items (review-bodies-unanswered repo heads
+                                               (merge progress {:head (:head heads) :pr-author (:pr-author thread-snapshot)
+                                                                :identities (reviewer-identities)}))
         final-threads (fetch-threads repo n)
         final-snapshot (fetch-heads repo n)
         changed? (or (not= thread-snapshot final-threads)
                      (not= (select-keys heads [:head :reviews :comments])
                            (select-keys final-snapshot [:head :reviews :comments])))
-        gate (assoc (law/merge-gate (merge heads
+        gate (assoc (law/merge-gate (merge heads progress
                                     {:threads threads :checks checks :incomplete? incomplete?
                                      :required-reviewers reviewers
                                      :snapshot-head (:head final-snapshot)
@@ -229,6 +252,9 @@
     (println (str "  threads: " (count threads) " total, " (count (remove :resolved? threads)) " unresolved; by severity "
                   (pr-str (frequencies (map :severity (remove :resolved? threads))))))
     (println (str "  exact-head approvals: " (pr-str (:approving-reviewers gate)) "  observed commit binding: " (pr-str (:reviewed-heads heads))))
+    (println (str "  completed " (:stage progress) " rounds: " (:rounds progress)
+                  " / soft minimum " (:min-review-rounds progress)
+                  "  participants: " (pr-str (:review-participants progress))))
     (when (seq (:incomplete-evidence heads))
       (println (str "  incomplete review scope: " (pr-str (:incomplete-evidence heads)))))
     (println (str "  gate: " (if (:pass? gate) "PASS" "BLOCKED")))
@@ -246,31 +272,32 @@
                    "(5) what risks or non-goals are missing. Label each finding P0-P3.")
    "code" (str "@coderabbitai full review\n\n"
                "Review the implementation against the card's laws and acceptance criteria. "
-               "Label each finding P0-P3; P0/P1 will be fixed before merge, others fixed, deferred or rejected with a reason.")})
+               "Label each finding P0-P3. During the first five rounds we prefer verified fixes of every priority. "
+               "An outright rejection requires detailed reasoning and independent agreement by another agent besides CodeRabbit.")})
 
 (declare load-flow)
 
 (defn request [repo n kind note reviewer]
   (when-not (#{"coderabbit" "codex"} reviewer)
     (throw (ex-info "MiMo/Kimi must use their configured hosted workflows; CLI evidence cannot impersonate a GitHub review" {:reviewer reviewer})))
-  (let [head (str/trim (gh! "pr" "view" (str n) "-R" repo "--json" "headRefOid" "-q" ".headRefOid"))
-        reviews (gh-pages (str "repos/" repo "/pulls/" n "/reviews"))
-        full (filter full-review? reviews)
+  (let [heads (fetch-heads repo n)
+        head (:head heads)
+        reviews (:reviews heads)
         comments (mapv (fn [c]
                          (assoc c :trusted? (and (str/includes? (str (:body c)) "pr-flow-review:")
                                                   (authorized-author? repo (get-in c [:user :login])))))
-                       (gh-pages (str "repos/" repo "/issues/" n "/comments")))
-        markers (keep (fn [c] (when (:trusted? c)
-                               (when-let [[_ stage] (re-find #"<!-- pr-flow-stage:(planning|code) -->" (str (:body c)))]
-                                 {:stage stage :created_at (:created_at c)}))) comments)
-        rounds (law/stage-review-rounds (law/completed-review-rounds full comments (reviewer-identities)) markers kind)
+                       (:comments heads))
+        progress (review-progress repo {:reviews reviews :comments comments}
+                                  (law/required-reviewers-for (:flow/defaults (load-flow)) repo nil))
+        rounds (if (= kind (:stage progress)) (:rounds progress) 0)
         verdict (law/request-verdict {:head head :reviewer reviewer :comments comments :checks (fetch-checks repo n)
-                                      :rounds rounds :max-loops (get-in (load-flow) [:flow/defaults :review/max-loops])
+                                      :round (inc rounds)
                                       :now-ms (js/Date.now) :identities (reviewer-identities)})
         brief (or (get briefs kind) (throw (ex-info "kind must be planning|code" {:kind kind})))
         brief (if (= reviewer "codex") (str/replace brief "@coderabbitai full review" "@codex review") brief)
         body (str brief (when note (str "\n\n" note))
-                  "\n\n<!-- pr-flow-stage:" kind " --> <!-- pr-flow-review:" head " --> <!-- pr-flow-reviewer:" reviewer " -->")]
+                  "\n\n<!-- pr-flow-stage:" kind " --> <!-- pr-flow-round:" (inc rounds)
+                  " --> <!-- pr-flow-review:" head " --> <!-- pr-flow-reviewer:" reviewer " -->")]
     (if (= :request (:status verdict))
       (do
         (when-not (= head (str/trim (gh! "pr" "view" (str n) "-R" repo "--json" "headRefOid" "-q" ".headRefOid")))
@@ -279,15 +306,37 @@
       (do
         (println (str "No request sent: " (name (:status verdict))
                       (when-let [ms (:retry-at-ms verdict)] (str "; retry after " (.toISOString (js/Date. ms))))))
-        (when (#{:budget-exhausted :invalid :rate-limited} (:status verdict))
+        (when (#{:invalid :rate-limited} (:status verdict))
           (throw (ex-info "Review request needs operator attention; no retry scheduled" verdict)))))))
 
 (defn settle [repo n thread-id body]
   (let [body (if (= body "-") (str (fs/readFileSync 0 "utf8")) body)]
     (when-not (law/resolution-of body)
       (throw (ex-info "BODY must open with Fixed|Deferred|Rejected|Handled" {:body (subs body 0 (min 60 (count body)))})))
-    (when-not (some #(= thread-id (:id %)) (:threads (fetch-threads repo n)))
-      (throw (ex-info "Thread does not belong to the requested PR" {:repo repo :pr n :thread-id thread-id})))
+    (let [snapshot (fetch-threads repo n)
+          thread (some #(when (= thread-id (:id %)) %) (:threads snapshot))]
+      (when-not thread
+        (throw (ex-info "Thread does not belong to the requested PR" {:repo repo :pr n :thread-id thread-id})))
+      (when (:incomplete? snapshot)
+        (throw (ex-info "Thread comments were truncated; no settlement sent" {})))
+      (when (= :deferred (law/resolution-of body))
+        (let [heads (fetch-heads repo n)
+              progress (review-progress repo heads
+                                        (law/required-reviewers-for (:flow/defaults (load-flow)) repo nil))]
+          (when (<= (:rounds progress) (:min-review-rounds progress))
+            (throw (ex-info "During the first five rounds verified findings should be fixed or independently rejected; no deferral sent" {})))))
+      (when (= :rejected (law/resolution-of body))
+        (let [author (str/trim (gh! "api" "user" "--jq" ".login"))
+              candidate (law/classify-thread
+                         (update thread :comments conj
+                                 {:author author :user {:login author :type "User"}
+                                  :authorized? (boolean (authorized-author? repo author)) :body body}))]
+          (when-not (and (:settled? candidate) (:rejection-approved? candidate)
+                         (empty? (law/unsettled-blockers [candidate])))
+            (throw (ex-info "Rejection needs detailed reasoning/evidence and current-head independent non-CodeRabbit agreement; no reply or resolution sent" {})))
+          (when-not (= (:head thread)
+                       (str/trim (gh! "pr" "view" (str n) "-R" repo "--json" "headRefOid" "-q" ".headRefOid")))
+            (throw (ex-info "PR head changed before rejection; no settlement sent" {}))))))
     (gh! "api" "graphql" "-f" "query=mutation($t:ID!,$b:String!){addPullRequestReviewThreadReply(input:{pullRequestReviewThreadId:$t,body:$b}){comment{url}}}"
          "-F" (str "t=" thread-id) "-f" (str "b=" body))
     (gh! "api" "graphql" "-f" "query=mutation($t:ID!){resolveReviewThread(input:{threadId:$t}){thread{isResolved}}}"

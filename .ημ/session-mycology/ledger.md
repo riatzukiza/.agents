@@ -94,3 +94,13 @@
   spore: none
   receipt-refs: 2026-10-03T10:02:54Z, 2026-10-03T10:04:44Z
   note: Writer authorization alone does not establish independence from the finding opener; test every marker format at the shared per-item law and preserve native review-state supersession as a distinct operation.
+
+- ts: 2026-10-03T10:43:32.746457+00:00
+  session: Codex desktop
+  task: Correct global PR review convergence and discovery
+  p-efficiency: 0.55
+  p-friction: 0.62
+  p-skill-candidate: 0.45
+  spore: none
+  receipt-refs: pr-flow-soft-minimum-2026-10-03
+  note: Recover current PR worktree before revising an untracked canonical starter; keep global discovery pointers stable and policy in the skill pack. Separate agent review passes from complete rounds, and carry stage, head and source identity into completion evidence. Isolate owned publication when a shared checkout receives concurrent unrelated tests. Existing skills were corrected; no new spore or promotion is warranted.

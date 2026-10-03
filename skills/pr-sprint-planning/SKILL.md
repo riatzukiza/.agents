@@ -39,7 +39,7 @@ metadata:
    - a P0–P3 label on every finding.
    Ask the other configured agents too (Codex, Kimi/OpenCode workflows) when the repository wires them in. If a reviewer leaves a brief question unanswered (CodeRabbit often skips the estimate question), apply the board's own rule and say so in the `Handled:` comment.
    Read the repository's card guide first (shx: `docs/kanban/writing-cards.md`). Create cards with `rheos create` when the repository asks for it, and never hand-write frontmatter there. A 13-point card that is not an epic means breakdown did not happen: make it an epic with children.
-5. **Wait, then settle.** Run `pr.cljs wait`, then follow `pr-review-settlement`. Splits and re-estimates are real edits to the cards, made in new commits. Loop up to `:review/max-loops` rounds (5, user-confirmed 2026-10-01). If blockers remain after that, stop and ask the user. Don't run a sixth round.
+5. **Wait, then settle.** Run `pr.cljs wait`, then follow `pr-review-settlement`. Splits and re-estimates are real edits to the cards, made in new commits. Follow the canonical convergence rule in `pr-review-settlement`: five completed review rounds is a soft minimum, with early exit for unanimous current-head approval. Continue beyond five when findings remain; do not duplicate or reinterpret that policy here.
 
 ## Ready
 

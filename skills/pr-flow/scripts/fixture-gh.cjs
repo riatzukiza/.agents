@@ -10,11 +10,21 @@ fs.appendFileSync(`${process.env.PR_FLOW_TEST_DATA}.calls`, `${JSON.stringify({a
 const out = x => process.stdout.write(typeof x === 'string' ? x : JSON.stringify(x));
 const persist = () => fs.writeFileSync(statePath, JSON.stringify(state));
 if (args[0] === 'api' && args[1] === 'graphql') {
-  if ((args.find(x => x.startsWith('query=')) || '').includes('mutation')) process.exit(77);
+  const query = args.find(x => x.startsWith('query=')) || '';
+  if (query.includes('mutation')) {
+    if (!config.allowMutations) process.exit(77);
+    if (query.includes('addPullRequestReviewThreadReply')) {
+      out({data: {addPullRequestReviewThreadReply: {comment: {url: 'https://example.invalid/review#reply'}}}});
+    } else if (query.includes('resolveReviewThread')) {
+      out({data: {resolveReviewThread: {thread: {isResolved: true}}}});
+    } else process.exit(77);
+    process.exit(0);
+  }
   const sequence = config.threadsSequence || [config.threads || []];
   const nodes = config.newThreadsAfterReviews && state.reviews ? config.newThreadsAfterReviews : sequence[Math.min(state.threads || 0, sequence.length - 1)];
   state.threads = (state.threads || 0) + 1; persist();
-  out({data: {repository: {pullRequest: {isDraft: !!config.draft && !state.ready, reviewThreads: {pageInfo: {hasNextPage: false}, nodes}}}}});
+  out({data: {repository: {pullRequest: {author: {login: config.prAuthor || 'original-author'}, headRefOid: config.head,
+    isDraft: !!config.draft && !state.ready, reviewThreads: {pageInfo: {hasNextPage: false}, nodes}}}}});
 } else if (args[0] === 'api' && args[1].endsWith('/reviews')) {
   const sequence = config.reviewsSequence || [config.reviews || []];
   out([sequence[Math.min(state.reviews || 0, sequence.length - 1)]]);
@@ -23,7 +33,9 @@ if (args[0] === 'api' && args[1] === 'graphql') {
 else if (args[0] === 'api' && args[1].endsWith('/comments')) out([config.comments || []]);
 else if (args[0] === 'api' && args[1].includes('/commits/')) out({sha: config.resolvedCommit || config.head});
 else if (args[0] === 'api' && args[1].includes('/collaborators/')) out({permission: config.authorized === false ? 'read' : 'admin'});
+else if (args[0] === 'api' && args[1] === 'user') out(args.includes('-q') || args.includes('--jq') ? (config.viewer || 'riatzukiza') : {login: config.viewer || 'riatzukiza'});
 else if (args[0] === 'pr' && args[1] === 'view') {
+  if (args.includes('author')) { out(config.prAuthor || 'original-author'); process.exit(0); }
   const heads = config.heads || [config.head];
   out(heads[Math.min(state.heads++, heads.length - 1)]);
   fs.writeFileSync(statePath, JSON.stringify(state));

@@ -9,13 +9,13 @@
 ;; distilled 2026-10-01 from session logs, receipts and spores; it becomes
 ;; accepted only by an explicit user review event.
 {:flow/id :pr-flow
- :flow/version "0.2.0"
+ :flow/version "0.3.0"
  :flow/tier :provisional
  :flow/initial :muse
  :flow/terminal #{:reflected}
  ;; Only defaults consumed by pr.cljs are executable configuration.
  ;; Non-executable policy notes (editing these does not configure the CLI):
- ;; - law/blocking? requires P0/P1 fixes; this rule is not data-configurable.
+ ;; - law/blocking? marks P0/P1; valid independent rejection is governed by law.
  ;; - pr.cljs gate defaults to --method merge; this default lives in the CLI.
  ;; - Positive evidence channels emitted by law/review-evidence are
  ;;   :github-approved, :explicit-review-verdict and :explicit-issue-verdict.
@@ -23,7 +23,7 @@
  ;; - CodeRabbit, Codex, MiMo and Kimi are intended invitation targets. The
  ;;   operator must use their respective request/hosted-workflow surfaces;
  ;;   this data does not dispatch invitations or prove provider availability.
- :flow/defaults {:review/max-loops 5        ; user-confirmed 2026-10-01
+ :flow/defaults {:review/min-rounds 5       ; soft minimum, user correction 2026-10-03
                  :review/approval-quorum 1
                  :review/required #{}
                  :review/by-repo-name {}
@@ -55,7 +55,7 @@
    :inputs [:card/epic :card/stories]
    :outputs [:pr/open-no-automerge :review/rounds]
    :cli ["pr.cljs request REPO PR planning" "pr.cljs wait REPO PR" "pr.cljs threads REPO PR"]
-   :exit "Every planning comment settled (Fixed|Deferred|Rejected|Handled + reply) and resolved, or loop budget reached and escalated."}
+   :exit "Every planning finding settled and resolved; at least five completed review rounds or unanimous current-head approval. Five is not a stopping cap."}
 
   :card-ready
   {:skill "pr-sprint-planning"
@@ -79,9 +79,9 @@
 
   :code-review
   {:skill "pr-review-settlement"
-   :doc "Iterate with CodeRabbit and other agents until no P0/P1 is unfixed and every other comment is fixed, deferred or rejected with a reason."
+   :doc "Continue review until all findings are settled and at least five review rounds have completed, or configured agents unanimously approve the current head. In the first five rounds prefer verified fixes of every priority; rejection needs detailed evidence and independent non-CodeRabbit agreement."
    :cli ["pr.cljs request REPO PR code" "pr.cljs wait REPO PR" "pr.cljs threads REPO PR" "pr.cljs settle REPO PR THREAD BODY"]
-   :exit "law/unsettled-blockers empty; every thread settled + resolved; review-body items answered."}
+   :exit "All findings settled and resolved, review-body items answered, and law/loop-verdict converged; at least five completed review rounds or unanimous current-head approval."}
 
   :merge-gate
   {:skill "pr-review-to-merge"
@@ -102,14 +102,14 @@
  :flow/transitions
  [[:muse :plan]
   [:plan :planning-review]
-  [:planning-review :planning-review]   ; another review round (bounded)
+  [:planning-review :planning-review]   ; another review round (soft minimum, no fixed cap)
   [:planning-review :plan]              ; review asked for a re-plan/split
   [:planning-review :card-ready]
   [:card-ready :red]
   [:red :green]
   [:green :red]                         ; a missing law found while implementing
   [:green :code-review]
-  [:code-review :code-review]           ; another review round (bounded)
+  [:code-review :code-review]           ; another review round (soft minimum, no fixed cap)
   [:code-review :red]                   ; a finding needs a new law/test
   [:code-review :merge-gate]
   [:merge-gate :code-review]            ; gate blocked: new head, new findings
