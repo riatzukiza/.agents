@@ -82,7 +82,39 @@
 
 (def ^:private confirmation
   "A reviewer reply that accepts the settlement rather than disputing it."
-  #"(?i)review thread resolved|✅ review thread resolved|(?:^|[.!]\s*)verified(?: the fix)?[.!]?\s*$|(?:^|[.!]\s*)this addresses (?:the|my) (?:finding|issue|comment)[.!]?\s*$")
+  #"(?im)(?:^|[.!]\s*)(?:✅\s*)?review thread resolved[.!]?[ \t]*$|(?:^|[.!]\s*)verified(?: the fix)?[.!]?[ \t]*$|(?:^|[.!]\s*)this addresses (?:the|my) (?:finding|issue|comment)[.!]?[ \t]*$")
+
+(declare verdict-prose)
+
+(defn- remove-matches [text pattern]
+  ;; SCI/CLJS string replacement can discard inline regex flags. Match with
+  ;; re-find, then remove the literal match, as verdict-prose does for fences.
+  (loop [text text]
+    (if-let [match (re-find pattern text)]
+      (recur (str/replace-first text (if (string? match) match (first match)) ""))
+      text)))
+
+(defn reviewer-prose
+  "Evaluate the actual reply, excluding quoted/fenced examples and known
+   CodeRabbit analysis, learning and generated share blocks."
+  [body]
+  (some-> (str body)
+          (remove-matches #"(?s)<!-- This is an auto-generated comment: tweet message by coderabbit\.ai -->.*?<!-- end of auto-generated comment: tweet message by coderabbit\.ai -->")
+          (remove-matches #"(?s)<details>\s*<summary>(?:🧩 Analysis chain|✏️ Learnings added)</summary>.*?</details>")
+          (str/replace #"<blockquote>[\s\S]*?</blockquote>" "")
+          (remove-matches #"(?m)^[ \t]*>[^\n]*(?:\n|$)")
+          verdict-prose
+          (str/replace #"<!--[\s\S]*?-->" "")
+          (remove-matches #"(?m)^_You are interacting with an AI system\._[ \t]*$|^[ \t]*---[ \t]*$")
+          (str/replace #"\[([^\]]*)\]\([^\s)]*\)" "$1")))
+
+(defn- confirmed? [body]
+  (let [prose (reviewer-prose body)]
+    (boolean
+     (and prose (re-find confirmation prose)
+          ;; A positive quote/acknowledgement cannot erase an actual negative
+          ;; verdict in the same reply. Ambiguous prose remains contested.
+          (not (re-find #"(?i)still (?:reproduces|fails|broken|wrong)|not (?:fixed|resolved|addressed)|does(?: not|n't) (?:hold|address|fix|resolve)|(?:cannot|can't|unable to) (?:verify|confirm)|resolved incorrectly|(?:fix|settlement) (?:is )?(?:incorrect|rejected)" prose))))))
 
 (defn classify-thread
   "thread: {:id :resolved? :outdated? :path :line
@@ -95,13 +127,20 @@
   (let [opener (first comments)
         replies (vec (rest comments))
         settle-idx (->> (map-indexed vector replies)
-                        (filter (fn [[_ c]] (and (not (bot? (:author c))) (resolution-of (:body c)))))
+                        (filter (fn [[_ c]] (and (not= (:author opener) (:author c))
+                                                (not (bot? (:author c)))
+                                                (not= false (:authorized? c))
+                                                (resolution-of (:body c)))))
                         (map first) last)
         settlement (when settle-idx (resolution-of (:body (nth replies settle-idx))))
         later (when settle-idx (subvec replies (inc settle-idx)))
         settler (when settle-idx (:author (nth replies settle-idx)))
-        contested? (boolean (some #(and (not= settler (:author %))
-                                       (not (re-find confirmation (str (:body %))))) later))]
+        contested? (boolean
+                    (some (fn [c]
+                            (let [prose (reviewer-prose (:body c))]
+                              (and (not= settler (:author c))
+                                   (or (nil? prose)
+                                       (and (not (str/blank? prose)) (not (confirmed? (:body c)))))))) later))]
     (assoc thread
            :reviewer (:author opener)
            :severity (severity (:body opener))
@@ -121,16 +160,50 @@
                 {:id id :severity :p1 :title "Unclassified review-body finding; fix before merge"})]
     (into identified other)))
 
-(defn- answered-finding? [review comments {:keys [id severity]}]
+(defn- body-finding? [body]
+  (boolean
+   (or (re-find #"(?i)(?:nitpick comments|outside diff range comments|duplicate comments)\s*\([1-9][0-9]*\)" (str body))
+       (re-find #"(?im)^Confirmed findings:\s*\n\s*[1-9][0-9]*\." (str body)))))
+
+(defn review-findings
+  "Stable CR item IDs remain individual findings. Body-only change requests
+   and legacy positive-count sections use one conservative P1 whole-body ID,
+   which has an explicit Fixed settlement path rather than a phantom item."
+  [review]
+  (let [items (review-body-findings (:body review))
+        body (:body review)]
+    (if (seq items) items
+        (if (or (= "CHANGES_REQUESTED" (:state review))
+                (body-finding? body))
+          [{:id (str (:id review)) :kind :review-body :severity :p1 :title "Whole review body requires a verified fix"}]
+          []))))
+
+(defn outstanding-review-bodies
+  "Discover findings from every provider and human. Body-only change requests
+   stay active across pushes until settled or superseded by the same author's
+   later approval/dismissal on that commit or the current head. Historical
+   identified and explicitly listed findings retain their settlement IDs."
+  [head reviews]
+  (let [superseded? (fn [r]
+                      (some #(and (= (get-in r [:user :login]) (get-in % [:user :login]))
+                                  (#{"APPROVED" "DISMISSED"} (:state %))
+                                  (or (= head (:commit_id %)) (= (:commit_id r) (:commit_id %)))
+                                  (pos? (compare [(:submitted_at %) (:id %)] [(:submitted_at r) (:id r)]))) reviews))]
+    (filter #(or (seq (review-body-findings (:body %)))
+                 (body-finding? (:body %))
+                 (and (= "CHANGES_REQUESTED" (:state %)) (not (superseded? %)))) reviews)))
+
+(defn- answered-finding? [review comments {:keys [id kind severity]}]
   (some (fn [{:keys [body created_at]}]
           (and created_at
                (not (neg? (compare created_at (:submitted_at review))))
                (re-find (re-pattern (str "(?i)review-id:" (:id review) "\\b")) (str body))
-               (some (fn [[_ verb marker]]
-                       (and (= marker id)
+               (some (fn [[_ verb marker-type marker]]
+                       (and (= marker-type (if (= :review-body kind) "review-body" "cr-comment:v1"))
+                            (= marker id)
                             (or (not (blocking? severity))
                                 (= "fixed" (str/lower-case verb)))))
-                     (re-seq #"(?mi)^\s*[-*]\s*(Fixed|Deferred|Rejected|Handled)\b[^\n]*?cr-comment:v1:([a-z0-9]+)\b" (str body)))))
+                     (re-seq #"(?mi)^\s*[-*]\s*(Fixed|Deferred|Rejected|Handled)\b[^\n]*?(cr-comment:v1|review-body):([a-z0-9]+)\b" (str body)))))
         comments))
 
 (defn unanswered-review-count
@@ -139,10 +212,8 @@
   [reviews comments]
   (reduce +
           (for [review reviews
-                :let [findings (review-body-findings (:body review))]]
-            (if (seq findings)
-              (count (remove #(answered-finding? review comments %) findings))
-              1))))
+                :let [findings (review-findings review)]]
+            (count (remove #(answered-finding? review comments %) findings)))))
 
 (defn stage-review-rounds
   "Count full review timestamps only within the latest consecutive stage run.
@@ -286,12 +357,46 @@
     #?(:clj (try (.toEpochMilli (java.time.Instant/parse value)) (catch Exception _ nil))
        :cljs (let [ms (js/Date.parse value)] (when-not (js/isNaN ms) ms)))))
 
+(declare latest-checks coderabbit-state)
+
+(defn completed-review-rounds
+  "Combine full REST reviews and native no-findings completion replies.
+   Dedupe representations of the same trusted request; a completed request
+   counts once even without a REST review. Stage attribution uses completion."
+  [reviews comments identities]
+  (let [requests (sort-by :created_at (filter :trusted? comments))
+        provider-request? (fn [c p]
+                            (or (str/includes? (str (:body c)) (str "pr-flow-reviewer:" p " -->"))
+                                (and (= "coderabbit" p)
+                                     (not (str/includes? (str (:body c)) "pr-flow-reviewer:"))
+                                     (re-find #"@coderabbitai (?:full )?review" (str (:body c))))))
+        issue-rounds (keep (fn [c]
+                             (when (= "coderabbit" (trusted-reviewer c identities))
+                               (let [coverage (coderabbit-covered-heads (:body c))]
+                                 (when (or (re-find #"(?m)^Full review finished\.$" (str (:body c)))
+                                           (= 1 (count coverage)))
+                                   (cond-> (assoc c :submitted_at (or (:updated_at c) (:created_at c)) :round-source :issue)
+                                     (= 1 (count coverage)) (assoc :commit_id (first coverage))))))) comments)
+        rounds (keep (fn [r]
+                       (when-let [p (trusted-reviewer r identities)]
+                         (let [at (:submitted_at r)
+                               request (last (filter #(and (provider-request? % p)
+                                                           (string? at) (string? (:created_at %))
+                                                           (not (pos? (compare (:created_at %) at)))
+                                                           (or (nil? (:commit_id r))
+                                                               (str/includes? (str (:body %)) (str "pr-flow-review:" (:commit_id r) " -->")))) requests))]
+                           (when (and (string? at) (or (not= :issue (:round-source r)) request))
+                             (assoc r :round-key (if request [p :request (:id request) (:created_at request)]
+                                                   [p :review (:id r)])))))) (concat reviews issue-rounds))]
+    (mapv #(first (sort-by :submitted_at %)) (vals (group-by :round-key rounds)))))
+
 (defn request-verdict
   "Manual requests are bounded: exact-head pending requests are reused,
    quota replies yield retry timestamps, and reaching the cap never posts."
   [{:keys [head reviewer comments checks rounds max-loops now-ms identities]
     :or {max-loops 5 identities default-reviewer-identities}}]
-  (let [requests (filter #(and (:trusted? %)
+  (let [checks (latest-checks head checks)
+        requests (filter #(and (:trusted? %)
                                (str/includes? (str (:body %)) (str "pr-flow-review:" head " -->"))
                                (or (str/includes? (str (:body %)) (str "pr-flow-reviewer:" reviewer " -->"))
                                    (and (= "coderabbit" reviewer)
@@ -310,7 +415,11 @@
                              (or (nil? request)
                                  (not (neg? (compare (or (:updated_at %) (:created_at %) "") (:created_at request)))))) replies)
         pending? (some #(and (= reviewer (reviewer-check %))
-                            (#{"PENDING" "QUEUED" "IN_PROGRESS"} (str/upper-case (str (:state %))))) checks)]
+                            (#{"PENDING" "QUEUED" "IN_PROGRESS"} (str/upper-case (str (:state %))))) checks)
+        ended? (some #(and request (= head (:headSha %)) (= reviewer (reviewer-check %))
+                           (#{:failed :skipped} (coderabbit-state [(assoc % :name "CodeRabbit")]))
+                           (instant-ms (:completedAt %)) (instant-ms (:created_at request))
+                           (> (instant-ms (:completedAt %)) (instant-ms (:created_at request)))) checks)]
     (cond
       (or (not (valid-head? head)) (not (eligible-reviewers reviewer))) {:status :invalid}
       (>= (or rounds 0) max-loops) {:status :budget-exhausted :rounds rounds :max-loops max-loops}
@@ -318,6 +427,7 @@
       (and retry-at (< now-ms retry-at)) {:status :cooldown :retry-at-ms retry-at}
       pending? {:status :pending}
       covered? {:status :completed}
+      ended? {:status :request}
       ;; An expired quota reply ended that attempt. A later operator may make
       ;; one new manual request; this law never schedules a retry itself.
       (and request (or (nil? limit-at)
@@ -327,7 +437,7 @@
 (defn required-reviewers-for
   "Repository-specific reviewer requirements cannot be removed by a CLI flag."
   [defaults repo requested]
-  (let [repo-name (last (str/split repo #"/"))]
+  (let [repo-name (str/lower-case (last (str/split repo #"/")))]
     (into (into (:review/required defaults) (or requested #{}))
           (get-in defaults [:review/by-repo-name repo-name] #{}))))
 

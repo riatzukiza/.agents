@@ -44,3 +44,13 @@
   spore: none
   receipt-refs: 2026-10-02T22:14:20.382806Z, 2026-10-02T22:08:37.046811153Z
   note: Preserve historical receipts and reflections; corrective entries carry immutable pin and audit links. Credentials and pending reviews remain explicit blockers.
+
+- ts: 2026-10-03T08:30:02.136260Z
+  session: pr8-independent-verified-fixes
+  task: Repair review gate and settlement failures without weakening quorum or findings
+  p-efficiency: 0.8
+  p-friction: 0.55
+  p-skill-candidate: 0.4
+  spore: none
+  receipt-refs: 2026-10-03T08:30:02.136260Z
+  note: Real provider payloads expose quote and generated-footer traps; paired positive and negative fixtures plus explicit read-before-push checks preserve truthful gate evidence.

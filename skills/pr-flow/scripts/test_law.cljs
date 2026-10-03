@@ -87,7 +87,55 @@
     (is (:contested? (disputed "coderabbitai[bot]" "Verified: this still reproduces.")))
     (is (:contested? (disputed "human-reviewer" "I still see the bug.")))
     (is (not (:contested? (disputed "riatzukiza" "Follow-up details from the fixer."))))
-    (is (not (:contested? (disputed "coderabbitai[bot]" "✅ Review thread resolved."))))))
+    (is (not (:contested? (disputed "coderabbitai[bot]" "✅ Review thread resolved."))))
+    (is (not (:contested? (disputed "coderabbitai[bot]"
+                                   "The condition addresses this finding.\n\n✅ Review thread resolved.\n\n_You are interacting with an AI system._\n\n<!-- auto-generated reply -->"))))))
+
+(deftest reviewer-cannot-settle-their-own-pushback
+  (let [t {:resolved? true :comments [{:author "human-reviewer" :body "P1: still wrong"}
+                                     {:author "riatzukiza" :body "Fixed in abc: repaired"}
+                                     {:author "human-reviewer" :body "Fixed? This still reproduces"}]}
+        r (law/classify-thread t)]
+    (is (:contested? r))
+    (is (not (:settled? r))))
+  (doseq [reply ["Review thread resolved incorrectly; this still reproduces"
+                 "✅ Review thread resolved? Still broken."]]
+    (is (:contested? (law/classify-thread
+                     (update (thread "P1: bug" "Fixed in abc: repaired") :comments conj
+                             {:author "coderabbitai[bot]" :body reply}))))))
+
+(deftest real-acknowledgement-excludes-generated-share-and-learning-blocks
+  (let [body (str "`@riatzukiza` Thanks for the clarification and fix. The quorum can accept formal APPROVED reviews or completed native passing verdicts with trusted exact-head coverage. Imported CLI evidence cannot count as native approval. My suggested restriction to formal GitHub approvals was too narrow.\n\nRuntime activation remains pending.\n\n"
+                  "<details>\n<summary>✏️ Learnings added</summary>\n```\nLearning: Imported CLI evidence cannot count as native approval.\n```\n> Note: Learnings are effective only in the context of similar code segments.\n</details>\n"
+                  "<!-- This is an auto-generated comment: tweet message by coderabbit.ai -->\nIf helpful, share on [X](https://twitter.com/intent/tweet?text=not%20resolved).\n<!-- end of auto-generated comment: tweet message by coderabbit.ai -->\n\n"
+                  "✅ Review thread resolved.\n\n_You are interacting with an AI system._\n<!-- This is an auto-generated reply by CodeRabbit -->")
+        replied (fn [reply] (law/classify-thread (update (thread "P1: quorum" "Fixed in b0ea790: clarified policy")
+                                                       :comments conj {:author "coderabbitai[bot]" :body reply})))]
+    (is (:settled? (replied body)))
+    (is (not (:contested? (replied body))))
+    (is (:contested? (replied (str body "\nHowever this still reproduces."))))
+    (is (:contested? (replied "Quoted old reply:\n```text\n✅ Review thread resolved.\n```\nThis still reproduces.")))
+    (is (:contested? (replied "> ✅ Review thread resolved.\n\nThe fix does not address the finding.")))
+    (is (:contested? (replied "<blockquote>✅ Review thread resolved.</blockquote>\nThe explanation is insufficient.")))
+    (is (:contested? (replied "<details>\n<summary>✏️ Learnings added</summary>\n✅ Review thread resolved.\n</details>\nThis still fails.")))
+    (is (:contested? (replied "<!-- This is an auto-generated comment: tweet message by coderabbit.ai -->\n✅ Review thread resolved.\n<!-- end of auto-generated comment: tweet message by coderabbit.ai -->\nThe settlement is rejected.")))))
+
+(deftest generated-only-followup-is-not-reviewer-pushback
+  (let [reply "<!-- This is an auto-generated comment: tweet message by coderabbit.ai -->\nShare this old finding on X.\n<!-- end of auto-generated comment: tweet message by coderabbit.ai -->\n---\n_You are interacting with an AI system._\n<!-- auto-generated reply -->"]
+    (is (not (:contested? (law/classify-thread
+                          (update (thread "P1: bug" "Fixed in abc: regression passes") :comments conj
+                                  {:author "coderabbitai[bot]" :body reply})))))))
+
+(deftest opaque-review-body-has-a-real-settlement-path
+  (let [r {:id 303 :state "CHANGES_REQUESTED" :body "P1: denied authorization is ignored"
+           :submitted_at "2026-10-03T01:00:00Z"}
+        answer {:created_at "2026-10-03T01:01:00Z"
+                :body "Handled: review-id:303\n- Fixed review-body:303: repaired authorization, regression passes"}]
+    (is (= 1 (law/unanswered-review-count [r] [])))
+    (is (= 0 (law/unanswered-review-count [r] [answer])))
+    (is (= 1 (law/unanswered-review-count [r] [(assoc answer :body "Handled: review-id:303\n- Deferred review-body:303: later")])))
+    (is (= 0 (law/unanswered-review-count [{:id 304 :body "Nitpick comments (0)"}] [])))
+    (is (= 1 (law/unanswered-review-count [(assoc r :state "COMMENTED" :body "Outside diff range comments (1): legacy finding")] [])))))
 
 (deftest review-body-answer-must-name-review
   (let [body (str "<summary><em>🟠 Major</em> · Must fix · <code>x:1</code></summary>"

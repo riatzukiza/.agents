@@ -50,17 +50,20 @@
    (let [r (cp/spawnSync "gh" (clj->js args) #js {:encoding "utf8" :input input :env env :maxBuffer (* 64 1024 1024)})]
      {:exit (.-status r) :out (str (.-stdout r)) :err (str (.-stderr r))})))
 
-(defn gh!
-  "Run gh; return stdout. Throws with stderr on failure."
-  [& args]
-  (let [r (run-gh args js/process.env)
+(defn- gh-with-input! [args input]
+  (let [r (run-gh args js/process.env input)
         r (if (and (not= 0 (:exit r))
                    (re-find #"Resource not accessible by (personal access|integration) token" (:err r)))
-            (run-gh args (env-without-tokens))
+            (run-gh args (env-without-tokens) input)
             r)]
     (when-not (= 0 (:exit r))
       (throw (ex-info (str "gh " (str/join " " (take 3 args)) " failed: " (str/trim (:err r))) r)))
     (:out r)))
+
+(defn gh!
+  "Run gh; return stdout. Throws with stderr on failure."
+  [& args]
+  (gh-with-input! args nil))
 
 (defn gh-json [& args]
   (js->clj (js/JSON.parse (apply gh! args)) :keywordize-keys true))
@@ -87,12 +90,15 @@
                after (into ["-f" (str "after=" after)]))]
     (get-in (apply gh-json args) [:data :repository :pullRequest])))
 
+(declare authorized-author?)
+
 (defn fetch-threads
   "All review threads, following reviewThreads pagination. A thread whose
    comments exceed one page marks the result :incomplete? so the gate fails
    closed instead of judging a partial conversation."
   [repo n]
-  (let [[owner name] (split-repo repo)]
+  (let [[owner name] (split-repo repo)
+        authorized? (memoize (partial authorized-author? repo))]
     (loop [after nil acc [] draft? nil]
       (let [pr (threads-page owner name n after)
             conn (:reviewThreads pr)
@@ -106,6 +112,7 @@
                              {:id (:id t) :resolved? (:isResolved t) :outdated? (:isOutdated t)
                               :path (:path t) :line (:line t)
                               :comments (mapv (fn [c] {:author (get-in c [:author :login]) :body (:body c)
+                                                       :authorized? (boolean (authorized? (get-in c [:author :login])))
                                                        :url (:url c) :created-at (:createdAt c)})
                                               (get-in t [:comments :nodes]))}))
                           acc)})))))
@@ -141,7 +148,8 @@
                           c))
                       c))
                   (gh-pages (str "repos/" repo "/issues/" n "/comments")))]
-    (assoc (law/review-evidence head reviews comments (reviewer-identities)) :head head)))
+    (assoc (law/review-evidence head reviews comments (reviewer-identities)) :head head
+           :reviews reviews :comments comments)))
 
 (defn fetch-checks
   "PR check rows. `gh pr checks` exits 8 while checks are pending; that is data,
@@ -178,15 +186,11 @@
         (if (re-find #"HTTP 404|Not Found" (ex-message e)) false (throw e))))))
 
 (defn review-bodies-unanswered
-  "CodeRabbit puts nitpicks and outside-diff findings in the review body, where
-   they cannot be thread-resolved. Count reviews with such sections that were
-   lack an itemized PR comment naming that review's ID."
-  [repo n]
-  (let [reviews (gh-pages (str "repos/" repo "/pulls/" n "/reviews"))
-        flagged (->> reviews
-                     (filter #(law/bot? (get-in % [:user :login])))
-                     (filter #(re-find #"(?i)nitpick comments|outside diff range|duplicate comments" (str (:body %)))))
-        comments (->> (gh-pages (str "repos/" repo "/issues/" n "/comments"))
+  "Every provider's identified or body-only findings need authorized,
+   itemized settlements, using the same review snapshot as approval evidence."
+  [repo {:keys [head reviews comments]}]
+  (let [flagged (law/outstanding-review-bodies head reviews)
+        comments (->> comments
                       (filter #(and (re-find #"(?i)review-id:" (str (:body %)))
                                     (authorized-author? repo (get-in % [:user :login])))))]
     (law/unanswered-review-count flagged comments)))
@@ -202,17 +206,24 @@
     (println (str "    " (:url (first comments))))))
 
 (defn status [repo n reviewers]
-  (let [{:keys [draft? threads incomplete?]} (fetch-threads repo n)
-        heads (fetch-heads repo n)
+  (let [heads (fetch-heads repo n)
+        thread-snapshot (fetch-threads repo n)
+        {:keys [draft? threads incomplete?]} thread-snapshot
         checks (fetch-checks repo n)
-        summary-items (review-bodies-unanswered repo n)
-        snapshot-head (str/trim (gh! "pr" "view" (str n) "-R" repo "--json" "headRefOid" "-q" ".headRefOid"))
+        summary-items (review-bodies-unanswered repo heads)
+        final-threads (fetch-threads repo n)
+        final-snapshot (fetch-heads repo n)
+        changed? (or (not= thread-snapshot final-threads)
+                     (not= (select-keys heads [:head :reviews :comments])
+                           (select-keys final-snapshot [:head :reviews :comments])))
         gate (assoc (law/merge-gate (merge heads
                                     {:threads threads :checks checks :incomplete? incomplete?
                                      :required-reviewers reviewers
-                                     :snapshot-head snapshot-head
+                                     :snapshot-head (:head final-snapshot)
                                      :approval-quorum (get-in (load-flow) [:flow/defaults :review/approval-quorum] 1)
-                                     :review-bodies-unanswered summary-items})) :draft? draft?)]
+                                     :review-bodies-unanswered summary-items})) :draft? draft?)
+        gate (if changed? (-> gate (assoc :pass? false)
+                              (update :reasons conj "Review evidence changed while collecting conversations; re-evaluate")) gate)]
     (println (str repo "#" n (when draft? "  [draft]") "  head " (subs (:head heads) 0 7)))
     (println (str "  coderabbit: " (name (:coderabbit gate)) "   checks: " (pr-str (:checks gate))))
     (println (str "  threads: " (count threads) " total, " (count (remove :resolved? threads)) " unresolved; by severity "
@@ -250,7 +261,7 @@
         markers (keep (fn [c] (when (:trusted? c)
                                (when-let [[_ stage] (re-find #"<!-- pr-flow-stage:(planning|code) -->" (str (:body c)))]
                                  {:stage stage :created_at (:created_at c)}))) comments)
-        rounds (law/stage-review-rounds full markers kind)
+        rounds (law/stage-review-rounds (law/completed-review-rounds full comments (reviewer-identities)) markers kind)
         verdict (law/request-verdict {:head head :reviewer reviewer :comments comments :checks (fetch-checks repo n)
                                       :rounds rounds :max-loops (get-in (load-flow) [:flow/defaults :review/max-loops])
                                       :now-ms (js/Date.now) :identities (reviewer-identities)})
@@ -262,9 +273,7 @@
       (do
         (when-not (= head (str/trim (gh! "pr" "view" (str n) "-R" repo "--json" "headRefOid" "-q" ".headRefOid")))
           (throw (ex-info "PR head changed before review request; no request sent" {:head head})))
-        (let [result (run-gh ["pr" "comment" (str n) "-R" repo "--body-file" "-"] js/process.env body)]
-          (when-not (zero? (:exit result)) (throw (ex-info "Review request failed" {:exit (:exit result) :err (:err result)})))
-          (println (str/trim (:out result)))))
+        (println (str/trim (gh-with-input! ["pr" "comment" (str n) "-R" repo "--body-file" "-"] body))))
       (do
         (println (str "No request sent: " (name (:status verdict))
                       (when-let [ms (:retry-at-ms verdict)] (str "; retry after " (.toISOString (js/Date. ms))))))
@@ -284,13 +293,16 @@
     (println (str "settled " thread-id " as " (name (law/resolution-of body))))))
 
 (defn gate [repo n apply? method reviewers]
+  (when-not (#{"merge" "squash" "rebase"} method)
+    (throw (ex-info "--method must be merge|squash|rebase" {:method method})))
   (let [g (status repo n reviewers)]
     (when (and apply? (:pass? g))
       (when (:draft? g) (gh! "pr" "ready" (str n) "-R" repo))
-      (let [post-ready (if (:draft? g) (status repo n reviewers) g)
+      (let [post-ready (status repo n reviewers)
             head (:head post-ready)]
         (when-not (and (:pass? post-ready) (= head (:head g)))
-          (throw (ex-info "Ready transition changed head or started new checks; gate blocked" {:before g :after post-ready})))
+          (println "Fresh gate failed or head changed; no merge requested")
+          (js/process.exit 2))
       (try
         (gh! "pr" "merge" (str n) "-R" repo "--auto" (str "--" method) "--match-head-commit" head)
         (println (str "ready + auto-merge (" method ") enabled on " head))
@@ -299,7 +311,12 @@
           ;; --auto. The gate above already verified checks, threads and
           ;; review on this exact head, so merge now, pinned to that head.
           (if (re-find #"(?i)auto merge is not allowed|clean status|not allowed for this repository" (ex-message e))
-            (do (gh! "pr" "merge" (str n) "-R" repo (str "--" method) "--match-head-commit" head)
+            (do
+                (let [fresh (status repo n reviewers)]
+                  (when-not (and (:pass? fresh) (= head (:head fresh)))
+                    (println "Fresh gate failed before direct-merge fallback")
+                    (js/process.exit 2)))
+                (gh! "pr" "merge" (str n) "-R" repo (str "--" method) "--match-head-commit" head)
                 (println (str "auto-merge unavailable; merged (" method ") at gated head " head)))
             (throw e))))))
     (when (and apply? (not (:pass? g)))
@@ -308,7 +325,8 @@
 (defn wait [repo n timeout interval]
   (let [deadline (+ (js/Date.now) (* 1000 timeout))]
     (letfn [(tick []
-              (let [st (law/coderabbit-state (fetch-checks repo n))]
+              (let [checks (fetch-checks repo n)
+                    st (law/coderabbit-state (law/latest-checks (:headSha (first checks)) checks))]
                 (cond
                   (#{:completed :skipped :failed} st) (do (println (str "coderabbit " (name st))) (js/process.exit 0))
                   (= st :rate-limited) (do (println "coderabbit rate-limited") (js/process.exit 3))
@@ -352,6 +370,14 @@
     (nth args (inc i) default)
     default))
 
+(defn- timing-flag [args f default]
+  (let [value (flag args f default)
+        seconds (js/Number value)]
+    (when-not (and (string? value) (re-matches #"[0-9]+" value)
+                   (js/Number.isSafeInteger seconds) (pos? seconds))
+      (throw (ex-info (str f " must be a positive finite integer in seconds") {:flag f})))
+    seconds))
+
 (defn- reviewers-flag
   "--reviewers coderabbit,codex → #{\"coderabbit\" \"codex\"}; default from flow.edn."
   [repo args]
@@ -372,7 +398,7 @@
         "status" (status repo n (reviewers-flag repo more))
         "threads" (let [{:keys [threads]} (fetch-threads repo n)]
                     (print-threads (if (some #{"--all"} more) threads (remove :resolved? threads))))
-        "wait" (wait repo n (js/parseInt (flag more "--timeout" "1800")) (js/parseInt (flag more "--interval" "30")))
+        "wait" (wait repo n (timing-flag more "--timeout" "1800") (timing-flag more "--interval" "30"))
         "request" (request repo n (first more) (flag more "--note" nil) (flag more "--reviewer" "coderabbit"))
         "settle" (settle repo n (first more) (second more))
         "gate" (gate repo n (some #{"--apply"} more) (flag more "--method" "merge") (reviewers-flag repo more))

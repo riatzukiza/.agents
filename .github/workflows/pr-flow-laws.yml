@@ -6,6 +6,11 @@ on:
       - 'skills/pr-flow/**'
       - 'skills/pr-review-settlement/**'
       - 'skills/pr-review-to-merge/**'
+      - 'skills/pr-sprint-planning/**'
+      - 'skills/pr-red-green/**'
+      - 'skills/pr-muse-connect/**'
+      - 'skills/receipt-river/**'
+      - 'skills/session-mycology/**'
       - '.github/workflows/pr-flow-laws.yml'
   workflow_dispatch:
 

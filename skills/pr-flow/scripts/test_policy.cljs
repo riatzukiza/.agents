@@ -47,7 +47,8 @@
   (let [defaults {:review/required #{} :review/by-repo-name {"knoxx" #{"coderabbit" "codex"}}}]
     (is (= #{} (law/required-reviewers-for defaults "riatzukiza/.agents" nil)))
     (is (= #{"codex"} (law/required-reviewers-for defaults "riatzukiza/.agents" #{"codex"})))
-    (is (= #{"coderabbit" "codex" "mimo"} (law/required-reviewers-for defaults "open-hax/knoxx" #{"mimo"}))))
+    (is (= #{"coderabbit" "codex" "mimo"} (law/required-reviewers-for defaults "open-hax/knoxx" #{"mimo"})))
+    (is (= #{"coderabbit" "codex" "mimo"} (law/required-reviewers-for defaults "OPEN-HAX/Knoxx" #{"mimo"}))))
   (is (not (:pass? (law/merge-gate (assoc baseline :required-reviewers #{"codex" "mimo"}))))))
 
 (deftest approval-identity-state-and-revocation
@@ -131,6 +132,35 @@
                                       (assoc input :comments [{:user {:login "coderabbitai[bot]" :type "Bot"}
                                                               :body "Review limit reached."}])))))
     (is (= :pending (:status (law/request-verdict (assoc input :comments [] :checks [{:name "CodeRabbit" :state "PENDING"}])))))))
+
+(deftest completed-unsuccessful-request-can-retry-without-an-unrelated-push
+  (let [request {:trusted? true :created_at "2026-10-03T01:00:00Z"
+                 :body (str "@coderabbitai full review <!-- pr-flow-review:" head " --> <!-- pr-flow-reviewer:coderabbit -->")}
+        input {:head head :reviewer "coderabbit" :comments [request] :rounds 1 :max-loops 5
+               :now-ms 1790989260000 :identities identities}]
+    (doseq [state ["FAILURE" "SKIPPED" "CANCELLED"]]
+      (is (= :request (:status (law/request-verdict
+                               (assoc input :checks [{:name "CodeRabbit" :state state :headSha head
+                                                      :startedAt "2026-10-03T01:00:10Z" :completedAt "2026-10-03T01:01:00Z"}]))))))
+    (is (= :request (:status (law/request-verdict
+                             (assoc input :checks [{:name "CodeRabbit" :state "SUCCESS" :description "Review skipped"
+                                                    :headSha head :completedAt "2026-10-03T01:01:00Z"}])))))
+    (is (= :pending (:status (law/request-verdict
+                             (assoc input :checks [{:name "CodeRabbit" :state "FAILURE" :headSha head
+                                                    :completedAt "2026-10-03T00:59:00Z"}])))))
+    (is (= :pending (:status (law/request-verdict
+                             (assoc input :checks [{:name "CodeRabbit" :state "FAILURE" :headSha old-head
+                                                    :completedAt "2026-10-03T01:01:00Z"}])))))))
+
+(deftest native-completion-and-rest-review-are-one-round
+  (let [request {:id 5 :trusted? true :created_at "2026-10-03T01:00:00Z"
+                 :body (str "<!-- pr-flow-stage:code --> <!-- pr-flow-review:" head " --> <!-- pr-flow-reviewer:coderabbit -->")}
+        done {:id 6 :user {:login "coderabbitai[bot]" :type "Bot"} :created_at "2026-10-03T01:00:20Z" :body "Full review finished."}
+        reviewed (assoc (review "coderabbitai[bot]" "COMMENTED" head) :id 7 :submitted_at "2026-10-03T01:00:30Z")]
+    (is (= 1 (count (law/completed-review-rounds [reviewed] [request done] identities))))
+    (is (= 1 (count (law/completed-review-rounds [] [request done] identities))))
+    (is (empty? (law/completed-review-rounds [] [(assoc request :trusted? false) done] identities)))
+    (is (empty? (law/completed-review-rounds [] [request (assoc done :body "Full review triggered.")] identities)))))
 
 (deftest latest-required-context-on-current-head
   (let [old {:name "required" :state "FAILURE" :required? true :headSha head :startedAt "2026-10-03T01:00:00Z" :workflow "CI"}
