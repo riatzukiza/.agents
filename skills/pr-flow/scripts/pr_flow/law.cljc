@@ -198,8 +198,12 @@
                  (and (= "CHANGES_REQUESTED" (:state %)) (not (superseded? %)))) reviews)))
 
 (defn- answered-finding? [review comments {:keys [id kind severity]}]
-  (some (fn [{:keys [body created_at]}]
-          (and created_at
+  (let [opener (get-in review [:user :login])]
+    (some (fn [{:keys [body created_at user]}]
+          (and (not (str/blank? opener))
+               (not (str/blank? (:login user)))
+               (not= (str/lower-case opener) (str/lower-case (:login user)))
+               created_at
                (not (neg? (compare created_at (:submitted_at review))))
                (re-find (re-pattern (str "(?i)review-id:" (:id review) "\\b")) (str body))
                (some (fn [[_ verb marker-type marker]]
@@ -208,11 +212,12 @@
                             (or (not (blocking? severity))
                                 (= "fixed" (str/lower-case verb)))))
                      (re-seq #"(?mi)^\s*[-*]\s*(Fixed|Deferred|Rejected|Handled)\b[^\n]*?(cr-comment:v1|review-body):([a-z0-9]+)\b" (str body)))))
-        comments))
+        comments)))
 
 (defn unanswered-review-count
   "A flagged review clears only when each identified item has an authorized,
-   later settlement; P0/P1 items require Fixed. Unknown items fail closed."
+   later settlement from a known author other than the opener. P0/P1 items
+   require Fixed. Unknown items and missing identities fail closed."
   [reviews comments]
   (reduce +
           (for [review reviews

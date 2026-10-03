@@ -120,6 +120,33 @@
     (is (str/includes? (:out (execute (assoc config :reviews [approval human (assoc human :id 11 :state "APPROVED" :submitted_at "2026-10-03T01:03:00Z")])
                                     "status" "riatzukiza/.agents" "8")) "gate: PASS"))))
 
+(deftest writer-opener-cannot-clear-body-findings-through-comment-settlement
+  (doseq [[state body marker]
+          [["CHANGES_REQUESTED" "P1: authorization is bypassed" "review-body:20"]
+           ["COMMENTED" "Outside diff range comments (1): legacy finding" "review-body:20"]
+           ["COMMENTED" "<summary><em>🟠 Major</em> · Bug · <code>x:1</code></summary><!-- cr-comment:v1:abc123 -->" "cr-comment:v1:abc123"]
+           ["COMMENTED" "Nitpick comments (1)<!-- cr-comment:v1:abc123 -->" "cr-comment:v1:abc123"]]]
+    (let [human {:id 20 :user {:login "human-reviewer" :type "User"} :state state
+                 :body body :commit_id head :submitted_at "2026-10-03T01:01:00Z"}
+          self {:user {:login "human-reviewer" :type "User"} :created_at "2026-10-03T01:02:00Z"
+                :body (str "Handled: review-id:20\n- Fixed " marker ": verified regression")}
+          config (assoc base :reviews [approval human] :comments [self] :authorized true)
+          blocked (execute config "gate" "riatzukiza/.agents" "8" "--apply")
+          repaired (execute (assoc config :comments [(assoc-in self [:user :login] "different-writer")])
+                            "gate" "riatzukiza/.agents" "8" "--apply")]
+      (is (= 2 (:exit blocked)))
+      (is (str/includes? (:out blocked) "1 unanswered review summary item(s)"))
+      (is (empty? (writes blocked "merge")))
+      (is (= 0 (:exit repaired)) (:err repaired))
+      (is (= 1 (count (writes repaired "merge"))))))
+  (let [human {:id 20 :user {:login "human-reviewer" :type "User"} :state "CHANGES_REQUESTED"
+               :body "P1: authorization is bypassed" :commit_id head :submitted_at "2026-10-03T01:01:00Z"}
+        approved (assoc human :id 21 :state "APPROVED" :body "Approved after verifying the repaired boundary."
+                        :submitted_at "2026-10-03T01:03:00Z")
+        r (execute (assoc base :reviews [approval human approved]) "gate" "riatzukiza/.agents" "8" "--apply")]
+    (is (= 0 (:exit r)) (:err r))
+    (is (= 1 (count (writes r "merge"))))))
+
 (deftest public-thread-replies-do-not-settle-a-resolved-blocker
   (let [thread {:id "t" :isResolved true :comments {:pageInfo {:hasNextPage false}
                 :nodes [{:author {:login "human-reviewer"} :body "P1: bug"}

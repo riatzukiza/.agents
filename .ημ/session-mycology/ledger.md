@@ -84,3 +84,13 @@
   spore: none
   receipt-refs: 2026-10-03T09:27:26Z, 2026-10-03T09:29:25Z
   note: Reduce provider warnings to their actual duration line and updated timestamp; generic earlier prose can accidentally hide missing format support, so verify expiry, allowance counts and manual-request constraints separately.
+
+- ts: 2026-10-03T10:04:44Z
+  session: pr8-body-opener-exclusion
+  task: Apply settlement actor exclusion uniformly across thread and review-body channels
+  p-efficiency: 0.85
+  p-friction: 0.3
+  p-skill-candidate: 0.4
+  spore: none
+  receipt-refs: 2026-10-03T10:02:54Z, 2026-10-03T10:04:44Z
+  note: Writer authorization alone does not establish independence from the finding opener; test every marker format at the shared per-item law and preserve native review-state supersession as a distinct operation.

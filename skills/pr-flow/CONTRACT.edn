@@ -26,7 +26,7 @@
     (configuration-boundary "Only consumed flow/defaults configure the CLI. Fixed P0/P1 and merge-default behavior, intended invitations and the emitted github-approved/explicit-review-verdict/explicit-issue-verdict channel names are documented as non-executable notes; invitation intent is not dispatch or availability evidence.")
     (card-authority "Card status moves only through Rheos; flow states only name the expected transition.")
     (settle-before-resolve "Every review thread gets a Fixed|Handled|Deferred|Rejected reply before it is resolved.")
-    (settlement-authority "Only repository-writer settlements count; the finding's opener cannot settle their own pushback.")
+    (settlement-authority "Only repository-writer settlements count; the finding's opener cannot settle their own pushback in either threads or review bodies. Review-body settlement requires known, distinct author identities.")
     (review-body-discovery "Every provider and human is included; body-only requests and legacy listed findings have stable whole-review IDs and a verified Fixed settlement path.")
     (snapshot-consistency "Approval evidence precedes conversation reads and is rechecked afterward; gate application refreshes evidence immediately before the guarded merge.")
     (blockers-fixed "P0/P1 findings are fixed; deferral or rejection does not clear them.")

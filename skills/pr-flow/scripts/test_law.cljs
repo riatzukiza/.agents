@@ -126,10 +126,29 @@
                           (update (thread "P1: bug" "Fixed in abc: regression passes") :comments conj
                                   {:author "coderabbitai[bot]" :body reply})))))))
 
+(deftest body-findings-cannot-be-settled-by-their-own-opener
+  (doseq [[state body marker verb]
+          [["CHANGES_REQUESTED" "P1: authorization bypass" "review-body:404" "Fixed"]
+           ["COMMENTED" "Outside diff range comments (1): legacy finding" "review-body:404" "Fixed"]
+           ["COMMENTED" "<summary><em>🟠 Major</em> · Bug · <code>x:1</code></summary><!-- cr-comment:v1:abc123 -->" "cr-comment:v1:abc123" "Fixed"]
+           ["COMMENTED" "Nitpick comments (1)<!-- cr-comment:v1:abc123 -->" "cr-comment:v1:abc123" "Fixed"]
+           ["COMMENTED" "<summary><em>🟡 Minor</em> · Follow-up · <code>x:1</code></summary><!-- cr-comment:v1:abc123 -->" "cr-comment:v1:abc123" "Deferred"]]]
+    (let [review {:id 404 :user {:login "human-reviewer" :type "User"} :state state :body body
+                  :submitted_at "2026-10-03T01:00:00Z"}
+          answer {:user {:login "different-writer" :type "User"} :created_at "2026-10-03T01:01:00Z"
+                  :body (str "Handled: review-id:404\n- " verb " " marker ": verified outcome")}
+          count-with #(law/unanswered-review-count [review] [%])]
+      (is (= 0 (count-with answer)))
+      (is (= 1 (count-with (assoc-in answer [:user :login] "human-reviewer"))))
+      (is (= 1 (count-with (assoc-in answer [:user :login] "HUMAN-REVIEWER"))))
+      (is (= 1 (count-with (dissoc answer :user))))
+      (is (= 1 (law/unanswered-review-count [(dissoc review :user)] [answer]))))))
+
 (deftest opaque-review-body-has-a-real-settlement-path
-  (let [r {:id 303 :state "CHANGES_REQUESTED" :body "P1: denied authorization is ignored"
+  (let [r {:id 303 :user {:login "human-reviewer" :type "User"}
+           :state "CHANGES_REQUESTED" :body "P1: denied authorization is ignored"
            :submitted_at "2026-10-03T01:00:00Z"}
-        answer {:created_at "2026-10-03T01:01:00Z"
+        answer {:user {:login "different-writer" :type "User"} :created_at "2026-10-03T01:01:00Z"
                 :body "Handled: review-id:303\n- Fixed review-body:303: repaired authorization, regression passes"}]
     (is (= 1 (law/unanswered-review-count [r] [])))
     (is (= 0 (law/unanswered-review-count [r] [answer])))
@@ -142,8 +161,8 @@
                   "details <!-- cr-comment:v1:abc123 -->"
                   "<summary><em>🟡 Minor</em> · May defer · <code>x:2</code></summary>"
                   "details <!-- cr-comment:v1:def456 -->")
-        review {:id 101 :submitted_at "2026-10-01T00:00:00Z" :body body}
-        answer {:created_at "2026-10-01T00:01:00Z"
+        review {:id 101 :user {:login "coderabbitai[bot]" :type "Bot"} :submitted_at "2026-10-01T00:00:00Z" :body body}
+        answer {:user {:login "different-writer" :type "User"} :created_at "2026-10-01T00:01:00Z"
                 :body "Handled: review-id:101\n- Fixed cr-comment:v1:abc123: corrected\n- Deferred cr-comment:v1:def456: card 2"}]
     (is (= 2 (count (law/review-body-findings body))))
     (is (= 0 (law/unanswered-review-count [review] [answer])))
@@ -158,8 +177,8 @@
 
 (deftest nitpick-without-item-banner-fails-closed
   (let [body "<summary>🧹 Nitpick comments (1)</summary>text <!-- cr-comment:v1:xyz789 -->"
-        review {:id 202 :submitted_at "2026-10-01T00:00:00Z" :body body}
-        deferred {:created_at "2026-10-01T00:01:00Z" :body "Handled: review-id:202\n- Deferred cr-comment:v1:xyz789: later"}
+        review {:id 202 :user {:login "coderabbitai[bot]" :type "Bot"} :submitted_at "2026-10-01T00:00:00Z" :body body}
+        deferred {:user {:login "different-writer" :type "User"} :created_at "2026-10-01T00:01:00Z" :body "Handled: review-id:202\n- Deferred cr-comment:v1:xyz789: later"}
         fixed (assoc deferred :body "Handled: review-id:202\n- Fixed cr-comment:v1:xyz789: corrected")]
     (is (= 1 (law/unanswered-review-count [review] [deferred])))
     (is (= 0 (law/unanswered-review-count [review] [fixed])))))
