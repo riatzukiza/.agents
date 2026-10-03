@@ -810,10 +810,10 @@
     :absent))
 
 (defn check-summary
-  "Counts of non-CodeRabbit checks by bucket."
+  "Count every supplied obligation by native state bucket. merge-gate filters
+   optional provider outputs before calling this counter; names waive nothing."
   [checks]
   (->> checks
-       (remove #(re-find #"(?i)coderabbit" (str (:name %))))
        (map (fn [{:keys [state]}]
               (case (str/lower-case (str state))
                 ("pass" "success" "neutral") :pass

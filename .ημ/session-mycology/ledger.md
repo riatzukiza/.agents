@@ -162,3 +162,11 @@
 - Lesson: optional model output classification needs exact native job/workflow pairs; protected contexts and native approval identity remain separate authorities. Verify neighboring evidence/compiler/test jobs and required versions in the same regression fixture.
 - Evidence: frozen-base RED17 policy failures and4 CLI failures; GREEN109 tests1347 assertions, lint0/0. Full9ee ledger prefixes preserved.
 - Boundary: unrelated existing CodeRabbit-name counting gap is reproduced for parent, without changing requiredness/convergence/scope law or claiming qualification of ambiguous native review coverage. Local commit only; parent owns publication and external actions.
+
+## 2026-10-03T13:56:50.415593+00:00 — count prefiltered obligations without name exclusions
+
+- Receipt origin: `pr-flow-required-coderabbit-check-accounting`; parent `611f70a7c0e31a76d892952cd6459018f31c6477`.
+- Scores: p-efficiency=0.88, p-friction=0.25, p-skill-candidate=0.40. No spore incubated or promoted.
+- Lesson: provider classification belongs before obligation counting. Repeating a name-based exclusion inside the counter can silently erase a required native workflow outcome. Test exact optional provider, required/mandatory provider, and neighboring deterministic names separately.
+- Evidence: RED104 pure and15 CLI failures; GREEN112 tests1744 assertions,lint0/0,lawful flow. Original unsafe pass is now blocked. Three earlier full ledger prefixes and ordinary local commits preserved.
+- Boundary: authorized minimal P1 repair removes one redundant substring filter; no requiredness,min/quorum/cohort,scope or convergence policy change and no external actions. Parent owns publication and native qualification.

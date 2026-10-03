@@ -136,6 +136,31 @@
         (is (= 2 (:exit blocked)))
         (is (empty? (writes blocked "merge")))))))
 
+(deftest cli-native-required-review-gate-counts-every-nonpassing-outcome
+  (let [native (js->clj (js/JSON.parse (fs/readFileSync
+                                      (path/join here "fixtures" "native-reviewer-checks.json") "utf8"))
+                       :keywordize-keys true)
+        config (assoc base :checks (vec (:required_checks native)))
+        gate-index (first (keep-indexed #(when (= "coderabbit-review-gate" (:name %2)) %1) (:checks config)))
+        passed (execute config "gate" "owner/repo" "450" "--apply")]
+    (is (= 0 (:exit passed)))
+    (is (= 1 (count (writes passed "merge"))))
+    (doseq [[state bucket] [["FAILURE" "fail"] ["PENDING" "pending"]
+                            ["SKIPPED" "skip"] ["CANCELLED" "skip"]]]
+      (let [blocked (execute (assoc-in config [:checks gate-index :state] state)
+                             "gate" "owner/repo" "450" "--apply")]
+        (is (= 2 (:exit blocked)) (str (:out blocked) (:err blocked)))
+        (is (str/includes? (:out blocked) (str ":" bucket " 1")))
+        (is (empty? (writes blocked "merge")))))
+    (doseq [[name required?] [["CodeRabbit" true] ["Required / CodeRabbit" false]
+                              ["CodeRabbit / laws" false]]]
+      (let [blocked (execute (assoc config :checks [{:name name :workflow "eta-mu-review-gate"
+                                                     :state "FAILURE" :required required?}])
+                             "gate" "owner/repo" "450" "--apply")]
+        (is (= 2 (:exit blocked)))
+        (is (str/includes? (:out blocked) ":fail 1"))
+        (is (empty? (writes blocked "merge")))))))
+
 (deftest cli-formal-approval-with-admitted-partial-scope-stays-blocked
   (let [partial (assoc approval :body (str "The staged diff was truncated at 31 of 85 files; "
                                           "the truncated tail was bound to deterministic gates rather than exhaustively read.\nConfirmed findings: none."))

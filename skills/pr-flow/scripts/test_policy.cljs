@@ -85,13 +85,41 @@
                                   (update check :name #(str "Required / " %))])
                                (:reviewer_outputs native-checks)))]
     (is (nil? (law/reviewer-check check)))
-    ;; CodeRabbit-named deterministic rows expose a separate base9ee counting
-    ;; gap in check-summary. Keep their classification control; do not change
-    ;; that law in this tuple-only repair. The handoff records its reproduction.
-    (when-not (= "coderabbit-review-gate" (:name check))
-      (doseq [state ["FAILURE" "IN_PROGRESS"]]
-        (is (not (:pass? (law/merge-gate
-                         (update baseline :checks conj (assoc (check-row check) :state state))))))))))
+    (doseq [state ["FAILURE" "IN_PROGRESS"]]
+      (is (not (:pass? (law/merge-gate
+                       (update baseline :checks conj (assoc (check-row check) :state state)))))))))
+
+(def native-state-buckets [["FAILURE" :fail] ["PENDING" :pending] ["IN_PROGRESS" :pending]
+                          ["SKIPPED" :skip] ["CANCELLED" :skip] ["SUCCESS" :pass]])
+
+(deftest deterministic-check-names-never-suppress-native-outcomes
+  (doseq [check (concat (:deterministic_checks native-checks) (:required_checks native-checks)
+                       (for [name ["CodeRabbit gate" "required / CodeRabbit" "CodeRabbit / lint"
+                                   "coderabbit" "CodeRabbit " "unknown-context"]]
+                         {:name name :workflow "eta-mu-review-gate"}))
+          [state bucket] native-state-buckets]
+    (let [row (assoc (check-row check) :state state)
+          gate (law/merge-gate (assoc baseline :checks [row]))]
+      (is (nil? (law/reviewer-check row)))
+      (is (= {bucket 1} (law/check-summary [row])))
+      (is (= {bucket 1} (:checks gate)))
+      (when (or (:required? row) (#{:fail :pending} bucket))
+        (is (= (= :pass bucket) (:pass? gate)))))))
+
+(deftest exact-coderabbit-provider-is-optional-only-outside-obligations
+  (doseq [[state bucket] native-state-buckets]
+    (let [row {:name "CodeRabbit" :state state :required? false}
+          optional (law/merge-gate (assoc baseline :checks [row]))
+          required (law/merge-gate (assoc baseline :checks [(assoc row :required? true)]))
+          mandatory (law/merge-gate (assoc baseline :checks [row]
+                                         :required-reviewers #{"coderabbit"}
+                                         :approved-heads {"coderabbit" #{head} "mimo" #{head}}))]
+      (is (= "coderabbit" (law/reviewer-check row)))
+      (is (:pass? optional))
+      (is (= {} (:checks optional)))
+      (doseq [gate [required mandatory]]
+        (is (= {bucket 1} (:checks gate)))
+        (is (= (= :pass bucket) (:pass? gate)))))))
 
 (deftest output-names-never-authenticate-generic-actions-reviewers
   (doseq [{:keys [check]} (:reviewer_outputs native-checks)]
