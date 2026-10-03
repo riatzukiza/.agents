@@ -28,6 +28,7 @@
             ["path" :as path]
             ["crypto" :as crypto]
             [clojure.edn :as edn]
+            [edamame.core :as edamame]
             [nbb.core :refer [*file*]]
             [clojure.string :as str]
             [pr-flow.flow :as flow]
@@ -102,13 +103,23 @@
 
 (defn- actionability-ledger [] (path/resolve here ".." ".." ".." ".ημ" "receipts.edn"))
 (defn- actionability-observations []
-  (let [file (actionability-ledger)]
-    (if-not (fs/existsSync file) []
-      (vec (mapcat (fn [line]
-                     (let [receipt (edn/read-string line)]
-                       (when (= "pr-flow-actionability-observation" (:origin receipt))
-                         (filter #(= :thread-actionability (:purpose %)) (:decisions receipt)))))
-                   (remove str/blank? (str/split-lines (fs/readFileSync file "utf8"))))))))
+  ;; nil is unavailable, distinct from an existing valid empty ledger ([]).
+  ;; Read every complete record before using any history; never skip bad lines.
+  (try
+    (let [file (actionability-ledger)]
+      (when (fs/existsSync file)
+        (vec (mapcat (fn [line]
+                       (let [forms (edamame/parse-string-all line)
+                             receipt (first forms)]
+                         (when-not (and (= 1 (count forms)) (map? receipt))
+                           (throw (ex-info "Invalid receipt record" {})))
+                         (when (= "pr-flow-actionability-observation" (:origin receipt))
+                           (when-not (and (vector? (:decisions receipt))
+                                          (every? #(and (map? %) (= :thread-actionability (:purpose %))) (:decisions receipt)))
+                             (throw (ex-info "Invalid actionability observation record" {})))
+                           (:decisions receipt))))
+                     (remove str/blank? (str/split-lines (fs/readFileSync file "utf8")))))))
+    (catch :default _ nil)))
 (defn- append-actionability-observations! [observations]
   (when (seq observations)
     (let [file (actionability-ledger)]
@@ -194,9 +205,10 @@
                                                   (get-in t [:comments :nodes]))}))) acc)
                 observations (vec (distinct (mapcat #(get-in % [:actionability :observations]) threads)))
                 _ (append-actionability-observations! observations)
-                history (into history observations)]
+                history (when (some? history) (into history observations))]
            {:draft? (if (nil? draft?) (:isDraft pr) draft?)
            :head (:headRefOid pr) :pr-author (get-in pr [:author :login])
+           :actionability-history-available? (some? history)
            :incomplete? (boolean (some #(get-in % [:comments :pageInfo :hasNextPage]) acc))
            ;; Normalize our own append before snapshot comparison. Native raw
            ;; records remain unchanged; a subsequent actual mutation still blocks.
@@ -377,6 +389,8 @@
         gate (if changed? (-> gate (assoc :pass? false)
                               (update :reasons conj "Review evidence changed while collecting conversations; re-evaluate")) gate)]
     (println (str repo "#" n (when draft? "  [draft]") "  head " (subs (:head heads) 0 7)))
+    (when-not (:actionability-history-available? thread-snapshot)
+      (println "  actionability history: UNAVAILABLE; threads retain finding obligations"))
     (println (str "  coderabbit: " (name (:coderabbit gate)) "   checks: " (pr-str (:checks gate))))
     (println (str "  threads: " (count threads) " total, " (count (remove :resolved? threads)) " unresolved; by severity "
                   (pr-str (frequencies (map :severity (filter law/finding-obligation? (remove :resolved? threads)))))

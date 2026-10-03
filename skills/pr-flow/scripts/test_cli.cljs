@@ -60,9 +60,13 @@
         (fs/writeFileSync (path/join scripts ".." "flow.edn") (pr-str flow-data))
         (fs/mkdirSync (path/join tmp ".ημ") #js {:recursive true})
         (fs/writeFileSync (path/join tmp ".ημ" "receipts.edn")
-                          (if (seq (:receipt-history config))
-                            (str (str/join "\n" (map pr-str (:receipt-history config))) "\n") ""))
+                          (or (:receipt-text config)
+                              (if (seq (:receipt-history config))
+                                (str (str/join "\n" (map pr-str (:receipt-history config))) "\n") "")))
         (when (:no-receipt-ledger config) (fs/unlinkSync (path/join tmp ".ημ" "receipts.edn")))
+        (when (:receipt-directory config)
+          (fs/unlinkSync (path/join tmp ".ημ" "receipts.edn"))
+          (fs/mkdirSync (path/join tmp ".ημ" "receipts.edn")))
         (when (:baseline-source config)
           (doseq [relative ["pr.cljs" "pr_flow/law.cljc" "pr_flow/flow.cljc"]]
             (let [source (cp/spawnSync "git" #js ["show" (str "9ee8831ffe001b025d425a239a2d30e95378ea6a:skills/pr-flow/scripts/" relative)]
@@ -78,7 +82,8 @@
                     (mapv #(js->clj (js/JSON.parse %) :keywordize-keys true)
                           (remove str/blank? (str/split-lines (fs/readFileSync calls-path "utf8")))) [])]
         {:exit (.-status r) :out (str (.-stdout r)) :err (str (.-stderr r)) :calls calls
-         :receipts (when (fs/existsSync (path/join tmp ".ημ" "receipts.edn"))
+         :receipts (when (and (fs/existsSync (path/join tmp ".ημ" "receipts.edn"))
+                             (.isFile (fs/statSync (path/join tmp ".ημ" "receipts.edn"))))
                      (fs/readFileSync (path/join tmp ".ημ" "receipts.edn") "utf8"))})
       (finally (fs/rmSync tmp #js {:recursive true :force true})))))
 (defn writes [result verb]
@@ -760,6 +765,68 @@
            :comments (:issue-comments t) :threadPageResponses [(informational-response s)])))
 (defn observation-receipts [r]
   (map edn/read-string (remove str/blank? (str/split-lines (:receipts r "")))))
+
+(deftest unavailable-history-retains-native-evidence-and-blocks-informational-admission
+  (let [s (first informational/captures)
+        t (informational/evidence (informational/input s))
+        accepted (first (:observations (actionability/disposition t)))
+        receipt {:origin "pr-flow-actionability-observation" :decisions [accepted]}
+        healthy (str (pr-str receipt) "\n")
+        config (informational-config s)
+        original-root (get-in s [:thread :comments :nodes 0])
+        defect (-> (:thread s)
+                   (assoc :id "PRRT_history_defect" :isResolved false)
+                   (assoc-in [:comments :totalCount] 1)
+                   (assoc-in [:comments :nodes]
+                             [(assoc original-root :body "P1: real reviewer defect remains visible"
+                                     :author {:login "other-reviewer" :__typename "User" :id "U_other" :databaseId 9001})]))
+        response (update-in (informational-response s) [:data :repository :pullRequest :reviewThreads :nodes] conj defect)]
+    (doseq [history [{:receipt-text (str "{broken\n" healthy)}
+                     {:receipt-text (str healthy "{broken\n")}
+                     {:receipt-text (str healthy "nil\n")}
+                     {:receipt-text (str healthy "{:origin \"pr-flow-actionability-observation\" :decisions nil}\n")}
+                     {:receipt-text (str healthy "{:origin \"other\"} trailing\n")}
+                     {:no-receipt-ledger true} {:receipt-directory true}]]
+      (let [c (merge config history)
+            displayed (assoc c :threadPageResponses [response])
+            status (execute displayed "status" "open-hax/proxx" "445")
+            threads (execute displayed "threads" "open-hax/proxx" "445" "--all")
+            gate (execute c "gate" "open-hax/proxx" "445" "--apply")]
+        (is (= 0 (:exit status)) (str history " " (:err status)))
+        (is (str/includes? (:out status) "threads: 2 total"))
+        (is (str/includes? (:out status) "informational 0"))
+        (is (str/includes? (:out status) "checks: {:pass 1}"))
+        (is (str/includes? (:out status) "actionability history: UNAVAILABLE"))
+        (is (str/includes? (:out status) "gate: BLOCKED"))
+        (is (= 0 (:exit threads)) (:err threads))
+        (is (str/includes? (:out threads) "PRRT_history_defect"))
+        (is (str/includes? (:out threads) "real reviewer defect remains visible"))
+        (is (str/includes? (:out threads) "actionability: finding unavailable"))
+        (is (= 2 (:exit gate)) (str (:err gate) (:out gate)))
+        (is (str/includes? (:out gate) "informational 0"))
+        (doseq [result [status threads gate]]
+          (is (empty? (writes result "merge")))
+          (is (empty? (mutations result)))
+          (is (= (:receipt-text history) (:receipts result)) "Unavailable history must never be rewritten or appended"))))))
+
+(deftest known-empty-and-complete-history-still-admit-healthy-native-evidence
+  (let [s (first informational/captures)
+        t (informational/evidence (informational/input s))
+        accepted (first (:observations (actionability/disposition t)))
+        prefix (str (pr-str {:origin "pr-flow-actionability-observation" :decisions [accepted]}) "\n")
+        tagged "{:origin \"receipt-river\" :captured-at #inst \"2026-10-03T14:00:00.000-00:00\" :id #uuid \"b0bb29f3-56d5-5c7c-9a1e-f4a1989e952f\"}\n"
+        previous-reader (edn/read-string tagged)]
+    (is (inst? (:captured-at previous-reader)))
+    (is (uuid? (:id previous-reader)))
+    (doseq [text ["" prefix (str tagged prefix)]]
+      (let [r (execute (assoc (informational-config s) :receipt-text text)
+                       "gate" "open-hax/proxx" "445" "--apply")]
+        (is (= 0 (:exit r)) (str (:err r) (:out r)))
+        (is (str/includes? (:out r) "informational 1"))
+        (is (= 1 (count (writes r "merge"))))
+        (is (= 1 (count (filter #(= "pr-flow-actionability-observation" (:origin %))
+                               (observation-receipts r)))))
+        (when (seq text) (is (= text (:receipts r)) "Existing healthy observation is not duplicated"))))))
 
 (deftest default-flow-cli-runs-own-a-temporary-observation-ledger
   (let [s (first informational/captures)

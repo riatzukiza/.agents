@@ -221,10 +221,12 @@
                          (let [withdrawn (withdrawn-sources c sources identities)]
                            (when (or (some #{c} scoped) (seq withdrawn))
                              (cond-> c (seq withdrawn) (assoc :withdrawn-source-ids withdrawn))))) issue-comments)
-        times (mapv comment-time comments)]
+        created (fn [c] (timestamp (or (:created-at c) (:created_at c))))
+        times (mapv created comments)]
     (if-not (seq relevant) (vec comments)
-      (when (and (every? some? times) (= times (sort times)) (every? comment-time relevant))
-        (vec (sort-by comment-time
+      (when (and (every? some? times) (= times (sort times))
+                 (every? comment-time comments) (every? comment-time relevant))
+        (vec (sort-by created
                       (concat comments (map #(assoc % :author (or (:author %) (get-in % [:user :login]))) relevant))))))))
 
 (defn- rejection-evidence

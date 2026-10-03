@@ -119,6 +119,38 @@
                              #(vec [(first %) (second %) (assoc proposal :created-at "2026-10-03T11:37:30Z") (last %)])))))
   (is (not (approved? (assoc input :comments [(first (:comments input)) settlement proposal])))))
 
+(deftest root-edits-do-not-reorder-native-rejection-evidence
+  ;; CodeRabbit review5402437665/comment4174571185: a later root edit
+  ;; changes metadata, not the native order or identity of the thread opener.
+  (doseq [edited ["2026-10-03T11:37:30Z" "2026-10-03T11:39:00Z"]]
+    (let [result (law/classify-thread (assoc-in input [:comments 0 :updated-at] edited))]
+      (is (:settled? result))
+      (is (:rejection-approved? result))
+      (is (= (:author (first (:comments input))) (:reviewer result)))
+      (is (= (:id agreement) (:rejection-source-id result)))
+      (is (= :github-issue-comment (:rejection-channel result))))))
+
+(deftest creation-order-preserves-proposal-and-agreement-edit-guards
+  (let [root-edited (assoc-in input [:comments 0 :updated-at] "2026-10-03T11:40:00Z")]
+    (is (approved? (assoc-in root-edited [:comments 1 :updated-at] "2026-10-03T11:36:00Z")))
+    (is (approved? (assoc-in root-edited [:issue-comments 0 :updated_at] "2026-10-03T11:37:30Z")))
+    (doseq [thread [(assoc-in root-edited [:comments 1 :updated-at] "2026-10-03T11:37:30Z")
+                    (assoc-in root-edited [:issue-comments 0 :updated_at] "2026-10-03T11:39:00Z")
+                    (assoc-in root-edited [:comments 1 :updated-at] "not-a-timestamp")
+                    (assoc-in root-edited [:comments 2 :updated-at] "not-a-timestamp")]]
+      (let [result (law/classify-thread thread)]
+        (is (not (:rejection-approved? result)))
+        (is (not (:settled? result)))))))
+
+(deftest native-evidence-needs-valid-creation-times
+  (doseq [location [[:comments 0 :created-at] [:comments 1 :created-at] [:comments 2 :created-at]
+                    [:issue-comments 0 :created_at]]
+          created [nil "" "not-a-timestamp" "2026-10-03T11:37:18"]]
+    (is (not (approved? (assoc-in input location created)))))
+  (doseq [[collection index field] [[:comments 0 :created-at] [:comments 1 :created-at]
+                                    [:comments 2 :created-at] [:issue-comments 0 :created_at]]]
+    (is (not (approved? (update-in input [collection index] dissoc field))))))
+
 (deftest real-later-pushback-still-blocks-the-supported-rejection
   (let [negative {:author "github-actions" :body "This still reproduces; the rejection is not correct."
                   :created-at "2026-10-03T11:37:30Z"}

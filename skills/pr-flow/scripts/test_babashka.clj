@@ -8,6 +8,10 @@
   (doseq [comment [{:body nil} {}]]
     (testing (str "issue comment " (pr-str comment))
       (is (= {:kind :finding :status :absent :observations []}
+             (select-keys (actionability/disposition {:issue-comments [comment]
+                                                     :actionability-observations []})
+                          [:kind :status :observations])))
+      (is (= {:kind :finding :status :unavailable :observations []}
              (select-keys (actionability/disposition {:issue-comments [comment]})
                           [:kind :status :observations]))))))
 

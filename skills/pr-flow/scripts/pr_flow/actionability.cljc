@@ -125,6 +125,8 @@
    binding qualify informational status; supplied classification flags do not.
    Observations are immutable facts for Receipt River, not GitHub settlements."
   [{:keys [issue-comments actionability-policy actionability-observations actionability-source-withdrawals] :as t}]
+  (if-not (vector? actionability-observations)
+    {:kind :finding :status :unavailable :context-digest (:context-digest t) :observations []}
   (let [records (keep protocol issue-comments)
         scoped (filter #(scoped? % t) records)
         proposals (sort-by #(get-in % [:source :updated_at])
@@ -201,6 +203,6 @@
      :channel (when (or a (seq lost)) :github-issue-comment)
      :assessment-id (or (:id as) (:assessment-id (first lost))) :proposal-id (:id ps)
      :url (or (:html_url as) (:assessment-url (first lost)))
-     :context-digest (:context-digest t) :observations observations}))
+     :context-digest (:context-digest t) :observations observations})))
 
 (defn finding-obligation? [t] (not= :informational (:kind (disposition t))))

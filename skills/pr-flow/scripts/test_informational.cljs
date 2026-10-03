@@ -33,7 +33,7 @@
     {:id (get-in s [:thread :id]) :head (get-in s [:pr :headRefOid])
      :pr-author (get-in s [:pr :author :login]) :resolved? (get-in s [:thread :isResolved])
      :root-comment-id (:databaseId (first nodes))
-     :actionability-policy policy :native-context s
+     :actionability-policy policy :actionability-observations [] :native-context s
      :context-manifest (manifest s) :context-digest (sha (pr-str (manifest s)))
      :comments (mapv (fn [c] {:id (:databaseId c) :author (get-in c [:author :login])
                              :user {:login (get-in c [:author :login]) :type (get-in c [:author :__typename])}
@@ -62,6 +62,24 @@
   (law/merge-gate {:threads [t] :head (:head t) :snapshot-head (:head t)
                    :approved-heads {"mimo" #{(:head t)}} :rounds 5 :review-participants #{"mimo"}
                    :checks [{:name "laws" :state "SUCCESS"}]}))
+
+(deftest unavailable-history-never-admits-or-emits-partial-observations
+  (doseq [s captures]
+    (let [t (evidence (input s)) accepted (first (:observations (actionability/disposition t)))]
+      (doseq [history [nil]]
+        (let [bad (assoc t :actionability-observations history)
+              d (actionability/disposition bad)]
+          (is (= :finding (:kind d)))
+          (is (= :unavailable (:status d)))
+          (is (empty? (:observations d)))
+          (is (not (:pass? (gate (law/classify-thread bad)))))))
+      (let [missing (dissoc t :actionability-observations)]
+        (is (= :unavailable (:status (actionability/disposition missing))))
+        (is (empty? (:observations (actionability/disposition missing)))))
+      (doseq [history [[] [accepted]]]
+        (let [healthy (assoc t :actionability-observations history)]
+          (is (= :informational (:kind (actionability/disposition healthy))))
+          (is (:pass? (gate (law/classify-thread healthy)))))))))
 
 (deftest current-native-walkthrough-needs-independent-evidence
   (doseq [s captures]
@@ -352,7 +370,7 @@
 (deftest nil-issue-body-defaults-to-finding-without-hiding-malformed-native-headers
   (let [evaluate (fn [t] (try (actionability/disposition t) (catch :default _ ::threw)))]
     (doseq [comment [{:body nil} {}]]
-      (let [result (evaluate {:issue-comments [comment]})]
+      (let [result (evaluate {:issue-comments [comment] :actionability-observations []})]
         (is (= :finding (:kind result)))
         (is (= :absent (:status result)))
         (is (empty? (:observations result)))))
