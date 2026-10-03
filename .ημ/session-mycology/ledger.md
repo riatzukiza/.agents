@@ -154,3 +154,12 @@
   spore: none
   receipt-refs: pr-flow-native-issue-agreement
   note: Adapt authenticated source records at the CLI boundary, retain native finding IDs and timestamps, then apply the same proposal/final rejection laws. Creation and edit time differ; generated nested examples and withdrawals must not grant agreement. A completed narrow assessment is separate from a full review, round or approval. Read native reviewer bodies before merging small follow-up fixes; preserve current-head invalidation and historical receipt bytes.
+- ts: 2026-10-03T14:24:19.643159288Z
+  session: /tmp/pr8-rate-limit-repair-20261003
+  task: Repair quota-only PR retry and verified notice classification finding
+  p-efficiency: 0.86
+  p-friction: 0.3
+  p-skill-candidate: 0.3
+  spore: none
+  receipt-refs: pr8-coderabbit-cooldown-retry,pr8-coderabbit-cooldown-repair
+  note: Operational quota replies do not require speculative source edits. Retry once after actual cooldown and inspect the completed native review. Quota notice recognition and duration parsing must share filtered prose, preserving actual quoted notices while excluding quoted code examples. Isolate exact repo, branch and head when shared checkouts contain concurrent work. No spore; the existing review workflow already owns this pattern.
