@@ -21,6 +21,8 @@ fi
 Xvfb "$DISPLAY" -screen 0 1280x800x24 -nolisten tcp >/workspace/.artifacts/xvfb.log 2>&1 &
 xvfb_pid=$!
 cleanup() {
+  # Invoked indirectly by the EXIT/INT/TERM trap.
+  # shellcheck disable=SC2317
   kill "${espanso_pid:-}" "${i3_pid:-}" "${emacs_pid:-}" "$xvfb_pid" 2>/dev/null || true
 }
 trap cleanup EXIT INT TERM
