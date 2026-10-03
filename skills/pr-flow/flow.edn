@@ -13,19 +13,24 @@
  :flow/tier :provisional
  :flow/initial :muse
  :flow/terminal #{:reflected}
+ ;; Only defaults consumed by pr.cljs are executable configuration.
+ ;; Non-executable policy notes (editing these does not configure the CLI):
+ ;; - law/blocking? requires P0/P1 fixes; this rule is not data-configurable.
+ ;; - pr.cljs gate defaults to --method merge; this default lives in the CLI.
+ ;; - Positive evidence channels emitted by law/review-evidence are
+ ;;   :github-approved, :explicit-review-verdict and :explicit-issue-verdict.
+ ;;   These are output names, not an editable channel allowlist here.
+ ;; - CodeRabbit, Codex, MiMo and Kimi are intended invitation targets. The
+ ;;   operator must use their respective request/hosted-workflow surfaces;
+ ;;   this data does not dispatch invitations or prove provider availability.
  :flow/defaults {:review/max-loops 5        ; user-confirmed 2026-10-01
-                 :review/blocking #{:p0 :p1}
-                 ;; Invitations and positive approvals are distinct obligations.
-                 :review/invited #{"coderabbit" "codex" "mimo" "kimi"}
                  :review/approval-quorum 1
-                 :review/approval-evidence #{:github-approved :explicit-passing-verdict}
                  :review/required #{}
                  :review/by-repo-name {}
                  :review/identities {"coderabbit" #{"coderabbitai[bot]"}
                                      "codex" #{"chatgpt-codex-connector[bot]"}
                                      "mimo" #{"eta-mu-ai[bot]"}
-                                     "kimi" #{}}
-                 :merge/method :merge}
+                                     "kimi" #{}}}
 
  :flow/states
  {:muse

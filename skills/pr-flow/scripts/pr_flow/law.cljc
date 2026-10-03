@@ -374,7 +374,7 @@
 (defn cooldown-ms
   "Parse a wait/retry duration from a rate-limit reply, not allowance counts."
   [body]
-  (when-let [[_ duration] (re-find #"(?i)(?:wait|retry(?: again)?(?: in| after)?|try again in|cooldown:?|next included review will be available in)[^0-9]*([^\n.<]+)" (str body))]
+  (when-let [[_ duration] (re-find #"(?i)(?:wait|retry(?: again)?(?: in| after)?|try again in|cooldown:?|next included review (?:will be )?available in)[^0-9]*([^\n.<]+)" (str body))]
     (let [parts (re-seq #"(?i)([0-9]+)\s*(hours?|minutes?|seconds?)" duration)]
       (when (seq parts)
         (reduce + (for [[_ n unit] parts]

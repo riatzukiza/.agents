@@ -64,3 +64,23 @@
   spore: none
   receipt-refs: 2026-10-03T08:41:20Z, 2026-10-03T08:44:34Z
   note: Native approval state cannot repair acknowledged review scope omissions; real payload and isolated auto-merge fixtures distinguish commit identity, completed scope and deterministic gates without demanding exhaustive proof.
+
+- ts: 2026-10-03T09:24:26Z
+  session: pr8-inert-policy-annotations
+  task: Remove misleading executable-default claims without changing gate behavior
+  p-efficiency: 0.9
+  p-friction: 0.2
+  p-skill-candidate: 0.3
+  spore: none
+  receipt-refs: 2026-10-03T09:22:15Z, 2026-10-03T09:24:26Z
+  note: Config-shaped intent without readers creates false operational authority; explicit non-executable notes and parsed-input equivalence establish the smallest truthful repair.
+
+- ts: 2026-10-03T09:29:25Z
+  session: pr8-bounded-policy-and-cooldown-batch
+  task: Include native cooldown wording compatibility before the same bounded push
+  p-efficiency: 0.85
+  p-friction: 0.3
+  p-skill-candidate: 0.4
+  spore: none
+  receipt-refs: 2026-10-03T09:27:26Z, 2026-10-03T09:29:25Z
+  note: Reduce provider warnings to their actual duration line and updated timestamp; generic earlier prose can accidentally hide missing format support, so verify expiry, allowance counts and manual-request constraints separately.

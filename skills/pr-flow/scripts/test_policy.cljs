@@ -200,6 +200,31 @@
                                                               :body "Review limit reached."}])))))
     (is (= :pending (:status (law/request-verdict (assoc input :comments [] :checks [{:name "CodeRabbit" :state "PENDING"}])))))))
 
+(deftest current-included-review-cooldown-uses-the-updated-comment-time
+  ;; Native #125 warning reduced to its actual heading and cooldown line;
+  ;; omit organization links, run metadata and generic prose. Cover both the
+  ;; user's 09:19:47/57-minute observation and the saved 09:22:17/55-minute edit.
+  (doseq [[updated minutes reset] [["2026-10-03T09:19:47Z" 57 "2026-10-03T10:16:47Z"]
+                                  ["2026-10-03T09:22:17Z" 55 "2026-10-03T10:17:17Z"]]]
+    (let [body (str "> ## Review limit reached\n>\n> **Next included review available in " minutes " minutes.**")
+          limit {:user {:login "coderabbitai[bot]" :type "Bot"}
+                 :created_at "2026-10-03T08:00:00Z" :updated_at updated :body body}
+          reset-ms (js/Date.parse reset)
+          input {:head head :reviewer "coderabbit" :comments [limit] :checks []
+                 :rounds 1 :max-loops 5 :identities identities}
+          verdict (law/request-verdict (assoc input :now-ms (dec reset-ms)))]
+      (is (= (* minutes 60000) (law/cooldown-ms body)))
+      (is (= :cooldown (:status verdict)))
+      (is (= reset-ms (:retry-at-ms verdict)))
+      ;; Only eligibility changes at expiry; this pure law never sends a request.
+      (is (= :request (:status (law/request-verdict (assoc input :now-ms reset-ms)))))
+      (is (= :budget-exhausted (:status (law/request-verdict (assoc input :now-ms reset-ms :rounds 5)))))
+      (is (= :pending (:status (law/request-verdict (assoc input :now-ms reset-ms :checks [{:name "CodeRabbit" :state "PENDING"}])))))))
+  (is (= 8000 (law/cooldown-ms "Your next included review will be available in 8 seconds.")))
+  (doseq [body ["Your allowance is 1 review per hour; 0 remain."
+                "Your included PR review attempts over the past 7 days set your current allowance at 5 reviews per hour."]]
+    (is (nil? (law/cooldown-ms body)))))
+
 (deftest completed-unsuccessful-request-can-retry-without-an-unrelated-push
   (let [request {:trusted? true :created_at "2026-10-03T01:00:00Z"
                  :body (str "@coderabbitai full review <!-- pr-flow-review:" head " --> <!-- pr-flow-reviewer:coderabbit -->")}

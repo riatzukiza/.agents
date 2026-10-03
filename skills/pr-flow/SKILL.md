@@ -28,7 +28,22 @@ Still confirm destructive actions: force-push, history rewrite, branch or tag de
 
 ## The graph
 
-`flow.edn` is the source of truth. Run `pr.cljs flow` to print it, or `pr.cljs flow <state>` for one state's skill, exit condition, CLI and next states.
+`flow.edn` is the source of truth for the state graph and consumed CLI defaults.
+Run `pr.cljs flow` to print it, or `pr.cljs flow <state>` for one state's skill,
+exit condition, CLI and next states.
+
+Executable `:flow/defaults` are `:review/max-loops`, `:review/approval-quorum`,
+`:review/required`, `:review/by-repo-name` and `:review/identities`. The mandatory
+P0/P1 fix rule lives in `law/blocking?`; the default merge-commit method lives in
+the CLI. Neither is configured by this data file. Its policy comments are
+non-executable notes. Invitations remain an operator obligation using each
+provider's request or hosted-workflow surface; intent data does not demonstrate
+that invitation infrastructure is running.
+
+Positive `:approval-evidence` records emitted by `law/review-evidence` use
+`:github-approved`, `:explicit-review-verdict` or `:explicit-issue-verdict` as
+their `:channel`. These names describe verified output; they are not an editable
+allowlist in `flow.edn`.
 
 | State | Skill | Leaves when |
 | --- | --- | --- |
