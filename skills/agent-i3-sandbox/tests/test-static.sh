@@ -7,12 +7,12 @@ bash -n scripts/agentctl scripts/agent-entrypoint scripts/smoke-i3 scripts/test-
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 docker compose config >"$tmp/compose.yml"
-if rg -n 'container_name:|image:|/home/err|/tmp/.X11-unix|/run/user|DBUS' docker-compose*.yml scripts; then
+if grep -RnE 'container_name:|image:|/home/err|/tmp/.X11-unix|/run/user|DBUS' docker-compose*.yml scripts; then
   echo 'unexpected global identity or host resource reference' >&2
   exit 1
 fi
-rg -n '^USER agent:agent$' Dockerfile
-rg -n 'TARGETARCH.*amd64|read_only: true|EMACS_DAEMON_NAME|espanso --help' Dockerfile docker-compose.optional.yml scripts
+grep -nE '^USER agent:agent$' Dockerfile
+grep -RnE 'TARGETARCH.*amd64|read_only: true|EMACS_DAEMON_NAME|espanso --help' Dockerfile docker-compose.optional.yml scripts
 [[ -f emacs/init.el && -f spacemacs/private/agent-sandbox/packages.el ]]
 ! grep -Eq '^  - trigger: ":sandbox-unicode-[^"]+"$' espanso/match/base.yml
 grep -Fq ':sandbox-keys' espanso/match/base.yml
