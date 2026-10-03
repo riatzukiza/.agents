@@ -227,6 +227,23 @@
            :rejection-reviewer (:reviewer rejection)
            :rejection-url (:url rejection))))
 
+(defn- explicit-item-priority [banner title]
+  ;; Only the banner and actual title can supply an explicit P-label. Details,
+  ;; quotes and fenced examples in a modern title are not the live finding.
+  (let [prose (reviewer-prose (remove-matches (str title) #"(?is)<details\b[^>]*>.*?</details>"))
+        prose (when-not (re-find #"(?i)</?(?:details|summary|blockquote)\b" (str prose)) prose)
+        text (str banner "\n" prose)]
+    (some (fn [[pattern priority]] (when (re-find pattern text) priority))
+          (take 4 severity-markers))))
+
+(defn- legacy-own-title [prefix prose]
+  ;; The own bold title is the first nonblank line at this item's quote depth.
+  ;; Searching later bold text would promote quoted/generated instructions.
+  (let [line (first (remove #(re-matches #"[ \t]*(?:>[ \t]*)*" %)
+                            (str/split-lines prose)))]
+    (when (and line (str/starts-with? line prefix))
+      (second (re-find #"^\*\*([^*\n]+)\*\*" (subs line (count prefix)))))))
+
 (defn- legacy-body-findings [body]
   ;; Old CodeRabbit items put the banner immediately inside a file's
   ;; summary/blockquote, with the ID after nested generated prompts. Remove
@@ -236,25 +253,32 @@
                             #"(?ms)^([ \t]*(?:>[ \t]?)*)(`{3,}|~{3,})[^\n]*\n.*?^\1\2[ \t]*$")]
     (when-not (re-find #"(?m)^[ \t]*(?:>[ \t]?)*(?:`{3,}|~{3,})" text)
       (mapv
-       (fn [[_ _prefix start end banner prose id]]
-         (let [number #( #?(:clj Long/parseLong :cljs js/parseInt) %)
-               valid-range? (or (nil? end) (<= (number start) (number end)))]
+       (fn [[_ prefix start end banner prose id]]
+         (let [number (fn [s] #?(:clj (Long/parseLong s) :cljs (js/parseInt s 10)))
+               valid-range? (or (nil? end) (<= (number start) (number end)))
+               extra-banner? (some #(and (str/starts-with? % prefix)
+                                         (re-find #"^`[0-9]+(?:-[0-9]+)?`:.*\|" (subs % (count prefix))))
+                                   (str/split-lines prose))
+               banner-priority (get {"🔴 Critical" :p0 "🟠 Major" :p1
+                                     "🟡 Minor" :p2 "🔵 Trivial" :p3} banner)]
            {:id id
-            :severity (if valid-range?
-                        (get {"🔴 Critical" :p0 "🟠 Major" :p1
-                              "🟡 Minor" :p2 "🔵 Trivial" :p3} banner :p1)
+            :severity (if (and valid-range? (not extra-banner?) banner-priority)
+                        (or (explicit-item-priority banner (legacy-own-title prefix prose)) banner-priority)
                         :p1)
             :title (title-of prose)}))
        ;; Same quote prefix on the header, banner, ID and closing boundary;
        ;; never cross a sibling/nested blockquote or another finding marker.
-       (re-seq #"(?m)^([ \t]*(?:>[ \t]?)*)(?:<summary>[^<\n]+</summary><blockquote>)[ \t]*\n(?:\1[ \t]*\n)*\1`([1-9][0-9]{0,8})(?:-([1-9][0-9]{0,8}))?`: _[^_\n]+_ \| _([^_\n]+)_ \| _[^_\n]+_[ \t]*\n((?:(?!</?blockquote>|<!-- cr-comment:v1:)[\s\S])*?)^\1<!-- cr-comment:v1:([a-z0-9]+) -->[ \t]*\n(?:(?!</?blockquote>|<!-- cr-comment:v1:)[\s\S])*?^\1</blockquote></details>" text)))))
+       (re-seq #"(?m)^([ \t]*(?:>[ \t]?)*)(?:<summary>[^<\n]+</summary><blockquote>)[ \t]*\n(?:[ \t]*(?:>[ \t]*)*\n)*\1`([1-9][0-9]{0,8})(?:-([1-9][0-9]{0,8}))?`: _[^_\n]+_ \| _([^_\n]+)_ \| _[^_\n]+_[ \t]*\n((?:(?!</?blockquote>|<!-- cr-comment:v1:)[\s\S])*?)^\1<!-- cr-comment:v1:([a-z0-9]+) -->[ \t]*\n(?:(?!</?blockquote>|<!-- cr-comment:v1:)[\s\S])*?^\1</blockquote></details>" text)))))
 
 (defn review-body-findings
   "Extract each outside-diff or nitpick finding and its stable CodeRabbit ID."
   [body]
   (let [modern (->> (re-seq #"<summary><em>([^<]*)</em> · ([\s\S]*?) · <code>[^<]*</code></summary>[\s\S]*?<!-- cr-comment:v1:([a-z0-9]+) -->" (str body))
                    (mapv (fn [[_ banner title id]]
-                           {:id id :severity (severity banner) :title title})))
+                           (let [priority (severity banner)]
+                             {:id id :severity (if (= :unknown priority) :p1
+                                                 (or (explicit-item-priority banner title) priority))
+                              :title title}))))
         modern-ids (set (map :id modern))
         identified (into modern (remove #(modern-ids (:id %)) (legacy-body-findings body)))
         known (set (map :id identified))

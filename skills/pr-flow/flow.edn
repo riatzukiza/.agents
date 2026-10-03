@@ -30,7 +30,8 @@
                  :review/identities {"coderabbit" #{"coderabbitai[bot]"}
                                      "codex" #{"chatgpt-codex-connector[bot]"}
                                      "mimo" #{"eta-mu-ai[bot]"}
-                                     "kimi" #{}}}
+                                     "kimi" #{}
+                                     "opencode" #{"opencode-agent[bot]"}}}
 
  :flow/states
  {:muse

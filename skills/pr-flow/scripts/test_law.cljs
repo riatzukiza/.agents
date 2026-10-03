@@ -7,6 +7,7 @@
             [clojure.edn :as edn]
             [clojure.string :as str]
             [nbb.core :refer [*file*]]
+            [test-legacy]
             [pr-flow.flow :as flow]
             [pr-flow.law :as law]))
 
@@ -376,6 +377,27 @@
 (def skills-dir (path/join skill-root ".."))
 (def the-flow (edn/read-string (str (fs/readFileSync (path/join skill-root "flow.edn") "utf8"))))
 
+(deftest verified-opencode-identity-is-rejection-only
+  (let [identities (get-in the-flow [:flow/defaults :review/identities])
+        user {:login "opencode-agent[bot]" :type "Bot"}
+        review {:id 9001 :user user :state "APPROVED" :commit_id gate-head
+                :submitted_at "2026-10-03T01:00:00Z" :body "No issues found."}
+        thread (-> (rejection-thread)
+                   (assoc :identities identities)
+                   (assoc-in [:comments 2 :author] (:login user))
+                   (assoc-in [:comments 2 :user] user))]
+    (is (= #{"opencode-agent[bot]"} (get identities "opencode")))
+    (is (= law/default-reviewer-identities
+           (select-keys identities ["coderabbit" "codex" "mimo" "kimi"])))
+    (is (= #{"coderabbit" "codex" "mimo"}
+           (set (for [[provider logins] identities
+                      :when (and (law/eligible-reviewers provider) (seq logins))] provider))))
+    (is (nil? (law/trusted-reviewer review identities)))
+    (is (empty? (:approved-heads (law/review-evidence gate-head [review] [] identities))))
+    (is (empty? (law/completed-review-rounds [review] [] identities)))
+    (is (:settled? (law/classify-thread thread)))
+    (is (= "opencode" (:rejection-reviewer (law/classify-thread thread))))))
+
 (deftest user-quorum-defaults-and-explicit-overrides
   (let [defaults (:flow/defaults the-flow)]
     (is (= #{} (law/required-reviewers-for defaults "open-hax/knoxx" nil)))
@@ -405,4 +427,4 @@
 (defmethod cljs.test/report [:cljs.test/default :end-run-tests] [m]
   (when-not (cljs.test/successful? m) (set! (.-exitCode js/process) 1)))
 
-(run-tests)
+(run-tests 'test-law 'test-legacy)

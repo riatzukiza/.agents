@@ -104,3 +104,23 @@
   spore: none
   receipt-refs: pr-flow-soft-minimum-2026-10-03
   note: Recover current PR worktree before revising an untracked canonical starter; keep global discovery pointers stable and policy in the skill pack. Separate agent review passes from complete rounds, and carry stage, head and source identity into completion evidence. Isolate owned publication when a shared checkout receives concurrent unrelated tests. Existing skills were corrected; no new spore or promotion is warranted.
+
+- ts: 2026-10-03T10:41:20.496593+00:00
+  session: /home/err/spaces/review-repair/agents-legacy-review-severity
+  task: Isolate and verify legacy CodeRabbit per-item severity extraction
+  p-efficiency: 0.82
+  p-friction: 0.7
+  p-skill-candidate: 0.45
+  spore: none
+  receipt-refs: legacy-review-severity-isolated observation and test-run
+  note: Concurrent global policy changed settlement expectations in a shared tree. Reconstruct only owned parser/tests on an immutable base; prove exact IDs and explicit banners before integration, and requalify later under the receiving policy.
+
+- ts: 2026-10-03T11:19:26.147565+00:00
+  session: /home/err/spaces/review-repair/agents-legacy-review-severity
+  task: Verify own-title severity precedence and reject invalid decoded review-thread pages
+  p-efficiency: 0.85
+  p-friction: 0.55
+  p-skill-candidate: 0.45
+  spore: none
+  receipt-refs: legacy-title-priority-and-thread-page-guard observation and test-run
+  note: Test the real executable transport before attributing API error suppression. Then exercise successful decoded null/partial pages separately; guard required evidence without rejecting valid empty pages, and keep priority labels scoped to the actual finding title.

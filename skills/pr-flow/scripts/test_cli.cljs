@@ -338,6 +338,17 @@
         (is (= 1 (:exit blocked)))
         (is (empty? (mutations blocked)))))))
 
+(deftest configured-opencode-corroborates-without-granting-merge-approval
+  (let [thread (assoc-in (rejection-thread head) [:comments :nodes 2 :author :login] "opencode-agent[bot]")
+        accepted (execute (assoc base :threads [thread] :allowMutations true)
+                          "settle" "riatzukiza/.agents" "8" "rejection-thread" rejection-body)
+        approval-only (execute (assoc base :reviews [(assoc-in approval [:user :login] "opencode-agent[bot]")])
+                               "gate" "riatzukiza/.agents" "8" "--apply")]
+    (is (= 0 (:exit accepted)) (:err accepted))
+    (is (= 2 (count (mutations accepted))))
+    (is (= 2 (:exit approval-only)))
+    (is (empty? (writes approval-only "merge")))))
+
 (deftest review-body-rejection-needs-independent-native-agreement
   (let [scope "review-id:20 cr-comment:v1:abc123"
         finding (assoc approval :id 20 :state "COMMENTED" :user {:login "coderabbitai[bot]" :type "Bot"}
@@ -391,6 +402,50 @@
                              (not (some #{"--required"} (:args %)))) (:calls r))]
     (is (= 0 (:exit r)) (:err r))
     (is (= 2 (count polls)))))
+
+(def empty-thread-page
+  {:data {:repository {:pullRequest {:isDraft false :headRefOid head :author {:login "original-author"}
+          :reviewThreads {:pageInfo {:hasNextPage false :endCursor nil} :nodes []}}}}})
+
+(deftest successful-gh-with-invalid-thread-page-cannot-enable-merge
+  (let [pr-path [:data :repository :pullRequest]
+        conn-path (conj pr-path :reviewThreads)
+        thread {:id "t" :isResolved true :comments {:pageInfo {:hasNextPage false} :nodes []}}
+        thread-page (assoc-in empty-thread-page (conj conn-path :nodes) [thread])]
+    (doseq [response [nil {:data nil}
+                       (assoc-in empty-thread-page [:data :repository] nil)
+                       (assoc-in empty-thread-page pr-path nil)
+                       (assoc-in empty-thread-page conn-path nil)
+                       (assoc-in empty-thread-page (conj conn-path :nodes) nil)
+                       (assoc-in empty-thread-page (conj conn-path :pageInfo) nil)
+                       (assoc-in empty-thread-page (conj conn-path :pageInfo :hasNextPage) nil)
+                       (assoc-in empty-thread-page (conj conn-path :pageInfo :hasNextPage) true)
+                       (assoc-in thread-page (conj conn-path :nodes 0 :comments) nil)
+                       (assoc-in thread-page (conj conn-path :nodes 0 :comments :nodes) nil)
+                       (assoc-in thread-page (conj conn-path :nodes 0 :comments :pageInfo) nil)
+                       (assoc empty-thread-page :errors [{:message "partial GraphQL error"}])]]
+      (let [r (execute (assoc base :threadPageResponses [response]) "gate" "riatzukiza/.agents" "8" "--apply")]
+        (is (= 1 (:exit r)) (:err r))
+        (is (str/includes? (:err r) "GraphQL review-thread"))
+        (is (empty? (writes r "merge")))))))
+
+(deftest every-required-thread-page-is-validated
+  (let [more (assoc-in empty-thread-page [:data :repository :pullRequest :reviewThreads :pageInfo]
+                       {:hasNextPage true :endCursor "cursor1"})]
+    (doseq [responses [[more nil] [empty-thread-page nil]]]
+      (let [r (execute (assoc base :threadPageResponses responses) "gate" "riatzukiza/.agents" "8" "--apply")]
+        (is (= 1 (:exit r)) (:err r))
+        (is (empty? (writes r "merge"))))))
+  (let [bad (execute (assoc base :threadPageResponses [nil]) "threads" "riatzukiza/.agents" "8" "--all")
+        empty (execute (assoc base :threadPageResponses [empty-thread-page]) "gate" "riatzukiza/.agents" "8" "--apply")
+        gh-error (execute (assoc base :threadPageResponses [(assoc empty-thread-page :errors [{:message "GraphQL error"}])]
+                                :threadPageExitCode 1) "gate" "riatzukiza/.agents" "8" "--apply")]
+    (is (= 1 (:exit bad)))
+    (is (= 0 (:exit empty)) (:err empty))
+    (is (= 1 (count (writes empty "merge"))))
+    (is (= 1 (:exit gh-error)))
+    (is (str/includes? (:err gh-error) "fixture GraphQL error reported by gh"))
+    (is (empty? (writes gh-error "merge")))))
 
 (defmethod cljs.test/report [:cljs.test/default :end-run-tests] [m]
   (when-not (cljs.test/successful? m) (set! (.-exitCode js/process) 1)))
