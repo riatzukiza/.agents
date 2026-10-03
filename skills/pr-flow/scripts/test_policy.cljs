@@ -67,6 +67,73 @@
           later (assoc (review "eta-mu-ai[bot]" "CHANGES_REQUESTED" head) :id 2 :submitted_at "2026-10-03T01:01:00Z")]
       (is (empty? (:approved-heads (evidence [approved later])))))))
 
+(def admitted-partial-scope
+  (str "The staged diff was truncated at 31 of 85 files, so line-level review covered the reviewable payload; "
+       "the truncated tail was bound to the exact-head deterministic gates rather than exhaustively read.\n\nConfirmed findings: none."))
+
+(deftest formal-approval-does-not-overrule-an-explicit-incomplete-scope
+  (doseq [provider ["coderabbit" "codex" "mimo" "kimi"]
+          state ["APPROVED" "COMMENTED"]
+          body [admitted-partial-scope "Review incomplete.\nConfirmed findings: none."
+                "Partial review; unreviewed files remain.\nNo issues found."]]
+    (let [r (assoc (review (first (get identities provider)) state head) :body body)
+          evidence (law/review-evidence head [r] [] identities)]
+      (is (empty? (:approved-heads evidence)))
+      ;; A head-bound observation is preserved; it is not full-scope approval.
+      (when (not= "coderabbit" provider)
+        (is (= #{head} (get-in evidence [:reviewed-heads provider]))))
+      (is (= (:id r) (get-in evidence [:incomplete-evidence provider :id])))
+      (is (not (:pass? (law/merge-gate (assoc baseline :approved-heads (:approved-heads evidence))))))))
+  (let [full (review "eta-mu-ai[bot]" "APPROVED" head)
+        partial (assoc full :id 2 :submitted_at "2026-10-03T01:01:00Z" :body admitted-partial-scope)
+        other-provider (review "chatgpt-codex-connector[bot]" "APPROVED" head)
+        evidence (law/review-evidence head [full partial other-provider] [] identities)]
+    (is (nil? (get-in evidence [:approved-heads "mimo"])))
+    (is (= #{head} (get-in evidence [:approved-heads "codex"])))
+    (is (:pass? (law/merge-gate (assoc baseline :approved-heads (:approved-heads evidence))))))
+  (doseq [body ["Approved after reviewing all changed files."
+                "The initial staged diff was truncated. I fetched and reviewed every omitted file; the full changeset is covered."
+                "Approved. This review is not an exhaustive proof of program correctness."
+                "Approved. No unreviewed files remain."
+                "Approved.\n> Review incomplete. Unreviewed files remain."
+                "Approved. Example failed run:\n```text\nReview incomplete. Unreviewed files remain.\n```"]]
+    (is (= #{head} (get-in (law/review-evidence head [(assoc (review "eta-mu-ai[bot]" "APPROVED" head) :body body)] [] identities)
+                           [:approved-heads "mimo"])))))
+
+(deftest native-issue-verdicts-also-require-a-completed-scope
+  (let [marker (str "<!-- final_review_risk_coverage:{\"sourceCommitId\":\"" head
+                    "\",\"coveredCommitId\":\"" head "\",\"kind\":\"reviewed\"} -->")
+        cr {:id 8 :user {:login "coderabbitai[bot]" :type "Bot"} :updated_at "2026-10-03T01:01:00Z"
+            :body (str "<!-- recent_review_start -->\nNo actionable comments were generated in the recent review.\n"
+                       "Reviewing files between " old-head " and " head ".\n<!-- recent_review_end -->\n" marker "\nReview incomplete.")}
+        codex {:id 9 :user {:login "chatgpt-codex-connector[bot]" :type "Bot"} :updated_at "2026-10-03T01:01:00Z"
+               :resolved-commit-id head :body "Codex Review: Didn't find any major issues.\nUnreviewed files remain."}]
+    (doseq [comment [cr codex]]
+      (let [provider (law/trusted-reviewer comment identities)
+            earlier (review (get-in comment [:user :login]) "APPROVED" head)
+            evidence (law/review-evidence head [earlier] [comment] identities)]
+        (is (empty? (:approved-heads evidence)))
+        (is (= (:id comment) (get-in evidence [:incomplete-evidence provider :id])))))))
+
+(deftest incomplete-approval-cannot-supersede-unsettled-change-requests
+  (let [request (assoc (review "reviewer" "CHANGES_REQUESTED" old-head)
+                       :body "P1: reject untrusted credentials before use.")
+        partial (assoc request :id 2 :state "APPROVED" :commit_id head
+                       :submitted_at "2026-10-03T01:01:00Z" :body admitted-partial-scope)
+        full (assoc partial :body "Approved after verifying the repaired credential boundary.")]
+    (is (= [request] (vec (law/outstanding-review-bodies head [request partial]))))
+    (is (empty? (law/outstanding-review-bodies head [request full])))))
+
+(deftest review-scope-is-distinct-from-commit-binding-and-exhaustive-proof
+  (doseq [body ["Review remains incomplete." "Reviewed only 2 of 5 changed files."
+                "Input truncated; the omitted files were not reviewed."
+                "The review was incomplete. No confirmed findings."]]
+    (is (some? (law/incomplete-review-reason body))))
+  (doseq [body ["Reviewed 5 of 5 changed files." "Review finished; no unreviewed files remain."
+                "Diff truncation was repaired by retrieving and reviewing the tail."
+                "Approved.\n<!-- This is an auto-generated comment: tweet message by coderabbit.ai -->\nPartial review\n<!-- end of auto-generated comment: tweet message by coderabbit.ai -->"]]
+    (is (nil? (law/incomplete-review-reason body)))))
+
 (deftest coverage-alone-is-not-a-passing-verdict
   (let [body (str "No actionable comments. <!-- final_review_risk_coverage:{\"sourceCommitId\":\"" head
                   "\",\"coveredCommitId\":\"" head "\",\"kind\":\"reviewed\"} -->")

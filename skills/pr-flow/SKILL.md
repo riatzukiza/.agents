@@ -92,6 +92,16 @@ marker alone is observed coverage only; a completed explicit no-actionable
 verdict with verified current-commit coverage qualifies under the user’s
 October 3 decision. “Full review finished” alone does not qualify and no
 synthetic GitHub APPROVED state is created.
+Commit binding identifies the reviewed revision; it does not prove every
+changed file was available to the reviewer. An explicit admission of incomplete
+review or omitted input disqualifies even a formal `APPROVED` review, and a later
+such verdict revokes that provider's earlier approval on the same head. Passing
+deterministic gates cannot stand in for admitted unreviewed input. Truncation
+repaired by retrieving and reviewing the omitted input remains eligible;
+approval does not require an exhaustive proof of program correctness. Quoted
+examples and generated boilerplate do not supply the current scope verdict.
+The CLI reports incomplete evidence separately from observed commit binding.
+An incomplete approval also cannot supersede an unsettled body change request.
 CodeRabbit and Codex requests use their explicit mention surfaces; MiMo and
 Kimi use configured hosted workflows. All remain invited even after quorum.
 

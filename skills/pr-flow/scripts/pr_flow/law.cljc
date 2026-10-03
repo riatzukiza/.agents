@@ -178,6 +178,8 @@
           [{:id (str (:id review)) :kind :review-body :severity :p1 :title "Whole review body requires a verified fix"}]
           []))))
 
+(declare incomplete-review-reason)
+
 (defn outstanding-review-bodies
   "Discover findings from every provider and human. Body-only change requests
    stay active across pushes until settled or superseded by the same author's
@@ -187,6 +189,8 @@
   (let [superseded? (fn [r]
                       (some #(and (= (get-in r [:user :login]) (get-in % [:user :login]))
                                   (#{"APPROVED" "DISMISSED"} (:state %))
+                                  (or (= "DISMISSED" (:state %))
+                                      (nil? (incomplete-review-reason (:body %))))
                                   (or (= head (:commit_id %)) (= (:commit_id r) (:commit_id %)))
                                   (pos? (compare [(:submitted_at %) (:id %)] [(:submitted_at r) (:id r)]))) reviews))]
     (filter #(or (seq (review-body-findings (:body %)))
@@ -279,9 +283,30 @@
       (recur (str/replace-first prose block ""))
       (when-not (re-find #"(?m)^[ \t]*(?:`{3,}|~{3,})" prose) prose))))
 
+(defn incomplete-review-reason
+  "Commit binding is distinct from completed review scope. Reject an actual
+   admission of unfinished/omitted input, including formal approvals. Quotes
+   and generated examples are not the current verdict; truncation alone does
+   not disqualify a reviewer who retrieved and reviewed the omitted input."
+  [body]
+  (let [prose (reviewer-prose body)]
+    (cond
+      (nil? prose) :ambiguous-prose
+      (re-find #"(?i)\breview (?:is |was |remains )?(?:incomplete|rate limited)\b|\b(?:partial|incomplete) review\b|\b(?:unable to|could not|couldn't|cannot|can't) complete (?:the )?review\b" prose)
+      :incomplete-review
+      (or (re-find #"(?im)(?:^|[.;]\s*)(?:some |the |these )?unreviewed (?:files|changes|input) (?:still )?remain\b" prose)
+          (and (re-find #"(?i)\btruncat(?:ed|ion)\b" prose)
+               (re-find #"(?i)\b(?:rather than|instead of) (?:being )?(?:fully |exhaustively )?(?:read|reviewed)\b|\b(?:tail|omitted (?:files|changes|input)) (?:was |were |is |are )?not (?:read|reviewed)\b" prose))
+          (some (fn [[_ read total]]
+                  (neg? (compare #?(:clj (Long/parseLong read) :cljs (js/parseInt read 10))
+                                 #?(:clj (Long/parseLong total) :cljs (js/parseInt total 10)))))
+                (re-seq #"(?i)\breviewed (?:only )?([0-9]+) of ([0-9]+) (?:changed )?files\b" prose)))
+      :unreviewed-input)))
+
 (defn review-evidence
   "Trust completed explicit verdicts as well as formal approvals, while
-   retaining their distinct channels and immutable commit coverage."
+   retaining their distinct channels and immutable commit binding. Formal
+   APPROVED state cannot override an admitted incomplete review scope."
   [head reviews comments identities]
   (let [trusted (->> reviews
                      (keep (fn [r]
@@ -291,31 +316,35 @@
                                  (assoc r :reviewer p)))))
                      (sort-by (juxt :submitted_at :id)))
         review-verdicts (keep (fn [r]
-                               (cond
+                               (let [incomplete (incomplete-review-reason (:body r))]
+                                 (cond
                                  (#{"CHANGES_REQUESTED" "DISMISSED"} (:state r))
                                  (assoc r :positive? false :channel :github-review)
+                                 (and incomplete (#{"APPROVED" "COMMENTED"} (:state r)))
+                                 (assoc r :positive? false :channel :incomplete-review :incomplete-reason incomplete)
                                  (= "APPROVED" (:state r))
                                  (assoc r :positive? true :channel :github-approved)
                                  (and (= "COMMENTED" (:state r))
-                                      (not (re-find #"(?i)review (?:incomplete|rate limited)|partial review|unreviewed files|unable to complete (?:the )?review" (str (:body r))))
-                                      (re-find #"(?im)^\s*(?:\*\*)?(?:Confirmed findings:\s*none|No confirmed findings|No issues found)(?:\*\*)?\s*(?:[.—-]|$)" (or (verdict-prose (:body r)) "")))
-                                 (assoc r :positive? true :channel :explicit-review-verdict))) trusted)
+                                      (re-find #"(?im)^\s*(?:\*\*)?(?:Confirmed findings:\s*none|No confirmed findings|No issues found)(?:\*\*)?\s*(?:[.—-]|$)" (or (reviewer-prose (:body r)) "")))
+                                 (assoc r :positive? true :channel :explicit-review-verdict)))) trusted)
         comment-verdicts
         (keep (fn [c]
                 (let [p (trusted-reviewer c identities)
                       body (str (:body c))
+                      incomplete (incomplete-review-reason body)
                       recent (second (re-find #"(?s)<!--\s*recent_review_start\s*-->(.*?)<!--\s*recent_review_end\s*-->" body))
                       passing? (case p
                                  "coderabbit" (and ((coderabbit-covered-heads body) head)
                                                    recent (str/includes? recent head)
-                                                   (re-find #"(?m)^No actionable comments were generated in the recent review\." recent))
+                                                   (re-find #"(?m)^No actionable comments were generated in the recent review\." (or (reviewer-prose recent) "")))
                                  "codex" (and (= head (:resolved-commit-id c))
-                                              (re-find #"^Codex Review: Didn't find any major issues\." body))
+                                              (re-find #"^Codex Review: Didn't find any major issues\." (or (reviewer-prose body) "")))
                                  false)]
                   (when (and (valid-head? head) passing?
                              (string? (or (:updated_at c) (:created_at c))))
-                    (assoc c :reviewer p :positive? true :channel :explicit-issue-verdict
-                           :submitted_at (or (:updated_at c) (:created_at c)))))) comments)
+                    (cond-> (assoc c :reviewer p :positive? (nil? incomplete) :channel :explicit-issue-verdict
+                                   :submitted_at (or (:updated_at c) (:created_at c)))
+                      incomplete (assoc :incomplete-reason incomplete))))) comments)
         decisive (reduce (fn [m r] (assoc m (:reviewer r) r)) {}
                          (sort-by (juxt :submitted_at :id) (concat review-verdicts comment-verdicts)))
         approved (into {} (for [[p r] decisive :when (:positive? r)] [p #{head}]))
@@ -330,6 +359,8 @@
                                    ((coderabbit-covered-heads (:body c)) head))
                             (update m "coderabbit" (fnil conj #{}) head) m)) covered comments)]
     {:approved-heads approved :reviewed-heads covered
+     :incomplete-evidence (into {} (for [[p r] decisive :when (:incomplete-reason r)]
+                                    [p {:head head :channel (:channel r) :id (:id r) :reason (:incomplete-reason r)}]))
      :approval-evidence (into {} (for [[p r] decisive :when (:positive? r)]
                                   [p {:head head :channel (:channel r) :id (:id r)}]))}))
 

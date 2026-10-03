@@ -54,3 +54,13 @@
   spore: none
   receipt-refs: 2026-10-03T08:30:02.136260Z
   note: Real provider payloads expose quote and generated-footer traps; paired positive and negative fixtures plus explicit read-before-push checks preserve truthful gate evidence.
+
+- ts: 2026-10-03T08:44:34Z
+  session: pr8-admitted-partial-approval
+  task: Separate exact-commit review binding from admitted incomplete input
+  p-efficiency: 0.85
+  p-friction: 0.4
+  p-skill-candidate: 0.5
+  spore: none
+  receipt-refs: 2026-10-03T08:41:20Z, 2026-10-03T08:44:34Z
+  note: Native approval state cannot repair acknowledged review scope omissions; real payload and isolated auto-merge fixtures distinguish commit identity, completed scope and deterministic gates without demanding exhaustive proof.

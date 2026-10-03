@@ -42,6 +42,16 @@
     (is (str/includes? (:out (execute config "status" "riatzukiza/.agents" "8")) "gate: BLOCKED")))
   (is (str/includes? (:out (execute base "status" "riatzukiza/.agents" "8" "--reviewers" "codex")) "gate: BLOCKED")))
 
+(deftest cli-formal-approval-with-admitted-partial-scope-stays-blocked
+  (let [partial (assoc approval :body (str "The staged diff was truncated at 31 of 85 files; "
+                                          "the truncated tail was bound to deterministic gates rather than exhaustively read.\nConfirmed findings: none."))
+        r (execute (assoc base :reviews [partial]) "gate" "riatzukiza/.agents" "8" "--apply")]
+    (is (= 2 (:exit r)))
+    (is (str/includes? (:out r) "gate: BLOCKED"))
+    (is (str/includes? (:out r) "incomplete review scope:"))
+    (is (str/includes? (:out r) ":unreviewed-input"))
+    (is (empty? (writes r "merge")))))
+
 (deftest cli-head-guard-and-no-bypass
   (let [ok (execute base "gate" "riatzukiza/.agents" "8" "--apply")
         stale (execute (assoc base :heads [head other]) "gate" "riatzukiza/.agents" "8" "--apply")]

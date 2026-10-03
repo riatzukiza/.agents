@@ -133,7 +133,7 @@
       (or (not (str/blank? body)) (#{"APPROVED" "CHANGES_REQUESTED"} state)))))
 
 (defn fetch-heads
-  "Collect hosted GitHub approval and observed coverage as distinct facts."
+  "Collect hosted approval, commit binding and incomplete scope separately."
   [repo n]
   (let [head (str/trim (gh! "pr" "view" (str n) "-R" repo "--json" "headRefOid" "-q" ".headRefOid"))
         reviews (gh-pages (str "repos/" repo "/pulls/" n "/reviews"))
@@ -228,7 +228,9 @@
     (println (str "  coderabbit: " (name (:coderabbit gate)) "   checks: " (pr-str (:checks gate))))
     (println (str "  threads: " (count threads) " total, " (count (remove :resolved? threads)) " unresolved; by severity "
                   (pr-str (frequencies (map :severity (remove :resolved? threads))))))
-    (println (str "  exact-head approvals: " (pr-str (:approving-reviewers gate)) "  observed coverage: " (pr-str (:reviewed-heads heads))))
+    (println (str "  exact-head approvals: " (pr-str (:approving-reviewers gate)) "  observed commit binding: " (pr-str (:reviewed-heads heads))))
+    (when (seq (:incomplete-evidence heads))
+      (println (str "  incomplete review scope: " (pr-str (:incomplete-evidence heads)))))
     (println (str "  gate: " (if (:pass? gate) "PASS" "BLOCKED")))
     (doseq [r (:reasons gate)] (println (str "    - " r)))
     gate))
