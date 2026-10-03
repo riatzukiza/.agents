@@ -86,7 +86,7 @@
 
   :code-review
   {:skill "pr-review-settlement"
-   :doc "Continue review until all findings are settled and at least five review rounds have completed, or configured agents unanimously approve the current head. In the first five rounds prefer verified fixes of every priority; rejection needs detailed evidence and independent non-CodeRabbit agreement."
+   :doc "Continue review until all findings are settled and at least five review rounds have completed, or available agents unanimously approve the current head. In the first five rounds prefer verified fixes of every priority; rejection needs detailed evidence and independent non-CodeRabbit agreement."
    :cli ["pr.cljs request REPO PR code" "pr.cljs wait REPO PR" "pr.cljs threads REPO PR" "pr.cljs settle REPO PR THREAD BODY"]
    :exit "All findings settled and resolved, review-body items answered, and law/loop-verdict converged; at least five completed review rounds or unanimous current-head approval."}
 

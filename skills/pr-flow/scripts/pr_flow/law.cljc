@@ -719,6 +719,14 @@
   (verdict-prose (str/join "\n" (map #(str/replace % #"^[ \t]*(?:>[ \t]*)+" "")
                                      (str/split-lines (str body))))))
 
+(defn- codex-account-quota? [body]
+  (re-find #"(?m)^You have reached your Codex usage limits for code reviews\." (or (quota-prose body) "")))
+
+(defn- quota-notice? [provider body]
+  (let [prose (or (quota-prose body) "")]
+    (or (re-find #"(?im)^[ \t>]*(?:#+[ \t]*)?(?:\*\*)?(?:review limit reached|rate limit (?:reached|exceeded)|review rate[ -]limited|(?:review )?quota (?:reached|exceeded)|your included review limit is currently reached)\b" prose)
+        (and (= "codex" provider) (codex-account-quota? body)))))
+
 (defn full-review?
   "Formal verdicts and recognizable full-review outputs are completions;
    requests, acknowledgements, quoted examples and incomplete scope are not."
@@ -801,26 +809,32 @@
 (defn request-verdict
   "Manual requests reuse pending work and observe actual reviewer cooldowns.
    Completed review rounds are a soft minimum, never a request cap."
-  [{:keys [head reviewer comments checks now-ms identities round]
+  [{:keys [head reviewer comments reviews checks now-ms identities round stage]
     :or {identities default-reviewer-identities}}]
   (let [checks (latest-checks head checks)
         requests (filter #(and (:trusted? %)
                                (str/includes? (str (:body %)) (str "pr-flow-review:" head " -->"))
-                               (or (nil? round) (not (str/includes? (str (:body %)) "pr-flow-round:"))
-                                   (str/includes? (str (:body %)) (str "pr-flow-round:" round " -->")))
                                (or (str/includes? (str (:body %)) (str "pr-flow-reviewer:" reviewer " -->"))
                                    (and (= "coderabbit" reviewer)
                                         (not (str/includes? (str (:body %)) "pr-flow-reviewer:"))
                                         (re-find #"(?i)@coderabbitai (?:full )?review" (str (:body %)))))) comments)
         request (last (sort-by :created_at requests))
+        request-round (some-> (second (re-find #"<!--\s*pr-flow-round:([1-9][0-9]*)\s*-->" (str (:body request))))
+                              #?(:clj Long/parseLong :cljs js/parseInt))
+        request-stage (second (re-find #"<!--\s*pr-flow-stage:(planning|code)\s*-->" (str (:body request))))
+        native-completions (when request
+                             (filter #(and (= head (:commit_id %))
+                                           (= [reviewer :request (:id request) (:created_at request)] (:round-key %)))
+                                     (completed-review-rounds reviews comments identities checks)))
+        native-at (last (sort (keep #(instant-ms (:submitted_at %)) native-completions)))
         replies (filter #(= reviewer (trusted-reviewer % identities)) comments)
-        coverage-at (last (sort (keep #(when (and (= "coderabbit" reviewer)
+        coverage-at (last (sort (cond-> (vec (keep #(when (and (= "coderabbit" reviewer)
                                                  ((coderabbit-covered-heads (:body %)) head))
-                                        (instant-ms (or (:updated_at %) (:created_at %)))) replies)))
+                                        (instant-ms (or (:updated_at %) (:created_at %)))) replies))
+                                 native-at (conj native-at))))
         request-at (instant-ms (:created_at request))
         limit (->> replies
-                   (filter #(re-find #"(?im)^[ \t>]*(?:#+[ \t]*)?(?:\*\*)?(?:review limit reached|rate limit (?:reached|exceeded)|review rate[ -]limited|(?:review )?quota (?:reached|exceeded)|your included review limit is currently reached)\b"
-                                     (or (quota-prose (:body %)) "")))
+                   (filter #(quota-notice? reviewer (:body %)))
                    (filter #(let [at (instant-ms (or (:updated_at %) (:created_at %)))]
                               (or (nil? at)
                                   (and (or (nil? request-at) (>= at request-at))
@@ -833,7 +847,8 @@
                              ((coderabbit-covered-heads (:body %)) head)
                              (or (nil? request)
                                  (not (neg? (compare (or (:updated_at %) (:created_at %) "") (:created_at request)))))) replies)
-        legacy-completed? (and round request covered? (not (str/includes? (str (:body request)) "pr-flow-round:")))
+        completed? (or covered? (seq native-completions))
+        legacy-completed? (and round request completed? (not (str/includes? (str (:body request)) "pr-flow-round:")))
         pending? (some #(and (= reviewer (reviewer-check %))
                             (#{"PENDING" "QUEUED" "IN_PROGRESS"} (str/upper-case (str (:state %))))) checks)
         ended? (some #(and request (= head (:headSha %)) (= reviewer (reviewer-check %))
@@ -846,13 +861,81 @@
       (and retry-at (< now-ms retry-at)) {:status :cooldown :retry-at-ms retry-at}
       pending? {:status :pending}
       legacy-completed? {:status :request}
-      covered? {:status :completed}
+      (and completed? (or (and round request-round (> round request-round))
+                        (and stage request-stage (not= stage request-stage)))) {:status :request}
+      completed? {:status :completed}
       ended? {:status :request}
       ;; An expired quota reply ended that attempt. A later operator may make
       ;; one new manual request; this law never schedules a retry itself.
       (and request (or (nil? limit-at)
                        (<= limit-at (or (instant-ms (:created_at request)) 0)))) {:status :pending}
       :else {:status :request})))
+
+(defn reviewer-availability
+  "Availability is observed separately from approval. Only an authenticated
+   quota reply to a trusted current-head request excludes an optional agent.
+   The observed Codex account-quota format needs no manual request (the App
+   also runs automatically) and survives a head change. Any original request
+   head remains provenance, never review coverage.
+   Pending, absent, failed and incomplete reviews remain obligations; an
+   expired cooldown or newer completed review restores availability. Unknown
+   resets remain explicit until a new request/response observes recovery."
+  [{:keys [head comments reviews checks identities mandatory now-ms]
+    :or {identities default-reviewer-identities mandatory #{}}}]
+  (let [configured (into (set mandatory)
+                         (for [[p logins] identities :when (and (eligible-reviewers p) (seq logins))] p))
+        completed (completed-review-rounds reviews comments identities checks)
+        observations
+        (into {}
+              (for [p configured
+                    :let [request (last (sort-by :created_at
+                                      (filter #(and (:trusted? %)
+                                                    (instant-ms (:created_at %)) (:id %)
+                                                    (re-find #"<!--\s*pr-flow-review:[0-9a-f]{40}\s*-->" (str (:body %)))
+                                                    (str/includes? (str (:body %)) (str "pr-flow-reviewer:" p " -->"))) comments)))
+                          request-head (second (re-find #"<!--\s*pr-flow-review:([0-9a-f]{40})\s*-->" (str (:body request))))
+                          at (instant-ms (:created_at request))
+                          replies (filter #(and (:id %) (= p (trusted-reviewer % identities))
+                                                (instant-ms (:created_at %))
+                                                (or (nil? at) (>= (instant-ms (:created_at %)) at))) comments)
+                          notice (last (sort-by #(or (:updated_at %) (:created_at %))
+                                               (filter #(quota-notice? p (:body %)) replies)))
+                          notice-at (instant-ms (or (:updated_at notice) (:created_at notice)))
+                          account? (and (= "codex" p) (codex-account-quota? (:body notice)))
+                          verdict (request-verdict {:head head :reviewer p :comments (cond-> (vec replies) request (conj request))
+                                                    :checks checks :identities identities :now-ms now-ms})
+                          recovered? (some #(and notice-at (= p (:reviewer %))
+                                                 (or account? (= head (:commit_id %)))
+                                                 (instant-ms (:submitted_at %))
+                                                 (> (instant-ms (:submitted_at %)) notice-at)) completed)
+                          active? (some #(and notice-at (= head (:headSha %)) (= p (reviewer-check %))
+                                              (#{"PENDING" "QUEUED" "IN_PROGRESS"} (str/upper-case (str (:state %))))
+                                              (instant-ms (:startedAt %))
+                                              (> (instant-ms (:startedAt %)) notice-at)) (latest-checks head checks))
+                          unavailable? (and (valid-head? head) (or account? (= head request-head))
+                                            notice-at (or (nil? now-ms) (<= notice-at now-ms))
+                                            (not recovered?) (not active?)
+                                            (#{:cooldown :rate-limited} (:status verdict)))]]
+                [p (cond-> {:available? (not (boolean unavailable?)) :mandatory? (contains? (set mandatory) p)
+                            :status (if unavailable? :quota-unavailable :available)}
+                     unavailable? (assoc :request-id (:id request) :source-id (:id notice)
+                                         :request-head request-head :scope (if account? :account :current-head)
+                                         :head head :observed-at (or (:updated_at notice) (:created_at notice))
+                                         :retry-at-ms (:retry-at-ms verdict)))]))
+        participants (set (for [[p {:keys [available? mandatory?]}] observations :when (or available? mandatory?)] p))]
+    {:review-participants participants :review-availability observations}))
+
+(defn available-review-rounds
+  "Keep historical full-roster rounds intact. A current-head complete pass
+   from every currently available participant supplies at most one cohort;
+   current quota observations never multiply or rewrite historical rounds."
+  [completed markers stage configured participants head]
+  (let [historical (stage-review-rounds completed markers stage configured)
+        current (filter #(and (= head (:commit_id %)) (or (nil? (:stage %)) (= stage (:stage %))))
+                        (stage-reviews completed markers stage))
+        passed (set (map :reviewer current))
+        current-complete? (and (valid-head? head) (seq participants) (every? passed participants))]
+    (max historical (if current-complete? 1 0))))
 
 (defn required-reviewers-for
   "Repository-specific reviewer requirements cannot be removed by a CLI flag."

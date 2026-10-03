@@ -210,3 +210,10 @@
 - Evidence: native CodeRabbit review 5401702068 and four inline IDs; combined GREEN 153 tests / 2,882 assertions; lint 0 errors / 0 warnings. Immutable semantic RED and portable runtime RED are distinct.
 - Lesson: choose the latest genuine proposal attempt before validating its payload, then fail closed. Fixture journals require isolation even with default configuration. Exercise portable Clojure at its actual runtime boundary.
 - Boundary: MiMo 5401804557 admitted 15 unread files; its formal approval cannot replace complete scope. Historical hosted proof and new local preparation remain separate; full earlier ledger bytes retained. No spore incubation, feature installation or reviewer availability exception.
+
+## 2026-10-03T22:37:32.110253+00:00 — available reviewer cohorts
+
+- Efficiency: 0.64; friction: 0.58; skill-candidate: 0.61; spore: none.
+- Evidence: Receipt River entry at 2026-10-03T22:37:32.110253+00:00; independent stage/dedup and Codex renewal reproducers; current native Codex account quota5969231149.
+- Lesson: availability is provider capability evidence, distinct from approval/coverage. Preserve original request scope for account quotas, and never retroactively inflate historical rounds. Cohort floors must respect explicit review stages and cannot defeat request deduplication.
+- Boundary: source uninstalled and informational profile unactivated; hosted current-head CI/full review pending. No automatic paid fallback or provider configuration changes.

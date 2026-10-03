@@ -16,6 +16,7 @@
   (invariants
     (one-active-pr true)
     (reviewer-defaults "pr-flow/flow.edn :flow/defaults :review/by-repo-name; mandatory reviewer sets cannot be removed by --reviewers")
+    (review-cohort "All available agents under pr-flow; authenticated quota evidence never supplies approval, settles findings or waives mandatory reviewers and required checks.")
     (approval-quorum 1)
     (approval-providers ["coderabbit" "codex" "mimo" "kimi"])
     (require-trusted-exact-head-approval-or-verified-passing-verdict true)

@@ -614,6 +614,136 @@
     (is (empty? (law/coderabbit-issue-completion-heads [(assoc request :trusted? false) done] identities)))
     (is (empty? (law/coderabbit-issue-completion-heads [request (assoc-in done [:user :type] "User")] identities)))))
 
+(deftest native-codex-quota-is-unavailability-not-completion
+  (let [request {:id 10 :trusted? true :created_at "2026-10-03T01:00:00Z"
+                 :body (str "@codex review <!-- pr-flow-review:" head
+                            " --> <!-- pr-flow-reviewer:codex -->")}
+        quota {:id 11 :user {:login "chatgpt-codex-connector[bot]" :type "Bot"}
+               :created_at "2026-10-03T01:01:00Z"
+               :body "You have reached your Codex usage limits for code reviews."}
+        input {:head head :reviewer "codex" :comments [request quota]
+               :checks [] :identities identities :now-ms (js/Date.parse "2026-10-03T01:02:00Z")}]
+    (is (= :rate-limited (:status (law/request-verdict input))))
+    (is (empty? (law/completed-review-rounds [] [request quota] identities)))
+    (is (empty? (:approved-heads (law/review-evidence head [] [request quota] identities []))))
+    (doseq [body ["Example: You have reached your Codex usage limits for code reviews."
+                  "```\nYou have reached your Codex usage limits for code reviews.\n```"]]
+      (is (= :pending (:status (law/request-verdict
+                                (assoc input :comments [request (assoc quota :body body)]))))))))
+
+(deftest available-cohort-preserves-mandatory-reviewers-and-native-boundaries
+  (let [request {:id 10 :trusted? true :created_at "2026-10-03T01:00:00Z"
+                 :body (str "@codex review <!-- pr-flow-review:" head
+                            " --> <!-- pr-flow-reviewer:codex -->")}
+        quota {:id 11 :user {:login "chatgpt-codex-connector[bot]" :type "Bot"}
+               :created_at "2026-10-03T01:01:00Z"
+               :body "You have reached your Codex usage limits for code reviews."}
+        roster (dissoc identities "kimi")
+        input {:head head :comments [request quota] :reviews [] :checks []
+               :identities roster :now-ms (js/Date.parse "2026-10-03T01:02:00Z")}
+        available (law/reviewer-availability input)]
+    (is (= #{"coderabbit" "mimo"} (:review-participants available)))
+    (is (= {:available? false :mandatory? false :status :quota-unavailable
+            :request-id 10 :source-id 11 :request-head head :scope :account :head head
+            :observed-at "2026-10-03T01:01:00Z" :retry-at-ms nil}
+           (get-in available [:review-availability "codex"])))
+    (is (= #{"coderabbit" "codex" "mimo"}
+           (:review-participants (law/reviewer-availability (assoc input :mandatory #{"codex"})))))
+    (doseq [comments [[(assoc quota :body "Review limit reached.")] [(assoc request :trusted? false) (assoc quota :body "Review limit reached.")]
+                      [(assoc request :body (str "<!-- pr-flow-review:" old-head " --> <!-- pr-flow-reviewer:codex -->")) (assoc quota :body "Review limit reached.")]
+                      [request (assoc-in quota [:user :type] "User")]
+                      [request (assoc quota :created_at "invalid")]
+                      [request (assoc quota :body "```\nYou have reached your Codex usage limits for code reviews.\n```")]
+                      [request quota (assoc request :id 12 :created_at "2026-10-03T01:02:00Z")]]]
+      (is (= #{"coderabbit" "codex" "mimo"}
+             (:review-participants (law/reviewer-availability (assoc input :comments comments))))))
+    (let [restored (assoc (review "chatgpt-codex-connector[bot]" "APPROVED" head)
+                          :id 12 :submitted_at "2026-10-03T01:02:00Z" :body "Approved")]
+      (is (= #{"coderabbit" "codex" "mimo"}
+             (:review-participants (law/reviewer-availability (assoc input :reviews [restored]))))))
+    (let [notice (assoc quota :body "Review rate limited.\nNext included review available in 20 minutes.")
+          reset (js/Date.parse "2026-10-03T01:21:00Z")]
+      (is (false? (get-in (law/reviewer-availability (assoc input :comments [request notice] :now-ms (dec reset)))
+                         [:review-availability "codex" :available?])))
+      (is (true? (get-in (law/reviewer-availability (assoc input :comments [request notice] :now-ms reset))
+                        [:review-availability "codex" :available?]))))
+    (let [automatic (law/reviewer-availability (assoc input :comments [quota]))]
+      (is (= #{"coderabbit" "mimo"} (:review-participants automatic)))
+      (is (nil? (get-in automatic [:review-availability "codex" :request-id])))
+      (is (= 11 (get-in automatic [:review-availability "codex" :source-id]))))
+    (is (= #{"coderabbit" "codex" "mimo"}
+           (:review-participants (law/reviewer-availability
+                                  (assoc input :now-ms (js/Date.parse "2026-10-03T00:59:00Z"))))))
+    (is (= #{"coderabbit" "codex" "mimo"}
+           (:review-participants (law/reviewer-availability
+                                  (assoc input :checks [{:name "Codex" :state "PENDING" :headSha head
+                                                         :startedAt "2026-10-03T01:02:00Z"}])))))
+    (let [prior-request (assoc request :body (str "<!-- pr-flow-review:" old-head " --> <!-- pr-flow-reviewer:codex -->"))
+          account (law/reviewer-availability (assoc input :comments [prior-request quota]))]
+      (is (= #{"coderabbit" "mimo"} (:review-participants account)))
+      (is (= old-head (get-in account [:review-availability "codex" :request-head])))
+      (is (= :account (get-in account [:review-availability "codex" :scope]))))
+    ;; Failure, skip, pending and incomplete scope cannot invent unavailability.
+    (doseq [state ["FAILURE" "SKIPPED" "PENDING"]]
+      (is (= #{"coderabbit" "codex" "mimo"}
+             (:review-participants (law/reviewer-availability
+                                    (assoc input :comments [request]
+                                           :checks [{:name "Codex" :headSha head :state state}]))))))))
+
+(deftest current-available-pass-does-not-rewrite-historical-rounds
+  (let [configured #{"coderabbit" "codex" "mimo"} available #{"coderabbit" "mimo"}
+        done [{:id 1 :reviewer "coderabbit" :commit_id head :submitted_at "2026-10-03T01:02:00Z"}
+              {:id 2 :reviewer "mimo" :commit_id head :submitted_at "2026-10-03T01:02:01Z"}]
+        rounds #(law/available-review-rounds % [] "code" configured available head)]
+    (is (= 1 (rounds done)))
+    (is (= 0 (rounds [(first done)])))
+    (is (= 0 (rounds (map #(assoc % :commit_id old-head) done))))
+    (is (= 0 (rounds [(assoc (first done) :stage "code")
+                     (assoc (second done) :stage "planning")])))
+    (is (= 1 (rounds (concat done done done done done))))
+    (is (= 0 (law/available-review-rounds done [] "code" configured #{} head)))
+    (is (= 0 (law/available-review-rounds done [{:stage "planning" :created_at "2026-10-03T01:00:00Z"}]
+                                         "code" configured available head)))
+    (is (:pass? (law/merge-gate (assoc baseline :rounds 1 :review-participants available
+                                     :approved-heads {"mimo" #{head} "coderabbit" #{head}}))))
+    (is (not (:pass? (law/merge-gate (assoc baseline :rounds 1 :review-participants available)))))
+    (is (not (:pass? (law/merge-gate (assoc baseline :rounds 1 :review-participants available
+                                          :required-reviewers #{"codex"}
+                                          :approved-heads {"mimo" #{head} "coderabbit" #{head}})))))))
+
+(deftest pending-requests-survive-cohort-and-stage-advancement
+  (let [request {:id 10 :trusted? true :created_at "2026-10-03T01:00:00Z"
+                 :body (str "@coderabbitai full review <!-- pr-flow-review:" head
+                            " --> <!-- pr-flow-reviewer:coderabbit --> <!-- pr-flow-stage:planning --> <!-- pr-flow-round:1 -->")}
+        input {:head head :reviewer "coderabbit" :comments [request] :checks []
+               :identities identities :round 2 :stage "code" :now-ms (js/Date.parse "2026-10-03T01:02:00Z")}
+        coverage {:user {:login "coderabbitai[bot]" :type "Bot"} :created_at "2026-10-03T01:01:00Z"
+                  :body (str "<!-- final_review_risk_coverage: {\"kind\":\"reviewed\",\"sourceCommitId\":\""
+                             head "\",\"coveredCommitId\":\"" head "\"} -->")}]
+    (is (= :pending (:status (law/request-verdict input))))
+    (is (= :pending (:status (law/request-verdict (assoc input :round 1)))))
+    (is (= :request (:status (law/request-verdict (assoc input :comments [request coverage])))))
+    (is (= :request (:status (law/request-verdict (assoc input :round 1 :comments [request coverage])))))
+    (is (= :completed (:status (law/request-verdict (assoc input :round 1 :stage "planning" :comments [request coverage])))))
+    (is (= :pending (:status (law/request-verdict
+                             (assoc input :comments [request coverage] :checks [{:name "CodeRabbit" :state "PENDING"}])))))))
+
+(deftest native-codex-completion-releases-renewal-only-after-its-request
+  (let [request {:id 10 :trusted? true :created_at "2026-10-03T01:00:00Z"
+                 :body (str "@codex review <!-- pr-flow-review:" head
+                            " --> <!-- pr-flow-reviewer:codex --> <!-- pr-flow-stage:planning --> <!-- pr-flow-round:1 -->")}
+        review (assoc (review "chatgpt-codex-connector[bot]" "APPROVED" head)
+                      :id 11 :submitted_at "2026-10-03T01:01:00Z" :body "Review complete.")
+        input {:head head :reviewer "codex" :comments [request] :reviews [review] :checks []
+               :identities identities :round 2 :stage "code" :now-ms (js/Date.parse "2026-10-03T01:02:00Z")}]
+    (is (= :request (:status (law/request-verdict input))))
+    (is (= :completed (:status (law/request-verdict (assoc input :round 1 :stage "planning")))))
+    (doseq [r [(assoc review :commit_id old-head)
+               (assoc review :submitted_at "2026-10-03T00:59:00Z")
+               (assoc review :body "Partial review, omitted files remain unreviewed.")
+               (assoc-in review [:user :type] "User")]]
+      (is (= :pending (:status (law/request-verdict (assoc input :reviews [r]))))))))
+
 (defmethod cljs.test/report [:cljs.test/default :end-run-tests] [m]
   (when-not (cljs.test/successful? m) (set! (.-exitCode js/process) 1)))
 (run-tests)

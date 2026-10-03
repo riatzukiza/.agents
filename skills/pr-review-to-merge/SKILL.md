@@ -66,7 +66,7 @@ receipt location; do not create a competing queue or record credentials.
    reviewer explicitly required by the active repository policy. Reuse an in-flight
    request for the same head; never duplicate it. A request acknowledgment,
    stale review or rate-limit reply is not completion. After each change,
-   keep all reviewers invited for the latest head and relevant base. One eligible approval satisfies the default quorum; explicit mandatory overrides remain all-of. Pending or rate-limited optional reviewers are not marked green and do not replace approval. Follow `pr-review-settlement` for the soft review minimum, unanimous early exit and independently corroborated rejections. Continue beyond five when findings remain.
+   keep all available reviewers invited for the latest head and relevant base. One eligible approval satisfies the default quorum; explicit mandatory overrides remain all-of. Pending or rate-limited optional reviewers are not marked green and do not replace approval. Follow `pr-review-settlement` for the soft review minimum, unanimous early exit and independently corroborated rejections. Continue beyond five when findings remain.
 5. **Resolve verified threads.** Resolve a finding only after the fix and
    relevant checks demonstrate it is addressed, or the reviewer adjudicates
    the documented disagreement. Reply with evidence before resolving. Do not
@@ -96,8 +96,10 @@ receipt location; do not create a competing queue or record credentials.
 
 ## Quotas and continuation
 
-A quota, pending CI run, or unavailable reviewer is a durable wait state, not
-completion. Record its evidence, next eligible retry time, and the next action.
+A quota, pending CI run, or unavailable reviewer is an observed wait state, not
+completion. An optional quota-unavailable agent may leave the current available
+cohort under pr-flow; keep proceeding with available agents while preserving all
+findings, mandatory reviewers and required checks. Record its evidence, next eligible retry time, and the next action.
 Use an available supported continuation mechanism when the user has authorized
 continued work; keep its objective **fix, review, verify, merge, and advance**.
 Never reduce the objective to collecting review comments or reporting status.

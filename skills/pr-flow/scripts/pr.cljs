@@ -328,8 +328,8 @@
     (law/unanswered-review-count flagged comments context)))
 
 (defn review-progress
-  "Completed rounds in the active stage, each covering the configured agents."
-  [repo {:keys [reviews comments completion-checks]} mandatory]
+  "Completed rounds and authenticated current-head agent availability."
+  [repo {:keys [head reviews comments completion-checks checks]} mandatory]
   (let [identities (reviewer-identities)
         authorized? (memoize (partial authorized-author? repo))
         comments (mapv #(assoc % :trusted? (and (str/includes? (str (:body %)) "pr-flow-review:")
@@ -338,15 +338,20 @@
                                (when-let [[_ stage] (re-find #"<!-- pr-flow-stage:(planning|code) -->" (str (:body c)))]
                                  {:stage stage :created_at (:created_at c)}))) comments)
         stage (or (:stage (last (sort-by :created_at markers))) "code")
-        participants (into (set mandatory)
-                           (for [[provider logins] identities
-                                 :when (and (law/eligible-reviewers provider) (seq logins))] provider))
+        configured (into (set mandatory)
+                         (for [[provider logins] identities
+                               :when (and (law/eligible-reviewers provider) (seq logins))] provider))
+        availability (law/reviewer-availability {:head head :comments comments :reviews (filter full-review? reviews)
+                                                :checks (or completion-checks checks) :mandatory (set mandatory)
+                                                :identities identities :now-ms (js/Date.now)})
+        participants (:review-participants availability)
         completed (law/completed-review-rounds (filter full-review? reviews) comments identities completion-checks)
         proven-issue-heads (set (keep #(when (and (= "coderabbit" (:reviewer %)) (= :issue (:round-source %)))
                                         (:commit_id %))
                                      (law/completed-review-rounds [] comments identities completion-checks)))]
-    {:rounds (law/stage-review-rounds completed markers stage participants)
+    {:rounds (law/available-review-rounds completed markers stage configured participants head)
      :review-participants participants :stage stage
+     :review-availability (:review-availability availability)
      :unverified-issue-completion-heads (remove proven-issue-heads (law/coderabbit-issue-completion-heads comments identities))
      :min-review-rounds (get-in (load-flow) [:flow/defaults :review/min-rounds] 5)}))
 
@@ -377,7 +382,10 @@
                                                                 :identities (reviewer-identities)}))
         final-threads (fetch-threads repo n)
         final-snapshot (fetch-heads repo n)
+        final-progress (review-progress repo final-snapshot reviewers)
         changed? (or (not= thread-snapshot final-threads)
+                     (not= (select-keys progress [:rounds :stage :review-participants :review-availability])
+                           (select-keys final-progress [:rounds :stage :review-participants :review-availability]))
                      (not= (select-keys heads [:head :reviews :comments :checks :completion-checks])
                            (select-keys final-snapshot [:head :reviews :comments :checks :completion-checks])))
         gate (assoc (law/merge-gate (merge heads progress
@@ -399,6 +407,12 @@
     (println (str "  completed " (:stage progress) " rounds: " (:rounds progress)
                   " / soft minimum " (:min-review-rounds progress)
                   "  participants: " (pr-str (:review-participants progress))))
+    (doseq [[provider observation] (sort-by key (:review-availability progress))
+            :when (not (:available? observation))]
+      (println (str "  " provider " quota-unavailable: native source " (:source-id observation)
+                    " request " (:request-id observation) " scope " (name (:scope observation)) " observed " (:observed-at observation)
+                    " retry-at-ms " (or (:retry-at-ms observation) "UNKNOWN")
+                    (when (:mandatory? observation) " [mandatory; still required]"))))
     (when (seq (:unverified-issue-completion-heads progress))
       (println (str "  CodeRabbit issue completions without successful exact-commit check evidence: "
                     (pr-str (sort (:unverified-issue-completion-heads progress))))))
@@ -436,8 +450,9 @@
         progress (review-progress repo (assoc heads :comments comments)
                                   (law/required-reviewers-for (:flow/defaults (load-flow)) repo nil))
         rounds (if (= kind (:stage progress)) (:rounds progress) 0)
-        verdict (law/request-verdict {:head head :reviewer reviewer :comments comments :checks (:checks heads)
-                                      :round (inc rounds)
+        verdict (law/request-verdict {:head head :reviewer reviewer :comments comments :reviews (:reviews heads)
+                                      :checks (:checks heads)
+                                      :round (inc rounds) :stage kind
                                       :now-ms (js/Date.now) :identities (reviewer-identities)})
         brief (or (get briefs kind) (throw (ex-info "kind must be planning|code" {:kind kind})))
         brief (if (= reviewer "codex") (str/replace brief "@coderabbitai full review" "@codex review") brief)

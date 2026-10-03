@@ -1,6 +1,6 @@
 ---
 name: pr-review-settlement
-description: The planning and code-review loop of pr-flow. Continue until five full review rounds have completed or configured agents unanimously approve the current head, and every finding is settled. Prefer verified fixes of every priority during the first five rounds. Outright rejection needs detailed reasoning and explicit agreement from an independent agent besides CodeRabbit.
+description: The planning and code-review loop of pr-flow. Continue until five full review rounds have completed or available agents unanimously approve the current head, and every finding is settled. Prefer verified fixes of every priority during the first five rounds. Outright rejection needs detailed reasoning and explicit agreement from an independent agent besides CodeRabbit.
 license: GPL-3.0-or-later
 metadata:
   tier: provisional
@@ -22,18 +22,18 @@ metadata:
 
 Five is a **soft minimum**, never a cap. Continue until at least five completed
 review rounds have been generated in the current planning or code stage,
-**or every configured review agent explicitly approves the current head**.
+**or every available review agent explicitly approves the current head**.
 Every finding must also be settled and required gates must pass. One clean
 first round can finish; zero P0/P1 findings or quorum one alone cannot end an
 earlier round. After five, the default approval quorum remains one, but open
 findings, disputed settlements and required checks still block completion.
 
-Each completed round includes full reviews from every configured agent; several agents in one round count once. Count actual completed rounds, preserving their native IDs. Deduplicate
+Each completed round includes full reviews from every available agent; several agents in one round count once. Count actual completed rounds, preserving their native IDs. Deduplicate
 multiple representations of one requested review. Requests, acknowledgements,
 quota replies, skipped runs and incomplete reviews are not completed passes.
 A new push invalidates approvals; it does not erase completed stage history.
 Planning history does not satisfy the subsequent code-review stage. Missing,
-pending, stale or unavailable reviewers never count as unanimous approval.
+pending or stale approvals never supply unanimity. Authenticated quota-unavailable optional agents are excluded from the current available cohort under pr-flow; they supply no approval or completed review. Mandatory reviewers remain required, and historical findings remain obligations.
 
 ## First five rounds
 
@@ -196,3 +196,5 @@ approval. Required deterministic checks and branch protection remain in force.
 
 One coordinator owns pushes, external review requests and settlement replies,
 even when parallel agents verify or fix findings.
+
+Availability and its native evidence are defined in [pr-flow](../pr-flow/SKILL.md). Invite all available agents. Retain quota/failed/skipped states truthfully, with reset evidence; the current quota exception never settles a finding or waives required CI.

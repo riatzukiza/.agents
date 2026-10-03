@@ -67,9 +67,10 @@
         (when (:receipt-directory config)
           (fs/unlinkSync (path/join tmp ".ημ" "receipts.edn"))
           (fs/mkdirSync (path/join tmp ".ημ" "receipts.edn")))
-        (when (:baseline-source config)
+        (when (or (:baseline-source config) (:baseline-source-ref config))
           (doseq [relative ["pr.cljs" "pr_flow/law.cljc" "pr_flow/flow.cljc"]]
-            (let [source (cp/spawnSync "git" #js ["show" (str "9ee8831ffe001b025d425a239a2d30e95378ea6a:skills/pr-flow/scripts/" relative)]
+            (let [revision (or (:baseline-source-ref config) "9ee8831ffe001b025d425a239a2d30e95378ea6a")
+                  source (cp/spawnSync "git" #js ["show" (str revision ":skills/pr-flow/scripts/" relative)]
                                       #js {:cwd (path/resolve here ".." ".." "..") :encoding "utf8"})]
               (when-not (= 0 (.-status source)) (throw (ex-info "Immutable baseline unavailable" {})))
               (fs/writeFileSync (path/join scripts relative) (.-stdout source))))))
@@ -330,6 +331,59 @@
         (is (= 2 (:exit r)))
         (is (str/includes? (:out r) "completed code rounds: 0"))
         (is (empty? (writes r "merge")))))))
+
+(deftest available-agent-cohort-is-wired-to-status-and-guarded-merge
+  (let [request {:id 500 :user {:login "riatzukiza" :type "User"}
+                 :created_at "2026-10-03T00:59:00Z"
+                 :body (str "@codex review <!-- pr-flow-stage:code --> <!-- pr-flow-review:" head
+                            " --> <!-- pr-flow-reviewer:codex -->")}
+        quota {:id 501 :user {:login "chatgpt-codex-connector[bot]" :type "Bot"}
+               :created_at "2026-10-03T01:01:00Z"
+               :body "You have reached your Codex usage limits for code reviews."}
+        cr (assoc approval :id 502 :user {:login "coderabbitai[bot]" :type "Bot"})
+        config (-> base (dissoc :prior-stage-rounds)
+                   (assoc :reviews [approval cr] :comments [request quota]
+                          :checks [{:name "laws" :state "SUCCESS" :required true}]))
+        status (execute config "status" "riatzukiza/.agents" "8")
+        merge (execute config "gate" "riatzukiza/.agents" "8" "--apply")]
+    (let [red (execute (assoc config :baseline-source-ref "bc2dca2e80a6da4510ff625f18f0f100f70d7da9")
+                       "gate" "riatzukiza/.agents" "8" "--apply")]
+      (is (= 2 (:exit red)))
+      (is (str/includes? (:out red) "completed code rounds: 0"))
+      (is (empty? (writes red "merge"))))
+    (is (= 0 (:exit status)) (:err status))
+    (is (str/includes? (:out status) "completed code rounds: 1"))
+    (is (str/includes? (:out status) "codex quota-unavailable: native source 501 request 500"))
+    (is (str/includes? (:out status) "retry-at-ms UNKNOWN"))
+    (is (str/includes? (:out status) "gate: PASS"))
+    (is (= 0 (:exit merge)) (:err merge))
+    (is (= 1 (count (writes merge "merge"))))
+    (is (some #(some #{head} (:args %)) (writes merge "merge")))
+    (let [automatic (execute (assoc config :comments [quota]) "gate" "riatzukiza/.agents" "8" "--apply")]
+      (is (= 0 (:exit automatic)) (:err automatic))
+      (is (= 1 (count (writes automatic "merge")))))
+    (let [pending {:id 503 :user {:login "riatzukiza" :type "User"} :created_at "2026-10-03T01:01:00Z"
+                   :body (str "@coderabbitai full review <!-- pr-flow-stage:code --> <!-- pr-flow-round:1 --> "
+                              "<!-- pr-flow-review:" head " --> <!-- pr-flow-reviewer:coderabbit -->")}
+          r (execute (update config :comments conj pending) "request" "riatzukiza/.agents" "8" "code")]
+      (is (= 0 (:exit r)) (:err r))
+      (is (str/includes? (:out r) "No request sent: pending"))
+      (is (empty? (writes r "comment"))))
+    (let [done (assoc approval :id 504 :user {:login "chatgpt-codex-connector[bot]" :type "Bot"}
+                      :submitted_at "2026-10-03T01:02:00Z" :body "Review complete.")
+          r (execute (update config :reviews conj done) "request" "riatzukiza/.agents" "8" "code" "--reviewer" "codex")]
+      (is (= 0 (:exit r)) (:err r))
+      (is (= 1 (count (writes r "comment")))))
+    (doseq [blocked [(assoc config :comments [request])
+                     (assoc-in config [:comments 1 :user :type] "User")
+                     (assoc config :reviews [approval])
+                     (assoc-in config [:checks 0 :state] "FAILURE")]]
+      (let [r (execute blocked "gate" "riatzukiza/.agents" "8" "--apply")]
+        (is (= 2 (:exit r)))
+        (is (empty? (writes r "merge")))))
+    (let [r (execute config "gate" "riatzukiza/.agents" "8" "--apply" "--reviewers" "codex")]
+      (is (= 2 (:exit r)))
+      (is (empty? (writes r "merge"))))))
 
 (deftest body-only-human-changes-request-stays-blocked
   (let [human {:id 10 :user {:login "human-reviewer" :type "User"} :state "CHANGES_REQUESTED"
