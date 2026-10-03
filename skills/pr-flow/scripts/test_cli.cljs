@@ -182,7 +182,10 @@
                     "the truncated tail was bound to deterministic gates rather than exhaustively read.\nConfirmed findings: none.")
                (str "The staged diff was truncated at 300000 of 634965 bytes, so 15 of 39 files - "
                     "including law.cljc and all five test files - are outside this inline review; "
-                    "their behavior is evidenced only by the PR's own preparation logs.\nConfirmed findings: none.")]]
+                    "their behavior is evidenced only by the PR's own preparation logs.\nConfirmed findings: none.")
+               (str "The staged pr.diff was truncated at 300 KB of 659 KB (23 of 40 files); "
+                    "law.cljc and the test files were read at head only to validate claims anchored on staged lines "
+                    "and are not exhaustively reviewed.\nFindings: none confirmed.")]]
     (let [partial (assoc approval :body body)
         r (execute (assoc base :reviews [partial]) "gate" "riatzukiza/.agents" "8" "--apply")]
     (is (= 2 (:exit r)))

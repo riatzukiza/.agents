@@ -179,17 +179,24 @@
        "the truncated tail was bound to the exact-head deterministic gates rather than exhaustively read.\n\nConfirmed findings: none."))
 
 (def native-preparation-only-scope
-  ;; Native MiMo review 5401804557 on 225defda, preserved verbatim scope
-  ;; paragraph fragment. Its formal APPROVED state does not read these files.
+  ;; Captured scope admission from native MiMo 5401804557 on 225defda.
+  ;; Its formal APPROVED state does not read these files.
   (str "The staged diff was truncated at 300000 of 634965 bytes, so 15 of 39 files - "
        "including law.cljc, actionability.cljc, flow.cljc, all five test files, and five companion skill docs - "
        "are outside this inline review; their behavior is evidenced only by the PR's own preparation logs.\n"
        "Confirmed findings: none."))
 
+(def native-restricted-omission-scope
+  ;; Native MiMo 5401976068 admits claim-only inspection of omitted source.
+  ;; This restriction, not the word exhaustive alone, leaves scope incomplete.
+  (str "The staged pr.diff was truncated at 300 KB of 659 KB (23 of 40 files), so inline review covered the new CI workflow; "
+       "law.cljc, actionability.cljc, pr.cljs, the test files and six sibling skill docs were read at head only "
+       "to validate claims anchored on staged lines and are not exhaustively reviewed.\nFindings: none confirmed."))
+
 (deftest formal-approval-does-not-overrule-an-explicit-incomplete-scope
   (doseq [provider ["coderabbit" "codex" "mimo" "kimi"]
           state ["APPROVED" "COMMENTED"]
-          body [admitted-partial-scope native-preparation-only-scope "Review incomplete.\nConfirmed findings: none."
+          body [admitted-partial-scope native-preparation-only-scope native-restricted-omission-scope "Review incomplete.\nConfirmed findings: none."
                 "Partial review; unreviewed files remain.\nNo issues found."]]
     (let [r (assoc (review (first (get identities provider)) state head) :body body)
           evidence (law/review-evidence head [r] [] identities)]
@@ -216,20 +223,21 @@
                            [:approved-heads "mimo"])))))
 
 (deftest native-preparation-only-admission-revokes-approval-and-round-credit
-  (let [full (review "eta-mu-ai[bot]" "APPROVED" head)
+  (doseq [body [native-preparation-only-scope native-restricted-omission-scope]]
+    (let [full (review "eta-mu-ai[bot]" "APPROVED" head)
         partial (assoc full :id 5401804557 :submitted_at "2026-10-03T01:01:00Z"
-                       :body native-preparation-only-scope)
+                       :body body)
         evidence (law/review-evidence head [full partial] [] identities)]
     (is (nil? (get-in evidence [:approved-heads "mimo"])))
     (is (= :unreviewed-input (get-in evidence [:incomplete-evidence "mimo" :reason])))
     (is (not (law/full-review? partial identities)))
     (doseq [body [(str "Approved after reading every changed file.\n> "
-                      (str/replace native-preparation-only-scope "\n" "\n> "))
-                 (str "Approved. Example failed run:\n```text\n" native-preparation-only-scope "\n```")
+                      (str/replace body "\n" "\n> "))
+                 (str "Approved. Example failed run:\n```text\n" body "\n```")
                  (str "Approved.\n<!-- This is an auto-generated comment: tweet message by coderabbit.ai -->\n"
-                      native-preparation-only-scope "\n<!-- end of auto-generated comment: tweet message by coderabbit.ai -->")
+                      body "\n<!-- end of auto-generated comment: tweet message by coderabbit.ai -->")
                  "The initial staged diff was truncated. Those files were outside the inline review; I fetched and reviewed every omitted file. The full changeset is covered."]]
-      (is (nil? (law/incomplete-review-reason body))))))
+        (is (nil? (law/incomplete-review-reason body)))))))
 
 (deftest native-issue-verdicts-also-require-a-completed-scope
   (let [marker (str "<!-- final_review_risk_coverage:{\"sourceCommitId\":\"" head

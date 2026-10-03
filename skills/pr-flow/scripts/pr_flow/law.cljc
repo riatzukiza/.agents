@@ -596,6 +596,8 @@
           (and (re-find #"(?i)\btruncat(?:ed|ion)\b" prose)
                (re-find #"(?i)\bare outside this inline review\b" prose)
                (re-find #"(?i)\bbehavior is evidenced only by\b[^\n]*\bpreparation logs\b" prose))
+          (and (re-find #"(?i)\btruncat(?:ed|ion)\b" prose)
+               (re-find #"(?i)\bread at head only to validate claims anchored on staged lines\b" prose))
           (some (fn [[_ read total]]
                   (neg? (compare #?(:clj (Long/parseLong read) :cljs (js/parseInt read 10))
                                  #?(:clj (Long/parseLong total) :cljs (js/parseInt total 10)))))
