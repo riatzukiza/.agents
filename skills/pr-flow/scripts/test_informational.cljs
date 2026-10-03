@@ -248,3 +248,103 @@
                                          (change-payload #(-> % (assoc 3 "PRRT_other" 9 "finding") (update 4 inc)))
                                          hash-body)]
       (is (:pass? (gate (law/classify-thread (update t :issue-comments conj other))))))))
+
+(defn persist-disposition [t]
+  ;; Match collection: classify, append emitted observations, reclassify on read.
+  (update t :actionability-observations (fnil into [])
+          (get-in (law/classify-thread t) [:actionability :observations])))
+(defn another-positive [t id time]
+  (let [source (second (:issue-comments t))]
+    (update t :issue-comments conj (native-comment id (:user source) time (:body source)))))
+(defn qualified-pair [s]
+  (-> (evidence (input s)) persist-disposition
+      (another-positive 7004 "2026-10-03T14:02:00Z") persist-disposition))
+(defn revoked-ids [t]
+  (set (map :assessment-id (filter #(= :revoked (:status %)) (:actionability-observations t)))))
+
+(deftest newer-positive-survives-persisted-and-repeated-collection
+  (doseq [s captures]
+    (let [initial (persist-disposition (evidence (input s)))
+          newer (another-positive initial 7004 "2026-10-03T14:02:00Z")
+          decision (:actionability (law/classify-thread newer))
+          persisted (persist-disposition newer)]
+      (is (= :informational (:kind decision)))
+      (is (= [[7004 :qualified]] (mapv (juxt :assessment-id :status) (:observations decision))))
+      (doseq [read (take 4 (iterate persist-disposition persisted))]
+        (let [classified (law/classify-thread read)]
+          (is (= :informational (get-in classified [:actionability :kind])))
+          (is (= 7004 (get-in classified [:actionability :assessment-id])))
+          (is (:pass? (gate classified)))
+          (is (false? (:settled? classified)))
+          (is (empty? (:observations (actionability/disposition read))))
+          (is (empty? (revoked-ids read)))))
+      (let [third (persist-disposition (another-positive persisted 7005 "2026-10-03T14:03:00Z"))]
+        (is (:pass? (gate (law/classify-thread third))))
+        (is (= #{7002 7004 7005} (set (map :assessment-id (:actionability-observations third)))))
+        (is (empty? (:observations (actionability/disposition third))))))))
+
+(deftest missing-positive-revokes-only-the-missing-source-and-cannot-be-restored
+  (doseq [s captures id [7002 7004]]
+    (let [pair (qualified-pair s)
+          missing (update pair :issue-comments #(filterv (fn [c] (not= id (:id c))) %))
+          persisted (persist-disposition missing)
+          survivor (if (= id 7002) 7004 7002)
+          restored (assoc pair :actionability-observations (:actionability-observations persisted))]
+      (is (= #{id} (revoked-ids persisted)))
+      (doseq [read (take 3 (iterate persist-disposition persisted))]
+        (is (:pass? (gate (law/classify-thread read))))
+        (is (= survivor (get-in (law/classify-thread read) [:actionability :assessment-id])))
+        (is (empty? (:observations (actionability/disposition read)))))
+      (is (not (:pass? (gate (law/classify-thread restored)))))
+      (is (not (:pass? (gate (law/classify-thread (persist-disposition restored)))))))))
+
+(deftest replacement-never-erases-real-edits-withdrawals-or-conflicts
+  (doseq [s captures]
+    (let [pair (qualified-pair s) bot (:user (second (:issue-comments pair)))
+          changes (concat
+                   (for [index [1 2]]
+                     [(str "edited source " index)
+                      (change-issue pair index #(assoc % :updated_at "2026-10-03T14:03:00Z"))])
+                   (for [id [7002 7004] body [(str "I withdraw my agreement in issuecomment" id ".")
+                                             (str "I withdraw my agreement in https://example.invalid/issuecomment-" id ".")]]
+                     [(str "withdrawal " body)
+                      (update pair :issue-comments conj (native-comment 7005 bot "2026-10-03T14:03:00Z" body))])
+                   (for [id [7002 7004]]
+                     [(str "protocol withdrawal " id)
+                      (update pair :issue-comments conj
+                              (assoc (withdrawal pair id) :created_at "2026-10-03T14:03:00Z"
+                                     :updated_at "2026-10-03T14:03:00Z"))])
+                   [["adverse assessment" (update pair :issue-comments conj
+                                                 (-> (nth (:issue-comments pair) 2)
+                                                     (assoc :id 7005 :node_id "IC_7005")
+                                                     (change-payload #(assoc % 9 "finding")) hash-body))]
+                    ["native thread edit" (refresh-context pair #(assoc-in % [:thread :comments :nodes 0 :updatedAt]
+                                                                           "2026-10-03T14:03:00Z"))]
+                    ["enclosing review edit" (refresh-context pair #(assoc-in % [:thread :comments :nodes 0 :pullRequestReview :updatedAt]
+                                                                              "2026-10-03T14:03:00Z"))]])]
+      (doseq [[label changed] changes]
+        (let [persisted (persist-disposition changed)
+              restored (assoc pair :actionability-observations (:actionability-observations persisted))]
+          (is (not (:pass? (gate (law/classify-thread changed)))) label)
+          (is (= #{7002 7004} (revoked-ids persisted)) label)
+          (is (not (:pass? (gate (law/classify-thread persisted)))) label)
+          (is (not (:pass? (gate (law/classify-thread restored)))) label))))))
+
+(deftest new-proposal-requires-own-fresh-assessment-after-real-revocation
+  (doseq [s captures]
+    (let [pair (qualified-pair s)
+          proposal (-> (first (:issue-comments pair))
+                       (assoc :id 7006 :node_id "IC_7006" :html_url "https://example.invalid/issuecomment-7006"
+                              :created_at "2026-10-03T14:04:00Z" :updated_at "2026-10-03T14:04:00Z"))
+          waiting (persist-disposition (update pair :issue-comments conj proposal))
+          source (-> (nth (:issue-comments pair) 2)
+                     (change-payload #(assoc % 7 (:id proposal) 8 (:body-sha256 proposal))) hash-body)
+          fresh (native-comment 7007 (:user source) "2026-10-03T14:05:00Z" (:body source))
+          complete (persist-disposition (update waiting :issue-comments conj fresh))]
+      (is (not (:pass? (gate (law/classify-thread waiting)))))
+      (is (= #{7002 7004} (revoked-ids waiting)))
+      (doseq [read (take 3 (iterate persist-disposition complete))]
+        (is (:pass? (gate (law/classify-thread read))))
+        (is (= 7007 (get-in (law/classify-thread read) [:actionability :assessment-id])))
+        (is (= #{7002 7004} (revoked-ids read)))
+        (is (empty? (:observations (actionability/disposition read))))))))

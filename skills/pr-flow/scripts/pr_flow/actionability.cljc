@@ -121,6 +121,18 @@
         assessments (filter #(and (= :assessment (:kind %)) (assessor-identity? (:source %) actionability-policy)
                                    (= (context-binding t) (vec (take 7 (:payload %))))) scoped)
         revoked (set (map :assessment-id (filter #(= :revoked (:status %)) actionability-observations)))
+        source-withdrawn? (fn [assessment]
+                            (let [source (:source assessment)]
+                              (or (contains? (set actionability-source-withdrawals) (:id source))
+                                  (some (fn [r]
+                                          (and (= :withdrawal (:kind r))
+                                               (assessor-identity? (:source r) actionability-policy)
+                                               (= (context-binding t) (vec (take 7 (:payload r))))
+                                               (= 10 (count (:payload r)))
+                                               (= [(:id source) (:body-sha256 source)] (subvec (:payload r) 7 9))
+                                               ;; Withdrawal edits cannot resurrect its source.
+                                               (time? (get-in r [:source :updated_at]))
+                                               (pos? (compare (get-in r [:source :updated_at]) (:created_at source))))) scoped))))
         valid (filter (fn [r]
                         (let [v (:payload r) c (:source r)]
                           (and proposal-ok? (native? c) (= 13 (count v)) (= [(:id ps) (:body-sha256 ps)] (subvec v 7 9))
@@ -129,6 +141,7 @@
                                (pos? (compare (:created_at c) (:updated_at ps)))
                                (not= (get-in c [:user :id]) (get-in ps [:user :id]))
                                (not= (get-in c [:user :node_id]) (get-in t [:native-context :pr :author :id]))
+                               (not (source-withdrawn? r))
                                (not (revoked (:id c)))))) assessments)
         a (last (sort-by #(get-in % [:source :created_at]) valid)) as (:source a)
         conflict? (or (some (fn [c]
@@ -142,30 +155,28 @@
                       (some #(or (not= "informational" (get-in % [:payload 9]))
                                  (and ps (not (neg? (compare (get-in % [:source :created_at]) (:created_at ps))))
                                       (not (some #{%} valid)))) assessments))
-        withdrawn? (or (contains? (set actionability-source-withdrawals) (:id as))
-                     (some (fn [r]
-                          (and (= :withdrawal (:kind r)) (assessor-identity? (:source r) actionability-policy)
-                               (= (context-binding t) (vec (take 7 (:payload r))))
-                               (= 10 (count (:payload r)))
-                               (= [(:id as) (:body-sha256 as)] (subvec (:payload r) 7 9))
-                               ;; Withdrawal edits cannot resurrect its source.
-                               (time? (get-in r [:source :updated_at]))
-                               (pos? (compare (get-in r [:source :updated_at]) (:created_at as))))) scoped))
-        qualified? (and (context-valid? t) proposal-ok? a (not conflict?) (not withdrawn?))
-        now {:purpose :thread-actionability :repo-id (get-in t [:native-context :repository :id])
-             :pr-id (get-in t [:native-context :pr :id]) :thread-id (:id t) :head (:head t)
-             :context-digest (:context-digest t) :proposal-id (:id ps) :assessment-id (:id as)
-             :proposal-body-sha256 (:body-sha256 ps) :proposal-url (:html_url ps)
-             :channel :github-issue-comment :assessment-url (:html_url as)
-             :assessment-user-id (get-in as [:user :id]) :assessment-user-node (get-in as [:user :node_id])
-             :assessment-created-at (:created_at as) :assessment-updated-at (:updated_at as)
-             :assessment-body-sha256 (:body-sha256 as) :status :qualified}
+        withdrawn? (some source-withdrawn? assessments)
+        qualified? (and (context-valid? t) proposal-ok? a (not conflict?))
+        observation (fn [r]
+                      (let [source (:source r)]
+                        {:purpose :thread-actionability :repo-id (get-in t [:native-context :repository :id])
+                         :pr-id (get-in t [:native-context :pr :id]) :thread-id (:id t) :head (:head t)
+                         :context-digest (:context-digest t) :proposal-id (:id ps) :assessment-id (:id source)
+                         :proposal-body-sha256 (:body-sha256 ps) :proposal-url (:html_url ps)
+                         :channel :github-issue-comment :assessment-url (:html_url source)
+                         :assessment-user-id (get-in source [:user :id]) :assessment-user-node (get-in source [:user :node_id])
+                         :assessment-created-at (:created_at source) :assessment-updated-at (:updated_at source)
+                         :assessment-body-sha256 (:body-sha256 source) :status :qualified}))
+        now (observation a)
+        ;; Selection is presentation, not revocation. Retain any independently
+        ;; valid exact observation; changed/missing/withdrawn sources still lose it.
+        live (set (map observation valid))
         old (filter #(and (= (:id t) (:thread-id %))
                            (= (get-in t [:native-context :repository :id]) (:repo-id %))
                            (= (get-in t [:native-context :pr :id]) (:pr-id %))
                            (= :qualified (:status %))) actionability-observations)
         lost (for [o old :when (and (not (revoked (:assessment-id o)))
-                                    (not (and qualified? (= o now))))]
+                                    (not (and qualified? (contains? live o))))]
                (assoc o :status :revoked :reason :native-context-or-assessment-changed))
         observations (vec (concat lost (when (and qualified? (not (some #{now} old))) [now])))]
     {:kind (if qualified? :informational :finding)
