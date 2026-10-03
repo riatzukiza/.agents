@@ -374,3 +374,99 @@
               changed (update t :issue-comments conj malformed)]
           (is (= :finding (:kind (evaluate changed))))
           (is (not (:pass? (gate (law/classify-thread changed))))))))))
+
+(defn later-proposal [t body]
+  (hash-body (assoc (first (:issue-comments t)) :id 8010 :node_id "IC_8010"
+                   :html_url "https://example.invalid/issuecomment-8010"
+                   :created_at "2026-10-03T14:03:00Z" :updated_at "2026-10-03T14:03:00Z" :body body)))
+
+(deftest genuine-malformed-proposal-invalidates-an-older-pass
+  (doseq [s captures]
+    (let [t (persist-disposition (evidence (input s))) p (first (:issue-comments t))
+          header (str "Actionability proposal v1 for " (:head t) ":")]
+      (doseq [body [(str header "\n[") (str header "\n{}") header
+                    (str header "\n<malformed>")
+                    (str header "\n> " (pr-str (scoped t)))
+                    (str header "\n```edn\n" (pr-str (scoped t)) "\n```")
+                    (str header "\n~~~edn\n" (pr-str (scoped t)) "\n~~~")
+                    (str header "\n<code>" (pr-str (scoped t)) "</code>")
+                    (str (:body p) " ") (str (:body p) "\nExtra payload")
+                    (str/replace (:body p) "v1 for" "v2 for")
+                    (str (:body p) "\n\n[github run](/wrong/repo/actions/runs/1)")]]
+        (let [changed (update t :issue-comments conj (later-proposal t body))
+              d (actionability/disposition changed)
+              persisted (persist-disposition changed)]
+          (is (= 8010 (:proposal-id d)) body)
+          (is (= :finding (:kind d)) body)
+          (is (not (:pass? (gate (law/classify-thread changed)))) body)
+          (is (= #{7002} (revoked-ids persisted)) body)
+          (is (not (:pass? (gate (law/classify-thread persisted)))) body))))))
+
+(deftest proposal-examples-spoofs-and-other-targets-do-not-invalidate-a-pass
+  (doseq [s captures]
+    (let [t (persist-disposition (evidence (input s))) p (first (:issue-comments t))
+          malformed (later-proposal t (str "Actionability proposal v1 for " (:head t) ":\n["))
+          good (later-proposal t (:body p))]
+      (doseq [c [(assoc malformed :authorized? false)
+                 (assoc-in malformed [:user :type] "Bot")
+                 (update malformed :user dissoc :id)
+                 (update malformed :user dissoc :node_id)
+                 (assoc malformed :source-channel :github-review-comment)
+                 (assoc malformed :created_at "2026-10-03T13:59:00Z" :updated_at "2026-10-03T13:59:00Z")
+                 (hash-body (update malformed :body str/replace (:head t) (apply str (repeat 40 "b"))))
+                 (later-proposal t (str "> " (:body p)))
+                 (later-proposal t (str "```edn\n" (:body p) "\n```"))
+                 (later-proposal t (str "<details>Generated example\n" (:body p) "\n</details>"))
+                 (later-proposal t (str "Example only:\n" (:body p)))
+                 (hash-body (change-payload good #(assoc % 1 "R_other")))
+                 (hash-body (change-payload good #(assoc % 2 "PR_other")))
+                 (hash-body (change-payload good #(assoc % 3 "PRRT_other")))
+                 (hash-body (change-payload good #(update % 4 inc)))
+                 (hash-body (update (change-payload good #(assoc % 3 "PRRT_other")) :body str " "))]]
+        (let [changed (update t :issue-comments conj c)]
+          (is (:pass? (gate (law/classify-thread changed))) (:body c))
+          (is (= 7001 (:proposal-id (actionability/disposition changed))))
+          (is (empty? (:observations (actionability/disposition changed)))))))))
+
+(deftest malformed-proposal-recovery-requires-fresh-proposal-and-assessment-evidence
+  (doseq [s captures]
+    (let [t (persist-disposition (evidence (input s)))
+          bad (later-proposal t (str "Actionability proposal v1 for " (:head t) ":\n["))
+          invalidated (persist-disposition (update t :issue-comments conj bad))
+          restored (assoc t :actionability-observations (:actionability-observations invalidated))
+          p (-> (later-proposal t (:body (first (:issue-comments t))))
+                (assoc :id 8011 :node_id "IC_8011" :html_url "https://example.invalid/issuecomment-8011"
+                       :created_at "2026-10-03T14:04:00Z" :updated_at "2026-10-03T14:04:00Z"))
+          waiting (update invalidated :issue-comments conj p)
+          rebound (-> (second (:issue-comments t))
+                      (change-payload #(assoc % 7 (:id p) 8 (:body-sha256 p))) hash-body)
+          fresh (native-comment 8012 (:user rebound) "2026-10-03T14:05:00Z" (:body rebound))
+          edited-p (hash-body (assoc bad :body (:body p) :updated_at "2026-10-03T14:04:00Z"))
+          edited-a (native-comment 8013 (:user rebound) "2026-10-03T14:05:00Z"
+                                   (:body (hash-body (change-payload rebound #(assoc % 7 (:id edited-p) 8 (:body-sha256 edited-p))))))]
+      (is (= #{7002} (revoked-ids invalidated)))
+      (is (not (:pass? (gate (law/classify-thread restored)))))
+      (is (not (:pass? (gate (law/classify-thread waiting)))))
+      (is (not (:pass? (gate (law/classify-thread
+                               (assoc invalidated :issue-comments
+                                      [(first (:issue-comments t))
+                                       edited-p edited-a]))))))
+      (let [reuse (update waiting :issue-comments
+                          #(conj (filterv (fn [c] (not= 7002 (:id c))) %) (assoc fresh :id 7002)))
+            complete (persist-disposition (update waiting :issue-comments conj fresh))]
+        (is (not (:pass? (gate (law/classify-thread reuse)))))
+        (doseq [read (take 3 (iterate persist-disposition complete))]
+          (is (:pass? (gate (law/classify-thread read))))
+          (is (= 8012 (get-in (law/classify-thread read) [:actionability :assessment-id])))
+          (is (= #{7002} (revoked-ids read)))
+          (is (empty? (:observations (actionability/disposition read)))))))))
+
+(deftest malformed-proposal-edits-and-tied-update-times-never-reuse-an-old-pass
+  (doseq [s captures]
+    (let [t (persist-disposition (evidence (input s)))
+          bad (later-proposal t (str "Actionability proposal v1 for " (:head t) ":\n["))]
+      (doseq [c [(assoc bad :created_at "2026-10-03T13:59:00Z")
+                 (assoc bad :created_at "2026-10-03T14:00:00Z" :updated_at "2026-10-03T14:00:00Z")]]
+        (let [changed (update t :issue-comments conj c)]
+          (is (not (:pass? (gate (law/classify-thread changed)))))
+          (is (= #{7002} (revoked-ids (persist-disposition changed)))))))))

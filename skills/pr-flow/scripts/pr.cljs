@@ -554,9 +554,17 @@
 ;; --- main -----------------------------------------------------------------
 
 (defn- flag [args f default]
-  (if-let [i (some (fn [[i a]] (when (= a f) i)) (map-indexed vector args))]
-    (nth args (inc i) default)
-    default))
+  (let [prefix (str f "=")
+        hits (keep-indexed #(when (or (= f %2) (str/starts-with? (str %2) prefix)) %1) args)]
+    (when (> (count hits) 1)
+      (throw (ex-info (str f " must be supplied only once") {:flag f})))
+    (if-let [i (first hits)]
+      (let [opt (nth args i)
+            v (if (= f opt) (nth args (inc i) nil) (subs opt (count prefix)))]
+        (when (or (nil? v) (str/blank? v) (str/starts-with? v "--"))
+          (throw (ex-info (str f " requires a value") {:flag f})))
+        v)
+      default)))
 
 (defn- timing-flag [args f default]
   (let [value (flag args f default)

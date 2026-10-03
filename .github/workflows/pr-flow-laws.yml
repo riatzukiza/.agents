@@ -29,6 +29,12 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '22'
+      - name: Set up Babashka
+        uses: DeLaGuardo/setup-clojure@ada62bb3282a01a296659d48378b812b8e097360
+        with:
+          bb: '1.12.207'
+      - name: Run portable nil-body disposition regression
+        run: bb --classpath skills/pr-flow/scripts skills/pr-flow/scripts/test_babashka.clj
       - name: Run pure laws and isolated CLI boundary tests
         run: |
           npm exec --yes --package=nbb@1.3.204 -- nbb -cp skills/pr-flow/scripts skills/pr-flow/scripts/test_law.cljs

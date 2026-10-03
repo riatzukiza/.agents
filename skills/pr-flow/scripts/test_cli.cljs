@@ -43,7 +43,7 @@
 (defn execute [config & args]
   (let [tmp (fs/mkdtempSync (path/join (os/tmpdir) "pr-flow-cli-"))
         data (path/join tmp "data.json") gh (path/join tmp "gh")
-        scripts (if (:flow-data config) (path/join tmp "skills" "pr-flow" "scripts") here)
+        scripts (path/join tmp "skills" "pr-flow" "scripts")
         rounds (:prior-stage-rounds config 0)
         history (completed-stage-reviews rounds other)
         config (cond-> (-> config
@@ -54,7 +54,7 @@
                  (:commentsSequence config) (update :commentsSequence #(mapv (fn [comments] (into (completed-stage-comments rounds other (:prior-stage config "code")) comments)) %)))
         env (js/Object.assign #js {} js/process.env #js {:PR_FLOW_TEST_DATA data :PATH (str tmp ":" (.-PATH js/process.env))})]
     (try
-      (when-let [flow-data (:flow-data config)]
+      (let [flow-data (or (:flow-data config) the-flow)]
         ;; Exercise real file configuration without touching the owned checkout.
         (fs/cpSync here scripts #js {:recursive true})
         (fs/writeFileSync (path/join scripts ".." "flow.edn") (pr-str flow-data))
@@ -78,7 +78,7 @@
                     (mapv #(js->clj (js/JSON.parse %) :keywordize-keys true)
                           (remove str/blank? (str/split-lines (fs/readFileSync calls-path "utf8")))) [])]
         {:exit (.-status r) :out (str (.-stdout r)) :err (str (.-stderr r)) :calls calls
-         :receipts (when (and (:flow-data config) (fs/existsSync (path/join tmp ".ημ" "receipts.edn")))
+         :receipts (when (fs/existsSync (path/join tmp ".ημ" "receipts.edn"))
                      (fs/readFileSync (path/join tmp ".ημ" "receipts.edn") "utf8"))})
       (finally (fs/rmSync tmp #js {:recursive true :force true})))))
 (defn writes [result verb]
@@ -178,14 +178,18 @@
         (is (empty? (writes blocked "merge")))))))
 
 (deftest cli-formal-approval-with-admitted-partial-scope-stays-blocked
-  (let [partial (assoc approval :body (str "The staged diff was truncated at 31 of 85 files; "
-                                          "the truncated tail was bound to deterministic gates rather than exhaustively read.\nConfirmed findings: none."))
+  (doseq [body [(str "The staged diff was truncated at 31 of 85 files; "
+                    "the truncated tail was bound to deterministic gates rather than exhaustively read.\nConfirmed findings: none.")
+               (str "The staged diff was truncated at 300000 of 634965 bytes, so 15 of 39 files - "
+                    "including law.cljc and all five test files - are outside this inline review; "
+                    "their behavior is evidenced only by the PR's own preparation logs.\nConfirmed findings: none.")]]
+    (let [partial (assoc approval :body body)
         r (execute (assoc base :reviews [partial]) "gate" "riatzukiza/.agents" "8" "--apply")]
     (is (= 2 (:exit r)))
     (is (str/includes? (:out r) "gate: BLOCKED"))
     (is (str/includes? (:out r) "incomplete review scope:"))
     (is (str/includes? (:out r) ":unreviewed-input"))
-    (is (empty? (writes r "merge")))))
+      (is (empty? (writes r "merge"))))))
 
 (deftest cli-head-guard-and-no-bypass
   (let [ok (execute base "gate" "riatzukiza/.agents" "8" "--apply")
@@ -513,6 +517,38 @@
       (is (= 1 (:exit r)))
       (is (empty? (:calls r))))))
 
+(deftest generic-value-options-never-silently-default
+  (let [merged (execute base "gate" "riatzukiza/.agents" "8" "--apply" "--method=squash")
+        note "Keep literal = values and $() `text`"
+        requested (execute (assoc base :checks [{:name "laws" :state "SUCCESS" :required true}])
+                           "request" "riatzukiza/.agents" "8" "code" "--reviewer=codex" (str "--note=" note))
+        comments (writes requested "comment")]
+    (is (= 0 (:exit merged)) (:err merged))
+    (is (= 1 (count (writes merged "merge"))))
+    (is (some #{"--squash"} (:args (first (writes merged "merge")))))
+    (is (not-any? #{"--merge"} (:args (first (writes merged "merge")))))
+    (is (= 0 (:exit requested)) (:err requested))
+    (is (= 1 (count comments)))
+    (is (str/starts-with? (:input (first comments)) "@codex review"))
+    (is (str/includes? (:input (first comments)) note))))
+
+(deftest malformed-value-options-stop-before-github-effects
+  (doseq [args [["gate" "riatzukiza/.agents" "8" "--apply" "--method"]
+               ["gate" "riatzukiza/.agents" "8" "--apply" "--method="]
+               ["gate" "riatzukiza/.agents" "8" "--apply" "--method=--admin"]
+               ["gate" "riatzukiza/.agents" "8" "--method=merge" "--method" "squash"]
+               ["request" "riatzukiza/.agents" "8" "code" "--reviewer"]
+               ["request" "riatzukiza/.agents" "8" "code" "--reviewer="]
+               ["request" "riatzukiza/.agents" "8" "code" "--reviewer=--note"]
+               ["request" "riatzukiza/.agents" "8" "code" "--reviewer=codex" "--reviewer" "coderabbit"]
+               ["request" "riatzukiza/.agents" "8" "code" "--note"]
+               ["request" "riatzukiza/.agents" "8" "code" "--note= "]
+               ["request" "riatzukiza/.agents" "8" "code" "--note" "--reviewer" "codex"]
+               ["request" "riatzukiza/.agents" "8" "code" "--note=one" "--note" "two"]]]
+    (let [r (apply execute base args)]
+      (is (= 1 (:exit r)) (str args " " (:err r)))
+      (is (empty? (:calls r)) (str args " must have no GitHub calls")))))
+
 (deftest wait-observes-latest-rerun-instead-of-old-success
   (let [old {:name "CodeRabbit" :state "SUCCESS" :workflow "review" :startedAt "2026-10-03T01:00:00Z"}
         active (assoc old :state "PENDING" :startedAt "2026-10-03T01:01:00Z")
@@ -721,6 +757,27 @@
            :comments (:issue-comments t) :threadPageResponses [(informational-response s)])))
 (defn observation-receipts [r]
   (map edn/read-string (remove str/blank? (str/split-lines (:receipts r "")))))
+
+(deftest default-flow-cli-runs-own-a-temporary-observation-ledger
+  (let [s (first informational/captures)
+        t (informational/evidence (informational/input s))
+        accepted (first (:observations (actionability/disposition t)))
+        seed {:ts "2026-10-03T14:04:00Z" :kind :observation :origin "pr-flow-actionability-observation"
+              :owner "fixture" :dod "fixture" :pi "fixture" :host "isolated-fixture"
+              :manifest [] :refs [] :decisions [accepted]}
+        config (-> (informational-config s)
+                   (dissoc :flow-data)
+                   (assoc :receipt-history [seed]
+                          :threadPageResponses [(informational-response (assoc-in s [:thread :isResolved] false))]))
+        owned-ledger (path/resolve here ".." ".." ".." ".ημ" "receipts.edn")
+        owned-before (when (fs/existsSync owned-ledger) (fs/readFileSync owned-ledger "utf8"))
+        r (execute config "status" "open-hax/proxx" "445")
+        events (observation-receipts r)]
+    (is (= 0 (:exit r)) (:err r))
+    (is (str/starts-with? (or (:receipts r) "") (str (pr-str seed) "\n")))
+    (is (some #(= :revoked (get-in % [:decisions 0 :status])) events))
+    (is (= owned-before (when (fs/existsSync owned-ledger) (fs/readFileSync owned-ledger "utf8")))
+        "Default flow fixture must not write the checkout observation ledger")))
 
 (deftest informational-native-hydration-red-green-and-receipt-proof
   (doseq [s informational/captures]

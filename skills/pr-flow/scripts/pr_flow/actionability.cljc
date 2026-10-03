@@ -98,6 +98,22 @@
 (defn- scoped? [record t]
   (and (= (:head t) (:head record)) (= (target t) (vec (take 5 (:payload record))))
        (or (nil? (:footer-repo record)) (= (:footer-repo record) (get-in t [:native-context :repository :nameWithOwner])))))
+(defn- proposal-attempt [c t]
+  ;; Select live writer attempts before validating the protocol. An unreadable
+  ;; payload cannot justify falling back to an older pass. Only whole protocol
+  ;; examples lacking the bare header, or explicit other targets, are excluded.
+  (let [[header payload] (str/split-lines (or (:body c) ""))
+        explicit-target (try
+                          (let [v (edn/read-string (or payload "")) prefix (vec (take 5 v))]
+                            (when (and (vector? v) (= 5 (count prefix)) (= "actionability/v1" (first prefix))
+                                       (every? text? (subvec prefix 1 4)) (positive-id? (nth prefix 4)))
+                              prefix))
+                          (catch #?(:clj Exception :cljs :default) _ nil))]
+    (when (and (writer? c) (time? (:updated_at c))
+               (str/starts-with? (or header "") "Actionability proposal ")
+               (str/ends-with? (or header "") (str " for " (:head t) ":"))
+               (or (nil? explicit-target) (= (target t) explicit-target)))
+      (or (protocol c) {:kind :proposal :head (:head t) :source c}))))
 (defn- details? [reason evidence]
   ;; Mechanical minimum only. The meaning/independence of the judgment still
   ;; requires native assessment and review; verbosity cannot prove correctness.
@@ -112,11 +128,11 @@
   (let [records (keep protocol issue-comments)
         scoped (filter #(scoped? % t) records)
         proposals (sort-by #(get-in % [:source :updated_at])
-                           (filter #(and (= :proposal (:kind %)) (writer? (:source %))) scoped))
+                           (keep #(proposal-attempt % t) issue-comments))
         p (last proposals) ps (:source p)
         context-times (mapcat (fn [c] [(:updatedAt c) (get-in c [:pullRequestReview :updatedAt])])
                               (get-in t [:native-context :thread :comments :nodes]))
-        proposal-ok? (and p (native? ps) (= (context-binding t) (:payload p)) (= 7 (count (:payload p)))
+        proposal-ok? (and p (scoped? p t) (native? ps) (= (context-binding t) (:payload p)) (= 7 (count (:payload p)))
                           (every? #(pos? (compare (:created_at ps) %)) context-times))
         assessments (filter #(and (= :assessment (:kind %)) (assessor-identity? (:source %) actionability-policy)
                                    (= (context-binding t) (vec (take 7 (:payload %))))) scoped)

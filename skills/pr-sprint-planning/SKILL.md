@@ -16,7 +16,7 @@ metadata:
 
 ## Do not use this skill when
 
-- It is a one-line fix with no card. Go straight to `pr-red-green`, and still review it in a PR.
+- A one-line fix has no card yet. Create or link a minimal card through `pr-muse-connect`, then return here for planning review and a lawful Rheos `ready` transition before handing it to `pr-red-green`.
 
 ## Plan
 

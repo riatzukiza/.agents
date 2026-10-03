@@ -593,6 +593,9 @@
       (or (re-find #"(?im)(?:^|[.;]\s*)(?:some |the |these )?unreviewed (?:files|changes|input) (?:still )?remain\b" prose)
           (and (re-find #"(?i)\btruncat(?:ed|ion)\b" prose)
                (re-find #"(?i)\b(?:rather than|instead of) (?:being )?(?:fully |exhaustively )?(?:read|reviewed)\b|\b(?:tail|omitted (?:files|changes|input)) (?:was |were |is |are )?not (?:read|reviewed)\b" prose))
+          (and (re-find #"(?i)\btruncat(?:ed|ion)\b" prose)
+               (re-find #"(?i)\bare outside this inline review\b" prose)
+               (re-find #"(?i)\bbehavior is evidenced only by\b[^\n]*\bpreparation logs\b" prose))
           (some (fn [[_ read total]]
                   (neg? (compare #?(:clj (Long/parseLong read) :cljs (js/parseInt read 10))
                                  #?(:clj (Long/parseLong total) :cljs (js/parseInt total 10)))))

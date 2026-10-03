@@ -178,10 +178,18 @@
   (str "The staged diff was truncated at 31 of 85 files, so line-level review covered the reviewable payload; "
        "the truncated tail was bound to the exact-head deterministic gates rather than exhaustively read.\n\nConfirmed findings: none."))
 
+(def native-preparation-only-scope
+  ;; Native MiMo review 5401804557 on 225defda, preserved verbatim scope
+  ;; paragraph fragment. Its formal APPROVED state does not read these files.
+  (str "The staged diff was truncated at 300000 of 634965 bytes, so 15 of 39 files - "
+       "including law.cljc, actionability.cljc, flow.cljc, all five test files, and five companion skill docs - "
+       "are outside this inline review; their behavior is evidenced only by the PR's own preparation logs.\n"
+       "Confirmed findings: none."))
+
 (deftest formal-approval-does-not-overrule-an-explicit-incomplete-scope
   (doseq [provider ["coderabbit" "codex" "mimo" "kimi"]
           state ["APPROVED" "COMMENTED"]
-          body [admitted-partial-scope "Review incomplete.\nConfirmed findings: none."
+          body [admitted-partial-scope native-preparation-only-scope "Review incomplete.\nConfirmed findings: none."
                 "Partial review; unreviewed files remain.\nNo issues found."]]
     (let [r (assoc (review (first (get identities provider)) state head) :body body)
           evidence (law/review-evidence head [r] [] identities)]
@@ -206,6 +214,22 @@
                 "Approved. Example failed run:\n```text\nReview incomplete. Unreviewed files remain.\n```"]]
     (is (= #{head} (get-in (law/review-evidence head [(assoc (review "eta-mu-ai[bot]" "APPROVED" head) :body body)] [] identities)
                            [:approved-heads "mimo"])))))
+
+(deftest native-preparation-only-admission-revokes-approval-and-round-credit
+  (let [full (review "eta-mu-ai[bot]" "APPROVED" head)
+        partial (assoc full :id 5401804557 :submitted_at "2026-10-03T01:01:00Z"
+                       :body native-preparation-only-scope)
+        evidence (law/review-evidence head [full partial] [] identities)]
+    (is (nil? (get-in evidence [:approved-heads "mimo"])))
+    (is (= :unreviewed-input (get-in evidence [:incomplete-evidence "mimo" :reason])))
+    (is (not (law/full-review? partial identities)))
+    (doseq [body [(str "Approved after reading every changed file.\n> "
+                      (str/replace native-preparation-only-scope "\n" "\n> "))
+                 (str "Approved. Example failed run:\n```text\n" native-preparation-only-scope "\n```")
+                 (str "Approved.\n<!-- This is an auto-generated comment: tweet message by coderabbit.ai -->\n"
+                      native-preparation-only-scope "\n<!-- end of auto-generated comment: tweet message by coderabbit.ai -->")
+                 "The initial staged diff was truncated. Those files were outside the inline review; I fetched and reviewed every omitted file. The full changeset is covered."]]
+      (is (nil? (law/incomplete-review-reason body))))))
 
 (deftest native-issue-verdicts-also-require-a-completed-scope
   (let [marker (str "<!-- final_review_risk_coverage:{\"sourceCommitId\":\"" head

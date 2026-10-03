@@ -203,3 +203,10 @@
 - Evidence: native reviews 5401430363 and 5401482488; frozen source 0a869cd72341ac5877368408aa778059b6bf7b58; GREEN 145 tests, 2,586 assertions; lint 0 errors / 0 warnings. Portable nil-body RED exists in Babashka; NBB already tolerated nil.
 - Lesson: verify optional-provider execution separately from issue-comment completion credit, and preserve completed stage history with authenticated checks on its own commit. A current check cannot prove a historical head; historical evidence cannot grant current approval. Keep full native IDs and byte prefixes.
 - Better path: pass one stable native check snapshot into approval and round laws, bracket GH check reads with exact head, retrieve history only for authorized native completion requests, and keep formal reviews distinct. No reviewer availability exception or feature activation was inferred.
+
+## 2026-10-03T17:31:23.299409+00:00 — malformed proposals and isolated review fixtures
+
+- Efficiency: 0.66; friction: 0.62; skill-candidate: 0.58; spore: none.
+- Evidence: native CodeRabbit review 5401702068 and four inline IDs; combined GREEN 153 tests / 2,882 assertions; lint 0 errors / 0 warnings. Immutable semantic RED and portable runtime RED are distinct.
+- Lesson: choose the latest genuine proposal attempt before validating its payload, then fail closed. Fixture journals require isolation even with default configuration. Exercise portable Clojure at its actual runtime boundary.
+- Boundary: MiMo 5401804557 admitted 15 unread files; its formal approval cannot replace complete scope. Historical hosted proof and new local preparation remain separate; full earlier ledger bytes retained. No spore incubation, feature installation or reviewer availability exception.
