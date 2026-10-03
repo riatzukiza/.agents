@@ -34,3 +34,12 @@
   spore: none
   receipt-refs: none
   note: Early provider failures and trigger-prefix ambiguity cost time. Disjoint triggers, exact output assertions, and adversarial installer tests yielded verified core toolkit.
+- ts: 2026-10-03T14:24:00Z
+  session: /home/err/spaces/foresight/.agents/.worktrees/feat-desktop-config-sandbox
+  task: Correct historical desktop-sandbox reflection provenance without rewriting it
+  p-efficiency: 0.8
+  p-friction: 0.2
+  p-skill-candidate: 0.1
+  spore: none
+  receipt-refs: 2026-10-03T13:50:10.811996504Z
+  note: The original reflection is append-only. This corrective entry links its verified test-run receipt explicitly.
