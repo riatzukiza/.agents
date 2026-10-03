@@ -199,10 +199,14 @@
 
 (defn verdict-prose
   "Exclude quoted code examples from provider verdict recognition. An
-   unterminated fenced block is ambiguous and supplies no passing prose."
+  unterminated fenced block is ambiguous and supplies no passing prose."
   [body]
-  (let [prose (str/replace (str body) #"(?ms)^[ \t]*(`{3,}|~{3,})[^\n]*\n.*?^[ \t]*\1[ \t]*$" "")]
-    (when-not (re-find #"(?m)^[ \t]*(?:`{3,}|~{3,})" prose) prose)))
+  (loop [prose (str body)]
+    (if-let [[block] (re-find #"(?ms)^[ \t]*(`{3,}|~{3,})[^\n]*\n.*?^[ \t]*\1[ \t]*$" prose)]
+      ;; Replace the matched literal, preserving multiline/dotall matching
+      ;; across JVM and SCI/CLJS string implementations.
+      (recur (str/replace-first prose block ""))
+      (when-not (re-find #"(?m)^[ \t]*(?:`{3,}|~{3,})" prose) prose))))
 
 (defn review-evidence
   "Trust completed explicit verdicts as well as formal approvals, while
