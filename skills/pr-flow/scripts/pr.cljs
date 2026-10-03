@@ -324,7 +324,8 @@
               progress (review-progress repo heads
                                         (law/required-reviewers-for (:flow/defaults (load-flow)) repo nil))]
           (when (<= (:rounds progress) (:min-review-rounds progress))
-            (throw (ex-info "During the first five rounds verified findings should be fixed or independently rejected; no deferral sent" {})))))
+            (throw (ex-info (str "During the first " (:min-review-rounds progress)
+                                 " rounds verified findings should be fixed or independently rejected; no deferral sent") {})))))
       (when (= :rejected (law/resolution-of body))
         (let [author (str/trim (gh! "api" "user" "--jq" ".login"))
               candidate (law/classify-thread

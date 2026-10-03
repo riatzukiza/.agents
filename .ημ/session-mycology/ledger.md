@@ -104,3 +104,13 @@
   spore: none
   receipt-refs: pr-flow-soft-minimum-2026-10-03
   note: Recover current PR worktree before revising an untracked canonical starter; keep global discovery pointers stable and policy in the skill pack. Separate agent review passes from complete rounds, and carry stage, head and source identity into completion evidence. Isolate owned publication when a shared checkout receives concurrent unrelated tests. Existing skills were corrected; no new spore or promotion is warranted.
+
+- ts: 2026-10-03T11:23:39.116750+00:00
+  session: pr8-ac475-flow-qualification
+  task: Reproduce and repair configured review-minimum and flow-definition defects
+  p-efficiency: 0.88
+  p-friction: 0.22
+  p-skill-candidate: 0.35
+  spore: none
+  receipt-refs: pr8-ac475-flow-qualification
+  note: Test configuration through real temporary flow files across settlement and both gate channels; below, equal and above the threshold expose drift that default-only tests miss. Independently validate terminal declarations and active-stage reopening from the shipped graph. Keep parallel parser and GraphQL changes under their existing owner.

@@ -34,6 +34,10 @@
               {:problem :unreachable-state :state s}))
 
       :always
+      (into (for [s (:flow/terminal flow) :when (not (ss s))]
+              {:problem :terminal-not-a-state :state s}))
+
+      :always
       (into (for [s ss :when (and (not ((:flow/terminal flow) s)) (not (sources s)))]
               {:problem :dead-end-state :state s}))
 

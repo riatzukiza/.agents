@@ -328,6 +328,30 @@
     (is (:pass? (gated {:threads [deferred] :rounds 6})))
     (is (not (:pass? (gated {:threads [(assoc deferred :severity :p1)] :rounds 6}))))))
 
+(deftest configured-minimum-governs-thread-and-body-deferrals
+  (let [deferred (assoc (law/classify-thread (thread "P3: docstring correction" "Deferred to issue https://github.com/owner/repo/issues/9")) :resolved? true)
+        review {:id 505 :user {:login "human-reviewer" :type "User"} :state "COMMENTED"
+                :submitted_at "2026-10-03T01:00:00Z"
+                :body "<summary><em>🟡 Minor</em> · Follow-up · <code>x:1</code></summary><!-- cr-comment:v1:abc123 -->"}
+        answer {:user {:login "different-writer" :type "User"} :created_at "2026-10-03T01:01:00Z"
+                :body "Handled: review-id:505\n- Deferred cr-comment:v1:abc123: issue https://github.com/owner/repo/issues/9"}]
+    (doseq [minimum [2 5 7] rounds [(dec minimum) minimum (inc minimum)]]
+      (let [allowed? (> rounds minimum)
+            context {:rounds rounds :min-review-rounds minimum}
+            body-count (law/unanswered-review-count [review] [answer] context)]
+        (is (= allowed? (:pass? (gated (assoc context :threads [deferred]
+                                                    :review-participants #{"mimo"})))))
+        (is (= (if allowed? 0 1) body-count))
+        (is (= allowed? (:pass? (gated (assoc context :review-bodies-unanswered body-count
+                                                    :review-participants #{"mimo"})))))
+        (is (not (:pass? (gated (assoc context :threads [(assoc deferred :severity :p1)])))))))
+    (is (= 1 (law/unanswered-review-count [review] [answer] {:rounds 5})))
+    (is (= 0 (law/unanswered-review-count [review] [answer] {:rounds 6})))
+    (is (= 1 (law/unanswered-review-count [review] [answer] {:min-review-rounds 2})))
+    (is (= 1 (law/unanswered-review-count
+              [(update review :body #(str/replace % "🟡 Minor" "🟠 Major"))]
+              [answer] {:rounds 8 :min-review-rounds 7})))))
+
 (deftest completed-rounds-require-the-whole-configured-cohort
   (let [participants #{"coderabbit" "codex" "mimo"}
         pass (fn [provider round] {:reviewer provider :round-id round :commit_id gate-head
@@ -397,6 +421,22 @@
                            (assoc-in [:flow/states :island-b] {:skill "x"})
                            (update :flow/transitions into [[:island-a :island-b] [:island-b :island-a]]))]
       (is (some #(and (= :unreachable-state (:problem %)) (= :island-a (:state %))) (flow/problems disconnected))))))
+
+(deftest every-active-stage-can-reopen-muse
+  (doseq [stage [:plan :planning-review :card-ready :red :green :code-review :merge-gate]]
+    (is (some #{:muse} (flow/next-states the-flow stage)) (str "Reopen " stage)))
+  (is (some #{:red} (flow/next-states the-flow :card-ready)))
+  (is (some #{:merged} (flow/next-states the-flow :merge-gate))))
+
+(deftest terminal-declarations-must-name-existing-states
+  (let [invalid (update the-flow :flow/terminal into #{:typo :missing})
+        problems (flow/problems invalid)]
+    (is (= #{{:problem :terminal-not-a-state :state :typo}
+             {:problem :terminal-not-a-state :state :missing}}
+           (set problems)))
+    (is (= [] (flow/problems the-flow)))
+    (is (some #{ {:problem :dead-end-state :state :reflected}}
+              (flow/problems (assoc the-flow :flow/terminal #{}))))))
 
 (deftest every-named-skill-exists
   (doseq [s (flow/skills the-flow)]

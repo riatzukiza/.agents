@@ -4,6 +4,8 @@
    already decoded into Clojure maps."
   (:require [clojure.string :as str]))
 
+(def default-min-review-rounds 5)
+
 ;; --- severity -------------------------------------------------------------
 
 (def severity-rank
@@ -322,7 +324,8 @@
                               "fixed" true
                               "handled" (not (blocking? severity))
                               "deferred" (and (not (blocking? severity))
-                                              (integer? (:rounds context)) (> (:rounds context) 5))
+                                              (integer? (:rounds context))
+                                              (> (:rounds context) (or (:min-review-rounds context) default-min-review-rounds)))
                               "rejected" (some? (rejection-evidence (:head context)
                                                                    (or (:identities context) default-reviewer-identities)
                                                                    (:pr-author context) (vec comments) settlement-index
@@ -336,7 +339,7 @@
   "A flagged review clears only when each identified item has an authorized,
    later settlement from a known author other than the opener. P0/P1 items
    require Fixed or independent head/item-bound rejection agreement. Context
-   is required for rejection and post-fifth-round deferral; absence fails closed."
+   is required for rejection and post-minimum deferral; absence fails closed."
   ([reviews comments] (unanswered-review-count reviews comments {}))
   ([reviews comments context]
    (let [comments (vec (sort-by :created_at comments))]
@@ -695,8 +698,6 @@
 
 ;; --- merge gate -----------------------------------------------------------
 
-(def default-min-review-rounds 5)
-
 (defn loop-verdict
   "Completed cohort rounds are a soft minimum. Findings always require
    another iteration; unanimous current-head approval permits an early exit."
@@ -748,7 +749,8 @@
         unsettled (remove :settled? threads)
         contested (filter :contested? threads)
         unresolved (remove :resolved? threads)
-        early-deferrals (when (or (not (integer? rounds)) (<= rounds default-min-review-rounds))
+        min-rounds (or min-review-rounds default-min-review-rounds)
+        early-deferrals (when (or (not (integer? rounds)) (<= rounds min-rounds))
                           (filter #(= :deferred (:resolution %)) threads))
         unanimous? (and (seq review-participants) (every? approved review-participants))
         open-findings (+ (count (filter #(or (not (:settled? %)) (not (:resolved? %))
@@ -757,7 +759,7 @@
                          (or review-bodies-unanswered 0))
         loop-state (loop-verdict {:rounds rounds :open-findings open-findings
                                  :unanimous-approval? (boolean unanimous?)
-                                 :min-review-rounds (or min-review-rounds default-min-review-rounds)})
+                                 :min-review-rounds min-rounds})
         valid-quorum? (and (integer? approval-quorum) (<= 1 approval-quorum (count eligible-reviewers)))
         reasons (cond-> []
                   (not valid-quorum?)
@@ -774,12 +776,12 @@
                   (some #(and (:required? %) (#{"skipped" "skipping" "cancelled"} (str/lower-case (str (:state %))))) checks)
                   (conj "A required check was skipped or cancelled")
                   (seq blockers) (conj (str (count blockers) " P0/P1 thread(s) not fixed"))
-                  (seq early-deferrals) (conj "Verified findings cannot be deferred during the first five review rounds")
+                  (seq early-deferrals) (conj (str "Verified findings cannot be deferred during the first " min-rounds " review rounds"))
                   (seq contested) (conj (str (count contested) " disputed settlement(s)"))
                   (seq unsettled) (conj (str (count unsettled) " thread(s) without a settlement reply"))
                   (seq unresolved) (conj (str (count unresolved) " unresolved thread(s)"))
                   (pos? (or review-bodies-unanswered 0)) (conj (str review-bodies-unanswered " unanswered review summary item(s)"))
-                  (not= :converged loop-state) (conj "Review loop requires five completed rounds or unanimous current-head approval, with every finding settled"))]
+                  (not= :converged loop-state) (conj (str "Review loop requires " min-rounds " completed rounds or unanimous current-head approval, with every finding settled")))]
     {:pass? (empty? reasons) :head head :reasons reasons :coderabbit cr :checks sums
      :approving-reviewers approved :approval-quorum approval-quorum
      :review-rounds rounds :unanimous-approval? (boolean unanimous?) :loop-verdict loop-state}))
