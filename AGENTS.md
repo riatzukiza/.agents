@@ -25,6 +25,7 @@ The following skills are part of the repository's operating substrate:
 - `grok-intention` — use when intent is dense, symbolic, compressed, or recoverable from repository context.
 - `sing-the-songs-of-your-people` — use for truthful corpus-native synthesis, not decorative mystification.
 - `skill-authoring` — use when creating or materially revising a reusable skill.
+- [`pr-flow`](skills/pr-flow/SKILL.md) — read for every PR interaction; the canonical skill pack owns review and authorized merge policy. Global harness instructions should point here rather than copy its policy.
 
 Explicit invocation wins. Otherwise activate skills only when their gates match.
 
@@ -38,6 +39,21 @@ Explicit invocation wins. Otherwise activate skills only when their gates match.
 - Prefer harness-neutral instructions. Put harness-specific assumptions in clearly named compatibility sections or adapters.
 - Do not silently rewrite imported third-party skills as if they were native.
 - Never commit secrets, tokens, authorization headers, private keys, session cookies, or private user data.
+
+## Rheos board authority and Markdown input
+
+Rheos is the sole operational authority for board status, frontmatter,
+comments, transitions and event history. Do not introduce another parser,
+validator, migration script or board-state command surface. Use Rheos CLI,
+API, MCP or UI for those operations; missing behavior is an upstream gap.
+
+Cards may be created and edited manually as Markdown. Hand-authored outcomes,
+scope, non-goals, acceptance criteria and verification are first-class Rheos
+input and are reviewed as diffs. This permission does not authorize manual
+status transitions or fabricated ledger events. Keep comma-separated scalar
+labels for parser compatibility, explicit UUID identity, and omit empty
+dependency fields. Preserve existing board state and append-only event history.
+Never use administrator bypass to replace required review or CI evidence.
 
 ## Skill changes
 

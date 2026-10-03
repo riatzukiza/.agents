@@ -1,0 +1,46 @@
+(skill-contract
+  (name "pr-flow")
+  (v "ημ.skill/pr-flow@0.3.0")
+
+  (intent
+    "Route every pull-request interaction through the pr-flow state machine (flow.edn): muse, plan, planning review, ready, red, green, code review, merge gate, merged, reflected. Ships an nbb CLI over pure .cljc laws for GitHub review mechanics.")
+
+  (activation
+    (priority 80)
+    (explicit ["skill:pr-flow"])
+    (triggers ["pull request" "PR" "draft PR" "coderabbit" "@coderabbitai" "review comment" "review thread"
+               "resolve thread" "auto-merge" "merge the PR" "sprint planning" "epic and stories"]))
+
+  (governance
+    (touch-layer :mutable)
+    (non-override [:mission :directives :safety :license :output-shape])
+    (requires-user-approval false))
+
+  (effects
+    (writes true)
+    (network true)
+    (commits true))
+
+  (invariants
+    (state-machine "flow.edn is lawful per pr-flow.flow/problems; every named skill exists.")
+    (configuration-boundary "Only consumed flow/defaults configure the CLI. Review settlement and merge-default behavior, intended invitations and the emitted github-approved/explicit-review-verdict/explicit-issue-verdict channel names are documented as non-executable notes; invitation intent is not dispatch or availability evidence.")
+    (card-authority "Card status moves only through Rheos; flow states only name the expected transition.")
+    (settle-before-resolve "Every finding thread gets a Fixed|Handled|Deferred|Rejected reply before it is resolved. Every thread defaults to a finding; independently admitted informational disposition is not settlement and never clears an unresolved conversation.")
+    (settlement-authority "Only repository-writer settlements count; the finding's opener cannot settle their own pushback in either threads or review bodies. Review-body settlement requires known, distinct author identities.")
+    (review-body-discovery "Every provider and human is included; body-only requests and legacy listed findings have stable whole-review IDs and a verified Fixed settlement path.")
+    (snapshot-consistency "Approval evidence precedes conversation reads and is rechecked afterward; gate application refreshes evidence immediately before the guarded merge.")
+    (verified-findings "During the first five rounds, fix verified findings regardless of priority, preferably exactly as requested when lawful and verified. Do not defer merely for priority or volume; exceptions need detailed user-authorized reasoning.")
+    (independent-rejection "An outright rejection requires detailed reasoning, code or test evidence, and explicit finding/head-bound agreement from another agent besides CodeRabbit. CodeRabbit assent and author self-agreement never qualify.")
+    (native-issue-rejection "Authenticated allowlisted non-CodeRabbit Bot PR issue comments may corroborate a thread rejection only with one live exact-current-head agreement marker and exact native thread/root-comment binding shared by the writer proposal. Complete paginated issue context is collected on thread/settle/gate paths. Creation must follow the latest proposal/edit; publication/edit must precede the matching final writer settlement. Missing/ambiguous/generated scope, opener self-corroboration, stale heads and later scoped pushback block. Preserve source channel, native ID and URL; a completed assessment is not approval, full-review or round credit, and later workflow cancellation never waives a required check.")
+    (native-source-withdrawal "Authenticated same-Bot explicit withdrawal of a current finding/head-bound agreement by its native issue-comment ID or exact source URL revokes that source, even after settlement, without requiring a repeated Finding pair. A same-Bot thread-only withdrawal blocks that thread's ambiguous agreement. Quoted/forged/unrelated references never revoke other evidence; withdrawing an older source does not revoke a subsequent independently qualified source. Preserve complete native context and compare raw source snapshots independently of approval-specific commit hydration.")
+    (informational-candidate "Separately consumed provisional review/actionability policy admits verified native OpenCode identity only, not the rejection or approval identity lists. Initial scope requires resolved author-only User threads and empty native enclosing COMMENTED reviews. Exact repository/PR/current-head/thread/root, complete ordered context, body/hunk hashes, native IDs and edit metadata bind a fresh writer proposal to independent native issue assessment with substantive reason/evidence. Native identity is observed publication evidence, not runtime/model/App-key independence or overall-run-success proof. Parent authorized isolated preparation; source/profile review and actual fresh native assessment remain prerequisites to operational use.")
+    (informational-isolation "One canonical finding-obligation predicate governs severity/settlement/contestation/deferral/convergence. Informational remains unsettled and supplies zero approval, coverage, rejection or round credit. Unresolved conversations, other findings/review bodies, all deterministic checks, quorum/cohort/minimum and branch protection remain unchanged. Mechanical binding/length/syntax cannot guarantee semantic correctness or independent reasoning; native semantic assessment still requires review.")
+    (informational-revocation "Changed head/comments/enclosing reviews, edits/restoration, new participants, incomplete context, missing source, conflicts and same-Bot exact-source withdrawals revoke admission. Reuse the existing withdrawal grammar with the separately admitted identity. CLI appends canonical Receipt River admission/revocation observations and rehydrates before guarded merge; observed revoked native IDs cannot be restored. No thread allowlists, candidate flags, semantic classifier regex, native transcript impersonation or GitHub conversation mutation.")
+    (review-convergence "Five completed review rounds is a soft minimum, never a hard cap. Early exit requires unanimous current-head approval by configured agents plus settlement of every finding. Continue beyond five while findings or gates remain unresolved.")
+    (approval-quorum "One trusted exact-head formal approval or completed explicit passing verdict with verified commit coverage from CodeRabbit, Codex, MiMo or Kimi; all remain invited.")
+    (coverage-not-approval "Coverage alone, COMMENTED state alone, CLI AgenticKey evidence and acknowledgements are not approval; native explicit passing verdicts require completed review and verified current-commit coverage.")
+    (review-scope "Exact commit binding does not erase an admitted incomplete review or omitted input. Such verdicts cannot qualify even when formally APPROVED, revoke that provider's earlier approval on the same head, and cannot supersede unsettled body change requests. Recovered and reviewed truncated input remains eligible; exhaustive proof of correctness is not required.")
+    (mandatory-overrides "--reviewers and explicit reviewed repository overrides retain all-of approval requirements; default quorum one also applies to Knoxx.")
+    (provider-check-classification "Exact provider labels and the two reviewed job/workflow tuples in SKILL.md classify check outputs only. Required check flags and mandatory reviewers override optional classification; evidence/compilation/test/gate/unknown tuples remain deterministic. Native job names never grant reviewer identity, approval, completed-round credit or cohort membership; failed/pending provider outputs retain their observed states.")
+    (no-bypass "Optional waits retain their true state; required CI, evidence gates, all findings and branch protection are never bypassed.")
+    (tier "This skill graph is provisional until the user accepts it.")))
