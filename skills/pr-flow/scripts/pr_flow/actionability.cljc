@@ -145,7 +145,7 @@
                                (not (revoked (:id c)))))) assessments)
         a (last (sort-by #(get-in % [:source :created_at]) valid)) as (:source a)
         conflict? (or (some (fn [c]
-                              (let [header (first (str/split-lines (:body c)))]
+                              (let [header (first (str/split-lines (or (:body c) "")))]
                                 (and (assessor-identity? c actionability-policy)
                                      (str/starts-with? (or header "") "Actionability assessment ")
                                      (str/ends-with? (or header "") (str " for " (:head t) ":"))

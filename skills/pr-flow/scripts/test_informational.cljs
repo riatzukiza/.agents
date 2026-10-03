@@ -348,3 +348,29 @@
         (is (= 7007 (get-in (law/classify-thread read) [:actionability :assessment-id])))
         (is (= #{7002 7004} (revoked-ids read)))
         (is (empty? (:observations (actionability/disposition read))))))))
+
+(deftest nil-issue-body-defaults-to-finding-without-hiding-malformed-native-headers
+  (let [evaluate (fn [t] (try (actionability/disposition t) (catch :default _ ::threw)))]
+    (doseq [comment [{:body nil} {}]]
+      (let [result (evaluate {:issue-comments [comment]})]
+        (is (= :finding (:kind result)))
+        (is (= :absent (:status result)))
+        (is (empty? (:observations result)))))
+    (doseq [s captures]
+      (let [t (persist-disposition (evidence (input s)))]
+        (doseq [f [#(assoc % :body nil) #(dissoc % :body)]]
+          (let [changed (update-in t [:issue-comments 1] f)
+                result (evaluate changed)]
+            (is (= :finding (:kind result)))
+            (is (= [[7002 :revoked]] (mapv (juxt :assessment-id :status) (:observations result))))
+            (when (= :finding (:kind result))
+              (let [persisted (persist-disposition changed)
+                    restored (assoc t :actionability-observations (:actionability-observations persisted))]
+                (is (not (:pass? (gate (law/classify-thread persisted)))))
+                (is (not (:pass? (gate (law/classify-thread restored)))))))))
+        (let [source (second (:issue-comments t))
+              malformed (native-comment 7008 (:user source) "2026-10-03T14:03:00Z"
+                                        (str "Actionability assessment v1 for " (:head t) ":\nnot-a-canonical-vector"))
+              changed (update t :issue-comments conj malformed)]
+          (is (= :finding (:kind (evaluate changed))))
+          (is (not (:pass? (gate (law/classify-thread changed))))))))))
