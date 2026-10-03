@@ -269,17 +269,19 @@
     (is (str/includes? (:out cooldown) "cooldown"))
     (is (empty? (writes cooldown "comment")))))
 
-(deftest walkthrough-and-stale-quota-do-not-block-manual-requests
+(deftest walkthrough-does-not-block-and-coverage-alone-cannot-clear-quota
   (let [bot {:user {:login "coderabbitai[bot]" :type "Bot"}}
         notice (assoc bot :created_at "2026-10-03T01:00:00Z" :body "Review limit reached.")
         done (assoc bot :updated_at "2026-10-03T01:03:00Z"
                     :body (str "<!-- final_review_risk_coverage: {\"kind\":\"reviewed\",\"sourceCommitId\":\""
                                head "\",\"coveredCommitId\":\"" head "\"} -->"))]
-    (doseq [comments [[(assoc bot :body "The workflow preserves rate-limited reviews; operators wait 53 minutes.")]
-                      [notice done]]]
-      (let [result (execute (assoc base :comments comments) "request" "riatzukiza/.agents" "8" "code")]
+    (let [result (execute (assoc base :comments [(assoc bot :body "The workflow preserves rate-limited reviews; operators wait 53 minutes.")])
+                          "request" "riatzukiza/.agents" "8" "code")]
         (is (= 0 (:exit result)) (:err result))
-        (is (= 1 (count (writes result "comment"))))))))
+        (is (= 1 (count (writes result "comment")))))
+    (let [result (execute (assoc base :comments [notice done]) "request" "riatzukiza/.agents" "8" "code")]
+      (is (= 1 (:exit result)))
+      (is (empty? (writes result "comment"))))))
 
 (deftest one-pass-unanimous-native-approval-can-merge
   (let [reviews [approval

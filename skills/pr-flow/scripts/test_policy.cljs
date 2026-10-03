@@ -405,9 +405,9 @@
                :now-ms (js/Date.parse "2026-10-03T01:05:00Z") :identities identities}]
     ;; A newer request stays pending rather than inheriting an old quota reply.
     (is (= :pending (:status (law/request-verdict (assoc input :comments [limit request])))))
-    ;; Completed current-head coverage clears a notice even without a marker request.
-    (is (= :completed (:status (law/request-verdict (assoc input :comments [limit coverage])))))
-    (is (= :completed (:status (law/request-verdict (assoc input :comments [limit request coverage])))))
+    ;; Coverage alone is not completion or evidence of recovered quota capacity.
+    (is (= :rate-limited (:status (law/request-verdict (assoc input :comments [limit coverage])))))
+    (is (= :pending (:status (law/request-verdict (assoc input :comments [limit request coverage])))))
     ;; Coverage for another commit or provider cannot clear a current notice.
     (is (= :rate-limited (:status (law/request-verdict
                                   (assoc input :comments [limit (assoc coverage :body
@@ -477,11 +477,11 @@
   (let [request {:id 5 :trusted? true :created_at "2026-10-03T01:00:00Z"
                  :body (str "@coderabbitai full review <!-- pr-flow-review:" head " --> <!-- pr-flow-reviewer:coderabbit --> <!-- pr-flow-round:1 -->")}
         done {:id 6 :user {:login "coderabbitai[bot]" :type "Bot"} :created_at "2026-10-03T01:00:20Z"
-              :body (str "<!-- final_review_risk_coverage: {\"kind\":\"reviewed\",\"sourceCommitId\":\"" head "\",\"coveredCommitId\":\"" head "\"} -->")}
+              :body (str "Full review finished.\n<!-- final_review_risk_coverage: {\"kind\":\"reviewed\",\"sourceCommitId\":\"" head "\",\"coveredCommitId\":\"" head "\"} -->")}
         markerless (assoc request :body (str "@coderabbitai full review <!-- pr-flow-review:" head " --> <!-- pr-flow-reviewer:coderabbit -->"))
         current (assoc request :id 7 :created_at "2026-10-03T01:01:00Z"
                        :body (str "@coderabbitai full review <!-- pr-flow-review:" head " --> <!-- pr-flow-reviewer:coderabbit --> <!-- pr-flow-round:2 -->"))
-        input {:head head :reviewer "coderabbit" :comments [request done] :checks [] :round 2 :identities identities}]
+        input {:head head :reviewer "coderabbit" :comments [request done] :checks cr-success :round 2 :identities identities}]
     (is (= :request (:status (law/request-verdict input))))
     (is (= :completed (:status (law/request-verdict (assoc input :round 1)))))
     (is (= :pending (:status (law/request-verdict (assoc input :comments [markerless])))))
@@ -717,16 +717,45 @@
                             " --> <!-- pr-flow-reviewer:coderabbit --> <!-- pr-flow-stage:planning --> <!-- pr-flow-round:1 -->")}
         input {:head head :reviewer "coderabbit" :comments [request] :checks []
                :identities identities :round 2 :stage "code" :now-ms (js/Date.parse "2026-10-03T01:02:00Z")}
-        coverage {:user {:login "coderabbitai[bot]" :type "Bot"} :created_at "2026-10-03T01:01:00Z"
-                  :body (str "<!-- final_review_risk_coverage: {\"kind\":\"reviewed\",\"sourceCommitId\":\""
-                             head "\",\"coveredCommitId\":\"" head "\"} -->")}]
+        coverage {:id 11 :user {:login "coderabbitai[bot]" :type "Bot"} :created_at "2026-10-03T01:01:00Z"
+                  :body "Full review finished."}
+        checked (assoc input :checks cr-success)]
     (is (= :pending (:status (law/request-verdict input))))
     (is (= :pending (:status (law/request-verdict (assoc input :round 1)))))
-    (is (= :request (:status (law/request-verdict (assoc input :comments [request coverage])))))
-    (is (= :request (:status (law/request-verdict (assoc input :round 1 :comments [request coverage])))))
-    (is (= :completed (:status (law/request-verdict (assoc input :round 1 :stage "planning" :comments [request coverage])))))
+    (is (= :request (:status (law/request-verdict (assoc checked :comments [request coverage])))))
+    (is (= :request (:status (law/request-verdict (assoc checked :round 1 :comments [request coverage])))))
+    (is (= :completed (:status (law/request-verdict (assoc checked :round 1 :stage "planning" :comments [request coverage])))))
     (is (= :pending (:status (law/request-verdict
                              (assoc input :comments [request coverage] :checks [{:name "CodeRabbit" :state "PENDING"}])))))))
+
+(deftest coverage-marker-cannot-complete-an-attempt-ended-by-quota
+  (let [request {:id 10 :trusted? true :created_at "2026-10-03T01:00:00Z"
+                 :body (str "@coderabbitai full review <!-- pr-flow-review:" head " --> <!-- pr-flow-reviewer:coderabbit --> <!-- pr-flow-round:1 -->")}
+        coverage {:id 11 :user {:login "coderabbitai[bot]" :type "Bot"} :created_at "2026-10-03T01:00:10Z"
+                  :body (str "<!-- final_review_risk_coverage: {\"kind\":\"reviewed\",\"sourceCommitId\":\""
+                             head "\",\"coveredCommitId\":\"" head "\"} -->")}
+        quota {:id 12 :user {:login "coderabbitai[bot]" :type "Bot"} :created_at "2026-10-03T01:01:00Z"
+               :body "Review rate limited. Next included review available in 50 minutes."}
+        input {:head head :reviewer "coderabbit" :comments [request coverage quota] :checks []
+               :identities identities :round 1 :now-ms (js/Date.parse "2026-10-03T02:00:00Z")}]
+    (is (= :request (:status (law/request-verdict input))))
+    (is (= :pending (:status (law/request-verdict
+                             (assoc input :comments [request coverage])))))
+    (is (= :cooldown (:status (law/request-verdict (assoc input :now-ms (js/Date.parse "2026-10-03T01:30:00Z"))))))))
+
+(deftest later-automatic-full-review-recovers-capacity-without-completing-a-new-request
+  (let [quota {:id 10 :user {:login "coderabbitai[bot]" :type "Bot"}
+               :created_at "2026-10-03T01:00:00Z" :body "Review limit reached."}
+        done (assoc (review "coderabbitai[bot]" "APPROVED" head)
+                    :id 11 :submitted_at "2026-10-03T01:01:00Z" :body "Full review finished.")
+        input {:head head :reviewer "coderabbit" :comments [quota] :reviews [done] :checks []
+               :identities identities :now-ms (js/Date.parse "2026-10-03T01:02:00Z")}
+        request {:id 12 :trusted? true :created_at "2026-10-03T01:02:00Z"
+                 :body (str "@coderabbitai full review <!-- pr-flow-review:" head " --> <!-- pr-flow-reviewer:coderabbit -->")}]
+    (is (= :request (:status (law/request-verdict input))))
+    (is (= :pending (:status (law/request-verdict (update input :comments conj request)))))
+    (is (= :rate-limited (:status (law/request-verdict
+                                  (assoc input :reviews [(assoc done :body "Partial review; omitted input was not reviewed.")])))))))
 
 (deftest native-codex-completion-releases-renewal-only-after-its-request
   (let [request {:id 10 :trusted? true :created_at "2026-10-03T01:00:00Z"
