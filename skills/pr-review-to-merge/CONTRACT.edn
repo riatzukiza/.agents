@@ -15,7 +15,6 @@
     (authorization "Do not infer merge permission from review or skill installation; reuse existing explicit authorization."))
   (invariants
     (one-active-pr true)
-    (reviewers-for-knoxx ["coderabbit" "codex"])
     (reviewer-defaults "pr-flow/flow.edn :flow/defaults :review/by-repo-name; mandatory reviewer sets cannot be removed by --reviewers")
     (approval-quorum 1)
     (approval-providers ["coderabbit" "codex" "mimo" "kimi"])

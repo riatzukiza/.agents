@@ -8,7 +8,7 @@ metadata:
 
 # PR review to merge
 
-> **Within pr-flow, pr-flow's rules win where they differ.** PRs, including stack layers, are opened ready with auto-merge off, not as drafts, because Codex ignores drafts. Merges use merge commits, not squash. Default approval quorum is one trusted exact-head hosted approval or verified completed passing verdict; Knoxx’s existing CodeRabbit-and-Codex requirement is preserved. A disputed **P2/P3** finding is settled with `Rejected: <reason>` and resolved, while a disputed **P0/P1** finding stays open for the user to adjudicate (`pr-review-settlement`). Adapted from open-hax/knoxx `.agents/skills/pr-review-to-merge` at `0fdaae13`, with the user-authorized quorum policy applied here.
+> **Within pr-flow, pr-flow's rules win where they differ.** PRs, including stack layers, are opened ready with auto-merge off, not as drafts, because Codex ignores drafts. Merges use merge commits, not squash. Default approval quorum is one trusted exact-head hosted approval or verified completed passing verdict for every repository, including Knoxx. A disputed **P2/P3** finding is settled with `Rejected: <reason>` and resolved, while a disputed **P0/P1** finding stays open for the user to adjudicate (`pr-review-settlement`). Adapted from open-hax/knoxx `.agents/skills/pr-review-to-merge` at `0fdaae13`, with the user-authorized quorum policy applied here.
 
 ## Use this skill when
 
@@ -62,8 +62,8 @@ receipt location; do not create a competing queue or record credentials.
    evidence, request adjudication, and keep it open pending that decision.
    Linking a report to a task is intake, not resolution.
 4. **Request current-head follow-up.** Supply an author walkthrough where the
-   repository requires it. Request both CodeRabbit and Codex for Knoxx, or all
-   reviewers required by the user's workflow elsewhere. Reuse an in-flight
+   repository requires it. Invite CodeRabbit, Codex, MiMo and Kimi, and request any additional
+   reviewer explicitly required by the active repository policy. Reuse an in-flight
    request for the same head; never duplicate it. A request acknowledgment,
    stale review or rate-limit reply is not completion. After each change,
    keep all reviewers invited for the latest head and relevant base. One eligible approval satisfies the default quorum; explicit mandatory overrides remain all-of. Pending or rate-limited optional reviewers are not marked green and do not replace approval. Do not exceed the shared review budget.

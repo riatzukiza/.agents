@@ -172,9 +172,10 @@
 (def skills-dir (path/join skill-root ".."))
 (def the-flow (edn/read-string (str (fs/readFileSync (path/join skill-root "flow.edn") "utf8"))))
 
-(deftest knoxx-mandatory-reviewers
+(deftest user-quorum-defaults-and-explicit-overrides
   (let [defaults (:flow/defaults the-flow)]
-    (is (= #{"coderabbit" "codex"}
+    (is (= #{} (law/required-reviewers-for defaults "open-hax/knoxx" nil)))
+    (is (= #{"coderabbit"}
            (law/required-reviewers-for defaults "open-hax/knoxx" #{"coderabbit"})))
     (is (= #{}
            (law/required-reviewers-for defaults "open-hax/foresight" nil)))

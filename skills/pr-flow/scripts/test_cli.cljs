@@ -64,7 +64,8 @@
                  :body (str "Codex Review: Didn't find any major issues. :tada:\n\n**Reviewed commit:** `" (subs head 0 10) "`")}
         config (assoc base :reviews [] :comments [comment])
         ok (execute config "status" "open-hax/knoxx" "382")]
-    ;; Explicit override avoids the unrelated repository mandatory set here.
+    ;; The user's default quorum one applies to Knoxx too.
+    (is (str/includes? (:out ok) "gate: PASS"))
     (is (some #(str/ends-with? (second (:args %)) (str "/commits/" (subs head 0 10))) (:calls ok)))
     (is (str/includes? (:out (execute config "status" "riatzukiza/.agents" "8")) "gate: PASS"))
     (is (str/includes? (:out (execute (assoc config :resolvedCommit other) "status" "riatzukiza/.agents" "8")) "gate: BLOCKED"))))

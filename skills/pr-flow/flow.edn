@@ -20,7 +20,7 @@
                  :review/approval-quorum 1
                  :review/approval-evidence #{:github-approved :explicit-passing-verdict}
                  :review/required #{}
-                 :review/by-repo-name {"knoxx" #{"coderabbit" "codex"}}
+                 :review/by-repo-name {}
                  :review/identities {"coderabbit" #{"coderabbitai[bot]"}
                                      "codex" #{"chatgpt-codex-connector[bot]"}
                                      "mimo" #{"eta-mu-ai[bot]"}

@@ -60,7 +60,7 @@ Severity comes from the comment banner:
 
 ## Required reviewers
 
-The default quorum is one exact-head formal approval or explicit completed passing verdict with verified commit coverage from an allowlisted CodeRabbit, Codex, MiMo or Kimi app. All four remain invited and every finding remains in scope for settlement. `:review/required` is empty by default; `--reviewers` and repository overrides impose all-of approvals. Knoxx still requires both CodeRabbit and Codex until its reviewed policy changes. Codex labels findings with `P1 Badge` and `P2 Badge` images; the severity parser reads them.
+The default quorum is one exact-head formal approval or explicit completed passing verdict with verified commit coverage from an allowlisted CodeRabbit, Codex, MiMo or Kimi app. All four remain invited and every finding remains in scope for settlement. `:review/required` is empty by default; `--reviewers` and repository overrides impose all-of approvals. The default quorum one also applies to Knoxx under the October 3 user decision. Codex labels findings with `P1 Badge` and `P2 Badge` images; the severity parser reads them.
 
 ## Other agents
 
