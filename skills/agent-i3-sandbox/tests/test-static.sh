@@ -16,4 +16,8 @@ grep -RnE 'TARGETARCH.*amd64|read_only: true|EMACS_DAEMON_NAME|espanso --help' D
 [[ -f emacs/init.el && -f spacemacs/private/agent-sandbox/packages.el ]]
 ! grep -Eq '^  - trigger: ":sandbox-unicode-[^"]+"$' espanso/match/base.yml
 grep -Fq ':sandbox-keys' espanso/match/base.yml
+grep -Fq 'persist-credentials: false' ../../.github/workflows/desktop-config-sandbox.yml
+grep -Fq 'SPACEMACS_REF: "${SPACEMACS_REF:-491e17ba9cdcb253a3292a3049abb8767c91b9bb}"' docker-compose.yml
+grep -Fq 'healthcheck:' docker-compose.yml
+grep -Fq 'mv -T -n "$stage" "$dest"' scripts/install.sh
 echo 'static sandbox checks passed'

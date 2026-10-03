@@ -34,4 +34,12 @@ refuses "$root/nested-install"
 printf 'preserved\n' > "$tmp/extras/user-file"
 "$root/scripts/install.sh" --apply --dest "$tmp/extras"
 [[ "$(<"$tmp/extras/user-file")" == preserved ]]
+"$root/scripts/install.sh" --apply --dest "$tmp/concurrent" >"$tmp/concurrent-one.log" 2>&1 & one=$!
+"$root/scripts/install.sh" --apply --dest "$tmp/concurrent" >"$tmp/concurrent-two.log" 2>&1 & two=$!
+first=0; wait "$one" || first=$?
+second=0; wait "$two" || second=$?
+(( first == 0 || second == 0 )) || { echo "concurrent installation had no successful writer: $first/$second" >&2; exit 1; }
+[[ -f "$tmp/concurrent/.agent-i3-sandbox-managed" ]]
+[[ "$(grep -hF 'installed managed sandbox skill' "$tmp"/concurrent-*.log | wc -l)" == 1 ]]
+! compgen -G "$tmp/concurrent/.agent-i3-sandbox-stage.*" >/dev/null
 echo 'installer checks passed'

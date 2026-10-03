@@ -30,5 +30,7 @@ if [[ -e "$dest" ]]; then
   cmp "$manifest" "$stage/.agent-i3-sandbox-manifest" >/dev/null || { echo 'refusing update: managed destination differs from source; preserve it and choose a new destination' >&2; exit 1; }
   echo "managed install already current: $dest"; exit 0
 fi
-mv "$stage" "$dest"; trap - EXIT
+mv -T -n "$stage" "$dest"
+[[ ! -d "$stage" ]] || { echo 'refusing concurrent destination creation' >&2; exit 1; }
+trap - EXIT
 echo "installed managed sandbox skill at $dest"

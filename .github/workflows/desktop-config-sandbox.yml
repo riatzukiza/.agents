@@ -22,6 +22,8 @@ jobs:
         working-directory: skills/agent-i3-sandbox
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Static and installer tests
         run: bash tests/test-static.sh && bash tests/test-installer.sh
       - name: Build and wait for isolated desktop

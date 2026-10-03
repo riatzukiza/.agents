@@ -8,7 +8,7 @@ xclip() { timeout 5 /usr/bin/xclip "$@"; }
 artifact=/workspace/.artifacts
 socket="${EMACS_DAEMON_NAME:-agent-core}"
 buffer="*espanso-regression*"
-emacsclient -s "$socket" -e "(with-current-buffer (get-buffer-create \"$buffer\") (fundamental-mode) (setq-local overwrite-mode nil) (erase-buffer))" >/dev/null
+emacsclient -s "$socket" -e "(with-current-buffer (get-buffer-create \"$buffer\") (fundamental-mode) (when (fboundp 'evil-emacs-state) (evil-emacs-state)) (setq-local overwrite-mode nil) (erase-buffer))" >/dev/null
 emacsclient -s "$socket" -c -n -F '((name . "Sandbox Espanso"))' >/dev/null
 emacsclient -s "$socket" -e "(catch 'sandbox-frame (dolist (frame (frame-list)) (when (equal (frame-parameter frame 'name) \"Sandbox Espanso\") (set-window-buffer (frame-selected-window frame) (get-buffer \"$buffer\")) (throw 'sandbox-frame t))))" >/dev/null
 for _ in $(seq 1 50); do
@@ -29,7 +29,7 @@ type_text() {
     xdotool type --clearmodifiers --delay 20 "$char"
   done
 }
-reset_buffer() { emacsclient -s "$socket" -e "(with-current-buffer (get-buffer-create \"$buffer\") (fundamental-mode) (setq-local overwrite-mode nil) (erase-buffer))" >/dev/null; }
+reset_buffer() { emacsclient -s "$socket" -e "(with-current-buffer (get-buffer-create \"$buffer\") (fundamental-mode) (when (fboundp 'evil-emacs-state) (evil-emacs-state)) (setq-local overwrite-mode nil) (erase-buffer))" >/dev/null; }
 read_buffer() { emacsclient -s "$socket" -e "(with-current-buffer \"$buffer\" (buffer-string))"; }
 type_text ':sandbox-ascii '
 sleep 1
