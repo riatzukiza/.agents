@@ -55,7 +55,7 @@ allowlist in `flow.edn`.
 | red | `pr-red-green` | new laws and tests fail for the right reason |
 | green | `pr-red-green` | domain then infra pass all gates |
 | code-review | `pr-review-settlement` | all findings settled; five review rounds completed or unanimous current-head approval |
-| merge-gate | `pr-review-to-merge` + `pr.cljs gate --apply` | ready + auto-merge set on the head that passed |
+| merge-gate | `pr-review-to-merge` + `pr.cljs gate --apply` | ready, and auto-merge enabled or a direct merge performed at the exact head that passed |
 | merged | `pr-review-to-merge` | merge verified, stack advanced, parent pointers bumped, cards closed via Rheos |
 | reflected | `session-mycology` + `receipt-river` | receipt appended; at most one spore incubated |
 

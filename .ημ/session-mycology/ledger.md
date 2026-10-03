@@ -189,3 +189,10 @@
   spore: none
   receipt-refs: "2026-10-03T14:28:31.476341+00:00 pr-flow-informational-disposition"
   note: "Use a single ordered native context manifest and separate identity profile; reuse existing source withdrawal law. Pair current fixtures with exact-base RED proof, keep hosted tests independent of shallow-history availability, and persist revocation observations append-only. Semantic correctness and distributed persistence remain explicit qualification boundaries."
+
+## 2026-10-03 — validation-count clarification for native review 5401430363
+
+- Provenance: clarification of the existing 2026-10-03T13:36:59.946211+00:00 and 2026-10-03T13:56:50.415593+00:00 Evidence entries, requested in native comment 4173718335. This adds readability context; it does not claim another test execution or alter historical evidence.
+- Exact reviewer check tuples: frozen-base RED 17 policy failures and 4 CLI failures; GREEN 109 tests, 1,347 assertions; lint 0 errors / 0 warnings. Full 9ee ledger prefixes were preserved.
+- Count prefiltered obligations: RED 104 pure failures and 15 CLI failures; GREEN 112 tests, 1,744 assertions; lint 0 errors / 0 warnings; lawful flow. The original unsafe pass was blocked; three earlier full ledger prefixes and ordinary local commits were preserved.
+- Historical entries and their count values remain byte-identical. Append-only clarification preserves their surrounding audit details and provenance.

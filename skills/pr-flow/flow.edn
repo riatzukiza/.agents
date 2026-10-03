@@ -94,7 +94,7 @@
   {:skill "pr-review-to-merge"
    :doc "One trusted exact-head approval or verified completed passing verdict, mandatory overrides, passing deterministic/required CI and settled findings → authorized exact-head merge."
    :cli ["pr.cljs gate REPO PR --apply"]
-   :exit "Auto-merge enabled on the exact head that passed the gate."}
+   :exit "Auto-merge enabled, or a direct merge performed, on the exact head that passed the gate."}
 
   :merged
   {:skill "pr-review-to-merge"
