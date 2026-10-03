@@ -28,6 +28,10 @@ The following skills are part of the repository's operating substrate:
 
 Explicit invocation wins. Otherwise activate skills only when their gates match.
 
+For i3, Emacs/Spacemacs, or Espanso desktop configuration tests, use
+`skills/agent-i3-sandbox/SKILL.md`. Run synthetic input in its isolated Xvfb
+container, and verify the target window before every injected key.
+
 ## Repository invariants
 
 - `~/.agents` is the canonical global root on local machines.

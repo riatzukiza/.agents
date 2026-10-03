@@ -1,0 +1,45 @@
+name: Desktop config sandbox
+on:
+  pull_request:
+    paths:
+      - 'skills/agent-i3-sandbox/**'
+      - '.github/workflows/desktop-config-sandbox.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'skills/agent-i3-sandbox/**'
+      - '.github/workflows/desktop-config-sandbox.yml'
+permissions:
+  contents: read
+jobs:
+  sandbox:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      SANDBOX_PROJECT: agents-ci-${{ github.run_id }}-${{ github.run_attempt }}
+    defaults:
+      run:
+        working-directory: skills/agent-i3-sandbox
+    steps:
+      - uses: actions/checkout@v4
+      - name: Static and installer tests
+        run: bash tests/test-static.sh && bash tests/test-installer.sh
+      - name: Build and wait for isolated desktop
+        run: bash scripts/agentctl up core
+      - name: Desktop and expansion regressions
+        run: |
+          bash scripts/agentctl smoke core
+          bash scripts/agentctl i3-regression core
+          bash scripts/agentctl espanso-regression core
+          bash scripts/agentctl snapshot core
+      - name: Collect evidence
+        if: always()
+        run: bash scripts/agentctl artifacts core "$RUNNER_TEMP/desktop-artifacts"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: desktop-sandbox-evidence
+          path: ${{ runner.temp }}/desktop-artifacts
+      - name: Tear down
+        if: always()
+        run: bash scripts/agentctl down core

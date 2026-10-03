@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -euo pipefail
+[[ -f /home/agent/.agent-sandbox-container && "$DISPLAY" == :99 ]] || { echo 'isolated container display required' >&2; exit 1; }
+if [[ "${EMACS_DAEMON_NAME:-}" == agent-spacemacs ]]; then
+  result="$(timeout 10 emacsclient -s agent-spacemacs -e '(and (boundp (quote spacemacs-version)) (featurep (quote bind-map)))')"
+  [[ "$result" == t ]] || { echo 'Spacemacs initialization incomplete; core Emacs health is not Spacemacs parity' >&2; exit 1; }
+fi
+
+artifact=/workspace/.artifacts
+i3-msg -t get_version | tee "$artifact/i3-version.json" | jq -e '.human_readable'
+emacsclient -s "${EMACS_DAEMON_NAME:-agent-core}" -e '(progn (switch-to-buffer "*sandbox-smoke*") (erase-buffer) (insert "ready") t)' >/dev/null
+espanso --help | tee "$artifact/espanso-help.txt"
+grep -Eq '(^|[[:space:]])(start|status|stop)([[:space:]]|$)' "$artifact/espanso-help.txt"
+timeout 5 espanso status | tee "$artifact/espanso-status.txt" | grep -Fx 'espanso is running'
+[[ "$(id -u)" != 0 ]] || { echo 'sandbox must run non-root' >&2; exit 1; }
+echo "i3/emacs/espanso smoke passed"

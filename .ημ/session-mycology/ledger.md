@@ -25,3 +25,12 @@
   spore: none
   receipt-refs: 2026-10-02T22:14:20.382806Z, 2026-10-02T22:08:37.046811153Z
   note: Preserve historical receipts and reflections; corrective entries carry immutable pin and audit links. Credentials and pending reviews remain explicit blockers.
+- ts: 2026-10-03T13:50:10.832105466Z
+  session: /home/err/spaces/foresight/.agents/.worktrees/feat-desktop-config-sandbox
+  task: Extract desktop sandbox with Espanso and safe installation
+  p-efficiency: 0.6
+  p-friction: 0.7
+  p-skill-candidate: 0.4
+  spore: none
+  receipt-refs: none
+  note: Early provider failures and trigger-prefix ambiguity cost time. Disjoint triggers, exact output assertions, and adversarial installer tests yielded verified core toolkit.

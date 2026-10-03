@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+project="${SANDBOX_PROJECT:-agent-i3-sandbox}"
+compose=(docker compose --project-directory "$root" --project-name "$project")
+command="${1:-}"
+target="${2:-core}"
+[[ "$target" == core || "$target" == spacemacs ]] || { echo "unknown target: $target" >&2; exit 64; }
+
+case "$command" in
+  up) if [[ "$target" == spacemacs ]]; then "${compose[@]}" build core; docker tag "${project}-core" "${project}-core-base"; "${compose[@]}" build --build-arg CORE_IMAGE="${project}-core-base" spacemacs; "${compose[@]}" up --detach --wait --wait-timeout 40 spacemacs; else "${compose[@]}" up --detach --build --wait --wait-timeout 40 "$target"; fi ;;
+  down) "${compose[@]}" down --volumes ;;
+  smoke) "${compose[@]}" exec "$target" /home/agent/bin/smoke-i3 ;;
+  i3-regression) "${compose[@]}" exec "$target" /home/agent/bin/test-i3-regression ;;
+  espanso-regression) "${compose[@]}" exec "$target" /home/agent/bin/test-espanso-regression ;;
+  snapshot) "${compose[@]}" exec "$target" bash -c 'i3-msg -t get_tree > /workspace/.artifacts/i3-tree.json; i3-msg -t get_workspaces > /workspace/.artifacts/i3-workspaces.json' ;;
+  artifacts)
+    dest="${3:?artifacts requires a destination directory}"
+    [[ ! -e "$dest" && ! -L "$dest" ]] || { echo "refusing existing artifact destination: $dest" >&2; exit 1; }
+    mkdir -p "$dest"
+    "${compose[@]}" cp "$target:/workspace/.artifacts/." "$dest/"
+    ;;
+  logs) "${compose[@]}" logs "$target" ;;
+  shell) "${compose[@]}" exec "$target" bash ;;
+  *) echo "usage: $0 {up|down|smoke|i3-regression|espanso-regression|snapshot|artifacts|logs|shell} [core|spacemacs] [artifact-destination]" >&2; exit 64 ;;
+esac

@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+set -euo pipefail
+# Runs inside the isolated container only; exercises the bundled Mod4+Return.
+[[ -f /home/agent/.agent-sandbox-container && "$DISPLAY" == :99 ]] || { echo 'container display required' >&2; exit 1; }
+timeout 5 i3 -C -c /home/agent/.config/i3/config
+count() { timeout 5 i3-msg -t get_tree | jq '[.. | objects | select(.window_properties.class? == "XTerm")] | length'; }
+before="$(count)"
+timeout 5 xdotool key --clearmodifiers super+Return
+for _ in $(seq 1 50); do
+  after="$(count)"
+  if ((after > before)); then
+    timeout 5 i3-msg -t get_tree > /workspace/.artifacts/i3-binding-tree.json
+    echo 'Mod4+Return opened an XTerm in the sandbox'
+    exit 0
+  fi
+  sleep 0.1
+done
+echo 'Mod4+Return did not open XTerm' >&2
+exit 1

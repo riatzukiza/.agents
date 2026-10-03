@@ -1,0 +1,5 @@
+;;; .spacemacs.agent --- sandbox configuration -*- lexical-binding: t; -*-
+(defun dotspacemacs/layers ()
+  (setq-default dotspacemacs-configuration-layers '(agent-sandbox)))
+(defun dotspacemacs/init ()
+  (setq-default dotspacemacs-elpa-https t))
