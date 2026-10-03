@@ -64,7 +64,7 @@ Card status belongs to Rheos. A state's `:board/expects` only names the transiti
 ## CLI
 
 ```bash
-P="nbb -cp ~/.agents/skills/pr-flow/scripts ~/.agents/skills/pr-flow/scripts/pr.cljs"
+P="nbb -cp $HOME/.agents/skills/pr-flow/scripts $HOME/.agents/skills/pr-flow/scripts/pr.cljs"
 $P flow [STATE]
 $P status  owner/repo N            # draft, checks, CodeRabbit, threads by severity, gate verdict
 $P request owner/repo N planning|code [--note TEXT] [--reviewer coderabbit|codex]
