@@ -198,8 +198,8 @@
          (re-seq #"<!--\s*final_review_risk_coverage:\s*\{([^}]*)\}\s*-->" (str body)))))
 
 (defn review-evidence
-  "GitHub reviews and issue comments remain separate evidence tiers. Only a
-   trusted app's latest decisive review on this exact head grants approval."
+  "Trust completed explicit verdicts as well as formal approvals, while
+   retaining their distinct channels and immutable commit coverage."
   [head reviews comments identities]
   (let [trusted (->> reviews
                      (keep (fn [r]
@@ -208,20 +208,48 @@
                                           (string? (:submitted_at r)))
                                  (assoc r :reviewer p)))))
                      (sort-by (juxt :submitted_at :id)))
-        decisive (reduce (fn [m r]
-                           (if (#{"APPROVED" "CHANGES_REQUESTED" "DISMISSED"} (:state r))
-                             (assoc m (:reviewer r) r) m)) {} trusted)
-        approved (into {} (for [[p r] decisive :when (= "APPROVED" (:state r))] [p #{head}]))
+        review-verdicts (keep (fn [r]
+                               (cond
+                                 (#{"CHANGES_REQUESTED" "DISMISSED"} (:state r))
+                                 (assoc r :positive? false :channel :github-review)
+                                 (= "APPROVED" (:state r))
+                                 (assoc r :positive? true :channel :github-approved)
+                                 (and (= "COMMENTED" (:state r))
+                                      (not (re-find #"(?i)review (?:incomplete|rate limited)|partial review|unreviewed files|unable to complete (?:the )?review" (str (:body r))))
+                                      (re-find #"(?im)^\s*(?:\*\*)?(?:Confirmed findings:\s*none|No confirmed findings|No issues found)(?:\*\*)?\s*(?:[.—-]|$)" (str (:body r))))
+                                 (assoc r :positive? true :channel :explicit-review-verdict))) trusted)
+        comment-verdicts
+        (keep (fn [c]
+                (let [p (trusted-reviewer c identities)
+                      body (str (:body c))
+                      recent (second (re-find #"(?s)<!--\s*recent_review_start\s*-->(.*?)<!--\s*recent_review_end\s*-->" body))
+                      passing? (case p
+                                 "coderabbit" (and ((coderabbit-covered-heads body) head)
+                                                   recent (str/includes? recent head)
+                                                   (re-find #"(?m)^No actionable comments were generated in the recent review\." recent))
+                                 "codex" (and (= head (:resolved-commit-id c))
+                                              (re-find #"^Codex Review: Didn't find any major issues\." body))
+                                 false)]
+                  (when (and (valid-head? head) passing?
+                             (string? (or (:updated_at c) (:created_at c))))
+                    (assoc c :reviewer p :positive? true :channel :explicit-issue-verdict
+                           :submitted_at (or (:updated_at c) (:created_at c)))))) comments)
+        decisive (reduce (fn [m r] (assoc m (:reviewer r) r)) {}
+                         (sort-by (juxt :submitted_at :id) (concat review-verdicts comment-verdicts)))
+        approved (into {} (for [[p r] decisive :when (:positive? r)] [p #{head}]))
         covered (reduce (fn [m r]
-                          (if (or (not (str/blank? (:body r)))
-                                  (#{"APPROVED" "CHANGES_REQUESTED"} (:state r)))
+                          (if (and (not= "coderabbit" (:reviewer r))
+                                   (or (not (str/blank? (:body r)))
+                                       (#{"APPROVED" "CHANGES_REQUESTED"} (:state r))))
                             (update m (:reviewer r) (fnil conj #{}) head) m)) {} trusted)
         covered (reduce (fn [m c]
                           (if (and (valid-head? head)
                                    (= "coderabbit" (trusted-reviewer c identities))
                                    ((coderabbit-covered-heads (:body c)) head))
                             (update m "coderabbit" (fnil conj #{}) head) m)) covered comments)]
-    {:approved-heads approved :reviewed-heads covered}))
+    {:approved-heads approved :reviewed-heads covered
+     :approval-evidence (into {} (for [[p r] decisive :when (:positive? r)]
+                                  [p {:head head :channel (:channel r) :id (:id r)}]))}))
 
 (defn reviewer-check
   "Only named reviewer outputs are optional. Evidence gates and required
@@ -335,6 +363,25 @@
 
 ;; --- merge gate -----------------------------------------------------------
 
+(defn latest-checks
+  "Select the latest run of each context/workflow on this head. Requiredness
+   survives reruns; ambiguous ordering fails closed by retaining all rows."
+  [head checks]
+  (mapcat
+   (fn [[_ rows]]
+     (let [required? (boolean (some :required? rows))
+           current (filter #(or (nil? (:headSha %)) (= head (:headSha %))) rows)
+           stamp #(instant-ms (:startedAt %))
+           stamps (map stamp current)
+           picked (cond
+                    (empty? current) [(assoc (first rows) :state "PENDING")]
+                    (= 1 (count current)) current
+                    (and (every? some? stamps) (= (count stamps) (count (set stamps))))
+                    [(last (sort-by stamp current))]
+                    :else current)]
+       (map #(assoc % :required? required?) picked)))
+   (group-by (juxt :name :workflow) checks)))
+
 (defn merge-gate
   "One positive exact-head hosted review is the default quorum. Mandatory
    reviewer overrides remain all-of; all deterministic checks and findings
@@ -342,7 +389,8 @@
   [{:keys [threads checks review-bodies-unanswered head snapshot-head
            required-reviewers approved-heads incomplete? approval-quorum]
     :or {approval-quorum 1}}]
-  (let [cr (coderabbit-state checks)
+  (let [checks (latest-checks head checks)
+        cr (coderabbit-state checks)
         mandatory (or required-reviewers #{})
         approved (set (for [[p heads] approved-heads
                             :when (and (eligible-reviewers p) (contains? (set heads) head))] p))

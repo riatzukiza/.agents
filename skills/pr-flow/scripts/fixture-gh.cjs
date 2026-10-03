@@ -13,6 +13,7 @@ if (args[0] === 'api' && args[1] === 'graphql') {
   out({data: {repository: {pullRequest: {isDraft: false, reviewThreads: {pageInfo: {hasNextPage: false}, nodes: []}}}}});
 } else if (args[0] === 'api' && args[1].endsWith('/reviews')) out([config.reviews || []]);
 else if (args[0] === 'api' && args[1].endsWith('/comments')) out([config.comments || []]);
+else if (args[0] === 'api' && args[1].includes('/commits/')) out({sha: config.resolvedCommit || config.head});
 else if (args[0] === 'api' && args[1].includes('/collaborators/')) out({permission: config.authorized === false ? 'read' : 'admin'});
 else if (args[0] === 'pr' && args[1] === 'view') {
   const heads = config.heads || [config.head];

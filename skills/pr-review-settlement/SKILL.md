@@ -56,11 +56,11 @@ Severity comes from the comment banner:
 
 - Use the thread id (`PRRT_…`) from GraphQL `reviewThreads`. `settle` replies with `addPullRequestReviewThreadReply`, then calls `resolveReviewThread`. The REST equivalent is `POST repos/O/R/pulls/N/comments/<comment-id>/replies`. Note the `N`: `pulls/comments/<id>/replies` is wrong.
 - CodeRabbit answers settlement replies: it verifies the claimed commit and either confirms ("✅ Review thread resolved") or pushes back. `law/classify-thread` marks a thread `:contested?` when a reviewer replies after the last settlement without confirming it. The gate then blocks, even if GitHub shows the thread resolved. To re-settle, fix or answer the pushback, then run `settle` again with a new reply; GitHub's `unresolveReviewThread` mutation can reopen the thread first if humans should see it open.
-- Settlement replies also show up as "reviews" in the reviews API. Coverage and approval are distinct. Review bodies and exact-head CodeRabbit issue markers establish observed coverage; only a trusted native GitHub `APPROVED` state grants approval.
+- Settlement replies also show up as "reviews" in the reviews API. Coverage and approval are distinct. Review bodies and exact-head CodeRabbit issue markers establish observed coverage; a trusted exact-head GitHub `APPROVED` state or an explicit completed passing verdict with verified current-commit coverage grants approval. Coverage alone does not.
 
 ## Required reviewers
 
-The default quorum is one exact-head `APPROVED` review from an allowlisted CodeRabbit, Codex, MiMo or Kimi app. All four remain invited and every finding remains in scope for settlement. `:review/required` is empty by default; `--reviewers` and repository overrides impose all-of approvals. Knoxx still requires both CodeRabbit and Codex until its reviewed policy changes. Codex labels findings with `P1 Badge` and `P2 Badge` images; the severity parser reads them.
+The default quorum is one exact-head formal approval or explicit completed passing verdict with verified commit coverage from an allowlisted CodeRabbit, Codex, MiMo or Kimi app. All four remain invited and every finding remains in scope for settlement. `:review/required` is empty by default; `--reviewers` and repository overrides impose all-of approvals. Knoxx still requires both CodeRabbit and Codex until its reviewed policy changes. Codex labels findings with `P1 Badge` and `P2 Badge` images; the severity parser reads them.
 
 ## Other agents
 

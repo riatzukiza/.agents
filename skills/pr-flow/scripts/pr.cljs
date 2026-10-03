@@ -130,7 +130,17 @@
   [repo n]
   (let [head (str/trim (gh! "pr" "view" (str n) "-R" repo "--json" "headRefOid" "-q" ".headRefOid"))
         reviews (gh-pages (str "repos/" repo "/pulls/" n "/reviews"))
-        comments (gh-pages (str "repos/" repo "/issues/" n "/comments"))]
+        comments (mapv
+                  (fn [c]
+                    (if (and (= "codex" (law/trusted-reviewer c (reviewer-identities)))
+                             (re-find #"^Codex Review: Didn't find any major issues\." (str (:body c))))
+                      (let [markers (map second (re-seq #"(?m)^\*\*Reviewed commit:\*\* `([0-9a-f]{10,40})`\s*$" (str (:body c))))]
+                        (if (= 1 (count markers))
+                          (assoc c :resolved-commit-id
+                                 (:sha (gh-json "api" (str "repos/" repo "/commits/" (first markers)))))
+                          c))
+                      c))
+                  (gh-pages (str "repos/" repo "/issues/" n "/comments")))]
     (assoc (law/review-evidence head reviews comments (reviewer-identities)) :head head)))
 
 (defn fetch-checks
@@ -139,7 +149,8 @@
    falls back to the keyring only on a token-permission refusal. Any other
    failure throws, so a blank result never reads as 'no CodeRabbit'."
   [repo n]
-  (let [args ["pr" "checks" (str n) "-R" repo "--json" "name,state,description"]
+  (let [head (str/trim (gh! "pr" "view" (str n) "-R" repo "--json" "headRefOid" "-q" ".headRefOid"))
+        args ["pr" "checks" (str n) "-R" repo "--json" "name,state,description,startedAt,completedAt,workflow,link"]
         ok? (fn [r] (and (#{0 8} (:exit r)) (not (str/blank? (:out r)))))
         r (run-gh args js/process.env)
         r (if (and (not (ok? r)) (re-find #"Resource not accessible|Bad credentials|HTTP 40[13]" (:err r)))
@@ -154,7 +165,7 @@
                          (re-find #"no checks reported" (:err required)) #{}
                          :else (throw (ex-info "Cannot identify required checks" required)))]
     (cond
-      (ok? r) (mapv #(assoc % :required? (contains? required-names (:name %)))
+      (ok? r) (mapv #(assoc % :headSha head :required? (contains? required-names (:name %)))
                     (js->clj (js/JSON.parse (:out r)) :keywordize-keys true))
       (re-find #"no checks reported" (:err r)) []
       :else (throw (ex-info (str "gh pr checks failed: " (str/trim (:err r))) r)))))

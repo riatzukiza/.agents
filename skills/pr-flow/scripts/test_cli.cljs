@@ -51,6 +51,17 @@
     (is (= 2 (:exit stale)))
     (is (empty? (writes stale "merge")))))
 
+(deftest codex-verdict-resolves-the-provider-commit
+  (let [comment {:user {:login "chatgpt-codex-connector[bot]" :type "Bot"}
+                 :updated_at "2026-10-03T01:00:00Z"
+                 :body (str "Codex Review: Didn't find any major issues. :tada:\n\n**Reviewed commit:** `" (subs head 0 10) "`")}
+        config (assoc base :reviews [] :comments [comment])
+        ok (execute config "status" "open-hax/knoxx" "382")]
+    ;; Explicit override avoids the unrelated repository mandatory set here.
+    (is (some #(str/ends-with? (second (:args %)) (str "/commits/" (subs head 0 10))) (:calls ok)))
+    (is (str/includes? (:out (execute config "status" "riatzukiza/.agents" "8")) "gate: PASS"))
+    (is (str/includes? (:out (execute (assoc config :resolvedCommit other) "status" "riatzukiza/.agents" "8")) "gate: BLOCKED"))))
+
 (deftest requests-are-full-literal-and-deduplicated
   (let [note "Literal $() and `backticks`\nsecond line"
         r (execute (assoc base :checks [{:name "laws" :state "SUCCESS" :required true}])

@@ -66,7 +66,7 @@
           later (assoc (review "eta-mu-ai[bot]" "CHANGES_REQUESTED" head) :id 2 :submitted_at "2026-10-03T01:01:00Z")]
       (is (empty? (:approved-heads (evidence [approved later])))))))
 
-(deftest observed-coderabbit-coverage-is-never-approval
+(deftest coverage-alone-is-not-a-passing-verdict
   (let [body (str "No actionable comments. <!-- final_review_risk_coverage:{\"sourceCommitId\":\"" head
                   "\",\"coveredCommitId\":\"" head "\",\"kind\":\"reviewed\"} -->")
         comment {:user {:login "coderabbitai[bot]" :type "Bot"} :body body :updated_at "2026-10-03T01:00:00Z"}
@@ -76,6 +76,36 @@
     (is (empty? (:approved-heads (law/review-evidence head [] [(assoc comment :body (str "APPROVED " body))] identities))))
     (is (empty? (:reviewed-heads (law/review-evidence old-head [] [comment] identities))))
     (is (empty? (:reviewed-heads (law/review-evidence head [] [(assoc-in comment [:user :login] "fake-coderabbit[bot]")] identities))))))
+
+(deftest explicit-passing-verdicts-require-current-coverage
+  (let [marker (str "<!-- final_review_risk_coverage:{\"sourceCommitId\":\"" head
+                    "\",\"coveredCommitId\":\"" head "\",\"kind\":\"reviewed\"} -->")
+        cr {:id 3 :user {:login "coderabbitai[bot]" :type "Bot"}
+            :updated_at "2026-10-03T01:02:00Z"
+            :body (str "<!-- recent_review_start -->\nNo actionable comments were generated in the recent review.\n"
+                       "Reviewing files between " old-head " and " head ".\n<!-- recent_review_end -->\n" marker)}
+        codex {:id 4 :user {:login "chatgpt-codex-connector[bot]" :type "Bot"}
+               :updated_at "2026-10-03T01:02:00Z" :resolved-commit-id head
+               :body (str "Codex Review: Didn't find any major issues. :tada:\n\n**Reviewed commit:** `" (subs head 0 10) "`")}
+        passing (assoc (review "eta-mu-ai[bot]" "COMMENTED" head)
+                       :body "Confirmed findings: none — no candidate survived adversarial validation.")]
+    (is (= #{head} (get-in (law/review-evidence head [] [cr] identities) [:approved-heads "coderabbit"])))
+    (is (= #{head} (get-in (law/review-evidence head [] [codex] identities) [:approved-heads "codex"])))
+    (is (= #{head} (get-in (law/review-evidence head [passing] [] identities) [:approved-heads "mimo"])))
+    (doseq [bad [(assoc cr :body marker)
+                 (assoc cr :body (str "Full review triggered. " marker))
+                 (assoc cr :body (str "No actionable comments were generated in the recent review. " marker))
+                 (assoc-in cr [:user :type] "User")
+                 (assoc codex :resolved-commit-id old-head)
+                 (dissoc codex :resolved-commit-id)
+                 (assoc codex :body "Codex Review: queued. No issues reported yet.")]]
+      (is (empty? (:approved-heads (law/review-evidence head [] [bad] identities)))))
+    (doseq [body ["No confirmed findings yet; review queued." "Confirmed findings: none.\nReview incomplete." "No issues found.\nUnreviewed files remain."]]
+      (is (empty? (:approved-heads (law/review-evidence head [(assoc passing :body body)] [] identities)))))
+    (is (empty? (:approved-heads (law/review-evidence old-head [passing] [cr codex] identities))))
+    (let [revocation (assoc (review "coderabbitai[bot]" "CHANGES_REQUESTED" head)
+                            :submitted_at "2026-10-03T01:03:00Z")]
+      (is (empty? (:approved-heads (law/review-evidence head [revocation] [cr] identities)))))))
 
 (deftest request-dedupe-cooldown-and-hard-budget
   (let [request {:trusted? true :created_at "2026-10-03T01:00:00Z"
@@ -95,6 +125,20 @@
                                       (assoc input :comments [{:user {:login "coderabbitai[bot]" :type "Bot"}
                                                               :body "Review limit reached."}])))))
     (is (= :pending (:status (law/request-verdict (assoc input :comments [] :checks [{:name "CodeRabbit" :state "PENDING"}])))))))
+
+(deftest latest-required-context-on-current-head
+  (let [old {:name "required" :state "FAILURE" :required? true :headSha head :startedAt "2026-10-03T01:00:00Z" :workflow "CI"}
+        latest (assoc old :state "SUCCESS" :startedAt "2026-10-03T02:00:00Z")]
+    (is (:pass? (law/merge-gate (assoc baseline :checks [old latest]))))
+    (is (:pass? (law/merge-gate (assoc baseline :checks [(assoc old :state "CANCELLED") latest]))))
+    (is (not (:pass? (law/merge-gate (assoc baseline :checks [latest (assoc old :startedAt "2026-10-03T03:00:00Z")])))))
+    (is (not (:pass? (law/merge-gate (assoc baseline :checks [old (assoc latest :headSha old-head)])))))
+    (is (not (:pass? (law/merge-gate (assoc baseline :checks [latest (assoc old :workflow "other CI")])))))))
+
+(deftest approval-alone-does-not-prove-coderabbit-issue-coverage
+  (let [e (law/review-evidence head [(review "coderabbitai[bot]" "APPROVED" head)] [] identities)]
+    (is (= #{head} (get-in e [:approved-heads "coderabbit"])))
+    (is (empty? (:reviewed-heads e)))))
 
 (defmethod cljs.test/report [:cljs.test/default :end-run-tests] [m]
   (when-not (cljs.test/successful? m) (set! (.-exitCode js/process) 1)))

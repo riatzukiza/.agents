@@ -8,7 +8,7 @@ metadata:
 
 # PR review to merge
 
-> **Within pr-flow, pr-flow's rules win where they differ.** PRs, including stack layers, are opened ready with auto-merge off, not as drafts, because Codex ignores drafts. Merges use merge commits, not squash. Default approval quorum is one trusted exact-head hosted `APPROVED` review; Knoxx’s existing CodeRabbit-and-Codex requirement is preserved. A disputed **P2/P3** finding is settled with `Rejected: <reason>` and resolved, while a disputed **P0/P1** finding stays open for the user to adjudicate (`pr-review-settlement`). Adapted from open-hax/knoxx `.agents/skills/pr-review-to-merge` at `0fdaae13`, with the user-authorized quorum policy applied here.
+> **Within pr-flow, pr-flow's rules win where they differ.** PRs, including stack layers, are opened ready with auto-merge off, not as drafts, because Codex ignores drafts. Merges use merge commits, not squash. Default approval quorum is one trusted exact-head hosted approval or verified completed passing verdict; Knoxx’s existing CodeRabbit-and-Codex requirement is preserved. A disputed **P2/P3** finding is settled with `Rejected: <reason>` and resolved, while a disputed **P0/P1** finding stays open for the user to adjudicate (`pr-review-settlement`). Adapted from open-hax/knoxx `.agents/skills/pr-review-to-merge` at `0fdaae13`, with the user-authorized quorum policy applied here.
 
 ## Use this skill when
 
@@ -73,7 +73,7 @@ receipt location; do not create a competing queue or record credentials.
    resolve an actionable finding merely because it is outdated, copied to a
    task, or inconvenient. Inspect all conversations again after follow-up.
 6. **Recheck the merge gate.** Fetch fresh remote state. Require no actionable
-   findings, one eligible trusted exact-head GitHub `APPROVED` review plus all mandatory reviewer approvals, all
+   findings, one eligible trusted exact-head approval or explicit completed passing verdict with verified commit coverage, plus all mandatory reviewer approvals, all
    required checks passing with applicable suites actually exercised, all
    review conversations resolved, branch protection satisfied, and no unresolved
    prerequisite or integration blocker. Missing/pending evidence is not a pass.

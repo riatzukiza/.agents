@@ -18,6 +18,7 @@
                  ;; Invitations and positive approvals are distinct obligations.
                  :review/invited #{"coderabbit" "codex" "mimo" "kimi"}
                  :review/approval-quorum 1
+                 :review/approval-evidence #{:github-approved :explicit-passing-verdict}
                  :review/required #{}
                  :review/by-repo-name {"knoxx" #{"coderabbit" "codex"}}
                  :review/identities {"coderabbit" #{"coderabbitai[bot]"}
@@ -79,7 +80,7 @@
 
   :merge-gate
   {:skill "pr-review-to-merge"
-   :doc "One trusted exact-head APPROVED review, mandatory overrides, passing deterministic/required CI and settled findings → authorized exact-head merge."
+   :doc "One trusted exact-head approval or verified completed passing verdict, mandatory overrides, passing deterministic/required CI and settled findings → authorized exact-head merge."
    :cli ["pr.cljs gate REPO PR --apply"]
    :exit "Auto-merge enabled on the exact head that passed the gate."}
 

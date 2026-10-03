@@ -63,9 +63,9 @@ Laws live in `scripts/pr_flow/law.cljc` (severity, settlement, merge gate, loop 
 ## Hard-won rules
 
 - **gh auth.** A fine-grained `GH_TOKEN` can push but may fail `createPullRequest` with "Resource not accessible by personal access token". The CLI retries with the token unset so gh uses its keyring login. For raw `gh`, use `env -u GH_TOKEN -u GITHUB_TOKEN gh …`.
-- **Approval quorum.** One trusted exact-head GitHub `APPROVED` review from CodeRabbit, Codex, MiMo or Kimi satisfies the default quorum. `COMMENTED`, `CHANGES_REQUESTED`, acknowledgements, stale reviews and no-findings coverage do not grant approval. All four remain invited. All findings from every reviewer must be settled; required CI and evidence gates must pass.
+- **Approval quorum.** One trusted exact-head GitHub `APPROVED` review or explicit completed passing/no-issues verdict from CodeRabbit, Codex, MiMo or Kimi satisfies the default quorum. A COMMENTED state alone, coverage alone, `CHANGES_REQUESTED`, acknowledgements and stale reviews do not qualify. All four remain invited. All findings from every reviewer must be settled; required CI and evidence gates must pass.
 - **Rate limits.** Pending, failed, rate-limited or skipped optional reviews stay in those states. They do not block a different valid approving reviewer when the remaining gates pass. A mandatory reviewer or required check is never waived. Requests are manual, deduplicated for the exact head, and delayed until the parsed cooldown expires; an unknown cooldown needs operator attention.
-- **Exact head and identity.** Only allowlisted GitHub Bot logins in reviewed `:review/identities` can grant approval. The latest decisive state on the exact 40-hex head controls; a later dismissal or request for changes revokes that provider’s approval. A new push invalidates the old head, and a changed head during evidence collection blocks merging. Kimi is invited but needs its verified app identity configured before its approval can count.
+- **Exact head and identity.** Only allowlisted GitHub Bot logins in reviewed `:review/identities` can grant approval. CodeRabbit issue verdicts need an actual completed recent review with no actionable comments and its exact-head coverage marker. Codex issue verdicts need its explicit passing statement and a Reviewed commit marker resolved through GitHub to the full current SHA. The latest decisive state on the exact 40-hex head controls; a later dismissal or request for changes revokes that provider’s approval. A new push invalidates the old head, and a changed head during evidence collection blocks merging. Kimi is invited but needs its verified app identity configured before its approval can count.
 - **No-findings reviews.** CodeRabbit may finish a full review without creating a REST review record. An authorized exact-head request marker followed by CodeRabbit's "Full review finished" reply, together with a completed current-head CodeRabbit check, is review evidence. A trigger acknowledgement alone is not.
 - **Outdated threads.** An outdated thread still needs verification before you settle it.
 - **Review bodies.** Nitpicks and outside-diff findings live in the review body, not in threads. Answer every finding in an itemized PR comment with `review-id:<numeric GitHub review ID>`; each line names its `cr-comment:v1:<ID>` and opens with `Fixed`, `Deferred`, `Rejected`, or `Handled`. P0/P1 findings require `Fixed`. The gate accepts only comments by repository writers.
@@ -86,9 +86,12 @@ Laws live in `scripts/pr_flow/law.cljc` (severity, settlement, merge gate, loop 
 
 ## Coverage, approvals and execution boundaries
 
-The CLI reads CodeRabbit’s authenticated issue-comment
-`final_review_risk_coverage` marker as observed coverage only. It never converts
-“No actionable comments” or “Full review finished” into a GitHub approval.
+The CLI preserves native formal approvals and explicit passing verdicts as
+distinct evidence channels. CodeRabbit’s authenticated issue-comment coverage
+marker alone is observed coverage only; a completed explicit no-actionable
+verdict with verified current-commit coverage qualifies under the user’s
+October 3 decision. “Full review finished” alone does not qualify and no
+synthetic GitHub APPROVED state is created.
 CodeRabbit and Codex requests use their explicit mention surfaces; MiMo and
 Kimi use configured hosted workflows. All remain invited even after quorum.
 
@@ -97,3 +100,23 @@ It cannot impersonate native CodeRabbit approval or satisfy the hosted GitHub
 approval quorum. Do not publish a synthetic approving review to fill the quorum.
 Preserve named credentials, current-head evidence gates and branch protection;
 missing credentials are an operator blocker, not permission to suppress a job.
+
+### Authorized governance cycle and CI reruns
+
+The user authorized a new bounded process/governance cycle on 2026-10-03,
+covering quorum policy, exact-head evidence, latest-check selection and Rheos
+input permissions. Record its scope and test/review evidence separately from
+the historical six-round repair loop. That authorization does not reset the
+old loop or permit endless retries of the same findings. New review requests
+still need an explicit bounded cycle budget; absent that budget, keep the
+historical cap and send no seventh request.
+
+For duplicate checks, select the latest same-head run of each context and
+workflow, preserving requiredness across reruns. A later required failure,
+cancellation or pending run still blocks; an older failure superseded by the
+latest successful run does not. Ambiguous run ordering fails closed. CodeRabbit
+issue coverage requires its actual exact-head `final_review_risk_coverage`
+marker; even a formal CodeRabbit approval alone does not supply that marker.
+The user accepted explicit passing verdicts with verified commit coverage on
+2026-10-03; the gate recognizes observed native provider formats, verifies
+identity and commit binding, and retains the source channel and record ID.

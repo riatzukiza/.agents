@@ -19,7 +19,7 @@
     (reviewer-defaults "pr-flow/flow.edn :flow/defaults :review/by-repo-name; mandatory reviewer sets cannot be removed by --reviewers")
     (approval-quorum 1)
     (approval-providers ["coderabbit" "codex" "mimo" "kimi"])
-    (require-trusted-exact-head-approved-state true)
+    (require-trusted-exact-head-approval-or-verified-passing-verdict true)
     (coverage-is-not-approval true)
     (require-passing-required-checks true)
     (require-resolved-review-conversations true)
