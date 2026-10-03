@@ -4,6 +4,8 @@
             [cljs.test :refer [deftest is run-tests]] [clojure.string :as str]
             [clojure.edn :as edn]
             [test-issue-agreement :as native]
+            [test-informational :as informational]
+            [pr-flow.actionability :as actionability]
             [nbb.core :refer [*file*]]))
 (def here (path/dirname *file*))
 (def the-flow (edn/read-string (fs/readFileSync (path/join here ".." "flow.edn") "utf8")))
@@ -40,7 +42,7 @@
 (defn execute [config & args]
   (let [tmp (fs/mkdtempSync (path/join (os/tmpdir) "pr-flow-cli-"))
         data (path/join tmp "data.json") gh (path/join tmp "gh")
-        scripts (if (:flow-data config) (path/join tmp "pr-flow" "scripts") here)
+        scripts (if (:flow-data config) (path/join tmp "skills" "pr-flow" "scripts") here)
         rounds (:prior-stage-rounds config 0)
         history (completed-stage-reviews rounds other)
         config (cond-> (-> config
@@ -54,7 +56,18 @@
       (when-let [flow-data (:flow-data config)]
         ;; Exercise real file configuration without touching the owned checkout.
         (fs/cpSync here scripts #js {:recursive true})
-        (fs/writeFileSync (path/join scripts ".." "flow.edn") (pr-str flow-data)))
+        (fs/writeFileSync (path/join scripts ".." "flow.edn") (pr-str flow-data))
+        (fs/mkdirSync (path/join tmp ".ημ") #js {:recursive true})
+        (fs/writeFileSync (path/join tmp ".ημ" "receipts.edn")
+                          (if (seq (:receipt-history config))
+                            (str (str/join "\n" (map pr-str (:receipt-history config))) "\n") ""))
+        (when (:no-receipt-ledger config) (fs/unlinkSync (path/join tmp ".ημ" "receipts.edn")))
+        (when (:baseline-source config)
+          (doseq [relative ["pr.cljs" "pr_flow/law.cljc" "pr_flow/flow.cljc"]]
+            (let [source (cp/spawnSync "git" #js ["show" (str "9ee8831ffe001b025d425a239a2d30e95378ea6a:skills/pr-flow/scripts/" relative)]
+                                      #js {:cwd (path/resolve here ".." ".." "..") :encoding "utf8"})]
+              (when-not (= 0 (.-status source)) (throw (ex-info "Immutable baseline unavailable" {})))
+              (fs/writeFileSync (path/join scripts relative) (.-stdout source))))))
       (when (:testToken config) (aset env "GH_TOKEN" "fixture-token") (aset env "GITHUB_TOKEN" "fixture-token"))
       (fs/writeFileSync data (js/JSON.stringify (clj->js (dissoc config :flow-data))))
       (fs/copyFileSync (path/join here "fixture-gh.cjs") gh) (fs/chmodSync gh 493)
@@ -63,7 +76,9 @@
             calls (if (fs/existsSync calls-path)
                     (mapv #(js->clj (js/JSON.parse %) :keywordize-keys true)
                           (remove str/blank? (str/split-lines (fs/readFileSync calls-path "utf8")))) [])]
-        {:exit (.-status r) :out (str (.-stdout r)) :err (str (.-stderr r)) :calls calls})
+        {:exit (.-status r) :out (str (.-stdout r)) :err (str (.-stderr r)) :calls calls
+         :receipts (when (and (:flow-data config) (fs/existsSync (path/join tmp ".ημ" "receipts.edn")))
+                     (fs/readFileSync (path/join tmp ".ημ" "receipts.edn") "utf8"))})
       (finally (fs/rmSync tmp #js {:recursive true :force true})))))
 (defn writes [result verb]
   (filter #(= ["pr" verb] (vec (take 2 (:args %)))) (:calls result)))
@@ -675,6 +690,88 @@
       (is (empty? (writes gate "merge")))
       (is (= 1 (:exit settle)))
       (is (empty? (mutations settle))))))
+
+(defn informational-response [s]
+  {:data {:repository (assoc (:repository s) :pullRequest
+                            (assoc (:pr s) :reviewThreads {:pageInfo {:hasNextPage false} :nodes [(:thread s)]}))}})
+(defn informational-config [s]
+  (let [t (informational/evidence (informational/input s))]
+    (assoc base :flow-data the-flow :head (:head t) :prAuthor (:pr-author t)
+           :reviews [(assoc approval :commit_id (:head t))]
+           :comments (:issue-comments t) :threadPageResponses [(informational-response s)])))
+(defn observation-receipts [r]
+  (map edn/read-string (remove str/blank? (str/split-lines (:receipts r "")))))
+
+(deftest informational-native-hydration-red-green-and-receipt-proof
+  (doseq [s informational/captures]
+    (let [config (informational-config s) repo (get-in s [:repository :nameWithOwner]) n (str (get-in s [:pr :number]))
+          ;; Optional local historical RED proof. Hosted shallow checkouts need
+          ;; only current source; GREEN/negative assertions always execute.
+          red (when (= "1" (.-PR_FLOW_BASELINE_PROOF js/process.env))
+                (execute (assoc config :baseline-source true) "gate" repo n "--apply"))
+          green (execute config "gate" repo n "--apply")
+          displayed (execute config "threads" repo n "--all")]
+      (when red
+        (is (= 2 (:exit red)))
+        (is (str/includes? (:out red) "without a settlement reply"))
+        (is (empty? (writes red "merge"))))
+      (is (= 0 (:exit green)) (str (:err green) (:out green)))
+      (is (= 1 (count (writes green "merge"))))
+      (is (empty? (mutations green)))
+      (is (str/includes? (:out green) "informational 1"))
+      (is (str/includes? (:out displayed) "-unsettled-"))
+      (is (str/includes? (:out displayed) "actionability: informational qualified"))
+      (is (str/includes? (:out displayed) "native-source=7002"))
+      (let [receipts (observation-receipts green)]
+        (is (= 1 (count receipts)))
+        (is (= :qualified (get-in (first receipts) [:decisions 0 :status])))
+        (is (every? #(contains? (first receipts) %) [:ts :kind :origin :owner :dod :pi :host :manifest :refs]))))))
+
+(deftest informational-cli-retains-all-other-obligations-and-separate-admission
+  (let [s (first informational/captures) config (informational-config s)]
+    (doseq [c [(assoc config :comments []) (assoc config :reviews [])
+               (assoc config :prior-stage-rounds 0)
+               (assoc config :checks [{:name "laws" :state "FAILURE" :required true}])
+               (assoc config :checks [{:name "laws" :state "CANCELLED" :required true}])
+               (assoc config :no-receipt-ledger true)
+               (update config :flow-data update :flow/defaults dissoc :review/actionability)
+               (assoc config :threadPageResponses [(informational-response (assoc-in s [:thread :isResolved] false))])]]
+      (let [r (execute c "gate" "open-hax/proxx" "445" "--apply")]
+        (is (not= 0 (:exit r)) (str (:err r) (:out r)))
+        (is (empty? (writes r "merge")))
+        (is (empty? (mutations r)))))
+    (let [r (execute (update config :comments update 1 assoc :run-conclusion "cancelled")
+                     "status" "open-hax/proxx" "445")]
+      (is (= 0 (:exit r)))
+      (is (str/includes? (:out r) "gate: PASS"))
+      (is (str/includes? (:out r) "completed code rounds: 5"))
+      (is (str/includes? (:out r) "#{\"mimo\"}")))))
+
+(deftest changed-native-context-or-assessment-revokes-and-blocks-effects
+  (let [s (first informational/captures) config (informational-config s)
+        changed (assoc-in s [:thread :comments :nodes 0 :updatedAt] "2026-10-03T14:03:00Z")
+        first-comments (:comments config)]
+    (doseq [c [(assoc config :threadPageResponses [(informational-response s) (informational-response changed)])
+               (assoc config :commentsSequence [first-comments [(first first-comments)] first-comments])
+               (assoc config :commentsSequence [first-comments
+                                                (update first-comments 1 assoc :updated_at "2026-10-03T14:03:00Z")])]]
+      (let [r (execute c "gate" "open-hax/proxx" "445" "--apply")]
+        (is (= 2 (:exit r)) (str (:err r) (:out r)))
+        (is (empty? (writes r "merge")))
+        (is (empty? (mutations r)))
+        (is (some #(= :revoked (get-in % [:decisions 0 :status])) (observation-receipts r)))))))
+
+(deftest persisted-revocation-prevents-reused-source-admission
+  (let [s (first informational/captures) config (informational-config s)
+        t (informational/evidence (informational/input s))
+        accepted (first (:observations (actionability/disposition t)))
+        prefix {:ts "2026-10-03T14:04:00Z" :kind :observation :origin "pr-flow-actionability-observation"
+                :owner "fixture" :dod "fixture" :pi "fixture" :host "isolated-fixture" :manifest [] :refs []
+                :decisions [accepted (assoc accepted :status :revoked :reason :withdrawn)]}
+        r (execute (assoc config :receipt-history [prefix]) "gate" "open-hax/proxx" "445" "--apply")]
+    (is (= 2 (:exit r)))
+    (is (empty? (writes r "merge")))
+    (is (str/starts-with? (:receipts r) (str (pr-str prefix) "\n")))))
 
 (defmethod cljs.test/report [:cljs.test/default :end-run-tests] [m]
   (when-not (cljs.test/successful? m) (set! (.-exitCode js/process) 1)))

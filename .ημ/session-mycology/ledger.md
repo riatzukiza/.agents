@@ -170,3 +170,13 @@
 - Lesson: provider classification belongs before obligation counting. Repeating a name-based exclusion inside the counter can silently erase a required native workflow outcome. Test exact optional provider, required/mandatory provider, and neighboring deterministic names separately.
 - Evidence: RED104 pure and15 CLI failures; GREEN112 tests1744 assertions,lint0/0,lawful flow. Original unsafe pass is now blocked. Three earlier full ledger prefixes and ordinary local commits preserved.
 - Boundary: authorized minimal P1 repair removes one redundant substring filter; no requiredness,min/quorum/cohort,scope or convergence policy change and no external actions. Parent owns publication and native qualification.
+
+- ts: 2026-10-03T14:28:31.476341+00:00
+  session: codex/pr-flow-informational-disposition
+  task: Bound informational conversation admission without self-settlement or reviewer-law drift
+  p-efficiency: 0.82
+  p-friction: 0.28
+  p-skill-candidate: 0.45
+  spore: none
+  receipt-refs: "2026-10-03T14:28:31.476341+00:00 pr-flow-informational-disposition"
+  note: "Use a single ordered native context manifest and separate identity profile; reuse existing source withdrawal law. Pair current fixtures with exact-base RED proof, keep hosted tests independent of shallow-history availability, and persist revocation observations append-only. Semantic correctness and distributed persistence remain explicit qualification boundaries."

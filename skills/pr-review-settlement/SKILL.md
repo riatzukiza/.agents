@@ -119,6 +119,20 @@ The actual published assessment remains evidence if its originating workflow
 is subsequently cancelled. This is not an approval, a full review, a completed
 review round, or a waiver of any required check: those laws remain separate.
 
+## Candidate informational conversations
+
+The separate [informational disposition](../pr-flow/actionability.md) is a
+provisional bounded correction for resolved author-only User explanations with
+empty native enclosing reviews. Same-author `Handled`, author identity, a
+walkthrough prefix, unknown severity and GitHub resolution do not qualify.
+All threads default to finding obligations. Only fresh independently admitted
+native evidence with exact complete context may remove that obligation; it is
+not settlement or independent rejection and gives no approval/coverage/round
+credit. Real defects/questions remain findings and unresolved conversations
+still block. Mechanical protocol checks cannot guarantee the assessor's semantic
+judgment. Parent owns review/publication and actual fresh native qualification;
+no invocation is authorized by the preparation fixtures.
+
 For a review-body item, include its scope on both first lines:
 `Rejection proposal for <SHA>: review-id:<review ID> cr-comment:v1:<item ID>`
 and `Rejection agreement for <SHA>: review-id:<review ID> cr-comment:v1:<item ID>`.

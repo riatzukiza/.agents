@@ -27,6 +27,12 @@
                  :review/approval-quorum 1
                  :review/required #{}
                  :review/by-repo-name {}
+                 ;; Separate candidate admission, explicitly authorized 2026-10-03.
+                 ;; Native identity only; not a runtime/run-success guarantee.
+                 ;; Provisional until reviewed, published and freshly assessed.
+                 :review/actionability {:version 1 :status :provisional
+                                        :identities #{{:login "opencode-agent[bot]" :id 219766164
+                                                       :node-id "BOT_kgDODRldlA"}}}
                  :review/identities {"coderabbit" #{"coderabbitai[bot]"}
                                      "codex" #{"chatgpt-codex-connector[bot]"}
                                      "mimo" #{"eta-mu-ai[bot]"}

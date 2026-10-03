@@ -26,10 +26,12 @@
   (:require ["child_process" :as cp]
             ["fs" :as fs]
             ["path" :as path]
+            ["crypto" :as crypto]
             [clojure.edn :as edn]
             [nbb.core :refer [*file*]]
             [clojure.string :as str]
             [pr-flow.flow :as flow]
+            [pr-flow.actionability :as actionability]
             [pr-flow.law :as law]))
 
 (def here
@@ -79,10 +81,47 @@
 ;; --- reads ----------------------------------------------------------------
 
 (def ^:private threads-query
-  "query($owner:String!,$name:String!,$n:Int!,$after:String){repository(owner:$owner,name:$name){pullRequest(number:$n){
-     isDraft headRefOid author{login} reviewThreads(first:100,after:$after){pageInfo{hasNextPage endCursor}
+  "query($owner:String!,$name:String!,$n:Int!,$after:String){repository(owner:$owner,name:$name){id databaseId nameWithOwner pullRequest(number:$n){
+     id number state isDraft headRefOid author{login __typename ... on User{id databaseId}}
+     reviewThreads(first:100,after:$after){pageInfo{hasNextPage endCursor}
        nodes{id isResolved isOutdated path line
-         comments(first:100){pageInfo{hasNextPage} nodes{databaseId author{login __typename} body url createdAt updatedAt}}}}}}}")
+         comments(first:100){totalCount pageInfo{hasNextPage} nodes{id databaseId author{login __typename ... on User{id databaseId}}
+           body diffHunk url createdAt updatedAt commit{oid} originalCommit{oid}
+           pullRequestReview{id databaseId state body updatedAt commit{oid} author{login __typename ... on User{id databaseId}}}}}}}}}}")
+
+(defn- sha256 [s]
+  (when (string? s) (.digest (.update (crypto/createHash "sha256") s "utf8") "hex")))
+(defn- hash-body [c] (assoc c :body-sha256 (sha256 (:body c))))
+(defn hydrate-actionability-context [repository pr thread]
+  (let [context {:repository repository :pr (dissoc pr :reviewThreads :native-repository)
+                 :thread (update-in thread [:comments :nodes]
+                                    #(mapv (fn [c] (-> (hash-body c) (assoc :diff-sha256 (sha256 (:diffHunk c)))
+                                                       (update :pullRequestReview hash-body))) %))}
+        manifest (actionability/context-manifest context)]
+    {:native-context context :context-manifest manifest :context-digest (sha256 (pr-str manifest))}))
+
+(defn- actionability-ledger [] (path/resolve here ".." ".." ".." ".ημ" "receipts.edn"))
+(defn- actionability-observations []
+  (let [file (actionability-ledger)]
+    (if-not (fs/existsSync file) []
+      (vec (mapcat (fn [line]
+                     (let [receipt (edn/read-string line)]
+                       (when (= "pr-flow-actionability-observation" (:origin receipt))
+                         (filter #(= :thread-actionability (:purpose %)) (:decisions receipt)))))
+                   (remove str/blank? (str/split-lines (fs/readFileSync file "utf8"))))))))
+(defn- append-actionability-observations! [observations]
+  (when (seq observations)
+    (let [file (actionability-ledger)]
+      (when-not (fs/existsSync file)
+        (throw (ex-info "Canonical actionability receipt ledger unavailable; no disposition admitted" {:path file})))
+      (doseq [o observations]
+        (fs/appendFileSync file
+          (str (pr-str {:ts (.toISOString (js/Date.)) :kind :observation
+                        :origin "pr-flow-actionability-observation" :owner "pr-flow-cli"
+                        :dod "Preserve native actionability admission/revocation append-only"
+                        :pi "pr-flow/actionability" :host "local-cli-native-github"
+                        :manifest [] :refs [(:repo-id o) (:pr-id o) (:thread-id o) (:head o)]
+                        :decisions [o] :note "Observed disposition is not settlement, approval, coverage, or round credit."}) "\n"))))))
 
 (defn- fetch-issue-comments [repo n]
   (let [pages (gh-json "api" (str "repos/" repo "/issues/" n "/comments") "--paginate" "--slurp")]
@@ -114,9 +153,9 @@
                    (every? #(thread-connection? (:comments %) false) (:nodes conn)))
       (throw (ex-info "Invalid GraphQL review-thread page; cannot establish complete thread evidence"
                       {:owner owner :repo name :pr n :after after})))
-    pr))
+    (assoc pr :native-repository (dissoc (get-in response [:data :repository]) :pullRequest))))
 
-(declare authorized-author? reviewer-identities)
+(declare authorized-author? reviewer-identities load-flow)
 
 (defn fetch-threads
   "All review threads, following reviewThreads pagination. A thread whose
@@ -126,32 +165,42 @@
   ([repo n] (fetch-threads repo n (fetch-issue-comments repo n)))
   ([repo n issue-comments]
   (let [[owner name] (split-repo repo)
-        issue-comments (mapv #(assoc % :source-channel :github-issue-comment) issue-comments)
-        authorized? (memoize (partial authorized-author? repo))]
+        authorized? (memoize (partial authorized-author? repo))
+        issue-comments (mapv #(cond-> (assoc (hash-body %) :source-channel :github-issue-comment)
+                               (= "User" (get-in % [:user :type]))
+                               (assoc :authorized? (boolean (authorized? (get-in % [:user :login]))))) issue-comments)
+        history (actionability-observations)
+        policy (get-in (load-flow) [:flow/defaults :review/actionability])]
     (loop [after nil acc [] draft? nil]
       (let [pr (threads-page owner name n after)
             conn (:reviewThreads pr)
             acc (into acc (:nodes conn))]
         (if (get-in conn [:pageInfo :hasNextPage])
           (recur (get-in conn [:pageInfo :endCursor]) acc (:isDraft pr))
-          {:draft? (if (nil? draft?) (:isDraft pr) draft?)
+          (let [threads (mapv (fn [t]
+                               (law/classify-thread
+                                (merge (hydrate-actionability-context (:native-repository pr) pr t)
+                                 {:id (:id t) :resolved? (:isResolved t) :outdated? (:isOutdated t)
+                                  :path (:path t) :line (:line t)
+                                  :head (:headRefOid pr) :pr-author (get-in pr [:author :login])
+                                  :actionability-policy policy :actionability-observations history
+                                  :identities (reviewer-identities)
+                                  :root-comment-id (get-in t [:comments :nodes 0 :databaseId])
+                                  :issue-comments issue-comments
+                                  :comments (mapv (fn [c] {:id (:databaseId c) :author (get-in c [:author :login]) :body (:body c)
+                                                           :user {:login (get-in c [:author :login]) :type (get-in c [:author :__typename])}
+                                                           :authorized? (boolean (authorized? (get-in c [:author :login])))
+                                                           :url (:url c) :created-at (:createdAt c) :updated-at (:updatedAt c)})
+                                                  (get-in t [:comments :nodes]))}))) acc)
+                observations (vec (distinct (mapcat #(get-in % [:actionability :observations]) threads)))
+                _ (append-actionability-observations! observations)
+                history (into history observations)]
+           {:draft? (if (nil? draft?) (:isDraft pr) draft?)
            :head (:headRefOid pr) :pr-author (get-in pr [:author :login])
            :incomplete? (boolean (some #(get-in % [:comments :pageInfo :hasNextPage]) acc))
-           :threads (mapv (fn [t]
-                            (law/classify-thread
-                             {:id (:id t) :resolved? (:isResolved t) :outdated? (:isOutdated t)
-                              :path (:path t) :line (:line t)
-                              :head (:headRefOid pr) :pr-author (get-in pr [:author :login])
-                              :identities (reviewer-identities)
-                              :root-comment-id (get-in t [:comments :nodes 0 :databaseId])
-                              :issue-comments issue-comments
-                              :comments (mapv (fn [c] {:id (:databaseId c) :author (get-in c [:author :login]) :body (:body c)
-                                                       :user {:login (get-in c [:author :login])
-                                                              :type (get-in c [:author :__typename])}
-                                                       :authorized? (boolean (authorized? (get-in c [:author :login])))
-                                                       :url (:url c) :created-at (:createdAt c) :updated-at (:updatedAt c)})
-                                              (get-in t [:comments :nodes]))}))
-                          acc)}))))))
+           ;; Normalize our own append before snapshot comparison. Native raw
+           ;; records remain unchanged; a subsequent actual mutation still blocks.
+           :threads (mapv #(law/classify-thread (assoc % :actionability-observations history)) threads)})))))))
 
 (declare load-flow)
 
@@ -251,14 +300,17 @@
 
 (defn print-threads [threads]
   (doseq [{:keys [id path line severity resolved? resolution reviewer comments
-                 rejection-channel rejection-source-id rejection-url]} threads]
+                 rejection-channel rejection-source-id rejection-url actionability]} threads]
     (println (str (name severity) "  " (if resolved? "resolved  " "OPEN      ")
                   (if resolution (name resolution) "-unsettled-") "  " reviewer "  " path ":" line))
     (println (str "    id=" id))
     (println (str "    " (law/title-of (:body (first comments)))))
     (println (str "    " (:url (first comments))))
     (when rejection-channel
-      (println (str "    rejection evidence: " (name rejection-channel) " id=" rejection-source-id " " rejection-url)))))
+      (println (str "    rejection evidence: " (name rejection-channel) " id=" rejection-source-id " " rejection-url)))
+    (when (not= :absent (:status actionability))
+      (println (str "    actionability: " (name (:kind actionability)) " " (name (:status actionability))
+                    " native-source=" (:assessment-id actionability) " " (:url actionability))))))
 
 (defn status [repo n reviewers]
   (let [heads (fetch-heads repo n)
@@ -285,7 +337,8 @@
     (println (str repo "#" n (when draft? "  [draft]") "  head " (subs (:head heads) 0 7)))
     (println (str "  coderabbit: " (name (:coderabbit gate)) "   checks: " (pr-str (:checks gate))))
     (println (str "  threads: " (count threads) " total, " (count (remove :resolved? threads)) " unresolved; by severity "
-                  (pr-str (frequencies (map :severity (remove :resolved? threads))))))
+                  (pr-str (frequencies (map :severity (filter law/finding-obligation? (remove :resolved? threads)))))
+                  "; informational " (count (remove law/finding-obligation? threads))))
     (println (str "  exact-head approvals: " (pr-str (:approving-reviewers gate)) "  observed commit binding: " (pr-str (:reviewed-heads heads))))
     (println (str "  completed " (:stage progress) " rounds: " (:rounds progress)
                   " / soft minimum " (:min-review-rounds progress)
