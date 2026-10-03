@@ -47,8 +47,9 @@ pending, stale or unavailable reviewers never count as unanimous approval.
    give detailed reasoning, concrete evidence and the consequences of leaving
    it unchanged. Obtain independent agreement before rejecting it outright.
 5. If an exceptional deferral requires a user decision, keep it open and
-   present the concrete tradeoff. After the fifth round, scoped P2/P3 deferral
-   can be justified with an existing follow-up and specific reasoning.
+   present the concrete tradeoff. Once the completed-round count is strictly
+   above the configured minimum (default five), scoped P2/P3 deferral can be
+   justified with an existing follow-up and specific reasoning.
 
 `Handled` means a concern is already addressed: identify the existing code,
 fix or duplicate and its verification. It must not disguise a rejected request
@@ -135,7 +136,7 @@ Every finding gets a reply **before** its thread is resolved:
 | --- | --- |
 | `Fixed in <sha>: …` | changed; cite the test or evidence |
 | `Handled: …` | already addressed; identify where and how verified |
-| `Deferred to <card-uuid or issue>: …` | justified scoped follow-up after round five; the follow-up exists |
+| `Deferred to <card-uuid or issue>: …` | justified scoped follow-up only when completed rounds are strictly above the configured minimum (default five); the follow-up exists |
 | `Rejected: …` | detailed reasoning and evidence, corroborated by an independent non-CodeRabbit agent |
 
 1. **Wait.** Run `pr.cljs wait REPO N`. Preserve cooldowns and reuse pending
