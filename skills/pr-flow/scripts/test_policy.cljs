@@ -3,10 +3,12 @@
   (:require ["fs" :as fs] ["path" :as path]
             [nbb.core :refer [*file*]]
             [cljs.test :refer [deftest is run-tests]]
+            [clojure.string :as str]
             [pr-flow.law :as law]))
 
 (def head (apply str (repeat 40 "a")))
 (def old-head (apply str (repeat 40 "b")))
+(def cr-success [{:name "CodeRabbit" :state "SUCCESS" :headSha head}])
 (def identities {"coderabbit" #{"coderabbitai[bot]"}
                  "codex" #{"chatgpt-codex-connector[bot]"}
                  "mimo" #{"eta-mu-ai[bot]"}
@@ -262,7 +264,7 @@
                :body (str "Codex Review: Didn't find any major issues. :tada:\n\n**Reviewed commit:** `" (subs head 0 10) "`")}
         passing (assoc (review "eta-mu-ai[bot]" "COMMENTED" head)
                        :body "Confirmed findings: none — no candidate survived adversarial validation.")]
-    (is (= #{head} (get-in (law/review-evidence head [] [cr] identities) [:approved-heads "coderabbit"])))
+    (is (= #{head} (get-in (law/review-evidence head [] [cr] identities cr-success) [:approved-heads "coderabbit"])))
     (is (= #{head} (get-in (law/review-evidence head [] [codex] identities) [:approved-heads "codex"])))
     (is (= #{head} (get-in (law/review-evidence head [passing] [] identities) [:approved-heads "mimo"])))
     (is (= #{head} (get-in (law/review-evidence head [(assoc passing :body "No issues found.\n```text\nExample code\n```")] [] identities)
@@ -274,15 +276,15 @@
                  (assoc codex :resolved-commit-id old-head)
                  (dissoc codex :resolved-commit-id)
                  (assoc codex :body "Codex Review: queued. No issues reported yet.")]]
-      (is (empty? (:approved-heads (law/review-evidence head [] [bad] identities)))))
+      (is (empty? (:approved-heads (law/review-evidence head [] [bad] identities cr-success)))))
     (doseq [body ["No confirmed findings yet; review queued." "Confirmed findings: none.\nReview incomplete." "No issues found.\nUnreviewed files remain."
                  "Quoted PR example:\n```text\nConfirmed findings: none.\n```\nThe review has no verdict yet."
                  "Quoted PR example:\n~~~\nNo issues found.\n~~~\nThe review has no verdict yet."]]
       (is (empty? (:approved-heads (law/review-evidence head [(assoc passing :body body)] [] identities)))))
-    (is (empty? (:approved-heads (law/review-evidence old-head [passing] [cr codex] identities))))
+    (is (empty? (:approved-heads (law/review-evidence old-head [passing] [cr codex] identities cr-success))))
     (let [revocation (assoc (review "coderabbitai[bot]" "CHANGES_REQUESTED" head)
                             :submitted_at "2026-10-03T01:03:00Z")]
-      (is (empty? (:approved-heads (law/review-evidence head [revocation] [cr] identities)))))))
+      (is (empty? (:approved-heads (law/review-evidence head [revocation] [cr] identities cr-success)))))))
 
 (deftest request-dedupe-cooldown-and-soft-minimum
   (let [request {:trusted? true :created_at "2026-10-03T01:00:00Z"
@@ -416,21 +418,22 @@
   (let [request {:id 5 :trusted? true :created_at "2026-10-03T01:00:00Z"
                  :body (str "<!-- pr-flow-stage:code --> <!-- pr-flow-review:" head " --> <!-- pr-flow-reviewer:coderabbit -->")}
         done {:id 6 :user {:login "coderabbitai[bot]" :type "Bot"} :created_at "2026-10-03T01:00:20Z" :body "Full review finished."}
-        reviewed (assoc (review "coderabbitai[bot]" "COMMENTED" head) :id 7 :submitted_at "2026-10-03T01:00:30Z")]
-    (is (= 1 (count (law/completed-review-rounds [reviewed] [request done] identities))))
-    (is (= 1 (count (law/completed-review-rounds [] [request done] identities))))
-    (is (empty? (law/completed-review-rounds [] [(assoc request :trusted? false) done] identities)))
-    (is (empty? (law/completed-review-rounds [] [request (assoc done :body "Full review triggered.")] identities)))))
+        reviewed (assoc (review "coderabbitai[bot]" "COMMENTED" head) :id 7 :submitted_at "2026-10-03T01:00:30Z"
+                        :body "No actionable comments were generated.")]
+    (is (= 1 (count (law/completed-review-rounds [reviewed] [request done] identities cr-success))))
+    (is (= 1 (count (law/completed-review-rounds [] [request done] identities cr-success))))
+    (is (empty? (law/completed-review-rounds [] [(assoc request :trusted? false) done] identities cr-success)))
+    (is (empty? (law/completed-review-rounds [] [request (assoc done :body "Full review triggered.")] identities cr-success)))))
 
 (deftest full-review-completion-retains-request-head-round-and-stage
   (let [request {:id 5 :trusted? true :created_at "2026-10-03T01:00:00Z"
                  :body (str "<!-- pr-flow-stage:planning --> <!-- pr-flow-round:2 --> <!-- pr-flow-review:" head " --> <!-- pr-flow-reviewer:coderabbit -->")}
         done {:id 6 :user {:login "coderabbitai[bot]" :type "Bot"} :created_at "2026-10-03T01:00:20Z" :body "Full review finished."}
-        rounds (law/completed-review-rounds [] [request done] identities)]
+        rounds (law/completed-review-rounds [] [request done] identities cr-success)]
     (is (= [{:reviewer "coderabbit" :round-id 2 :stage "planning" :commit_id head}]
            (mapv #(select-keys % [:reviewer :round-id :stage :commit_id]) rounds)))
     (is (= 0 (law/stage-review-rounds rounds [{:stage "code" :created_at "2026-10-03T01:00:10Z"}] "code" #{"coderabbit"})))
-    (is (empty? (law/completed-review-rounds [] [request (assoc done :body "Full review finished.\nReview incomplete.")] identities)))
+    (is (empty? (law/completed-review-rounds [] [request (assoc done :body "Full review finished.\nReview incomplete.")] identities cr-success)))
     (doseq [body ["Acknowledged." "## Review queued\nWorking on it." "Confirmed findings: none yet; review queued."]]
       (is (not (law/full-review? (assoc (review "eta-mu-ai[bot]" "COMMENTED" head) :body body) identities))))
     (is (law/full-review? (assoc (review "eta-mu-ai[bot]" "COMMENTED" head) :body "Full review finished.") identities))
@@ -490,6 +493,94 @@
   (let [e (law/review-evidence head [(review "coderabbitai[bot]" "APPROVED" head)] [] identities)]
     (is (= #{head} (get-in e [:approved-heads "coderabbit"])))
     (is (empty? (:reviewed-heads e)))))
+
+(defn cr-issue-verdict []
+  {:id 6 :user {:login "coderabbitai[bot]" :type "Bot"}
+   :created_at "2026-10-03T01:00:20Z"
+   :body (str "Full review finished.\n<!-- recent_review_start -->\n"
+              "No actionable comments were generated in the recent review.\n"
+              "Reviewing files at " head ".\n<!-- recent_review_end -->\n"
+              "<!-- final_review_risk_coverage:{\"sourceCommitId\":\"" head
+              "\",\"coveredCommitId\":\"" head "\",\"kind\":\"reviewed\"} -->")})
+
+(deftest coderabbit-issue-completions-without-checks-have-no-credit
+  (let [request {:id 5 :trusted? true :created_at "2026-10-03T01:00:00Z"
+                 :body (str "<!-- pr-flow-stage:code --> <!-- pr-flow-round:1 --> <!-- pr-flow-review:" head
+                            " --> <!-- pr-flow-reviewer:coderabbit -->")}
+        done (cr-issue-verdict)
+        evidence (law/review-evidence head [] [request done] identities)]
+    (is (empty? (:approved-heads evidence)))
+    ;; Coverage remains an observed native fact; it is not qualified approval.
+    (is (= #{head} (get-in evidence [:reviewed-heads "coderabbit"])))
+    (is (empty? (law/completed-review-rounds [] [request done] identities)))))
+
+(deftest coderabbit-issue-credit-requires-current-success-not-requiredness
+  (let [request {:id 5 :trusted? true :created_at "2026-10-03T01:00:00Z"
+                 :body (str "<!-- pr-flow-stage:code --> <!-- pr-flow-round:1 --> <!-- pr-flow-review:" head
+                            " --> <!-- pr-flow-reviewer:coderabbit -->")}
+        done (cr-issue-verdict)
+        row (first cr-success)
+        rejected (concat
+                  [[] [(dissoc row :headSha)] [(assoc row :headSha old-head)]
+                   [(assoc row :name "coderabbit-review-gate")]
+                   [(assoc row :description "Review skipped")]
+                   [(assoc row :description "Rate limit reached")]
+                   [row (assoc row :state "FAILURE")]
+                   [(assoc row :startedAt "2026-10-03T01:00:00Z")
+                    (assoc row :state "FAILURE" :startedAt "2026-10-03T01:01:00Z")]
+                   [(assoc row :startedAt "2026-10-03T01:00:00Z")
+                    (assoc row :state "PENDING" :startedAt "2026-10-03T01:01:00Z")]]
+                  (for [state ["PENDING" "QUEUED" "IN_PROGRESS" "FAILURE" "SKIPPED" "CANCELLED" "NEUTRAL" "UNKNOWN"]]
+                    [(assoc row :state state)]))]
+    (doseq [checks rejected required? [false true]]
+      (let [checks (mapv #(assoc % :required? required?) checks)
+            evidence (law/review-evidence head [] [request done] identities checks)]
+        (is (empty? (:approved-heads evidence)) (pr-str checks))
+        (is (= #{head} (get-in evidence [:reviewed-heads "coderabbit"])))
+        (is (empty? (law/completed-review-rounds [] [request done] identities checks)))))
+    (doseq [state ["SUCCESS" "PASS"] required? [false true]]
+      (let [checks [(assoc row :state state :required? required?)]
+            evidence (law/review-evidence head [] [request done] identities checks)]
+        (is (= #{head} (get-in evidence [:approved-heads "coderabbit"])))
+        (is (= :explicit-issue-verdict (get-in evidence [:approval-evidence "coderabbit" :channel])))
+        (is (= 1 (count (law/completed-review-rounds [] [request done] identities checks))))))
+    (let [checks [(assoc row :state "FAILURE" :startedAt "2026-10-03T01:00:00Z" :required? true)
+                  (assoc row :startedAt "2026-10-03T01:01:00Z")]]
+      (is (= #{head} (get-in (law/review-evidence head [] [request done] identities checks)
+                            [:approved-heads "coderabbit"])))
+      (is (= 1 (count (law/completed-review-rounds [] [request done] identities checks)))))))
+
+(deftest native-rest-review-credit-is-distinct-from-issue-corroboration
+  (let [formal (assoc (review "coderabbitai[bot]" "APPROVED" head)
+                      :body "No actionable comments were generated.")
+        done (cr-issue-verdict)]
+    (doseq [checks [[] [(assoc (first cr-success) :state "FAILURE")]]]
+      (let [e (law/review-evidence head [formal] [done] identities checks)]
+        (is (= #{head} (get-in e [:approved-heads "coderabbit"])))
+        (is (= :github-approved (get-in e [:approval-evidence "coderabbit" :channel])))
+        (is (= 1 (count (law/completed-review-rounds [formal] [done] identities checks))))))
+    (let [partial (update done :body str "\nReview incomplete.")
+          e (law/review-evidence head [formal] [partial] identities [])]
+      (is (empty? (:approved-heads e)))
+      (is (= :incomplete-review (get-in e [:incomplete-evidence "coderabbit" :reason]))))))
+
+(deftest checked-historical-issue-rounds-survive-a-new-head-without-approval
+  (let [request {:id 5 :trusted? true :created_at "2026-10-03T01:00:00Z"
+                 :body (str "<!-- pr-flow-stage:code --> <!-- pr-flow-round:1 --> <!-- pr-flow-review:" old-head
+                            " --> <!-- pr-flow-reviewer:coderabbit -->")}
+        done (update (cr-issue-verdict) :body #(str/replace % head old-head))
+        history [(assoc (first cr-success) :headSha old-head)
+                 (assoc (first cr-success) :state "FAILURE")]
+        comments [request done]
+        completed (law/completed-review-rounds [] comments identities history)]
+    (is (= #{old-head} (law/coderabbit-issue-completion-heads comments identities)))
+    (is (= 1 (count completed)))
+    (is (= old-head (:commit_id (first completed))))
+    (is (= 1 (law/stage-review-rounds completed [] "code" #{"coderabbit"})))
+    (is (empty? (:approved-heads (law/review-evidence head [] comments identities history))))
+    (is (empty? (law/completed-review-rounds [] comments identities cr-success)))
+    (is (empty? (law/coderabbit-issue-completion-heads [(assoc request :trusted? false) done] identities)))
+    (is (empty? (law/coderabbit-issue-completion-heads [request (assoc-in done [:user :type] "User")] identities)))))
 
 (defmethod cljs.test/report [:cljs.test/default :end-run-tests] [m]
   (when-not (cljs.test/successful? m) (set! (.-exitCode js/process) 1)))

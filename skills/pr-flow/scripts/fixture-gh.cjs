@@ -60,7 +60,21 @@ else if (args[0] === 'api' && args[1].endsWith('/comments')) {
     out([sequence[Math.min(index, sequence.length - 1)]]);
   }
 }
-else if (args[0] === 'api' && args[1].includes('/commits/')) out({sha: config.resolvedCommit || config.head});
+else if (args[0] === 'api' && args[1].endsWith('/statuses')) {
+  const sha = args[1].split('/').at(-2);
+  if ((config.unavailableCommitStatuses || []).includes(sha)) {
+    process.stderr.write('Historical commit status history unavailable (HTTP 404)'); process.exit(1);
+  }
+  const sequence = config.commitStatusesSequence?.[sha] || [config.commitStatuses?.[sha] || []];
+  const index = state.commitStatuses?.[sha] || 0;
+  state.commitStatuses = {...state.commitStatuses, [sha]: index + 1}; persist();
+  out(config.commitStatusPages && Object.hasOwn(config.commitStatusPages, sha)
+    ? config.commitStatusPages[sha] : [sequence[Math.min(index, sequence.length - 1)]]);
+}
+else if (args[0] === 'api' && args[1].includes('/commits/')) {
+  const ref = args[1].split('/').at(-1);
+  out({sha: config.commitResponses?.[ref] || (/^[0-9a-f]{40}$/.test(ref) ? ref : (config.resolvedCommit || config.head))});
+}
 else if (args[0] === 'api' && args[1].includes('/collaborators/')) out({permission: config.authorized === false ? 'read' : 'admin'});
 else if (args[0] === 'api' && args[1] === 'user') out(args.includes('-q') || args.includes('--jq') ? (config.viewer || 'riatzukiza') : {login: config.viewer || 'riatzukiza'});
 else if (args[0] === 'pr' && args[1] === 'view') {

@@ -214,6 +214,32 @@
 (defn- full-review? [review]
   (law/full-review? review (reviewer-identities)))
 
+(declare fetch-checks authorized-author?)
+
+(defn- fetch-historical-coderabbit-checks
+  "Read the observed CodeRabbit commit-status channel by immutable SHA.
+   Only the configured native Bot creator and exact context can corroborate
+   historical issue completion; public request prose is not fetch authority."
+  [repo head]
+  (let [commit (gh-json "api" (str "repos/" repo "/commits/" head))
+        _ (when-not (= head (:sha commit))
+            (throw (ex-info "Historical CodeRabbit check commit binding could not be verified" {:head head})))
+        pages (gh-json "api" (str "repos/" repo "/commits/" head "/statuses") "--paginate" "--slurp")]
+    (when-not (and (vector? pages) (every? vector? pages) (every? map? (mapcat identity pages)))
+      (throw (ex-info "Historical CodeRabbit check history unavailable or incomplete" {:head head})))
+    (mapv (fn [s]
+            {:name "CodeRabbit" :state (str/upper-case (str (:state s))) :headSha (:sha commit)
+             :workflow "" :description (:description s) :startedAt (:created_at s)
+             :completedAt (when-not (= "pending" (:state s)) (:updated_at s))
+             :native-id (:id s) :source-channel :github-commit-status :source-url (:url s)})
+          (filter #(and (= "CodeRabbit" (:context %))
+                        (= "coderabbit" (law/trusted-reviewer {:user (:creator %)} (reviewer-identities)))
+                        (integer? (:id %)) (pos? (:id %))
+                        (string? (:created_at %)) (string? (:updated_at %))
+                        (not (js/isNaN (js/Date.parse (:created_at %))))
+                        (not (js/isNaN (js/Date.parse (:updated_at %)))))
+                  (mapcat identity pages)))))
+
 (defn fetch-heads
   "Collect hosted approval, commit binding and incomplete scope separately."
   [repo n]
@@ -230,9 +256,16 @@
                                  (:sha (gh-json "api" (str "repos/" repo "/commits/" (first markers)))))
                           c))
                       c))
-                  raw-comments)]
-    (assoc (law/review-evidence head reviews comments (reviewer-identities)) :head head
-           :reviews reviews :comments comments :raw-comments raw-comments)))
+                  raw-comments)
+        checks (fetch-checks repo n)
+        authorized? (memoize (partial authorized-author? repo))
+        round-comments (mapv #(assoc % :trusted? (and (str/includes? (str (:body %)) "pr-flow-review:")
+                                                     (authorized? (get-in % [:user :login])))) comments)
+        historical (sort (disj (law/coderabbit-issue-completion-heads round-comments (reviewer-identities)) head))
+        completion-checks (into checks (mapcat #(fetch-historical-coderabbit-checks repo %) historical))]
+    (assoc (law/review-evidence head reviews comments (reviewer-identities) checks) :head head
+           :reviews reviews :comments comments :raw-comments raw-comments :checks checks
+           :completion-checks completion-checks)))
 
 (defn fetch-checks
   "PR check rows. `gh pr checks` exits 8 while checks are pending; that is data,
@@ -254,7 +287,12 @@
         required-names (cond
                          (ok? required) (set (map :name (js->clj (js/JSON.parse (:out required)) :keywordize-keys true)))
                          (re-find #"no (?:required )?checks reported" (str (:err required) (:out required))) #{}
-                         :else (throw (ex-info "Cannot identify required checks" required)))]
+                         :else (throw (ex-info "Cannot identify required checks" required)))
+        final-head (str/trim (gh! "pr" "view" (str n) "-R" repo "--json" "headRefOid" "-q" ".headRefOid"))]
+    ;; gh exports normalized context/state rows, not headSha. Bind those rows
+    ;; to an unchanged PR head across both all/required check reads.
+    (when-not (= head final-head)
+      (throw (ex-info "PR head changed while collecting native checks" {:head head :snapshot-head final-head})))
     (cond
       (ok? r) (mapv #(assoc % :headSha head :required? (contains? required-names (:name %)))
                     (js->clj (js/JSON.parse (:out r)) :keywordize-keys true))
@@ -279,7 +317,7 @@
 
 (defn review-progress
   "Completed rounds in the active stage, each covering the configured agents."
-  [repo {:keys [reviews comments]} mandatory]
+  [repo {:keys [reviews comments completion-checks]} mandatory]
   (let [identities (reviewer-identities)
         authorized? (memoize (partial authorized-author? repo))
         comments (mapv #(assoc % :trusted? (and (str/includes? (str (:body %)) "pr-flow-review:")
@@ -291,9 +329,13 @@
         participants (into (set mandatory)
                            (for [[provider logins] identities
                                  :when (and (law/eligible-reviewers provider) (seq logins))] provider))
-        completed (law/completed-review-rounds (filter full-review? reviews) comments identities)]
+        completed (law/completed-review-rounds (filter full-review? reviews) comments identities completion-checks)
+        proven-issue-heads (set (keep #(when (and (= "coderabbit" (:reviewer %)) (= :issue (:round-source %)))
+                                        (:commit_id %))
+                                     (law/completed-review-rounds [] comments identities completion-checks)))]
     {:rounds (law/stage-review-rounds completed markers stage participants)
      :review-participants participants :stage stage
+     :unverified-issue-completion-heads (remove proven-issue-heads (law/coderabbit-issue-completion-heads comments identities))
      :min-review-rounds (get-in (load-flow) [:flow/defaults :review/min-rounds] 5)}))
 
 ;; --- output ---------------------------------------------------------------
@@ -316,7 +358,7 @@
   (let [heads (fetch-heads repo n)
         thread-snapshot (fetch-threads repo n (:raw-comments heads))
         {:keys [draft? threads incomplete?]} thread-snapshot
-        checks (fetch-checks repo n)
+        checks (:checks heads)
         progress (review-progress repo heads reviewers)
         summary-items (review-bodies-unanswered repo heads
                                                (merge progress {:head (:head heads) :pr-author (:pr-author thread-snapshot)
@@ -324,8 +366,8 @@
         final-threads (fetch-threads repo n)
         final-snapshot (fetch-heads repo n)
         changed? (or (not= thread-snapshot final-threads)
-                     (not= (select-keys heads [:head :reviews :comments])
-                           (select-keys final-snapshot [:head :reviews :comments])))
+                     (not= (select-keys heads [:head :reviews :comments :checks :completion-checks])
+                           (select-keys final-snapshot [:head :reviews :comments :checks :completion-checks])))
         gate (assoc (law/merge-gate (merge heads progress
                                     {:threads threads :checks checks :incomplete? incomplete?
                                      :required-reviewers reviewers
@@ -343,6 +385,9 @@
     (println (str "  completed " (:stage progress) " rounds: " (:rounds progress)
                   " / soft minimum " (:min-review-rounds progress)
                   "  participants: " (pr-str (:review-participants progress))))
+    (when (seq (:unverified-issue-completion-heads progress))
+      (println (str "  CodeRabbit issue completions without successful exact-commit check evidence: "
+                    (pr-str (sort (:unverified-issue-completion-heads progress))))))
     (when (seq (:incomplete-evidence heads))
       (println (str "  incomplete review scope: " (pr-str (:incomplete-evidence heads)))))
     (println (str "  gate: " (if (:pass? gate) "PASS" "BLOCKED")))
@@ -370,15 +415,14 @@
     (throw (ex-info "MiMo/Kimi must use their configured hosted workflows; CLI evidence cannot impersonate a GitHub review" {:reviewer reviewer})))
   (let [heads (fetch-heads repo n)
         head (:head heads)
-        reviews (:reviews heads)
         comments (mapv (fn [c]
                          (assoc c :trusted? (and (str/includes? (str (:body c)) "pr-flow-review:")
                                                   (authorized-author? repo (get-in c [:user :login])))))
                        (:comments heads))
-        progress (review-progress repo {:reviews reviews :comments comments}
+        progress (review-progress repo (assoc heads :comments comments)
                                   (law/required-reviewers-for (:flow/defaults (load-flow)) repo nil))
         rounds (if (= kind (:stage progress)) (:rounds progress) 0)
-        verdict (law/request-verdict {:head head :reviewer reviewer :comments comments :checks (fetch-checks repo n)
+        verdict (law/request-verdict {:head head :reviewer reviewer :comments comments :checks (:checks heads)
                                       :round (inc rounds)
                                       :now-ms (js/Date.now) :identities (reviewer-identities)})
         brief (or (get briefs kind) (throw (ex-info "kind must be planning|code" {:kind kind})))

@@ -599,11 +599,24 @@
                 (re-seq #"(?i)\breviewed (?:only )?([0-9]+) of ([0-9]+) (?:changed )?files\b" prose)))
       :unreviewed-input)))
 
+(declare latest-checks coderabbit-state)
+
+(defn- completed-coderabbit-check?
+  "Only an unambiguous successful native CodeRabbit check on this exact head
+   corroborates an issue completion. Unknown head binding is not evidence."
+  [head checks]
+  (let [current (filter #(and (= "CodeRabbit" (:name %)) (= head (:headSha %)))
+                        (latest-checks head checks))]
+    (and (valid-head? head) (seq current)
+         (every? #(= :completed (coderabbit-state [%])) current))))
+
 (defn review-evidence
   "Trust completed explicit verdicts as well as formal approvals, while
    retaining their distinct channels and immutable commit binding. Formal
    APPROVED state cannot override an admitted incomplete review scope."
-  [head reviews comments identities]
+  ([head reviews comments identities]
+   (review-evidence head reviews comments identities []))
+  ([head reviews comments identities checks]
   (let [trusted (->> reviews
                      (keep (fn [r]
                              (when-let [p (trusted-reviewer r identities)]
@@ -637,6 +650,10 @@
                                               (re-find #"^Codex Review: Didn't find any major issues\." (or (reviewer-prose body) "")))
                                  false)]
                   (when (and (valid-head? head) passing?
+                             ;; Incomplete native verdicts still revoke prior
+                             ;; approval; a missing check cannot hide pushback.
+                             (or incomplete (not= "coderabbit" p)
+                                 (completed-coderabbit-check? head checks))
                              (string? (or (:updated_at c) (:created_at c))))
                     (cond-> (assoc c :reviewer p :positive? (nil? incomplete) :channel :explicit-issue-verdict
                                    :submitted_at (or (:updated_at c) (:created_at c)))
@@ -658,7 +675,7 @@
      :incomplete-evidence (into {} (for [[p r] decisive :when (:incomplete-reason r)]
                                     [p {:head head :channel (:channel r) :id (:id r) :reason (:incomplete-reason r)}]))
      :approval-evidence (into {} (for [[p r] decisive :when (:positive? r)]
-                                  [p {:head head :channel (:channel r) :id (:id r)}]))}))
+                                  [p {:head head :channel (:channel r) :id (:id r)}]))})))
 
 (defn reviewer-check
   "Recognize exact labels and reviewed job/workflow tuples as provider outputs.
@@ -695,8 +712,6 @@
   (verdict-prose (str/join "\n" (map #(str/replace % #"^[ \t]*(?:>[ \t]*)+" "")
                                      (str/split-lines (str body))))))
 
-(declare latest-checks coderabbit-state)
-
 (defn full-review?
   "Formal verdicts and recognizable full-review outputs are completions;
    requests, acknowledgements, quoted examples and incomplete scope are not."
@@ -711,10 +726,7 @@
                     (re-find #"(?i)actionable comments posted:\s*[0-9]+|no actionable comments (?:were generated|posted|found)" (or prose ""))
                     (re-find #"(?im)^Full review finished\.[ \t]*$|^Review complete(?:d)?[.!]?[ \t]*$|^Confirmed findings:[ \t]*(?:none(?:[.—-]|$)|\n[ \t]*[1-9][0-9]*\.)|^No confirmed findings(?:[.—-]|$)|^No issues found(?:[.—-]|$)|^Here are some automated review suggestions for this pull request" (or prose ""))))))))
 
-(defn completed-review-rounds
-  "Combine full REST reviews and native no-findings completion replies.
-   Dedupe representations of the same trusted request; a completed request
-   counts once even without a REST review. Stage attribution uses completion."
+(defn- review-round-candidates
   [reviews comments identities]
   (let [requests (sort-by :created_at (filter :trusted? comments))
         provider-request? (fn [c p]
@@ -743,7 +755,9 @@
                                                            (string? at) (string? (:created_at %))
                                                            (not (pos? (compare (:created_at %) at)))
                                                            (or (nil? (:commit_id r))
-                                                               (str/includes? (str (:body %)) (str "pr-flow-review:" (:commit_id r) " -->")))) requests))]
+                                                               (str/includes? (str (:body %)) (str "pr-flow-review:" (:commit_id r) " -->")))) requests))
+                               completion-head (or (:commit_id r)
+                                                   (second (re-find #"<!--\s*pr-flow-review:([0-9a-f]{40})\s*-->" (str (:body request)))))]
                            (when (and (string? at) (nil? (incomplete-review-reason (:body r)))
                                       (or (not= :issue (:round-source r)) request)
                                       (or (= :issue (:round-source r)) (full-review? r identities)))
@@ -754,8 +768,28 @@
                                                               #?(:clj Long/parseLong :cljs js/parseInt))
                                               :stage (second (re-find #"<!--\s*pr-flow-stage:(planning|code)\s*-->" (str (:body request)))))
                                (and request (nil? (:commit_id r)))
-                               (assoc :commit_id (second (re-find #"<!--\s*pr-flow-review:([0-9a-f]{40})\s*-->" (str (:body request)))))))))) (concat reviews issue-rounds))]
-    (mapv #(first (sort-by :submitted_at %)) (vals (group-by :round-key rounds)))))
+                               (assoc :commit_id completion-head)))))) (concat reviews issue-rounds))]
+    rounds))
+
+(defn coderabbit-issue-completion-heads
+  "Only authenticated complete Bot replies matched to trusted exact-head
+   writer requests identify commits whose native check evidence may be read."
+  [comments identities]
+  (set (keep #(when (and (= "coderabbit" (:reviewer %)) (= :issue (:round-source %))
+                        (valid-head? (:commit_id %))) (:commit_id %))
+             (review-round-candidates [] comments identities))))
+
+(defn completed-review-rounds
+  "Combine full REST reviews and checked native no-findings completions.
+   Historical issue completions retain credit only with successful check
+   evidence on their own exact commit. Dedupe only after corroboration."
+  ([reviews comments identities]
+   (completed-review-rounds reviews comments identities []))
+  ([reviews comments identities checks]
+   (let [rounds (filter #(or (not= :issue (:round-source %)) (not= "coderabbit" (:reviewer %))
+                            (completed-coderabbit-check? (:commit_id %) checks))
+                        (review-round-candidates reviews comments identities))]
+     (mapv #(first (sort-by :submitted_at %)) (vals (group-by :round-key rounds))))))
 
 (defn request-verdict
   "Manual requests reuse pending work and observe actual reviewer cooldowns.

@@ -25,14 +25,15 @@
                         :created_at (str "2026-10-03T00:0" i ":10Z") :body "Full review finished."}))
                (range rounds))))
 (defn completed-stage-reviews [rounds sha]
-  ;; CodeRabbit uses its native no-REST completion; the other configured
-  ;; participants complete each shared cohort through their hosted records.
+  ;; Historical native REST completions remain evidence across pushes without
+  ;; inventing historical check results from the current-head check snapshot.
   (vec (mapcat (fn [i]
                  (mapv (fn [[offset login]]
                          {:id (+ 1000 (* 10 i) offset) :user {:login login :type "Bot"} :state "COMMENTED"
                           :commit_id sha :submitted_at (str "2026-10-03T00:0" i ":2" offset "Z")
-                          :body "Confirmed findings: none."})
-                       [[0 "chatgpt-codex-connector[bot]"] [1 "eta-mu-ai[bot]"]])) (range rounds))))
+                          :body (if (= login "coderabbitai[bot]")
+                                  "No actionable comments were generated." "Confirmed findings: none.")})
+                       [[0 "chatgpt-codex-connector[bot]"] [1 "eta-mu-ai[bot]"] [2 "coderabbitai[bot]"]])) (range rounds))))
 (def base {:head head :reviews [approval] :comments []
            ;; Old-head completions meet the stage floor without manufacturing
            ;; a current-head approval or suppressing a current-head request.
@@ -393,13 +394,20 @@
     (is (= 1 (count (set (map :input attempts)))))))
 
 (deftest no-rest-coderabbit-completions-count-without-capping-requests
-  (let [config (assoc base :reviews [])
+  (let [cohort (fn [rounds]
+                 (assoc base :prior-stage-rounds 0
+                        :reviews (vec (remove #(= "coderabbitai[bot]" (get-in % [:user :login]))
+                                              (completed-stage-reviews rounds head)))
+                        :comments (completed-stage-comments rounds head "code")
+                        :checks [{:name "laws" :state "SUCCESS" :required true}
+                                 {:name "CodeRabbit" :state "SUCCESS"}]))
+        config (cohort 5)
         request (execute config "request" "riatzukiza/.agents" "8" "code")
         verdict {:user {:login "chatgpt-codex-connector[bot]" :type "Bot"}
                  :created_at "2026-10-03T01:00:00Z"
                  :body (str "Codex Review: Didn't find any major issues. :tada:\n\n**Reviewed commit:** `" (subs head 0 10) "`")}
-        accepted (execute (assoc config :comments [verdict]) "gate" "riatzukiza/.agents" "8" "--apply")
-        short (execute (assoc config :prior-stage-rounds 4 :comments [verdict])
+        accepted (execute (update config :comments conj verdict) "gate" "riatzukiza/.agents" "8" "--apply")
+        short (execute (update (cohort 4) :comments conj verdict)
                        "gate" "riatzukiza/.agents" "8" "--apply")]
     (is (= 0 (:exit request)) (:err request))
     (is (= 1 (count (writes request "comment"))))
@@ -784,6 +792,133 @@
     (is (= 2 (:exit r)))
     (is (empty? (writes r "merge")))
     (is (str/starts-with? (:receipts r) (str (pr-str prefix) "\n")))))
+
+(defn current-issue-cohort []
+  (let [marker (str "<!-- final_review_risk_coverage:{\"sourceCommitId\":\"" head
+                    "\",\"coveredCommitId\":\"" head "\",\"kind\":\"reviewed\"} -->")
+        done (assoc (last (completed-stage-comments 1 head "code"))
+                    :body (str "Full review finished.\n<!-- recent_review_start -->\n"
+                               "No actionable comments were generated in the recent review.\n"
+                               "Reviewing files at " head ".\n<!-- recent_review_end -->\n" marker))]
+    (assoc base :prior-stage-rounds 0
+           :reviews (vec (remove #(= "coderabbitai[bot]" (get-in % [:user :login]))
+                                 (completed-stage-reviews 1 head)))
+           :comments (conj (vec (butlast (completed-stage-comments 1 head "code"))) done))))
+
+(deftest coderabbit-issue-cohort-needs-a-successful-native-check
+  (doseq [state [nil "PENDING" "FAILURE" "SKIPPED" "CANCELLED"]]
+    (let [checks (cond-> [{:name "laws" :state "SUCCESS" :required true}]
+                   state (conj {:name "CodeRabbit" :state state}))
+          r (execute (assoc (current-issue-cohort) :checks checks)
+                     "gate" "riatzukiza/.agents" "8" "--apply")]
+      (is (= 2 (:exit r)) (str state " " (:out r) " " (:err r)))
+      (is (str/includes? (:out r) "completed code rounds: 0"))
+      (is (empty? (writes r "merge")))))
+  (let [r (execute (assoc (current-issue-cohort)
+                         :checks [{:name "laws" :state "SUCCESS" :required true}
+                                  {:name "CodeRabbit" :state "SUCCESS"}])
+                   "gate" "riatzukiza/.agents" "8" "--apply")]
+    (is (= 0 (:exit r)) (:err r))
+    (is (str/includes? (:out r) "completed code rounds: 1"))
+    (is (= 1 (count (writes r "merge"))))))
+
+(deftest coderabbit-formal-review-keeps-optional-and-required-checks-distinct
+  (let [formal (assoc approval :id 700 :user {:login "coderabbitai[bot]" :type "Bot"}
+                      :body "No actionable comments were generated.")
+        config (update (current-issue-cohort) :reviews conj formal)]
+    (doseq [state [nil "FAILURE" "SKIPPED"]]
+      (let [checks (cond-> [{:name "laws" :state "SUCCESS" :required true}]
+                     state (conj {:name "CodeRabbit" :state state}))
+            r (execute (assoc config :checks checks) "gate" "riatzukiza/.agents" "8" "--apply")]
+        (is (= 0 (:exit r)) (:err r))
+        (is (str/includes? (:out r) "completed code rounds: 1"))
+        (is (= 1 (count (writes r "merge"))))))
+    (doseq [state ["PENDING" "FAILURE" "SKIPPED" "CANCELLED"]]
+      (let [r (execute (assoc config :checks [{:name "laws" :state "SUCCESS" :required true}
+                                             {:name "CodeRabbit" :state state :required true}])
+                       "gate" "riatzukiza/.agents" "8" "--apply")]
+        (is (= 2 (:exit r)))
+        (is (empty? (writes r "merge")))))))
+
+(deftest coderabbit-issue-check-mutation-blocks-the-native-snapshot
+  (let [success [{:name "laws" :state "SUCCESS" :required true}
+                 {:name "CodeRabbit" :state "SUCCESS"}]
+        failed (assoc-in success [1 :state] "FAILURE")
+        r (execute (assoc (current-issue-cohort) :checksSequence [success failed])
+                   "gate" "riatzukiza/.agents" "8" "--apply")]
+    (is (= 2 (:exit r)))
+    (is (empty? (writes r "merge"))))
+  ;; Passing provider evidence never waives a neighboring deterministic gate.
+  (let [r (execute (assoc (current-issue-cohort)
+                         :checks [{:name "laws" :state "SUCCESS" :required true}
+                                  {:name "CodeRabbit" :state "SUCCESS"}
+                                  {:name "coderabbit-review-gate" :state "FAILURE" :required true}])
+                   "gate" "riatzukiza/.agents" "8" "--apply")]
+    (is (= 2 (:exit r)))
+    (is (empty? (writes r "merge")))))
+
+(def historical-cr-status
+  {:id 55517229599 :context "CodeRabbit" :state "success"
+   :created_at "2026-10-03T00:05:00Z" :updated_at "2026-10-03T00:05:00Z"
+   :creator {:login "coderabbitai[bot]" :type "Bot"}
+   :url "https://api.github.com/repos/riatzukiza/.agents/statuses/historical-fixture"})
+(defn historical-issue-cohort []
+  (assoc base :prior-stage-rounds 0
+         :comments (completed-stage-comments 5 other "code")
+         :reviews (into (vec (remove #(= "coderabbitai[bot]" (get-in % [:user :login]))
+                                     (completed-stage-reviews 5 other))) [approval])
+         :commitStatuses {other [historical-cr-status]}))
+
+(deftest historical-checked-issue-cohort-survives-push-and-stays-current-approval-free
+  (let [config (historical-issue-cohort)
+        r (execute config "gate" "riatzukiza/.agents" "8" "--apply")
+        no-approval (execute (update config :reviews #(filterv (fn [review] (not= head (:commit_id review))) %))
+                             "gate" "riatzukiza/.agents" "8" "--apply")]
+    (is (= 0 (:exit r)) (:err r))
+    (is (str/includes? (:out r) "completed code rounds: 5"))
+    (is (str/includes? (:out r) "exact-head approvals: #{\"mimo\"}"))
+    (is (= 1 (count (writes r "merge"))))
+    (is (= 2 (:exit no-approval)))
+    (is (str/includes? (:out no-approval) "completed code rounds: 5"))
+    (is (empty? (writes no-approval "merge")))))
+
+(deftest historical-issue-check-provenance-and-availability-fail-closed
+  (doseq [rows [[] [(assoc historical-cr-status :state "pending")]
+                 [historical-cr-status (assoc historical-cr-status :id 2 :state "failure"
+                                             :created_at "2026-10-03T00:06:00Z")]
+                 [historical-cr-status (assoc historical-cr-status :id 2 :state "pending"
+                                             :created_at "2026-10-03T00:06:00Z")]
+                 [(assoc-in historical-cr-status [:creator :type] "User")]
+                 [(assoc-in historical-cr-status [:creator :login] "fake-coderabbit[bot]")]
+                 [(assoc historical-cr-status :context "CodeRabbit review gate")]
+                 [(dissoc historical-cr-status :id)]
+                 [(assoc historical-cr-status :created_at "invalid")]]]
+    (let [r (execute (assoc (historical-issue-cohort) :commitStatuses {other rows})
+                     "gate" "riatzukiza/.agents" "8" "--apply")]
+      (is (= 2 (:exit r)))
+      (is (str/includes? (:out r) "completed code rounds: 0"))
+      (is (str/includes? (:out r) "without successful exact-commit check evidence"))
+      (is (empty? (writes r "merge")))))
+  (doseq [change [{:unavailableCommitStatuses [other]} {:commitStatusPages {other nil}}
+                  {:commitStatusPages {other {:unexpected []}}} {:commitResponses {other head}}]]
+    (let [r (execute (merge (historical-issue-cohort) change) "gate" "riatzukiza/.agents" "8" "--apply")]
+      (is (not= 0 (:exit r)))
+      (is (empty? (writes r "merge")))))
+  (let [r (execute (assoc (historical-issue-cohort)
+                         :commitStatusPages {other [[(assoc historical-cr-status :state "pending"
+                                                          :created_at "2026-10-03T00:04:00Z")]
+                                                    [historical-cr-status]]})
+                   "gate" "riatzukiza/.agents" "8" "--apply")]
+    (is (= 0 (:exit r)) (:err r))
+    (is (str/includes? (:out r) "completed code rounds: 5"))))
+
+(deftest historical-check-fetches-require-native-completion-and-writer-authorization
+  (doseq [config [(assoc (historical-issue-cohort) :authorized false)
+                  (update (historical-issue-cohort) :comments
+                          #(mapv (fn [c] (if (= "coderabbitai[bot]" (get-in c [:user :login]))
+                                          (assoc-in c [:user :type] "User") c)) %))]]
+    (let [r (execute config "status" "riatzukiza/.agents" "8")]
+      (is (empty? (filter #(str/ends-with? (str (second (:args %))) "/statuses") (:calls r)))))))
 
 (defmethod cljs.test/report [:cljs.test/default :end-run-tests] [m]
   (when-not (cljs.test/successful? m) (set! (.-exitCode js/process) 1)))
