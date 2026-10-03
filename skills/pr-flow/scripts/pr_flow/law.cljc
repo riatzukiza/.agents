@@ -689,6 +689,12 @@
     #?(:clj (try (.toEpochMilli (java.time.Instant/parse value)) (catch Exception _ nil))
        :cljs (let [ms (js/Date.parse value)] (when-not (js/isNaN ms) ms)))))
 
+(defn- quota-prose [body]
+  ;; Native notices may be quoted; normalize quote prefixes so fenced examples
+  ;; are excluded from both notice recognition and cooldown parsing.
+  (verdict-prose (str/join "\n" (map #(str/replace % #"^[ \t]*(?:>[ \t]*)+" "")
+                                     (str/split-lines (str body))))))
+
 (declare latest-checks coderabbit-state)
 
 (defn full-review?
@@ -767,10 +773,19 @@
                                         (re-find #"(?i)@coderabbitai (?:full )?review" (str (:body %)))))) comments)
         request (last (sort-by :created_at requests))
         replies (filter #(= reviewer (trusted-reviewer % identities)) comments)
+        coverage-at (last (sort (keep #(when (and (= "coderabbit" reviewer)
+                                                 ((coderabbit-covered-heads (:body %)) head))
+                                        (instant-ms (or (:updated_at %) (:created_at %)))) replies)))
+        request-at (instant-ms (:created_at request))
         limit (->> replies
-                   (filter #(re-find #"(?i)rate.?limit|review limit|quota.*(?:reached|exceeded)" (str (:body %))))
+                   (filter #(re-find #"(?im)^[ \t>]*(?:#+[ \t]*)?(?:\*\*)?(?:review limit reached|rate limit (?:reached|exceeded)|review rate[ -]limited|(?:review )?quota (?:reached|exceeded)|your included review limit is currently reached)\b"
+                                     (or (quota-prose (:body %)) "")))
+                   (filter #(let [at (instant-ms (or (:updated_at %) (:created_at %)))]
+                              (or (nil? at)
+                                  (and (or (nil? request-at) (>= at request-at))
+                                       (or (nil? coverage-at) (>= at coverage-at))))))
                    (sort-by #(or (:updated_at %) (:created_at %) "")) last)
-        delay (some-> limit :body cooldown-ms)
+        delay (some-> limit :body quota-prose cooldown-ms)
         limit-at (when limit (instant-ms (or (:updated_at limit) (:created_at limit))))
         retry-at (when (and delay limit-at) (+ limit-at delay))
         covered? (some #(and (= "coderabbit" reviewer) (or (nil? round) request)

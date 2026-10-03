@@ -330,6 +330,69 @@
                 "Your included PR review attempts over the past 7 days set your current allowance at 5 reviews per hour."]]
     (is (nil? (law/cooldown-ms body)))))
 
+(deftest quota-notices-exclude-incidental-walkthrough-prose
+  (let [input {:head head :reviewer "coderabbit" :comments [] :checks []
+               :now-ms (js/Date.parse "2026-10-03T01:01:00Z") :identities identities}
+        comment {:user {:login "coderabbitai[bot]" :type "Bot"}
+                 :updated_at "2026-10-03T01:00:00Z"}]
+    (doseq [body ["The workflow preserves rate-limited reviews without granting approval."
+                  "The review limit handling tells operators to wait 53 minutes."
+                  "The quota may be exceeded during repeated review attempts."
+                  "Quota examples:\n```\nReview limit reached. Please wait 53 minutes.\n```"
+                  "Example quoted notice:\n> ```text\n> Review limit reached. Please wait 53 minutes.\n> ```"]]
+      (is (= :request (:status (law/request-verdict
+                               (assoc input :comments [(assoc comment :body body)])))) body))
+    (doseq [heading ["Review limit reached." "Rate limit exceeded."
+                     "> ## Review limit reached" "**Review quota exceeded.**"
+                     "Review rate limited."
+                     "Your included review limit is currently reached."]]
+      (let [notice (assoc comment :body (str heading "\nNext included review available in 20 minutes."))
+            verdict (law/request-verdict (assoc input :comments [notice]))]
+        (is (= :cooldown (:status verdict)) heading)
+        (is (= (js/Date.parse "2026-10-03T01:20:00Z") (:retry-at-ms verdict)) heading)))
+    (doseq [example ["```\nPlease wait 53 minutes.\n```"
+                     "> ```text\n> Please wait 53 minutes.\n> ```"]]
+      (let [notice (assoc comment :body (str "Review rate limited.\n" example
+                                            "\nNext included review available in 20 minutes."))]
+        (is (= (js/Date.parse "2026-10-03T01:20:00Z")
+               (:retry-at-ms (law/request-verdict (assoc input :comments [notice])))))))))
+
+(deftest quota-notices-must-follow-the-request-and-current-head-coverage
+  (let [request {:trusted? true :created_at "2026-10-03T01:02:00Z"
+                 :body (str "@coderabbitai full review <!-- pr-flow-review:" head
+                            " --> <!-- pr-flow-reviewer:coderabbit -->")}
+        limit {:user {:login "coderabbitai[bot]" :type "Bot"}
+               :created_at "2026-10-03T01:00:00Z" :body "Review limit reached."}
+        coverage {:user {:login "coderabbitai[bot]" :type "Bot"}
+                  :created_at "2026-10-03T01:03:00Z"
+                  :body (str "<!-- final_review_risk_coverage: {\"kind\":\"reviewed\",\"sourceCommitId\":\""
+                             head "\",\"coveredCommitId\":\"" head "\"} -->")}
+        input {:head head :reviewer "coderabbit" :comments [] :checks []
+               :now-ms (js/Date.parse "2026-10-03T01:05:00Z") :identities identities}]
+    ;; A newer request stays pending rather than inheriting an old quota reply.
+    (is (= :pending (:status (law/request-verdict (assoc input :comments [limit request])))))
+    ;; Completed current-head coverage clears a notice even without a marker request.
+    (is (= :completed (:status (law/request-verdict (assoc input :comments [limit coverage])))))
+    (is (= :completed (:status (law/request-verdict (assoc input :comments [limit request coverage])))))
+    ;; Coverage for another commit or provider cannot clear a current notice.
+    (is (= :rate-limited (:status (law/request-verdict
+                                  (assoc input :comments [limit (assoc coverage :body
+                                    (str "<!-- final_review_risk_coverage: {\"kind\":\"reviewed\",\"sourceCommitId\":\""
+                                         old-head "\",\"coveredCommitId\":\"" old-head "\"} -->"))])))))
+    (is (= :rate-limited (:status (law/request-verdict
+                                  (assoc input :comments [limit (assoc-in coverage [:user :login] "eta-mu-ai[bot]")])))))
+    ;; A later native edit remains current; its actual updated time controls reset.
+    (let [current (assoc limit :updated_at "2026-10-03T01:04:00Z"
+                         :body "Review rate limited.\nNext included review available in 20 minutes.")
+          verdict (law/request-verdict (assoc input :comments [request coverage current]))]
+      (is (= :cooldown (:status verdict)))
+      (is (= (js/Date.parse "2026-10-03T01:24:00Z") (:retry-at-ms verdict)))
+      (is (= :request (:status (law/request-verdict
+                               (assoc input :comments [request current]
+                                      :now-ms (js/Date.parse "2026-10-03T01:24:00Z")))))))
+    (is (= :rate-limited (:status (law/request-verdict
+                                  (assoc input :comments [request coverage (assoc limit :updated_at "2026-10-03T01:04:00Z")])))))))
+
 (deftest completed-unsuccessful-request-can-retry-without-an-unrelated-push
   (let [request {:trusted? true :created_at "2026-10-03T01:00:00Z"
                  :body (str "@coderabbitai full review <!-- pr-flow-review:" head " --> <!-- pr-flow-reviewer:coderabbit -->")}
