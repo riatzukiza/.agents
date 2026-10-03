@@ -13,8 +13,15 @@ if (args[0] === 'api' && args[1] === 'graphql') {
   if ((args.find(x => x.startsWith('query=')) || '').includes('mutation')) process.exit(77);
   const sequence = config.threadsSequence || [config.threads || []];
   const nodes = config.newThreadsAfterReviews && state.reviews ? config.newThreadsAfterReviews : sequence[Math.min(state.threads || 0, sequence.length - 1)];
-  state.threads = (state.threads || 0) + 1; persist();
-  out({data: {repository: {pullRequest: {isDraft: !!config.draft && !state.ready, reviewThreads: {pageInfo: {hasNextPage: false}, nodes}}}}});
+  const threadPageIndex = state.threads || 0;
+  state.threads = threadPageIndex + 1; persist();
+  const response = config.threadPageResponses
+    ? config.threadPageResponses[Math.min(threadPageIndex, config.threadPageResponses.length - 1)]
+    : {data: {repository: {pullRequest: {isDraft: !!config.draft && !state.ready, reviewThreads: {pageInfo: {hasNextPage: false}, nodes}}}}};
+  out(response);
+  if (config.threadPageExitCode) {
+    process.stderr.write('fixture GraphQL error reported by gh'); process.exit(config.threadPageExitCode);
+  }
 } else if (args[0] === 'api' && args[1].endsWith('/reviews')) {
   const sequence = config.reviewsSequence || [config.reviews || []];
   out([sequence[Math.min(state.reviews || 0, sequence.length - 1)]]);

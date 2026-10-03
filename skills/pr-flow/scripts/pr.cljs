@@ -84,11 +84,30 @@
        nodes{id isResolved isOutdated path line
          comments(first:100){pageInfo{hasNextPage} nodes{author{login} body url createdAt}}}}}}}")
 
+(defn- thread-connection? [conn cursor-required?]
+  (let [page (:pageInfo conn)]
+    (and (map? conn) (vector? (:nodes conn)) (map? page)
+         (boolean? (:hasNextPage page))
+         (or (not cursor-required?) (not (:hasNextPage page))
+             (and (string? (:endCursor page)) (not (str/blank? (:endCursor page))))))))
+
 (defn- threads-page [owner name n after]
   (let [args (cond-> ["api" "graphql" "-f" (str "query=" threads-query)
                       "-F" (str "owner=" owner) "-F" (str "name=" name) "-F" (str "n=" n)]
-               after (into ["-f" (str "after=" after)]))]
-    (get-in (apply gh-json args) [:data :repository :pullRequest])))
+               after (into ["-f" (str "after=" after)]))
+        response (apply gh-json args)
+        pr (get-in response [:data :repository :pullRequest])
+        conn (:reviewThreads pr)]
+    ;; gh normally exits nonzero on GraphQL errors, including HTTP 200. Also
+    ;; validate decoded successes: null/partial data is never zero threads.
+    (when-not (and (not (seq (:errors response)))
+                   (map? pr) (boolean? (:isDraft pr))
+                   (thread-connection? conn true)
+                   (not (and (:hasNextPage (:pageInfo conn)) (= after (:endCursor (:pageInfo conn)))))
+                   (every? #(thread-connection? (:comments %) false) (:nodes conn)))
+      (throw (ex-info "Invalid GraphQL review-thread page; cannot establish complete thread evidence"
+                      {:owner owner :repo name :pr n :after after})))
+    pr))
 
 (declare authorized-author?)
 

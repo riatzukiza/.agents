@@ -82,3 +82,52 @@
     (is (= {"modern1" :p1 "legacy1" :p2}
            (into {} (map (juxt :id :severity) (law/review-body-findings (str modern "\n" legacy))))))
     (is (= "Use <code>foo</code>" (:title (first (law/review-body-findings (str modern "\n" legacy))))))))
+
+(defn modern-item [banner title prose]
+  (str "<summary><em>" banner "</em> · " title " · <code>x:1</code></summary>"
+       prose "<!-- cr-comment:v1:modern1 -->"))
+
+(deftest explicit-own-title-priority-overrides-known-banner
+  (doseq [[label expected] [["P0" :p0] ["P1" :p1] ["P2" :p2] ["P3" :p3]]]
+    (let [title (str "[" label "] Broken authorization.")
+          legacy (str/replace (legacy-item "`1-2`: _Category_ | _🟡 Minor_ | _Effort_" "legacy1")
+                              "**Finding.**" (str "**" title "**"))]
+      (is (= expected (:severity (first (law/review-body-findings legacy)))))
+      (is (= expected (:severity (first (law/review-body-findings (modern-item "🟡 Minor" title "prose"))))))))
+  (let [legacy (str/replace (legacy-item "`1-2`: _Category_ | _🟠 Major_ | _Effort_" "legacy1")
+                            "**Finding.**" "**[P3] Optional cleanup.**")]
+    (is (= :p3 (:severity (first (law/review-body-findings legacy)))))
+    (is (= :p3 (:severity (first (law/review-body-findings (modern-item "🟠 Major" "[P3] Optional cleanup." ""))))))))
+
+(deftest generated-quoted-or-later-priority-is-not-the-own-title
+  (doseq [[prose legacy-severity]
+          [["```text\n**[P0] Example only.**\n```" :p2]
+           ["> **[P0] Quoted finding.**" :p2]
+           ;; Nested blockquotes are an unsupported legacy container shape;
+           ;; the existing conservative P1 fallback still applies.
+           ["<blockquote>**[P0] Quoted finding.**</blockquote>" :p1]
+           ["<details>\n<summary>🤖 Prompt for AI Agents</summary>\n**[P0] Generated finding.**\n</details>" :p2]
+           ["Later prose mentions P0 and **[P0] another title.**" :p2]]]
+    (let [legacy (str/replace (legacy-item "`1-2`: _Category_ | _🟡 Minor_ | _Effort_" "legacy1")
+                              "**Finding.**" (str "**Own finding.**\n\n" prose))]
+      (is (= legacy-severity (:severity (first (law/review-body-findings legacy)))))
+      (is (= :p2 (:severity (first (law/review-body-findings (modern-item "🟡 Minor" "Own finding." prose))))))))
+  (testing "a missing own title does not promote a quoted or generated bold title"
+    (doseq [prose ["> **[P0] Quoted finding.**"
+                   "<details>\n<summary>🤖 Prompt for AI Agents</summary>\n**[P0] Generated finding.**\n</details>"]]
+      (is (= :p2 (:severity (first (law/review-body-findings
+                                   (str/replace (legacy-item "`1-2`: _Category_ | _🟡 Minor_ | _Effort_" "legacy1")
+                                                "**Finding.**" prose))))))))
+  (testing "quoted/generated text embedded in a modern title is not live priority"
+    (doseq [title ["> [P0] Quoted title." "```text\n[P0] Example title.\n```"
+                   "<blockquote>[P0] Quoted title.</blockquote>"
+                   "<details><summary>🤖 Prompt for AI Agents</summary>[P0] Generated title.</details>"]]
+      (is (= :p2 (:severity (first (law/review-body-findings (modern-item "🟡 Minor" title "")))))))))
+
+(deftest title-priority-cannot-downgrade-an-invalid-banner
+  (doseq [banner ["`1-2`: _Category_ | _Unknown_ | _Effort_"
+                   "`1-2`: _Category_ | _🟡 Major_ | _Effort_"
+                   "`2-1`: _Category_ | _🟡 Minor_ | _Effort_"]]
+    (is (= :p1 (:severity (first (law/review-body-findings
+                                 (str/replace (legacy-item banner "legacy1") "**Finding.**" "**[P3] Optional.**")))))))
+  (is (= :p1 (:severity (first (law/review-body-findings (modern-item "Unknown" "[P3] Optional." "")))))))
