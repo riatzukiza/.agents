@@ -51,6 +51,13 @@
     (is (= 2 (:exit stale)))
     (is (empty? (writes stale "merge")))))
 
+(deftest github-no-required-checks-is-an-explicit-empty-set
+  (let [r (execute (assoc base :checks [{:name "laws" :state "SUCCESS"}]
+                         :requiredMessage "no required checks reported on the 'feat/example' branch")
+                   "status" "riatzukiza/.agents" "8")]
+    (is (= 0 (:exit r)) (:err r))
+    (is (str/includes? (:out r) "gate: PASS"))))
+
 (deftest codex-verdict-resolves-the-provider-commit
   (let [comment {:user {:login "chatgpt-codex-connector[bot]" :type "Bot"}
                  :updated_at "2026-10-03T01:00:00Z"

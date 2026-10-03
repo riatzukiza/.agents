@@ -121,6 +121,8 @@
                                                           :updated_at "2026-10-03T01:00:00Z"
                                                           :body "Review limit reached. Please wait 53 minutes and 12 seconds."}])))))
     (is (= 3192000 (law/cooldown-ms "Review limit reached. Please wait 53 minutes and 12 seconds.")))
+    (is (= 8000 (law/cooldown-ms "Your included review limit is currently reached. Your next included review will be available in 8 seconds.")))
+    (is (nil? (law/cooldown-ms "Your plan provides 5 included reviews per hour; 0 remain.")))
     (is (= :rate-limited (:status (law/request-verdict
                                       (assoc input :comments [{:user {:login "coderabbitai[bot]" :type "Bot"}
                                                               :body "Review limit reached."}])))))

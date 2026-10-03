@@ -162,7 +162,7 @@
                    (run-gh required-args (env-without-tokens)) required)
         required-names (cond
                          (ok? required) (set (map :name (js->clj (js/JSON.parse (:out required)) :keywordize-keys true)))
-                         (re-find #"no checks reported" (:err required)) #{}
+                         (re-find #"no (?:required )?checks reported" (str (:err required) (:out required))) #{}
                          :else (throw (ex-info "Cannot identify required checks" required)))]
     (cond
       (ok? r) (mapv #(assoc % :headSha head :required? (contains? required-names (:name %)))

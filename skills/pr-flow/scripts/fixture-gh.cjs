@@ -22,7 +22,7 @@ else if (args[0] === 'pr' && args[1] === 'view') {
 } else if (args[0] === 'pr' && args[1] === 'checks') {
   const checks = (config.checks || []).filter(x => !args.includes('--required') || x.required);
   if (!checks.length && args.includes('--required')) {
-    process.stderr.write('no checks reported'); process.exit(1);
+    process.stderr.write(config.requiredMessage || 'no checks reported'); process.exit(1);
   }
   out(checks);
 } else if (args[0] === 'pr' && args[1] === 'comment') out('https://example.invalid/review-request');
