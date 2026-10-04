@@ -1,0 +1,11 @@
+{
+  "published_review": "https://github.com/riatzukiza/.agents/pull/11#pullrequestreview-5405309658",
+  "walkthrough_index": "https://github.com/riatzukiza/.agents/pull/11#issuecomment-5978588831",
+  "reviewed_head": "8a173d2438b787675f1faf54ba78f7000beb098b",
+  "immutable_asset_commit": "e254d531a20c72d9cdbf2fae4511d65673666381",
+  "inline_comment_ids": [4176965080, 4176965085, 4176965087, 4176965091, 4176965094, 4176965097, 4176965099, 4176965102, 4176965103, 4176965107, 4176965108, 4176965110, 4176965113],
+  "annotated_screenshot_count": 4,
+  "verified_at": "2026-10-04T09:39:07Z",
+  "verification": "13 review comments verified through GitHub REST; all four hosted PNG hashes match manifest; all gallery images loaded in fresh headless browser with nonzero natural dimensions.",
+  "newly_reproduced_gap": "https://github.com/riatzukiza/.agents/issues/13"
+}
