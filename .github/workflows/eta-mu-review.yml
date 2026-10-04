@@ -13,10 +13,10 @@ permissions:
 jobs:
   review:
     name: Evidence-first review (eta-mu)
-    # Qualified merged Eta/Muse pair; this caller remains local preparation
-    # pending parent integration and fresh current-head native qualification.
-    # Validated global skills and the existing Node policy stay pinned.
-    uses: open-hax/eta-mu/.github/workflows/opencode-code-review.yml@694a2602709d130b2a60045a25537f1b4476ec1f
+    # Consumes the qualified merged Eta/Muse pair with bounded Discord batches.
+    # Fresh exact-head caller CI/review remains required; validated global
+    # skills and the existing Node policy stay pinned.
+    uses: open-hax/eta-mu/.github/workflows/opencode-code-review.yml@45ec644c2d15ed511e9bc1e797d1b4073b63dbfc
     with:
       pr_head_sha: ${{ github.event.pull_request.head.sha }}
       model: opencode/mimo-v2.6-flash-free

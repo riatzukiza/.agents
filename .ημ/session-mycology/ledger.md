@@ -304,3 +304,13 @@
   spore: none
   receipt-refs: b4e77879-68db-4c82-93fc-b4e8334a9bcd; Agents8 authenticated finding withdrawal and legacy stage provenance decision
   note: Preserve live native authorship and original finding identity rather than treating retraction as author rejection. Check all historical marker formats before changing stage law; native legacy code declaration repaired provenance while retaining timestamp segregation. Local mock classification is not native qualification. Source installation and publication remain parent-owned.
+
+- ts: 2026-10-04T10:55:34.615207015Z
+  session: /home/err/spaces/review-repair/agents-policy-integration
+  task: Agents8 qualified Eta341 functional caller propagation
+  p-efficiency: 0.95
+  p-friction: 0.15
+  p-skill-candidate: 0.15
+  spore: none
+  receipt-refs: 99b687a5-fef5-4e78-838a-e8666c572e99; e2ce2d72-8ed8-42ec-9b77-ec886038f3df
+  note: Compare immutable reusable interfaces before changing one caller pin. Preserve historical selection receipts and sealed policy source. An upstream protected merge establishes consumable source; local caller checks do not establish native qualification or activation. Resolve missing checker dependencies through an existing cache and record setup failure truthfully. Parent owns publication and exact-head qualification.
