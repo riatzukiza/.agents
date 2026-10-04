@@ -30,6 +30,7 @@ The repository is not a bag of prompts. It is an operating substrate:
 | [`grok-intention`](skills/grok-intention/SKILL.md) | Recover compressed intent from prompts, notes, and repository context. |
 | [`sing-the-songs-of-your-people`](skills/sing-the-songs-of-your-people/SKILL.md) | Produce truthful synthesis in the native voice of the corpus. |
 | [`skill-authoring`](skills/skill-authoring/SKILL.md) | Create and revise scoped, reusable skills. |
+| [`pr-flow`](skills/pr-flow/SKILL.md) | Route every pull-request interaction through one state machine: muse, plan, planning review, red, green, code review, merge. |
 
 These are substrate skills, not a mandatory bundle to load on every turn. Explicit invocation wins; otherwise the active agent should select the smallest relevant set.
 

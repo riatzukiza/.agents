@@ -1,0 +1,90 @@
+{
+  "source_head": "ca06212bff75ca96a5fbd92243845cd15058dd37",
+  "observed_at": "2026-10-03T13:25:09.005427+00:00",
+  "sources": [
+    "https://github.com/open-hax/proxx/pull/450",
+    "https://github.com/open-hax/proxx/actions/runs/37124239484",
+    "https://github.com/open-hax/proxx/actions/runs/37124239786",
+    "https://github.com/open-hax/proxx/blob/ca06212bff75ca96a5fbd92243845cd15058dd37/.github/workflows/opencode-code-review.yml",
+    "https://github.com/open-hax/proxx/blob/ca06212bff75ca96a5fbd92243845cd15058dd37/.github/workflows/eta-mu-review.yml"
+  ],
+  "reviewer_outputs": [
+    {
+      "provider": "kimi",
+      "check": {
+        "name": "Review pull request with OpenCode",
+        "workflow": "OpenCode Kimi PR Review",
+        "state": "FAILURE",
+        "required": false
+      }
+    },
+    {
+      "provider": "mimo",
+      "check": {
+        "name": "Evidence-first review (eta-mu) / Review pull request with OpenCode MiMo",
+        "workflow": "eta-mu evidence review",
+        "state": "IN_PROGRESS",
+        "required": false
+      }
+    }
+  ],
+  "deterministic_checks": [
+    {
+      "name": "Evidence-first review (eta-mu) / Produce deterministic review evidence",
+      "workflow": "eta-mu evidence review",
+      "state": "SUCCESS",
+      "required": false
+    },
+    {
+      "name": "Evidence-first review (eta-mu) / Compile Muse tools and stage skills",
+      "workflow": "eta-mu evidence review",
+      "state": "SUCCESS",
+      "required": false
+    },
+    {
+      "name": "Kimi structured runner regression tests",
+      "workflow": "Kimi runner contract tests",
+      "state": "SUCCESS",
+      "required": false
+    },
+    {
+      "name": "review-gate / review-resolution-gate",
+      "workflow": "Review Resolution Gate",
+      "state": "SUCCESS",
+      "required": false
+    }
+  ],
+  "required_checks": [
+    {
+      "name": "staging-typecheck",
+      "workflow": "staging-pr",
+      "state": "SUCCESS",
+      "required": true
+    },
+    {
+      "name": "staging-unit-tests",
+      "workflow": "staging-pr",
+      "state": "SUCCESS",
+      "required": true
+    },
+    {
+      "name": "staging-lint",
+      "workflow": "staging-pr",
+      "state": "SUCCESS",
+      "required": true
+    },
+    {
+      "name": "staging-coverage",
+      "workflow": "staging-pr",
+      "state": "SUCCESS",
+      "required": true
+    },
+    {
+      "name": "coderabbit-review-gate",
+      "workflow": "eta-mu-review-gate",
+      "state": "SUCCESS",
+      "required": true
+    }
+  ],
+  "limitation": "Historical native check metadata is output classification evidence only. The failed generic github-actions Kimi run has no qualifying native approval or completed review. This fixture does not qualify PR450 for merge."
+}
