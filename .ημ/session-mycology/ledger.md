@@ -294,3 +294,13 @@
   spore: none
   receipt-refs: Agents8 CR4176785586 standalone-card contract repair
   note: Inspect actual consumers before treating descriptive artifacts as executable admission. Reconcile standalone-card prose across the graph and skills, retain graph/defaults and all native review obligations, and use existing flow rendering plus document compatibility checks. No mirror tests, RED/GREEN claim, suite repeat, policy installation or board transition. Parent owns publication.
+
+- ts: 2026-10-04T10:23:53.130297Z
+  session: /home/err/spaces/review-repair/agents-policy-integration
+  task: Authenticated finding-opener withdrawal and legacy stage provenance
+  p-efficiency: 0.80
+  p-friction: 0.35
+  p-skill-candidate: 0.40
+  spore: none
+  receipt-refs: b4e77879-68db-4c82-93fc-b4e8334a9bcd; Agents8 authenticated finding withdrawal and legacy stage provenance decision
+  note: Preserve live native authorship and original finding identity rather than treating retraction as author rejection. Check all historical marker formats before changing stage law; native legacy code declaration repaired provenance while retaining timestamp segregation. Local mock classification is not native qualification. Source installation and publication remain parent-owned.

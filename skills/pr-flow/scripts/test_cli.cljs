@@ -5,6 +5,7 @@
             [clojure.edn :as edn]
             [test-issue-agreement :as native]
             [test-informational :as informational]
+            [test-opener-withdrawal :as withdrawal]
             [pr-flow.actionability :as actionability]
             [nbb.core :refer [*file*]]))
 (def here (path/dirname *file*))
@@ -1153,6 +1154,86 @@
                                           (assoc-in c [:user :type] "User") c)) %))]]
     (let [r (execute config "status" "riatzukiza/.agents" "8")]
       (is (empty? (filter #(str/ends-with? (str (second (:args %))) "/statuses") (:calls r)))))))
+
+(defn withdrawal-config
+  "Real native Sol thread transported through the existing isolated gh seam.
+   Only the prospective writer Handled comment is synthetic; no live writes."
+  [raw]
+  (assoc base :head withdrawal/head :prAuthor "riatzukiza"
+         :reviews [(assoc approval :commit_id withdrawal/head)]
+         :threads [raw]
+         :threadPageResponses
+         [{:data {:repository (assoc (:repository withdrawal/fixture)
+                                     :pullRequest (assoc (:pr withdrawal/fixture) :isDraft false
+                                                         :reviewThreads {:pageInfo {:hasNextPage false} :nodes [raw]}))}}]))
+
+(deftest native-opener-withdrawal-readonly-cli-seam-red-green
+  (let [config (withdrawal-config withdrawal/prospective)
+        baseline (execute (assoc config :baseline-source-ref "0f95afe56fb01fbcf9d7934b72ce31fe96baf451")
+                          "gate" "riatzukiza/sol" "3")
+        current (execute config "gate" "riatzukiza/sol" "3")
+        displayed (execute config "threads" "riatzukiza/sol" "3" "--all")
+        actual (execute (withdrawal-config withdrawal/actual) "gate" "riatzukiza/sol" "3")]
+    ;; Read-only gate is diagnostic and exits zero even while BLOCKED.
+    (is (= 0 (:exit baseline)) (:err baseline))
+    (is (str/includes? (:out baseline) "gate: BLOCKED"))
+    (is (str/includes? (:out baseline) "P0/P1 thread(s) not fixed"))
+    (is (= 0 (:exit current)) (str (:err current) (:out current)))
+    (is (str/includes? (:out displayed) "native opener withdrawal: id=4176945609"))
+    (is (str/includes? (:out displayed) withdrawal/withdrawal-url))
+    (is (= 0 (:exit actual)))
+    (is (str/includes? (:out actual) "gate: BLOCKED"))
+    (is (str/includes? (:out actual) "without a settlement reply"))
+    (doseq [r [baseline current displayed actual]]
+      (is (empty? (mutations r)))
+      (is (empty? (writes r "merge")))))
+  (doseq [config [(assoc (withdrawal-config withdrawal/prospective) :authorized false)
+                  (withdrawal-config (assoc withdrawal/prospective :isResolved false))
+                  (withdrawal-config (assoc-in withdrawal/prospective [:comments :nodes 2 :author :__typename] "User"))
+                  (withdrawal-config (assoc-in withdrawal/prospective [:comments :nodes 2 :pullRequestReview :commit :oid] other))]]
+    (let [r (execute config "gate" "riatzukiza/sol" "3")]
+      (is (= 0 (:exit r)))
+      (is (str/includes? (:out r) "gate: BLOCKED"))
+      (is (str/includes? (:out r) "P0/P1 thread(s) not fixed"))
+      (is (empty? (mutations r)))
+      (is (empty? (writes r "merge"))))))
+
+(def rheos-stage-fixture
+  (js->clj (js/JSON.parse (fs/readFileSync (path/join here "fixtures/native-rheos2-initial-code-stage.json") "utf8"))
+           :keywordize-keys true))
+(defn rheos-stage-config
+  "The complete native review/comment/thread/check observation at ab6.
+   Counterexamples change only local seam inputs, never native records."
+  []
+  (-> base (dissoc :prior-stage-rounds)
+      (merge (select-keys rheos-stage-fixture [:head :reviews :comments :checks]))
+      (assoc :prAuthor "riatzukiza" :threadPageResponses [(:threadResponse rheos-stage-fixture)])))
+
+(deftest actual-legacy-stage-declaration-cli-red-green-without-review-rebinding
+  (let [config (rheos-stage-config)
+        baseline (execute (assoc config :baseline-source-ref "0f95afe56fb01fbcf9d7934b72ce31fe96baf451")
+                          "status" "open-hax/rheos" "2")
+        corrected (execute config "status" "open-hax/rheos" "2")]
+    (is (str/includes? (:out baseline) "completed code rounds: 0"))
+    (is (str/includes? (:out baseline) "gate: BLOCKED"))
+    (is (str/includes? (:out corrected) "completed code rounds: 1"))
+    (is (str/includes? (:out corrected) "gate: PASS"))
+    (is (str/includes? (:out corrected) "native source 5968489429"))
+    (doseq [r [baseline corrected]]
+      (is (= 0 (:exit r)) (:err r))
+      (is (empty? (mutations r)))
+      (is (empty? (writes r "merge")))))
+  (doseq [alter [#(str/replace % "pr-flow-stage:code" "pr-flow-stage:planning")
+                 #(str "> " (str/replace % "\n" "\n> "))
+                 #(str "```text\n" % "\n```")
+                 #(str/replace % "66e8b67951971af541503c4a556c5645eaa727c0" "66e8b67")]]
+    (let [config (update (rheos-stage-config) :comments
+                         #(mapv (fn [c] (if (= 5968488345 (:id c)) (update c :body alter) c)) %))
+          r (execute config "status" "open-hax/rheos" "2")]
+      (is (str/includes? (:out r) "completed code rounds: 0"))
+      (is (str/includes? (:out r) "gate: BLOCKED"))
+      (is (empty? (mutations r)))
+      (is (empty? (writes r "merge"))))))
 
 (defmethod cljs.test/report [:cljs.test/default :end-run-tests] [m]
   (when-not (cljs.test/successful? m) (set! (.-exitCode js/process) 1)))

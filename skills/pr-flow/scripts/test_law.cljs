@@ -10,6 +10,7 @@
             [test-legacy]
             [test-issue-agreement]
             [test-informational]
+            [test-opener-withdrawal]
             [pr-flow.flow :as flow]
             [pr-flow.law :as law]))
 
@@ -469,4 +470,4 @@
 (defmethod cljs.test/report [:cljs.test/default :end-run-tests] [m]
   (when-not (cljs.test/successful? m) (set! (.-exitCode js/process) 1)))
 
-(run-tests 'test-law 'test-legacy 'test-issue-agreement 'test-informational)
+(run-tests 'test-law 'test-legacy 'test-issue-agreement 'test-informational 'test-opener-withdrawal)

@@ -42,7 +42,7 @@
         :unknown)))
 
 (defn blocking?
-  "P0/P1 require a fix or an independently corroborated rejection."
+  "P0/P1 are severity blockers; settlement disposition is checked separately."
   [sev]
   (<= (severity-rank sev 2) 1))
 
@@ -86,7 +86,7 @@
   "A reviewer reply that accepts the settlement rather than disputing it."
   #"(?im)(?:^|[.!]\s*)(?:✅\s*)?review thread resolved[.!]?[ \t]*$|(?:^|[.!]\s*)verified(?: the fix)?[.!]?[ \t]*$|(?:^|[.!]\s*)this addresses (?:the|my) (?:finding|issue|comment)[.!]?[ \t]*$")
 
-(declare verdict-prose valid-head? default-reviewer-identities)
+(declare verdict-prose valid-head? default-reviewer-identities trusted-reviewer)
 
 (defn- remove-matches [text pattern]
   ;; SCI/CLJS string replacement can discard inline regex flags. Match with
@@ -305,6 +305,90 @@
 (defn finding-obligation? [thread]
   (actionability/finding-obligation? (actionability-thread thread)))
 
+(defn- finding-withdrawal-details [body]
+  ;; A narrow live opener statement, not author rejection or Bot agreement.
+  ;; Preserve its own rationale/links; analysis, learning, quotes and examples
+  ;; cannot supply missing withdrawal evidence.
+  (when-let [prose (some-> (rejection-prose body)
+                           (remove-matches #"`[^`\n]*`"))]
+    (when (and (re-find #"(?im)(?:^|[.!?][ \t]+)I withdraw this finding\." prose)
+               (not (re-find #"(?i)(?:do not|don't|might|may|will|cannot|can't) withdraw|(?:still|remains) (?:valid|reproduces|unresolved)|retract (?:my|the) withdrawal|(?:withdrawal|finding|assessment) (?:is )?(?:pending|ambiguous)|(?:pending|awaiting) (?:assessment|verification|decision)|(?:quota|usage|review) limit|rate.limit" prose)))
+      (when-let [reason (re-find #"(?im)^(?:The|This|My) finding[ \t]+[^\n]{40,}" prose)]
+        (let [links (vec (re-seq #"https?://[^\s)\]>]+" prose))]
+          (when (seq links) {:reason reason :evidence links}))))))
+
+(defn- opener-withdrawal
+  "Current-head native opener withdrawal plus a bound writer Handled reply.
+   This preserves the finding; it supplies no rejection/approval/round credit."
+  [{:keys [id head root-comment-id comments native-context identities resolved? outdated?] :as input} settlement-index]
+  (let [{:keys [repository pr thread]} native-context
+        nodes (get-in thread [:comments :nodes]) root (first nodes)
+        writer (when settlement-index (nth comments settlement-index))
+        writer-prose (rejection-prose (:body writer))
+        native-writer (when settlement-index (nth nodes settlement-index nil))
+        login (get-in root [:author :login])
+        reviewer (fn [c]
+                   ;; GraphQL Bot logins omit REST's [bot] suffix. The native
+                   ;; typename, exact opener identity and existing roster own
+                   ;; this normalization; no new reviewer is admitted.
+                   (let [a (:author c) l (:login a)]
+                     (trusted-reviewer {:user {:type (:__typename a)
+                                              :login (if (str/ends-with? (str l) "[bot]") l (str l "[bot]"))}}
+                                       (or identities default-reviewer-identities))))
+        url (fn [c] (str "https://github.com/" (:nameWithOwner repository) "/pull/" (:number pr)
+                         "#discussion_r" (:databaseId c)))
+        normalized (fn [c] {:id (:databaseId c) :author (get-in c [:author :login]) :body (:body c)
+                           :url (:url c) :created-at (:createdAt c) :updated-at (:updatedAt c)})
+        times (mapv #(timestamp (:createdAt %)) nodes)
+        evidence-comments (thread-evidence-comments input)]
+    (when (and (valid-head? head) (= head (:headRefOid pr)) (= "OPEN" (:state pr))
+               (= id (:id thread)) (= root-comment-id (:databaseId root))
+               (true? resolved?) (true? (:isResolved thread)) (false? outdated?) (false? (:isOutdated thread))
+               (vector? nodes) (seq nodes) (false? (get-in thread [:comments :pageInfo :hasNextPage]))
+               (= (count nodes) (get-in thread [:comments :totalCount]) (count comments)
+                  (count (set (map :databaseId nodes))))
+               (= (mapv normalized nodes)
+                  (mapv #(select-keys % [:id :author :body :url :created-at :updated-at]) comments))
+               (every? some? times) (= times (sort times)) (every? comment-time comments)
+               (every? #(and (timestamp (:updatedAt %))
+                             (not (pos? (compare (:createdAt %) (:updatedAt %))))) nodes)
+               (some? evidence-comments)
+               (= head (get-in root [:pullRequestReview :commit :oid]))
+               (= (:url root) (url root)) (reviewer root) (not= login (get-in pr [:author :login]))
+               (= :handled (resolution-of (:body writer))) (true? (:authorized? writer))
+               (str/starts-with? (or (rejection-prose (:body writer)) "") "Handled:")
+               (= "User" (get-in native-writer [:author :__typename]) (get-in writer [:user :type]))
+               (= (:author writer) (get-in writer [:user :login]))
+               (= head (get-in native-writer [:pullRequestReview :commit :oid]))
+               (= [id (str root-comment-id)] (thread-binding (:body writer)))
+               (str/includes? writer-prose head))
+      (last
+       (keep-indexed
+        (fn [i c]
+          (when-let [details (finding-withdrawal-details (:body c))]
+            (let [source (nth comments i)]
+              (when (and (pos? i) (< i settlement-index) (= login (get-in c [:author :login]))
+                         (= (reviewer root) (reviewer c))
+                         (= "COMMENTED" (get-in c [:pullRequestReview :state]))
+                         (= head (get-in c [:pullRequestReview :commit :oid]))
+                         (= (:url c) (url c)) (integer? (:databaseId c)) (pos? (:databaseId c))
+                         (str/includes? writer-prose (:url c))
+                         (or (not (re-find #"(?m)^Finding:" (or (rejection-prose (:body c)) "")))
+                             (= [id (str root-comment-id)] (thread-binding (:body c))))
+                         (pos? (compare (comment-time writer) (comment-time source)))
+                         ;; Later conflicts/edits cannot be erased by resolution
+                         ;; or a writer settlement. Ordinary confirmations may
+                         ;; follow; unknown/missing chronology fails closed.
+                         (every? (fn [other]
+                                   (or (= (:id source) (:id other)) (= writer other)
+                                       (and (neg? (compare (comment-time other) (comment-time source)))
+                                            (neg? (compare (timestamp (or (:created-at other) (:created_at other)))
+                                                           (timestamp (:createdAt c)))))
+                                       (confirmed? (:body other)))) evidence-comments))
+                (merge details {:source-id (:databaseId c) :url (:url c) :head head
+                                :thread-id id :root-comment-id root-comment-id
+                                :reviewer (reviewer c)}))))) nodes)))))
+
 (defn classify-thread
   "thread: {:id :resolved? :outdated? :path :line
              :comments [{:author :body :url :created-at}]}
@@ -338,7 +422,9 @@
                           (let [index (first (keep-indexed #(when (= reply %2) %1) evidence-comments))]
                             (rejection-evidence head (or identities default-reviewer-identities) pr-author
                                                 evidence-comments index (rejection-details (:body reply)) nil
-                                                [(:id thread) (str (:root-comment-id thread))]))))))]
+                                                [(:id thread) (str (:root-comment-id thread))]))))))
+        withdrawal (when (and (= :handled settlement) (not contested?))
+                     (opener-withdrawal thread (inc settle-idx)))]
     (assoc thread
            :actionability (actionability/disposition thread)
            :reviewer (:author opener)
@@ -346,6 +432,7 @@
            :resolution settlement
            :settled? (and (some? settlement) (not contested?) (or (not= :rejected settlement) (some? rejection)))
            :contested? contested?
+           :opener-withdrawal withdrawal
            :rejection-approved? (boolean rejection)
            :rejection-reviewer (:reviewer rejection)
            :rejection-channel (:channel rejection)
@@ -494,6 +581,28 @@
              (for [review reviews
                    :let [findings (review-findings review)]]
                (count (remove #(answered-finding? review comments % context) findings)))))))
+
+(defn legacy-stage-marker
+  "Recognize an authorized native User's unedited legacy head-bound stage
+   declaration. This is stage history only, never request/approval credit."
+  [c]
+  (let [prose (some-> (str (:body c))
+                  (remove-matches #"(?is)<details\b[^>]*>.*?</details>")
+                  (str/replace #"<blockquote>[\s\S]*?</blockquote>" "")
+                  (remove-matches #"(?m)^[ \t]*>[^\n]*(?:\n|$)")
+                  verdict-prose
+                  (remove-matches #"`[^`\n]*`"))
+        stages (map second (re-seq #"<!-- pr-flow-stage:(planning|code) -->" (str prose)))
+        heads (map second (re-seq #"<!-- pr-flow-head:([0-9a-f]{40}) -->" (str prose)))]
+    (when (and (true? (:authorized? c)) (= "User" (get-in c [:user :type]))
+               (not (str/blank? (str (get-in c [:user :login]))))
+               (integer? (:id c)) (pos? (:id c)) (timestamp (:created_at c))
+               (= (:created_at c) (:updated_at c)) (= 1 (count stages) (count heads))
+               (= 1 (count (re-seq #"pr-flow-stage:" (str prose)))
+                    (count (re-seq #"pr-flow-head:" (str prose))))
+               (not (re-find #"(?i)</?(?:details|summary|blockquote)\b|<!--\s*(?:This is an auto-generated comment:|end of auto-generated comment:)|pr-flow-review:" (str prose))))
+      {:stage (first stages) :created_at (:created_at c) :head (first heads)
+       :source-id (:id c) :format :legacy-head})))
 
 (defn- stage-reviews
   [reviews stage-comments stage]
@@ -954,11 +1063,13 @@
 
 (defn unsettled-blockers
   "P0/P1 require a fix or a detailed independently corroborated rejection.
-   Deferral and Handled never clear a blocker."
+   Handled qualifies only for the native opener-withdrawal disposition;
+   deferral and generic Handled remain blockers."
   [threads]
-  (filter (fn [{:keys [severity resolution rejection-approved? settled?]}]
+  (filter (fn [{:keys [severity resolution rejection-approved? settled? opener-withdrawal resolved?]}]
             (and (blocking? severity) (not= :fixed resolution)
-                 (not (and (= :rejected resolution) rejection-approved? settled?))))
+                 (not (and (= :rejected resolution) rejection-approved? settled?))
+                 (not (and (= :handled resolution) opener-withdrawal settled? resolved?))))
           (filter finding-obligation? threads)))
 
 ;; --- review state ---------------------------------------------------------

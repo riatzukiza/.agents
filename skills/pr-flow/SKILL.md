@@ -136,8 +136,22 @@ gate also append local Receipt River admission/revocation observations; these
 commands are not strictly file-read-only on that path. This candidate is not
 activated by author prose, an identity list shared with rejection, or these
 local tests. Parent retains source review, publication and fresh native assessment.
+An authenticated finding opener's explicit withdrawal is a separate bounded
+disposition, described in [review settlement](../pr-review-settlement/SKILL.md).
+Original severity and native history remain finding evidence. A resolved thread
+still needs an authorized writer's current-head, root-bound `Handled:` reply
+referencing that native withdrawal; this supplies no independent rejection,
+approval, coverage or completed round. Author objections and CodeRabbit assent
+to a rejection remain subject to the existing independent-rejection law.
 CodeRabbit and Codex requests use their explicit mention surfaces; MiMo and
 Kimi use configured hosted workflows. All remain invited even after quorum.
+Stage history also recognizes an authorized native User's unedited legacy
+`pr-flow-head:<full SHA>` declaration with one live planning/code marker.
+This preserves the existing timestamp boundary, including every later explicit
+planning-to-code transition. It creates no review/approval/round credit and
+does not retroactively bind reviews before a genuinely first declaration.
+Quoted/generated examples, malformed or ambiguous markers, edited declarations
+and public non-writers do not qualify for this legacy path.
 
 Headless CLI authentication requires an organization-bound Agentic API key and an assigned seat; unsupported user API keys do not supply CLI access ([headless CLI documentation](https://docs.coderabbit.ai/cli/headless-cli-integration), checked 2026-10-03). AgenticKey-authenticated CLI review is a separate provider and evidence artifact.
 It cannot impersonate native CodeRabbit approval or satisfy the hosted GitHub

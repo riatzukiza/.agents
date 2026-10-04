@@ -864,6 +864,79 @@
                (assoc-in review [:user :type] "User")]]
       (is (= :pending (:status (law/request-verdict (assoc input :reviews [r]))))))))
 
+(def native-rheos-stage
+  (js->clj (js/JSON.parse (fs/readFileSync
+                          (path/join (path/dirname *file*) "fixtures/native-rheos2-initial-code-stage.json") "utf8"))
+           :keywordize-keys true))
+(def rheos-head (:head native-rheos-stage))
+(def legacy-request (first (filter #(= 5968488345 (:id %)) (:comments native-rheos-stage))))
+(def code-declaration {:stage "code" :created_at "2026-10-04T09:31:36Z"})
+(def legacy-declaration (law/legacy-stage-marker (assoc legacy-request :authorized? true)))
+(def rheos-checks (mapv #(assoc % :headSha rheos-head) (:checks native-rheos-stage)))
+(def rheos-comments (mapv #(assoc % :trusted? (and (= "riatzukiza" (get-in % [:user :login]))
+                                                 (str/includes? (:body %) "pr-flow-review:")))
+                          (:comments native-rheos-stage)))
+(def rheos-completed
+  (law/completed-review-rounds (:reviews native-rheos-stage) rheos-comments
+                               law/default-reviewer-identities rheos-checks))
+(def rheos-participants #{"coderabbit" "mimo"})
+(defn rheos-rounds [reviews markers]
+  (law/available-review-rounds reviews markers "code" #{"coderabbit" "codex" "mimo"} rheos-participants rheos-head))
+
+(deftest native-legacy-declaration-restores-existing-stage-boundary-without-rebinding
+  (is (contains? #{"write" "maintain" "admin"} (get-in native-rheos-stage [:writerPermission :permission])))
+  (is (= {:stage "code" :created_at "2026-10-03T10:56:34Z"
+          :head "66e8b67951971af541503c4a556c5645eaa727c0" :source-id 5968488345 :format :legacy-head}
+         legacy-declaration))
+  (is (= 0 (rheos-rounds rheos-completed [code-declaration])))
+  (is (= 1 (rheos-rounds rheos-completed [legacy-declaration code-declaration])))
+  (is (= (get-in native-rheos-stage [:reviews 4 :submitted_at]) "2026-10-04T09:23:38Z"))
+  (is (= 0 (rheos-rounds [] [legacy-declaration code-declaration]))))
+
+(deftest legacy-stage-needs-actual-writer-native-scope-and-live-unambiguous-markers
+  (let [c (assoc legacy-request :authorized? true)]
+    (doseq [altered [(assoc c :authorized? false) (dissoc c :authorized?)
+                     (assoc-in c [:user :type] "Bot") (dissoc c :id)
+                     (assoc c :updated_at "2026-10-03T10:57:00Z")
+                     (assoc c :body (str "> " (str/replace (:body c) "\n" "\n> ")))
+                     (assoc c :body (str "```text\n" (:body c) "\n```"))
+                     (assoc c :body (str "<details><summary>Generated example</summary>\n" (:body c) "\n</details>"))
+                     (update c :body str "\n<!-- pr-flow-stage:planning -->")
+                     (update c :body str "\n<!-- pr-flow-head:garbage -->")
+                     (update c :body str "\n<!-- pr-flow-review:" rheos-head " -->")
+                     (update c :body str/replace "66e8b67951971af541503c4a556c5645eaa727c0" "66e8b67")]]
+      (is (nil? (law/legacy-stage-marker altered))))))
+
+(deftest planning-transitions-and-undeclared-prior-passes-still-use-timestamps
+  (doseq [markers [[(assoc legacy-declaration :stage "planning") code-declaration]
+                   [legacy-declaration {:stage "planning" :created_at "2026-10-04T09:25:00Z"} code-declaration]
+                   [legacy-declaration {:stage "planning" :created_at "2026-10-04T09:40:00Z"}
+                    {:stage "code" :created_at "2026-10-04T09:45:00Z"}]]]
+    (is (= 0 (rheos-rounds rheos-completed markers))))
+  ;; Without the actual earlier declaration, first-current-marker timing is
+  ;; unchanged. No retroactive current/old-head review admission was added.
+  (is (= 0 (rheos-rounds rheos-completed [code-declaration]))))
+
+(deftest legacy-declaration-supplies-no-partial-quota-ineligible-or-revoked-credit
+  (let [markers [legacy-declaration code-declaration]
+        altered (fn [replacement]
+                  (map #(if (= 5405233001 (:id %)) (merge % replacement) %) (:reviews native-rheos-stage)))]
+    (doseq [replacement [{:state "COMMENTED" :body "Review incomplete. Reviewed only 1 of 10 files."}
+                         {:state "COMMENTED" :body "Review limit reached."}
+                         {:user {:login "author" :type "User"}}
+                         {:commit_id old-head}]]
+      (is (= 0 (rheos-rounds (law/completed-review-rounds (altered replacement) rheos-comments
+                                                        law/default-reviewer-identities rheos-checks) markers))))
+    (let [revoked {:id 990000005 :user {:login "eta-mu-ai[bot]" :type "Bot"} :commit_id rheos-head
+                   :state "APPROVED" :submitted_at "2026-10-04T09:50:00Z"
+                   :body "Review incomplete. Reviewed only 1 of 10 files."}
+          approved (:approved-heads (law/review-evidence rheos-head (conj (:reviews native-rheos-stage) revoked)
+                                                        rheos-comments law/default-reviewer-identities rheos-checks))]
+      (is (not (contains? approved "mimo")))
+      (is (not (:pass? (law/merge-gate (assoc baseline :head rheos-head :approved-heads approved
+                                            :rounds (rheos-rounds rheos-completed markers)
+                                            :review-participants rheos-participants))))))))
+
 (defmethod cljs.test/report [:cljs.test/default :end-run-tests] [m]
   (when-not (cljs.test/successful? m) (set! (.-exitCode js/process) 1)))
 (run-tests)

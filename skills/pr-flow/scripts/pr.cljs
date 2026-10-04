@@ -334,9 +334,13 @@
         authorized? (memoize (partial authorized-author? repo))
         comments (mapv #(assoc % :trusted? (and (str/includes? (str (:body %)) "pr-flow-review:")
                                               (authorized? (get-in % [:user :login])))) comments)
-        markers (keep (fn [c] (when (:trusted? c)
-                               (when-let [[_ stage] (re-find #"<!-- pr-flow-stage:(planning|code) -->" (str (:body c)))]
-                                 {:stage stage :created_at (:created_at c)}))) comments)
+        markers (keep (fn [c]
+                        (or (when (:trusted? c)
+                              (when-let [[_ stage] (re-find #"<!-- pr-flow-stage:(planning|code) -->" (str (:body c)))]
+                                {:stage stage :created_at (:created_at c)}))
+                            (when (str/includes? (str (:body c)) "pr-flow-head:")
+                              (law/legacy-stage-marker
+                               (assoc c :authorized? (boolean (authorized? (get-in c [:user :login])))))))) comments)
         stage (or (:stage (last (sort-by :created_at markers))) "code")
         configured (into (set mandatory)
                          (for [[provider logins] identities
@@ -359,7 +363,7 @@
 
 (defn print-threads [threads]
   (doseq [{:keys [id path line severity resolved? resolution reviewer comments
-                 rejection-channel rejection-source-id rejection-url actionability]} threads]
+                 rejection-channel rejection-source-id rejection-url actionability opener-withdrawal]} threads]
     (println (str (name severity) "  " (if resolved? "resolved  " "OPEN      ")
                   (if resolution (name resolution) "-unsettled-") "  " reviewer "  " path ":" line))
     (println (str "    id=" id))
@@ -367,6 +371,8 @@
     (println (str "    " (:url (first comments))))
     (when rejection-channel
       (println (str "    rejection evidence: " (name rejection-channel) " id=" rejection-source-id " " rejection-url)))
+    (when opener-withdrawal
+      (println (str "    native opener withdrawal: id=" (:source-id opener-withdrawal) " " (:url opener-withdrawal))))
     (when (not= :absent (:status actionability))
       (println (str "    actionability: " (name (:kind actionability)) " " (name (:status actionability))
                     " native-source=" (:assessment-id actionability) " " (:url actionability))))))

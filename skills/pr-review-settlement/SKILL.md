@@ -35,6 +35,14 @@ A new push invalidates approvals; it does not erase completed stage history.
 Planning history does not satisfy the subsequent code-review stage. Missing,
 pending or stale approvals never supply unanimity. Authenticated quota-unavailable optional agents are excluded from the current available cohort under pr-flow; they supply no approval or completed review. Mandatory reviewers remain required, and historical findings remain obligations.
 
+An authorized native User's unedited legacy `pr-flow-head:<full SHA>` plus
+planning/code marker preserves that PR's stage declaration at its actual native
+time. It supplies no review or approval. A later same-stage request does not
+erase it; a different stage still starts a new timestamp boundary. There is no
+new retroactive binding of undeclared prior reviews. Native Rheos2 declaration
+5968488345 is source evidence of an earlier code stage, rather than a reason to
+backdate request5978541505 or reinterpret older heads as current approvals.
+
 ## First five rounds
 
 1. Verify every finding against code, contracts and relevant tests.
@@ -54,6 +62,39 @@ pending or stale approvals never supply unanimity. Authenticated quota-unavailab
 `Handled` means a concern is already addressed: identify the existing code,
 fix or duplicate and its verification. It must not disguise a rejected request
 or a verified issue that remains unfixed.
+
+## Native opener withdrawal
+
+An authenticated configured Bot withdrawing its own finding is distinct from
+an author deciding not to fix it. Preserve the original priority, native root,
+enclosing review, withdrawal ID/URL and history. The CLI's bounded grammar
+recognizes the opener's own live `I withdraw this finding.` sentence, a
+substantive paragraph explaining why that finding was incorrect, and live
+source links. Analysis/learning blocks, fenced or quoted examples and generated
+shares cannot supply that evidence. Unsupported or ambiguous wording remains
+blocking; never publish a transcript or relabel assent as withdrawal.
+
+The native root and withdrawal must both be on the current head and in the
+same complete ordered conversation, by the same configured Bot, with no later
+pushback or conflicting edit. Different openers, author claims, quota replies,
+cross-root scope and old heads do not qualify. The conversation must be resolved
+and an authorized User writer must post a settlement naming the current head,
+exact root pair and actual native withdrawal URL, for example:
+
+```text
+Handled: The finding opener withdrew this finding on <full current head SHA>.
+Finding: <PRRT_thread ID> comment<numeric root comment ID>
+Withdrawal: <actual native opener withdrawal URL>
+Reason: <specific withdrawn premise and its verified source evidence>
+```
+
+Reviewer auto-resolution can precede that writer reply; until the reply exists,
+the finding is unsettled. This narrow `Handled:` disposition can settle the
+withdrawn P0/P1 finding but supplies no independent rejection, approval, full
+coverage or round credit. Generic `Handled:` and resolution alone cannot clear
+a Major finding. All other findings, approval/cohort/minimum requirements and
+required checks remain obligations. Local prospective settlement fixtures are
+not native qualification or permission to publish an unsupported settlement.
 
 ## Independent rejection
 
@@ -149,7 +190,7 @@ Every finding gets a reply **before** its thread is resolved:
 | Opening | Meaning |
 | --- | --- |
 | `Fixed in <sha>: …` | changed; cite the test or evidence |
-| `Handled: …` | P2/P3 and non-blocking review-body items only: already addressed; identify where and how verified. For P0/P1, cite the existing fix with `Fixed in <sha>: …` |
+| `Handled: …` | Already addressed, or bound native opener withdrawal above |
 | `Deferred to <card-uuid or issue>: …` | justified scoped follow-up only when completed rounds are strictly above the configured minimum (default five); the follow-up exists |
 | `Rejected: …` | detailed reasoning and evidence, corroborated by an independent non-CodeRabbit agent |
 
