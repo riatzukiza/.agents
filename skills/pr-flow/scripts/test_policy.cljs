@@ -544,6 +544,63 @@
               "<!-- final_review_risk_coverage:{\"sourceCommitId\":\"" head
               "\",\"coveredCommitId\":\"" head "\",\"kind\":\"reviewed\"} -->")})
 
+(def native-publication-controls
+  (js->clj (js/JSON.parse
+             (fs/readFileSync
+               (path/join (path/dirname *file*) "fixtures"
+                          "coderabbit-eta340-fef2-publication-controls.json") "utf8"))
+           :keywordize-keys true))
+
+(deftest native-publication-control-description-is-not-an-incomplete-review
+  (let [sha (get-in native-publication-controls [:source :reviewed_head])
+        comment (:comment native-publication-controls)
+        checks [{:name "CodeRabbit" :state "SUCCESS" :headSha sha}]
+        evidence (law/review-evidence sha [] [comment] law/default-reviewer-identities checks)]
+    (is (nil? (law/incomplete-review-reason (:body comment))))
+    (is (= #{sha} (get-in evidence [:approved-heads "coderabbit"])))
+    (is (= :explicit-issue-verdict (get-in evidence [:approval-evidence "coderabbit" :channel])))
+    (is (= 5975130712 (get-in evidence [:approval-evidence "coderabbit" :id])))
+    (is (empty? (:incomplete-evidence evidence)))
+    (doseq [control ["rejects incomplete review submissions"
+                     "blocks partial review submissions"
+                     "prevents altered or incomplete\nreview submissions"]]
+      (is (nil? (law/incomplete-review-reason
+                  (str/replace (:body comment)
+                               "prevent altered or incomplete review submissions" control))) control))
+    (is (empty? (:approved-heads (law/review-evidence sha [] [comment] identities []))))
+    (is (empty? (:approved-heads (law/review-evidence old-head [] [comment] identities checks))))
+    (is (empty? (:approved-heads
+                  (law/review-evidence sha [] [(assoc-in comment [:user :login] "fake-coderabbit[bot]")]
+                                       identities checks))))))
+
+(deftest publication-controls-do-not-hide-real-scope-admissions-or-revocation
+  (let [sha (get-in native-publication-controls [:source :reviewed_head])
+        comment (:comment native-publication-controls)
+        checks [{:name "CodeRabbit" :state "SUCCESS" :headSha sha}]
+        earlier (assoc (review "coderabbitai[bot]" "APPROVED" sha)
+                       :submitted_at "2026-10-04T07:19:00Z")]
+    (doseq [admission ["My review remains incomplete."
+                       "I performed only a partial review."
+                       "I submitted an incomplete review submission."
+                       "I cannot complete the review."
+                       "Reviewed only 3 of 9 changed files."
+                       "The diff was truncated; the omitted input was not reviewed."
+                       "The diff was truncated; these files are outside this inline review and their behavior is evidenced only by preparation logs."
+                       "The diff was truncated; source was read at head only to validate claims anchored on staged lines."
+                       "Some unreviewed files still remain."]]
+      ;; Put the genuine admission in the same architecture section as the
+      ;; control description, rather than allowing a section-wide exemption.
+      (let [body (str/replace (:body comment) "<!-- architecture_review_end -->"
+                              (str admission "\n<!-- architecture_review_end -->"))
+            later (assoc comment :body body)
+            evidence (law/review-evidence sha [earlier] [later] identities checks)]
+        (is (some? (law/incomplete-review-reason body)) admission)
+        (is (empty? (:approved-heads evidence)) admission)
+        (is (= 5975130712 (get-in evidence [:incomplete-evidence "coderabbit" :id])) admission)
+        ;; The incomplete later response supplies no new completed review;
+        ;; historical full-review credit remains a separate preserved fact.
+        (is (empty? (law/completed-review-rounds [] [later] identities checks)) admission)))))
+
 (deftest coderabbit-issue-completions-without-checks-have-no-credit
   (let [request {:id 5 :trusted? true :created_at "2026-10-03T01:00:00Z"
                  :body (str "<!-- pr-flow-stage:code --> <!-- pr-flow-round:1 --> <!-- pr-flow-review:" head

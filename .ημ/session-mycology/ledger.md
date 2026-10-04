@@ -244,3 +244,23 @@
   spore: none
   receipt-refs: codex-desktop/agents8-exact-kimi-producer-tuple observation;test-run;catalog
   note: Test the exact job/workflow allowlist through the real isolated CLI, including required quota outcomes, mandatory overrides and lookalike deterministic jobs. Extend source-contract fixtures without rewriting historical native provenance. One map row and synchronized notes suffice; preserve full shared ledger prefixes and keep source preparation separate from App/native qualification and live activation.
+
+- ts: "2026-10-04T05:00:24.730304892Z"
+  session: /home/err/spaces/review-repair/agents-policy-integration
+  task: Agents8 held future79e8 caller declaration preparation on531
+  p-efficiency: 0.95
+  p-friction: 0.05
+  p-skill-candidate: 0.1
+  spore: none
+  receipt-refs: Agents8 held caller refresh on531 to79e8;Agents8 future79e8 caller declaration proof and frozen handoff
+  note: A candidate repin needs immutable upstream declaration comparison and exact protected-source/history proof, not repeated policy execution. Retain new parent source and full prefixes; source availability and native fresh/retry qualification are separate. No operational activation or new spore.
+
+- ts: "2026-10-04T08:10:06.256389189Z"
+  session: /home/err/spaces/review-repair/agents-policy-integration
+  task: Agents8 final qualified functional694 caller preparation and Raman source evidence adoption
+  p-efficiency: 0.96
+  p-friction: 0.04
+  p-skill-candidate: 0.12
+  spore: none
+  receipt-refs: Agents8/native publication controls versus reviewer scope;Agents8 final qualified functional pair selection and Raman prepared-source receipt adoption
+  note: Select one immutable qualified functional pair, compare the real reusable interface and preserve every caller guard, credential name and inherited Node policy. Adopt Raman's exact prior receipt with its original proposed-source boundary intact and explicit current adoption provenance. Preserve complete174577/18805 histories and frozen Raman hashes; main981 history belongs to the parent ordinary merge. Local declaration checks and prior source tests do not install policy or supply current-head native qualification. No new spore or activation.

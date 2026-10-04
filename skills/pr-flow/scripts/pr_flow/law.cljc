@@ -587,10 +587,14 @@
    and generated examples are not the current verdict; truncation alone does
    not disqualify a reviewer who retrieved and reviewed the omitted input."
   [body]
-  (let [prose (reviewer-prose body)]
+  (let [prose (reviewer-prose body)
+        ;; A guard against incomplete review submissions describes an artifact,
+        ;; not the reviewer's scope. Keep every other admission in the section.
+        scope-prose (when prose
+                      (remove-matches prose #"(?i)\b(?:prevent(?:s|ed|ing)?|reject(?:s|ed|ing)?|block(?:s|ed|ing)?)\s+(?:altered\s+or\s+)?(?:partial|incomplete)\s+review\s+submissions?\b"))]
     (cond
       (nil? prose) :ambiguous-prose
-      (re-find #"(?i)\breview (?:is |was |remains )?(?:incomplete|rate limited)\b|\b(?:partial|incomplete) review\b|\b(?:unable to|could not|couldn't|cannot|can't) complete (?:the )?review\b" prose)
+      (re-find #"(?i)\breview (?:is |was |remains )?(?:incomplete|rate limited)\b|\b(?:partial|incomplete) review\b|\b(?:unable to|could not|couldn't|cannot|can't) complete (?:the )?review\b" scope-prose)
       :incomplete-review
       (or (re-find #"(?im)(?:^|[.;]\s*)(?:some |the |these )?unreviewed (?:files|changes|input) (?:still )?remain\b" prose)
           (and (re-find #"(?i)\btruncat(?:ed|ion)\b" prose)

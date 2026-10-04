@@ -13,9 +13,15 @@ permissions:
 jobs:
   review:
     name: Evidence-first review (eta-mu)
-    uses: open-hax/eta-mu/.github/workflows/opencode-code-review.yml@b5b28237c45323cdc1914317260192163d957735
+    # Qualified merged Eta/Muse pair; this caller remains local preparation
+    # pending parent integration and fresh current-head native qualification.
+    # Validated global skills and the existing Node policy stay pinned.
+    uses: open-hax/eta-mu/.github/workflows/opencode-code-review.yml@694a2602709d130b2a60045a25537f1b4476ec1f
     with:
       pr_head_sha: ${{ github.event.pull_request.head.sha }}
+      model: opencode/mimo-v2.6-flash-free
+      muse_revision: 0b9a91492c8355e6933dc2164d35668cb76d9e60
+      agents_revision: 7fd3252e7663ad5e68be5e90429d126aa66c38c8
       setup_eta_mu_toolchain: false
       evidence_gates_script: |
         run_gate diff_stat git diff --stat "${PR_BASE_SHA}...HEAD"
