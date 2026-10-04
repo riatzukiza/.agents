@@ -1,0 +1,16 @@
+dry run: would install /home/err/spaces/foresight/.agents/.worktrees/docs-pr-11-walkthrough/skills/agent-i3-sandbox to /tmp/tmp.emRXGfqxJw/new
+refusing forged or invalid managed marker
+refusing symlink ancestor: /tmp/tmp.emRXGfqxJw/link
+installed managed sandbox skill at /tmp/tmp.emRXGfqxJw/managed
+managed install already current: /tmp/tmp.emRXGfqxJw/managed
+refusing symlink ancestor: /tmp/tmp.emRXGfqxJw/symlink-parent
+refusing forged or invalid managed marker
+refusing forged or invalid managed marker
+sha256sum: WARNING: 1 computed checksum did NOT match
+refusing locally modified managed files
+refusing source/destination overlap
+refusing source/destination overlap
+installed managed sandbox skill at /tmp/tmp.emRXGfqxJw/extras
+refusing symlink ancestor: /tmp/tmp.emRXGfqxJw/managed-link
+managed install already current: /tmp/tmp.emRXGfqxJw/extras
+installer checks passed

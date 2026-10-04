@@ -1,0 +1,93 @@
+{
+  "subject": "https://github.com/riatzukiza/.agents/pull/11",
+  "reviewed_head": "8a173d2438b787675f1faf54ba78f7000beb098b",
+  "merge": "9812965f071a07fe2e79c9b2c2656bcfacb8e8ce",
+  "annotation_generated_at": "2026-10-04T09:32:58.436369+00:00",
+  "capture_boundary": "Fresh headless public GitHub browser and non-root Xvfb container; no host desktop capture.",
+  "capture_image": "sha256:a0b7c17de98f00fa97f90b7ade732ac29fd202aafa33c03e7d955ffabbf9bf70",
+  "screenshots": [
+    {
+      "raw": "raw/01-pr-merged.png",
+      "raw_sha256": "2551b03d6dfba9ae35c1cef6925d31e6facec523b3d4682ae40f0b7162e64eef",
+      "annotated": "annotated/01-pr-merged.png",
+      "annotated_sha256": "9e6f0a215ff3a31e8ad059fdc390189185745860090343622102455aa1b0ea88",
+      "raw_dimensions": [
+        1440,
+        1000
+      ],
+      "annotations": [
+        "Merged PR #11: reviewed implementation is head 8a173d2; merge is 9812965f.",
+        "Design: extract a reusable isolated toolkit, add focus-checked tests and refusal-first installation.",
+        "Accepted debt: old core versions, incomplete optional Spacemacs bootstrap, and donor compatibility copy remain explicit."
+      ]
+    },
+    {
+      "raw": "raw/02-pr-checks.png",
+      "raw_sha256": "0a6628cf5746d38614652b206f228dccc32c8a94dc9a3412495bf0e0753a10ee",
+      "annotated": "annotated/02-pr-checks.png",
+      "annotated_sha256": "aa8bce1e012cd32b851910812a9c98adf1ae7cb1a923e06f86a324756213339d",
+      "raw_dimensions": [
+        1440,
+        1000
+      ],
+      "annotations": [
+        "The exact-head sandbox CI job completed successfully; this capture shows GitHub's actual job summary.",
+        "Executed gates include installer/readiness checks, core desktop startup, and i3/Espanso regressions.",
+        "Artifacts and teardown are covered. Green core CI does not qualify full Spacemacs, candidate mounts, or the live host."
+      ]
+    },
+    {
+      "raw": "raw/03-unicode-runtime.png",
+      "raw_sha256": "c6034197419c451a517328714b6a80d1c4721b6c3bb558d9d886e0a2b57a20d4",
+      "annotated": "annotated/03-unicode-runtime.png",
+      "annotated_sha256": "286638b74d2dcbd9ad0f360d6382b5f4b595a4b40f42e9ac700fb4fb038ed8b3",
+      "raw_dimensions": [
+        1280,
+        800
+      ],
+      "annotations": [
+        "Actual Emacs buffer after guarded :sandbox-unicode expansion: mu and circular arrow rendered successfully.",
+        "Actual fresh forced-key test log: missing vkey mapping for mu. Failure is a diagnostic, not a universal Unicode fix.",
+        "This is core Emacs on container display :99, not the operator's Spacemacs desktop or proof of clipboard-timeout causality."
+      ]
+    },
+    {
+      "raw": "raw/04-installer-tests.png",
+      "raw_sha256": "2861427da5c6a4e4d380906de3f014f60694e7160d9f5d3cbb2a97272a33a5ce",
+      "annotated": "annotated/04-installer-tests.png",
+      "annotated_sha256": "fed46d0c31641de9e59bdd4cf4af850d771fcf88458465628784e99f70ee590f",
+      "raw_dimensions": [
+        1280,
+        800
+      ],
+      "annotations": [
+        "Unowned installs and symlink ancestors are refused; exact managed reinstallation is idempotent.",
+        "Intentional checksum mismatch proves local edits are refused. Source overlap is refused too.",
+        "Trailing-slash symlink, preserved extras, concurrent install and staging cleanup tests passed. Hostile ancestor replacement races remain outside the guarantee."
+      ]
+    }
+  ],
+  "runtime_script_comparisons": [
+    {
+      "source_path": "skills/agent-i3-sandbox/scripts/test-espanso-regression",
+      "container_path": "/home/agent/bin/test-espanso-regression",
+      "source_sha256": "0ac49e7eb6e85418613a115cd51a1c306ad769b197d42e5674f63cb4654fe6a3",
+      "observed_container_sha256": "0ac49e7eb6e85418613a115cd51a1c306ad769b197d42e5674f63cb4654fe6a3",
+      "comparison_command": "docker exec pr11-walkthrough-capture sha256sum /home/agent/bin/test-espanso-regression"
+    },
+    {
+      "source_path": "skills/agent-i3-sandbox/scripts/agent-entrypoint",
+      "container_path": "/home/agent/bin/agent-entrypoint",
+      "source_sha256": "942f651e8cb2c745b64929c3f99e82bde2f48378f866e80d4b6ccf9545d063e8",
+      "observed_container_sha256": "942f651e8cb2c745b64929c3f99e82bde2f48378f866e80d4b6ccf9545d063e8",
+      "comparison_command": "docker exec pr11-walkthrough-capture sha256sum /home/agent/bin/agent-entrypoint"
+    },
+    {
+      "source_path": "skills/agent-i3-sandbox/scripts/wait-emacs",
+      "container_path": "/home/agent/bin/wait-emacs",
+      "source_sha256": "1851a5455f127b2a431fa06507292fac89905ce08572e9220fd26c60ff30d9fa",
+      "observed_container_sha256": "1851a5455f127b2a431fa06507292fac89905ce08572e9220fd26c60ff30d9fa",
+      "comparison_command": "docker exec pr11-walkthrough-capture sha256sum /home/agent/bin/wait-emacs"
+    }
+  ]
+}

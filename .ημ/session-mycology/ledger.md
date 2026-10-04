@@ -43,3 +43,12 @@
   spore: none
   receipt-refs: 2026-10-03T13:50:10.811996504Z
   note: The original reflection is append-only. This corrective entry links its verified test-run receipt explicitly.
+- ts: 2026-10-04T09:26:00Z
+  session: docs/pr-11-walkthrough
+  task: Publish author walkthrough with isolated annotated screenshot evidence
+  p-efficiency: 0.8
+  p-friction: 0.3
+  p-skill-candidate: 0.5
+  spore: none
+  receipt-refs: 2026-10-04T09:26:00Z
+  note: Keep raw screenshots separate from overlays and record runtime-source hashes; temporary installed-bundle validation revealed a catalog-relative test assumption beyond installer refusal coverage.

@@ -1,0 +1,85 @@
+{
+  "commit_id": "8a173d2438b787675f1faf54ba78f7000beb098b",
+  "event": "COMMENT",
+  "body": "## Author walkthrough / retrospective self-review\n\nThis is the requested post-merge author walkthrough of PR #11 at **8a173d2** (merge **9812965f**), not a replacement approval or a claim that review proves correctness. The inline notes W01-W13 explain the important boundaries, why I chose them, knowingly accepted debt, and newly identified limitations.\n\n**Evidence:** four annotated screenshots, separate unchanged raw captures, capture scripts, image hashes, and runtime-script hash comparisons are in the [evidence bundle]({assets}/README.md). The GitHub screenshots show the real public PR/CI pages. The runtime screenshots are fresh post-merge captures from a non-root, mount-free Xvfb container; the installer image displays actual freshly executed test output. Annotations intentionally modify copies only.\n\n**My assessment:** the core i3/Emacs/Espanso test boundary is useful and exercised. Full Spacemacs/bootstrap parity, version fidelity, and complete retirement of the original donor remain debt tracked in #12. This walkthrough also reproduced a new installed-test packaging failure, now #13; I do not retroactively call that knowingly accepted pre-merge debt. Residual filesystem races, mutable candidate inputs, and timing-sensitive assertions are explicitly discussed below.\n\nStart with W01 (isolation), W06 (Unicode behavior), W07 (installer guarantees), W09 (accepted parity debt), and W10 (what green CI actually proves).",
+  "comments": [
+    {
+      "path": "skills/agent-i3-sandbox/scripts/agent-entrypoint",
+      "line": 9,
+      "side": "RIGHT",
+      "body": "### W01 — Design: move automation behind an isolated desktop boundary\n\nThe container marker plus fixed display check is a misuse guard: a copied probe should fail before doing input automation on the operator's session. Xvfb, i3, a named Emacs daemon and private DBus are started in the container; the default Compose file mounts no host X socket, clipboard/session socket, or live config. Critical-process exit later tears the sandbox down.\n\n**Reasoning:** the earlier host-focus experiment was unsafe; the reusable abstraction should make isolated execution the normal path, rather than rely on remembered caution. **Limit:** this is an accidental-misuse boundary, not a security sandbox against deliberately hostile code; it does not remove container network access or authenticate a marker file.\n\n[Annotated PR/scope screenshot]({assets}/annotated/01-pr-merged.png)."
+    },
+    {
+      "path": "skills/agent-i3-sandbox/Dockerfile",
+      "line": 5,
+      "side": "RIGHT",
+      "body": "### W02 — Accepted debt: pin the reproducer, not an entire distribution\n\nI kept Espanso **2.1.4-beta**, its Linux/amd64 X11 artifact and a recorded SHA-256 to reproduce the observed injector behavior. Unsupported architectures fail rather than quietly choosing another binary. The checksum verifies the chosen bytes; it is not an independently signed upstream attestation.\n\n**Tradeoff knowingly accepted:** the Ubuntu 20.04/APT layer is mutable and supplies older i3/Emacs versions (4.17.1/26.3 in the verified runs). This is not bit-reproducible, not host-version parity, and not a supported cross-platform distribution. A future distribution needs an immutable dependency strategy, update policy and tested version matrix. See NOTICE.md and #12."
+    },
+    {
+      "path": "skills/agent-i3-sandbox/scripts/agent-entrypoint",
+      "line": 17,
+      "side": "RIGHT",
+      "body": "### W03 — Input boundary: read-only does not mean a coherent snapshot\n\nCandidate Espanso configs are copied from a read-only mount into the container's writable HOME. `--no-preserve=ownership` avoids importing host UID ownership into the non-root runtime. That permits daemon-local writes without modifying the candidate directory.\n\n**Residual limitation surfaced in this walkthrough:** the host can still change the mounted source while the copy is in progress. Read-only constrains container writes; it does not promise snapshot consistency. These candidate files are also trusted configuration, not sanitized untrusted input. For repeatable experiments, provide a frozen checkout/archive and record its digest. Current hosted core CI does not exercise this optional candidate mount."
+    },
+    {
+      "path": "skills/agent-i3-sandbox/scripts/agent-entrypoint",
+      "line": 43,
+      "side": "RIGHT",
+      "body": "### W04 — Design and debt: bounded readiness is not package qualification\n\nCore Emacs gets a five-second readiness budget. Optional Spacemacs gets a configurable 600 seconds, and Compose waits another 30 seconds; its healthcheck requires the Spacemacs features as well as the daemon, i3 and Espanso. This fixed the review finding that `up` could report success before package synchronization finished. Dead daemon or expired budget fails visibly.\n\n**What the new test proves:** a fake client that becomes ready after more than five seconds succeeds with the larger budget, and dead-PID/short-budget cases fail. **What it does not prove:** actual ELPA bootstrap or full Spacemacs integration. The larger period can also mean a long diagnostic wait for a partially initialized optional target. Full parity remains #12."
+    },
+    {
+      "path": "skills/agent-i3-sandbox/scripts/test-espanso-regression",
+      "line": 22,
+      "side": "RIGHT",
+      "body": "### W05 — Design: verify a concrete target before every injected character\n\nThe test obtains Emacs's actual `outer-window-id`, activates it, then checks focus immediately before each character. Initial setup and every buffer reset also select an editing state (including Evil Emacs state when present), so triggers are text rather than editor commands. The same targeting principle is used for the i3 probe.\n\n**Reasoning:** neither a window-title match nor a successful activation request proves input went where intended. **Remaining limitation:** activation/check/type is not one atomic X11 operation; a competing process could still move focus between check and injection. Container isolation contains the impact, and exact final-buffer assertions make ordinary misdelivery fail the test."
+    },
+    {
+      "path": "skills/agent-i3-sandbox/scripts/test-espanso-regression",
+      "line": 49,
+      "side": "RIGHT",
+      "body": "### W06 — Fidelity: automatic Unicode works here; forced keys are diagnostic\n\nThe automatic path must yield the exact captured Unicode buffer. The separate, non-overlapping forced-key trigger is checked against newly appended log lines: either an exact supported result or an explicit missing-vkey diagnostic, never a stale error or a partial prefix expansion. This preserves the important discovery that pinning `inject` can break Unicode rather than solve the clipboard problem.\n\n**Accepted test fragility:** fixed one-second waits and exact space ordering encode the observed clipboard/event timing. Different load, keyboard mapping or injector versions can fail despite equivalent intended text. A follow-up should distinguish semantic output from timing/order behavior with bounded condition polling. These tests do not establish the causal owner of the original host selection timeout.\n\n![Fresh automatic result above the expected forced-key log]({assets}/annotated/03-unicode-runtime.png)"
+    },
+    {
+      "path": "skills/agent-i3-sandbox/scripts/install.sh",
+      "line": 34,
+      "side": "RIGHT",
+      "body": "### W07 — Installer guarantees, and their filesystem threat boundary\n\nInstallation stages the bundle beside its destination, verifies managed-file hashes/marker state, and uses `mv -T -n` plus a stage-exists check to avoid nesting or overwriting a concurrent destination. Tests cover unowned targets, pre-existing symlinks/ancestors, forged markers, modified files, source overlap, trailing-slash aliases, ordinary installer contention and staging cleanup. The checksum WARNING in the image is deliberately induced by a refusal test.\n\n**Residual risk, not a tested exploit:** ancestor checks and later filesystem operations are not atomic against a hostile actor who can replace those ancestors. The manifest is local bookkeeping, not a signed trust root; permissions/metadata integrity is not its promise either. Use a destination parent controlled by the installing user.\n\n![Fresh installer refusal tests]({assets}/annotated/04-installer-tests.png)"
+    },
+    {
+      "path": "skills/agent-i3-sandbox/scripts/install.sh",
+      "line": 31,
+      "side": "RIGHT",
+      "body": "### W08 — Deliberately small installer: no automatic upgrades or dependency provisioning\n\nI chose refusal over silent merging: an exact managed reinstall is idempotent, extra user files survive, but a different version or locally modified managed file is refused. Upgrades require choosing a new destination. The dry run is the default; installation needs both an explicit destination and `--apply`.\n\n**Knowingly accepted debt:** this is only a skill-bundle installer. It does not reconcile different `.agents` checkouts, install Docker/system packages, rewrite the user's desktop configuration, register services, or provide rollback/version migration. That keeps distribution work separable from this extraction. Existing global catalog dirt and the original donor copy still need independent reconciliation."
+    },
+    {
+      "path": "skills/agent-i3-sandbox/SKILL.md",
+      "line": 77,
+      "side": "RIGHT",
+      "body": "### W09 — Accepted scope debt: extracted core is not the whole original Spacemacs suite\n\nThe reusable core and private fixtures were extracted, but the donor's deeper Helm/project-shell/layout behavior was not qualified here. The optional pinned Spacemacs image builds; full package bootstrap remains network/ELPA-dependent and unverified, and its smoke/health path must not report core daemon readiness as Spacemacs parity.\n\n**Reasoning:** I wanted a working isolated i3/Emacs/Espanso test substrate without pretending we had reproduced the live workstation. **Debt retained intentionally:** original Spacemacs-local compatibility assets remain; full migration/retirement and parity are #12. Consequently, my earlier word 'extracted' should be read as reusable core extraction, not complete removal of every donor asset. This boundary matters before considering a standalone distribution."
+    },
+    {
+      "path": ".github/workflows/desktop-config-sandbox.yml",
+      "line": 32,
+      "side": "RIGHT",
+      "body": "### W10 — Evidence: what a green check actually covers\n\nThis job exercises static checks, adversarial installation, readiness handling, core startup, a real i3 binding, and ASCII/Unicode injector behavior. It exports evidence before teardown. Project naming prevents ordinary cross-run Compose collisions; action SHAs are pinned and checkout credentials are not persisted.\n\n**Coverage limits:** no full Spacemacs run, optional candidate-config mount qualification, live-host behavior, dependency immutability, or causal proof of the original clipboard freeze. Independent reviewer completion and green CI are valuable evidence, not blanket correctness. The screenshot is GitHub's actual passing job summary; fresh runtime screenshots elsewhere are explicitly separate post-merge evidence.\n\n![Actual hosted core CI job]({assets}/annotated/02-pr-checks.png)"
+    },
+    {
+      "path": ".github/workflows/eta-mu-review.yml",
+      "line": 20,
+      "side": "RIGHT",
+      "body": "### W11 — Integration repair: normalize paths instead of weakening publication\n\nThe shared reviewer successfully generated a review but could not publish an inline comment on `.ημ/receipts.edn`: Git C-quoted UTF-8 path spelling differed from GitHub's canonical filename. I consumed the existing merged Muse #18 fix through this immutable `muse_revision` override. The fix normalizes paths at admission; it does not relax `validateEnvelope` or suppress the failing gate.\n\n**Why it belongs here:** truthful review publication was a prerequisite to the requested reviewed merge. **Remaining maintenance cost:** the caller owns this explicit pin until the shared workflow default catches up; future compiler/publisher upgrades need their own compatibility verification. The final exact-head MiMo publication and gate both passed."
+    },
+    {
+      "path": ".ημ/receipts.edn",
+      "line": 8,
+      "side": "RIGHT",
+      "body": "### W12 — Self-criticism: helper-generated receipts were not schema-complete\n\nThese initial helper-written entries omitted required `:dod`/`:pi` keys and encoded manifest/refs as strings. That was an authoring error, not valid receipt schema. Later corrective records carry the missing context and vectors while preserving the append-only history; the reflection also received an append-only provenance link.\n\n**Accepted governance debt:** a semantically corrective record does not make the original raw line conform to a per-line validator. Review identified this more than once, and the issue was explained/settled without rewriting history. Future work should use schema-valid construction at append time and an explicit correction relationship for validation/projection. This walkthrough does not claim the original records passed canonical schema validation."
+    },
+    {
+      "path": "skills/agent-i3-sandbox/tests/test-static.sh",
+      "line": 22,
+      "side": "RIGHT",
+      "body": "### W13 — Newly reproduced packaging problem: installed static tests still assume the catalog\n\nDuring this walkthrough I installed the bundle into a temporary standalone directory, then ran its `tests/test-static.sh`. This assertion fails because `../../.github/workflows/desktop-config-sandbox.yml` is outside the installed bundle. The installer itself and runtime commands remain usable, but the distributed static-test suite is not completely self-contained.\n\n**This was not knowingly accepted before merge.** It is a newly verified gap, tracked in #13. The repair should split bundle-local tests from catalog-integration assertions and run the former after a temporary installation in CI. This is also why the installation-refusal screenshot is evidence of its tested refusal contract, not proof of all aspects of package portability."
+    }
+  ]
+}
