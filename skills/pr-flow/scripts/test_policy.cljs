@@ -53,8 +53,16 @@
            :keywordize-keys true))
 (defn check-row [check] (assoc check :required? (:required check)))
 
+;; Proposed split-job source contract, not captured native execution. Keep the
+;; historical JSON fixture and its observed source/head provenance unchanged.
+(def reviewer-output-fixtures
+  (conj (:reviewer_outputs native-checks)
+        {:provider "kimi"
+         :check {:name "Produce exact-head Kimi review" :workflow "OpenCode Kimi PR Review"
+                 :state "IN_PROGRESS" :required false}}))
+
 (deftest exact-native-output-tuples-retain-optional-failure-states
-  (doseq [{:keys [provider check]} (:reviewer_outputs native-checks)]
+  (doseq [{:keys [provider check]} reviewer-output-fixtures]
     (is (= provider (law/reviewer-check check)))
     (doseq [state ["FAILURE" "PENDING" "IN_PROGRESS" "SKIPPED" "CANCELLED"]]
       (let [row (assoc (check-row check) :state state)
@@ -68,7 +76,7 @@
         (is (not (:pass? (law/merge-gate
                          (assoc input :required-reviewers #{provider}
                                 :approved-heads (assoc (:approved-heads input) provider #{head})))))))))
-  (let [rows (mapv check-row (concat (map :check (:reviewer_outputs native-checks))
+  (let [rows (mapv check-row (concat (map :check reviewer-output-fixtures)
                                     (:deterministic_checks native-checks) (:required_checks native-checks)))]
     (is (:pass? (law/merge-gate (assoc baseline :checks rows))))
     (is (= ["FAILURE" "IN_PROGRESS"] (mapv :state (take 2 rows)))))
@@ -85,7 +93,7 @@
                                   (update check :workflow #(str % " gate"))
                                   (update check :name #(str % " tests"))
                                   (update check :name #(str "Required / " %))])
-                               (:reviewer_outputs native-checks)))]
+                               reviewer-output-fixtures))]
     (is (nil? (law/reviewer-check check)))
     (doseq [state ["FAILURE" "IN_PROGRESS"]]
       (is (not (:pass? (law/merge-gate
@@ -124,8 +132,9 @@
         (is (= (= :pass bucket) (:pass? gate)))))))
 
 (deftest output-names-never-authenticate-generic-actions-reviewers
-  (doseq [{:keys [check]} (:reviewer_outputs native-checks)]
-    (let [r (merge check (review "github-actions[bot]" "APPROVED" head))
+  (doseq [{:keys [check]} reviewer-output-fixtures
+          login ["github-actions[bot]" "opencode-agent[bot]"]]
+    (let [r (merge check (review login "APPROVED" head))
           evidence (law/review-evidence head [r] [] law/default-reviewer-identities)]
       (is (nil? (law/trusted-reviewer r law/default-reviewer-identities)))
       (is (empty? (:approved-heads evidence)))
@@ -134,7 +143,7 @@
                                             :approved-heads (:approved-heads evidence)))))))))
 
 (deftest exact-output-pending-attempts-remain-deduplicated
-  (doseq [{:keys [provider check]} (:reviewer_outputs native-checks)]
+  (doseq [{:keys [provider check]} reviewer-output-fixtures]
     (let [request {:id 50 :trusted? true :created_at "2026-10-03T01:00:00Z"
                    :body (str "<!-- pr-flow-review:" head " --> <!-- pr-flow-reviewer:" provider " -->")}
           input {:head head :reviewer provider :comments []

@@ -217,3 +217,30 @@
 - Evidence: Receipt River entry at 2026-10-03T22:37:32.110253+00:00; independent stage/dedup and Codex renewal reproducers; current native Codex account quota5969231149.
 - Lesson: availability is provider capability evidence, distinct from approval/coverage. Preserve original request scope for account quotas, and never retroactively inflate historical rounds. Cohort floors must respect explicit review stages and cannot defeat request deduplication.
 - Boundary: source uninstalled and informational profile unactivated; hosted current-head CI/full review pending. No automatic paid fallback or provider configuration changes.
+- ts: 2026-10-04T03:15:55.843565374Z
+  session: /home/err/spaces/review-repair/agents-policy-integration
+  task: Agents8 existing caller preparation with unqualified runtime activation hold
+  p-efficiency: 0.8
+  p-friction: 0.35
+  p-skill-candidate: 0.3
+  spore: none
+  receipt-refs: Agents8 bounded caller preparation on immutable b068;Frozen Agents8 existing caller preparation and local handoff
+  note: Reuse actual policy suites and immutable upstream workflow_call instead of duplicating caller law. Prime a shared pinned npm package before parallel tests to avoid bootstrap extraction races. Preserve complete historical prefixes, retain bootstrap warnings, and keep candidate runtime/policy publication distinct from real native qualification; no spore or profile activation.
+- ts: 2026-10-04T03:35:39.166626850Z
+  session: /home/err/spaces/review-repair/agents-policy-integration
+  task: Agents8 held caller refresh to published corrected Eta dc4 candidate
+  p-efficiency: 0.9
+  p-friction: 0.1
+  p-skill-candidate: 0.2
+  spore: none
+  receipt-refs: Agents8 held caller candidate refresh from2a7 todc4;Agents8 dc4 candidate-only pin update verification and handoff
+  note: Compare immutable caller contracts and protected source hashes for a pin-only update; retain prior actual test evidence without implying new suite execution or native qualification. Preserve previous frozen artifacts in a separate versioned checkpoint and keep source selection distinct from eligibility. No spore or profile activation.
+- ts: 2026-10-04T04:37:21.095201Z
+  session: /home/err/spaces/review-repair/agents-policy-integration
+  task: Agents8 exact optional Kimi split inference tuple compatibility
+  p-efficiency: 0.9
+  p-friction: 0.12
+  p-skill-candidate: 0.2
+  spore: none
+  receipt-refs: codex-desktop/agents8-exact-kimi-producer-tuple observation;test-run;catalog
+  note: Test the exact job/workflow allowlist through the real isolated CLI, including required quota outcomes, mandatory overrides and lookalike deterministic jobs. Extend source-contract fixtures without rewriting historical native provenance. One map row and synchronized notes suffice; preserve full shared ledger prefixes and keep source preparation separate from App/native qualification and live activation.

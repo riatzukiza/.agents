@@ -158,6 +158,57 @@
         (is (= 2 (:exit blocked)))
         (is (empty? (writes blocked "merge")))))))
 
+(deftest cli-split-kimi-producer-is-optional-only-for-the-exact-reviewed-pair
+  ;; Source-contract fixture for the new split job, not an observed App run.
+  ;; Existing MiMo exact-head approval/history and native Codex account quota
+  ;; exercise the unchanged available-agent policy through the actual CLI.
+  (let [check {:name "Produce exact-head Kimi review" :workflow "OpenCode Kimi PR Review"
+               :required false}
+        quota {:id 9000 :user {:login "chatgpt-codex-connector[bot]" :type "Bot"}
+               :created_at "2026-10-03T01:01:00Z"
+               :body "You have reached your Codex usage limits for code reviews."}
+        config (assoc base :comments [quota])]
+    (doseq [[state description] [["FAILURE" "Review failed"] ["PENDING" "Review in progress"]
+                                ["IN_PROGRESS" "Review in progress"] ["SKIPPED" "Review skipped"]
+                                ["CANCELLED" "Review cancelled"] ["SUCCESS" "Review rate limited"]]]
+      (let [row (assoc check :state state :description description)
+            input (update config :checks conj row)
+            optional (execute input "gate" "owner/repo" "445" "--apply")
+            required (execute (update input :checks #(conj (vec (butlast %)) (assoc row :required true)))
+                              "gate" "owner/repo" "445" "--apply")
+            mandatory (execute input "gate" "owner/repo" "445" "--apply" "--reviewers" "kimi")]
+        (is (= 0 (:exit optional)) (str state " " (:out optional) " " (:err optional)))
+        (is (= 1 (count (writes optional "merge"))))
+        (is (str/includes? (:out optional) "codex quota-unavailable: native source 9000"))
+        (is (str/includes? (:out optional) "completed code rounds: 5"))
+        (is (some #(some #{"--required"} (:args %)) (:calls required)))
+        (doseq [blocked [required mandatory]]
+          (is (= 2 (:exit blocked)) (str state " " (:out blocked) " " (:err blocked)))
+          (is (str/includes? (:out blocked) "A required reviewer/check"))
+          (is (empty? (writes blocked "merge"))))))
+    (doseq [row [(assoc check :workflow "Other Kimi workflow")
+                 (dissoc check :workflow)
+                 (assoc check :name "Produce exact-head Kimi review / lint")
+                 (assoc check :name "Produce exact-head Kimi review ")
+                 (assoc check :name "Produce deterministic review evidence")
+                 (assoc check :name "Compile Muse tools and stage skills")
+                 (assoc check :name "Review runner regression tests")
+                 (assoc check :name "Kimi structured runner regression tests")]
+            state ["FAILURE" "PENDING"]]
+      (let [blocked (execute (update config :checks conj (assoc row :state state))
+                             "gate" "owner/repo" "445" "--apply")]
+        (is (= 2 (:exit blocked)) (str row " " (:out blocked) " " (:err blocked)))
+        (is (empty? (writes blocked "merge"))))))
+  (doseq [reviews [[] [(assoc approval :commit_id other)]
+                   [(assoc-in approval [:user :login] "opencode-agent[bot]")]]]
+    (let [blocked (execute (assoc base :reviews reviews
+                                 :checks [{:name "laws" :state "SUCCESS" :required true}
+                                          {:name "Produce exact-head Kimi review" :workflow "OpenCode Kimi PR Review"
+                                           :state "SUCCESS" :required false}])
+                           "gate" "owner/repo" "445" "--apply")]
+      (is (= 2 (:exit blocked)))
+      (is (empty? (writes blocked "merge"))))))
+
 (deftest cli-native-required-review-gate-counts-every-nonpassing-outcome
   (let [native (js->clj (js/JSON.parse (fs/readFileSync
                                       (path/join here "fixtures" "native-reviewer-checks.json") "utf8"))

@@ -690,6 +690,7 @@
    mandatory reviewers still override optional classification in merge-gate."
   [check]
   (or (get {["Review pull request with OpenCode" "OpenCode Kimi PR Review"] "kimi"
+            ["Produce exact-head Kimi review" "OpenCode Kimi PR Review"] "kimi"
             ["Evidence-first review (eta-mu) / Review pull request with OpenCode MiMo"
              "eta-mu evidence review"] "mimo"}
            [(:name check) (:workflow check)])
