@@ -1,0 +1,9 @@
+services:
+  core:
+    volumes:
+      - type: bind
+        source: ${SANDBOX_ESPANSO_CONFIG:?Set SANDBOX_ESPANSO_CONFIG to an absolute candidate config directory}
+        target: /inputs/espanso
+        read_only: true
+        bind:
+          create_host_path: false
