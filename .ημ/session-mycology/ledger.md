@@ -314,3 +314,33 @@
   spore: none
   receipt-refs: 99b687a5-fef5-4e78-838a-e8666c572e99; e2ce2d72-8ed8-42ec-9b77-ec886038f3df
   note: Compare immutable reusable interfaces before changing one caller pin. Preserve historical selection receipts and sealed policy source. An upstream protected merge establishes consumable source; local caller checks do not establish native qualification or activation. Resolve missing checker dependencies through an existing cache and record setup failure truthfully. Parent owns publication and exact-head qualification.
+
+- ts: 2026-10-04T14:26:08.619445226Z
+  session: /home/err/spaces/review-repair/agents-kimi-admission
+  task: Proxx scoped Kimi principal and native publication admission
+  p-efficiency: 0.80
+  p-friction: 0.35
+  p-skill-candidate: 0.25
+  spore: none
+  receipt-refs: dda66847-2dac-4c23-889e-ec69cd624f6a; a0c9a559-1369-4279-9a56-f9065d0cd9ae
+  note: A shared App login is not a provider role. Bind the authenticated publication to reviewed source bytes, exact run/head/base, full-input artifact and native readback; keep physical identity separate from current cohort and historical configured rosters. Finding-bearing COMMENTED completion is not approval. Legacy native inline locations require original-commit and observed hunk binding, not a moved commit or guessed line. Preserve setup failures separately from semantic RED. Local source preparation and fixtures do not enroll or qualify a provider; parent owns publication. No spore promotion or policy installation.
+
+- ts: 2026-10-04T15:02:35.638606810Z
+  session: /home/err/spaces/review-repair/agents-kimi-admission
+  task: Current aba Kimi explicit passing and native source-role fixture
+  p-efficiency: 0.85
+  p-friction: 0.25
+  p-skill-candidate: 0.20
+  spore: none
+  receipt-refs: 22ec50cd-68d1-419d-bddf-bdadc2e73f3f; a0c9a559-1369-4279-9a56-f9065d0cd9ae
+  note: Keep authenticated publication admission separate from verdict grammar. Recover one current immutable artifact and native readback, then exercise its real explicit passing sentence through the actual CLI. A model phrase, empty inline set or matching App tuple alone is insufficient. Test self-consistent adverse ZIP/body fixtures and later negative reversal without inventing native approvals. Preserve unsupported MAIN propagation as an obligation, not a quota. Previous full-suite evidence applies to its previous source; focused successor checks and hosted qualification remain distinct. No installation or spore promotion.
+
+- ts: 2026-10-04T15:14:05.099268967Z
+  session: /home/err/spaces/review-repair/agents-kimi-admission
+  task: Explicit negative reversal after Kimi passing phrase
+  p-efficiency: 0.90
+  p-friction: 0.10
+  p-skill-candidate: 0.10
+  spore: none
+  receipt-refs: 23bbab3c-c1ed-4530-8667-133473372377
+  note: A signed full publication and positive phrase still need a contradictory-verdict guard. Reproduce the exact synthetic statement before broadening that narrow guard; retain prior source/test evidence and rerun only affected checks. No native verdict is invented or transferred.

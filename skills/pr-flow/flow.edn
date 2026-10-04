@@ -27,6 +27,22 @@
                  :review/approval-quorum 1
                  :review/required #{}
                  :review/by-repo-name {}
+                 ;; Source preparation: one observed route, not global Kimi identity.
+                 ;; Adoption requires canonical source review; never install from local fixtures.
+                 :review/kimi-publication
+                 {:version 1 :repository "open-hax/proxx"
+                  :principal {:login "opencode-agent[bot]" :id 219766164
+                              :node-id "BOT_kgDODRldlA" :type "Bot"}
+                  :workflow-id 285819940 :workflow-path ".github/workflows/opencode-code-review.yml"
+                  :workflow-name "OpenCode Kimi PR Review"
+                  ;; Observed e05, 2e7 and exact aba context-forwarding source bytes.
+                  ;; Unknown source drift fails closed; neither pin supplies review approval.
+                  :workflow-digests #{"15e129cb2fe1a21f8c22e69c6705cc302bdb50b175141ba0db9e6a76b7b5ec25"
+                                      "74c281f49af87a975fa78aa783343ca2d097940a44218849629c993abee7a1cb"
+                                      "90117459b8c0a6883b27df816127fdd3bcb4799e5e25e52f356d04ac134f68bb"}
+                  :runtime-sha "2810f4515424a146fe37390fb0baf532cca31236"
+                  :runtime-digest "0fa9d7838df3f0718d971beb972a48d2bf73fce6d90f09411a656e57ce3960d7"
+                  :auth-digest "fd4d5630c462f0f202ac20e39ec1433fba4dfa13e12a6f6ffd5c0ec035d2a7e1"}
                  ;; Separate candidate admission, explicitly authorized 2026-10-03.
                  ;; Native identity only; not a runtime/run-success guarantee.
                  ;; Provisional until reviewed, published and freshly assessed.

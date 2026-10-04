@@ -1,6 +1,6 @@
 #!/usr/bin/env nbb
 (ns test-cli
-  (:require ["fs" :as fs] ["os" :as os] ["path" :as path] ["child_process" :as cp]
+  (:require ["fs" :as fs] ["os" :as os] ["path" :as path] ["child_process" :as cp] ["crypto" :as crypto]
             [cljs.test :refer [deftest is run-tests]] [clojure.string :as str]
             [clojure.edn :as edn]
             [test-issue-agreement :as native]
@@ -93,6 +93,107 @@
 (defn mutations [result]
   (filter #(and (= ["api" "graphql"] (vec (take 2 (:args %))))
                 (some (fn [arg] (str/starts-with? arg "query=mutation")) (:args %))) (:calls result)))
+
+(def native-kimi-publication
+  (let [raw (js/JSON.parse (fs/readFileSync
+                            (path/join here "fixtures/native-proxx-kimi-publication.json") "utf8"))]
+    (assoc (js->clj raw :keywordize-keys true) :apiResponses
+           (into {} (for [endpoint (js/Object.keys (.-apiResponses raw))]
+                      [endpoint (js->clj (aget (.-apiResponses raw) endpoint) :keywordize-keys true)])))))
+(defn kimi-replay-config []
+  (-> base
+      (assoc :head (get-in native-kimi-publication [:review :commit_id])
+             :reviews [(:review native-kimi-publication)]
+             :apiResponses (:apiResponses native-kimi-publication)
+             :flow-data (assoc-in the-flow [:flow/defaults :review/kimi-publication]
+                                  (:profile native-kimi-publication)))))
+
+(deftest native-kimi-publication-cli-readback-and-repository-boundary
+  (let [r (execute (kimi-replay-config) "status" "open-hax/proxx" "445")]
+    (is (= 0 (:exit r)) (:err r))
+    (is (str/includes? (:out r) "\"kimi\""))
+    (is (str/includes? (:out r) "observed commit binding: {\"kimi\""))
+    (is (str/includes? (:out r) "exact-head approvals: #{}"))
+    (is (some #(= ["api" "repos/open-hax/proxx/pulls/445/reviews/5406474038"]
+                  (vec (take 2 (:args %)))) (:calls r)))
+    (is (empty? (mutations r))))
+  (let [r (execute (kimi-replay-config) "status" "open-hax/uxx" "16")]
+    (is (not (str/includes? (:out r) "\"kimi\"")))
+    (is (not-any? #(str/includes? (str (:args %)) "/actions/runs/") (:calls r))))
+  (doseq [[endpoint at value]
+          [["repos/open-hax/proxx/pulls/445/reviews/5406474038" [:body] "No issues found."]
+           ["repos/open-hax/proxx/actions/runs/37202872718/attempts/2/jobs?per_page=100"
+            [:jobs 2 :conclusion] "failure"]
+           ["repos/open-hax/proxx/pulls/445/reviews/5406474038" [:user :id] 1]
+           [(str "repos/open-hax/proxx/commits/" (get-in native-kimi-publication [:proof :provenance :workflowSha]))
+            [:parents 0 :sha] other]
+           ["repos/open-hax/proxx/compare/2810f4515424a146fe37390fb0baf532cca31236...d4d52a39ff1db65ad36e9a429e03489c1208e32d"
+            [:status] "diverged"]]]
+    (let [r (execute (assoc-in (kimi-replay-config) (into [:apiResponses endpoint] at) value)
+                     "status" "open-hax/proxx" "445")]
+      (is (not (str/includes? (:out r) "observed commit binding: {\"kimi\"")))
+      (is (str/includes? (str (:out r) (:err r)) "publication"))
+      (is (empty? (mutations r)))))
+  ;; A matching native digest/length must not turn a malformed archive into
+  ;; publication evidence. This exercises actual binary transport and unzip.
+  (let [bytes (js/Buffer.from "not a ZIP archive")
+        sha (.digest (.update (crypto/createHash "sha256") bytes) "hex")
+        artifact-endpoint "repos/open-hax/proxx/actions/runs/37202872718/artifacts?per_page=100"
+        archive-endpoint "repos/open-hax/proxx/actions/artifacts/11304499400/zip"
+        config (-> (kimi-replay-config)
+                   (assoc-in [:apiResponses artifact-endpoint :artifacts 0 :digest] (str "sha256:" sha))
+                   (assoc-in [:apiResponses artifact-endpoint :artifacts 0 :size_in_bytes] (.-length bytes))
+                   (assoc-in [:apiResponses archive-endpoint :binaryBase64] (.toString bytes "base64")))
+        r (execute config "status" "open-hax/proxx" "445")]
+    (is (str/includes? (:out r) "Kimi publication proof: proof-unavailable"))
+    (is (not (str/includes? (:out r) "observed commit binding: {\"kimi\"")))
+    (is (not-any? #(str/includes? (str (:args %)) "/contents/") (:calls r)))
+    (is (empty? (mutations r)))))
+
+(def native-kimi-passing
+  (let [raw (js/JSON.parse (fs/readFileSync (path/join here "fixtures/native-proxx-kimi-passing.json") "utf8"))]
+    (assoc (js->clj raw :keywordize-keys true) :apiResponses
+           (into {} (for [endpoint (js/Object.keys (.-apiResponses raw))]
+                      [endpoint (js->clj (aget (.-apiResponses raw) endpoint) :keywordize-keys true)])))))
+(defn kimi-passing-config []
+  (-> base (assoc :head (get-in native-kimi-passing [:review :commit_id])
+                  :reviews [(:review native-kimi-passing)] :apiResponses (:apiResponses native-kimi-passing)
+                  :flow-data the-flow)))
+
+(deftest native-kimi-current-passing-cli-and-artifact-guards
+  (let [r (execute (kimi-passing-config) "status" "open-hax/proxx" "445")]
+    (is (= 0 (:exit r)) (:err r))
+    (is (str/includes? (:out r) "exact-head approvals: #{\"kimi\"}"))
+    (is (str/includes? (:out r) "observed commit binding: {\"kimi\""))
+    (is (some #(= ["api" "repos/open-hax/proxx/pulls/445/reviews/5406638390"] (vec (take 2 (:args %)))) (:calls r)))
+    (is (empty? (mutations r))))
+  (doseq [[endpoint at value]
+          [["repos/open-hax/proxx/pulls/445/reviews/5406638390" [:user :node_id] "BOT_other"]
+           ["repos/open-hax/proxx/pulls/445/reviews/5406638390" [:body] "I found no actionable correctness, security, or workflow findings."]
+           ["repos/open-hax/proxx/actions/runs/37208570573/artifacts?per_page=100" [:artifacts 0 :digest] (str "sha256:" (apply str (repeat 64 "0")))]
+           ["repos/open-hax/proxx/actions/runs/37208570573/artifacts?per_page=100" [:artifacts 0 :expired] true]
+           ["repos/open-hax/proxx/contents/.github/workflows/opencode-code-review.yml?ref=b2a757a3cdf5367792dbdbf5016d9a18ef54cc25" [:sha] (apply str (repeat 40 "0"))]]]
+    (let [r (execute (assoc-in (kimi-passing-config) (into [:apiResponses endpoint] at) value) "status" "open-hax/proxx" "445")]
+      (is (not (str/includes? (:out r) "exact-head approvals: #{\"kimi\"}")))
+      (is (str/includes? (str (:out r) (:err r)) "Kimi publication proof:"))
+      (is (empty? (mutations r)))))
+  ;; Self-consistent adverse ZIP/body/digests exercise the real transport and
+  ;; role proof. These are synthetic derivatives, never native approval facts.
+  (let [raw (js/JSON.parse (fs/readFileSync (path/join here "fixtures/native-proxx-kimi-passing.json") "utf8"))]
+    (doseq [variant (.-adverseTransports raw)]
+      (let [overrides (into {} (for [endpoint (js/Object.keys (.-apiOverrides variant))]
+                                 [endpoint (js->clj (aget (.-apiOverrides variant) endpoint) :keywordize-keys true)]))
+            config (-> (kimi-passing-config) (assoc :reviews [(js->clj (.-review variant) :keywordize-keys true)])
+                       (update :apiResponses merge overrides))
+            r (execute config "status" "open-hax/proxx" "445")]
+        (is (str/includes? (:out r) "observed commit binding: {\"kimi\"") (.-label variant))
+        (is (str/includes? (:out r) "exact-head approvals: #{}") (.-label variant))
+        (is (not (str/includes? (:out r) "Kimi publication proof:")) (.-label variant))
+        (is (empty? (mutations r))))))
+  (let [r (execute (assoc (kimi-passing-config) :reviews [(:canary native-kimi-passing)]) "status" "open-hax/proxx" "445")]
+    (is (str/includes? (:out r) "exact-head approvals: #{}"))
+    (is (not (str/includes? (:out r) "observed commit binding: {\"kimi\"")))
+    (is (empty? (mutations r)))))
 
 (deftest configured-flow-minimum-aligns-settle-and-gate
   (let [body "Deferred to issue https://github.com/owner/repo/issues/9: scoped follow-up"

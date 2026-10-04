@@ -9,7 +9,11 @@ const input = fs.readFileSync(0, 'utf8');
 fs.appendFileSync(`${process.env.PR_FLOW_TEST_DATA}.calls`, `${JSON.stringify({args, input, hasToken: !!process.env.GH_TOKEN})}\n`);
 const out = x => process.stdout.write(typeof x === 'string' ? x : JSON.stringify(x));
 const persist = () => fs.writeFileSync(statePath, JSON.stringify(state));
-if (args[0] === 'api' && args[1] === 'graphql') {
+if (args[0] === 'api' && Object.hasOwn(config.apiResponses || {}, args[1])) {
+  const response = config.apiResponses[args[1]];
+  if (response.binaryBase64) process.stdout.write(Buffer.from(response.binaryBase64, 'base64'));
+  else out(args.includes('--slurp') && !Array.isArray(response) ? [response] : response);
+} else if (args[0] === 'api' && args[1] === 'graphql') {
   const query = args.find(x => x.startsWith('query=')) || '';
   if (query.includes('mutation')) {
     if (!config.allowMutations) process.exit(77);

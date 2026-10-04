@@ -33,6 +33,7 @@
             [clojure.string :as str]
             [pr-flow.flow :as flow]
             [pr-flow.actionability :as actionability]
+            [pr-flow.kimi-native :as kimi-native]
             [pr-flow.law :as law]))
 
 (def here
@@ -252,11 +253,35 @@
                         (not (js/isNaN (js/Date.parse (:updated_at %)))))
                   (mapcat identity pages)))))
 
+(defn- publication-pages [endpoint key]
+  (let [pages (gh-json "api" endpoint "--paginate" "--slurp")
+        rows (when (and (vector? pages) (seq pages))
+               (if key (mapcat key pages) (mapcat identity pages)))]
+    (when-not (and rows (every? map? rows)
+                   (if key (and (every? #(vector? (get % key)) pages)
+                                (every? #(= (count rows) (:total_count %)) pages))
+                       (every? vector? pages)))
+      (throw (ex-info "Incomplete Kimi publication metadata" {})))
+    (vec rows)))
+
+(defn- publication-archive [endpoint]
+  (let [run (fn [env] (cp/spawnSync "gh" #js ["api" endpoint]
+                                   #js {:env env :timeout 30000 :maxBuffer (* 2 1024 1024)}))
+        r (run js/process.env)
+        r (if (and (not= 0 (.-status r))
+                   (re-find #"Resource not accessible|Bad credentials|HTTP 40[13]" (str (.-stderr r))))
+            (run (env-without-tokens)) r)]
+    (when-not (= 0 (.-status r)) (throw (ex-info "Kimi publication archive unavailable" {})))
+    (.-stdout r)))
+
 (defn fetch-heads
   "Collect hosted approval, commit binding and incomplete scope separately."
   [repo n]
   (let [head (str/trim (gh! "pr" "view" (str n) "-R" repo "--json" "headRefOid" "-q" ".headRefOid"))
-        reviews (gh-pages (str "repos/" repo "/pulls/" n "/reviews"))
+        reviews (kimi-native/hydrate repo (js/parseInt n 10) head
+                                    (gh-pages (str "repos/" repo "/pulls/" n "/reviews"))
+                                    (get-in (load-flow) [:flow/defaults :review/kimi-publication])
+                                    {:get-json #(gh-json "api" %) :get-pages publication-pages :get-archive publication-archive})
         raw-comments (fetch-issue-comments repo n)
         comments (mapv
                   (fn [c]
@@ -347,6 +372,7 @@
                                :when (and (law/eligible-reviewers provider) (seq logins))] provider))
         availability (law/reviewer-availability {:head head :comments comments :reviews (filter full-review? reviews)
                                                 :checks (or completion-checks checks) :mandatory (set mandatory)
+                                                :repository repo :publication-profile (get-in (load-flow) [:flow/defaults :review/kimi-publication])
                                                 :identities identities :now-ms (js/Date.now)})
         participants (:review-participants availability)
         completed (law/completed-review-rounds (filter full-review? reviews) comments identities completion-checks)
@@ -424,6 +450,8 @@
                     (pr-str (sort (:unverified-issue-completion-heads progress))))))
     (when (seq (:incomplete-evidence heads))
       (println (str "  incomplete review scope: " (pr-str (:incomplete-evidence heads)))))
+    (doseq [r (:reviews heads) :when (:kimi-publication-error r)]
+      (println (str "  Kimi publication proof: " (name (:kimi-publication-error r)) " native review " (:id r))))
     (println (str "  gate: " (if (:pass? gate) "PASS" "BLOCKED")))
     (doseq [r (:reasons gate)] (println (str "    - " r)))
     gate))

@@ -2,7 +2,8 @@
   "Pure laws for the PR flow: severity, thread classification, review state,
    and the merge gate. No I/O; the CLI in ../pr.cljs feeds it GitHub data
    already decoded into Clojure maps."
-  (:require [clojure.string :as str] [pr-flow.actionability :as actionability]))
+  (:require [clojure.string :as str] [pr-flow.actionability :as actionability]
+            [pr-flow.kimi-publication :as publication]))
 
 (def default-min-review-rounds 5)
 
@@ -656,14 +657,19 @@
 (defn trusted-reviewer
   "Match exact Bot identities; substring matches and CLI provider claims are
    never authority. An identity configured for two providers is ambiguous."
-  [{:keys [user provider]} identities]
+  [{:keys [user provider] :as review} identities]
   (let [login (str/lower-case (str (:login user)))
         matches (for [[reviewer logins] identities
                       :when (and (eligible-reviewers reviewer)
                                  (contains? (set logins) login))] reviewer)]
-    (when (and (= "Bot" (:type user)) (= 1 (count matches))
-               (or (nil? provider) (= provider (first matches))))
-      (first matches))))
+    (if (= "opencode-agent[bot]" login)
+      ;; The same physical App remains rejection-only in the global map.
+      ;; Only verified Proxx publication facts admit its Kimi review role.
+      (when (and (empty? matches) (publication/admitted? review)
+                 (or (nil? provider) (= "kimi" provider))) "kimi")
+      (when (and (= "Bot" (:type user)) (= 1 (count matches))
+                 (or (nil? provider) (= provider (first matches))))
+        (first matches)))))
 
 (defn coderabbit-covered-heads
   "Decode only the observed final_review_risk_coverage fields. This marker
@@ -730,6 +736,20 @@
     (and (valid-head? head) (seq current)
          (every? #(= :completed (coderabbit-state [%])) current))))
 
+(defn- kimi-passing-verdict?
+  "The observed explicit passing sentence is eligible only inside an admitted
+   finding-free publication. Quoted/examples, reversals and incomplete scope
+   remain nonpassing; summary text alone is never admission authority."
+  [review]
+  (let [summary (get-in review [:kimi-publication :submission :summary])
+        prose (reviewer-prose summary)]
+    (boolean
+     (and (publication/finding-free? review) prose
+          (nil? (incomplete-review-reason summary))
+          (re-find #"(?i)(?:^|[.!?]\s+)I found no actionable correctness, security, or workflow findings\.(?:\s|$)" prose)
+          (not (re-find #"(?i)\b(?:generated (?:example|verdict)|hypothetical verdict|example verdict|sample verdict|template verdict|for example[.:])" prose))
+          (not (re-find #"(?i)\b(?:found|confirmed|identified)\s+(?:an?|one|some|[1-9][0-9]*|actionable)\s+(?:actionable\s+)?(?:correctness|security|workflow|finding|issue|bug|defect)|\b(?:retract|withdraw|reverse|reject)\s+(?:(?:that|the|my|this)\s+)?(?:verdict|approval)|\b(?:cannot|can't|do not|don't)\s+approve|\b(?:issue|finding|bug|defect)\s+(?:still\s+)?remains|\bverdict\s+(?:is\s+)?(?:incorrect|withdrawn|retracted)|\b(?:there (?:is|are)|I (?:see|observed))\s+(?:(?:an?|one|some|[1-9][0-9]*|P[0-3]|blocking|actionable|correctness|security|workflow)\s+)*(?:findings?|issues?|bugs?|defects?)\b|\b(?:findings?|issues?|bugs?|defects?|regressions?)\s+(?:still\s+)?(?:remain|exists?)\b|\bstill (?:fails|broken|reproduces)\b" prose))))))
+
 (defn review-evidence
   "Trust completed explicit verdicts as well as formal approvals, while
    retaining their distinct channels and immutable commit binding. Formal
@@ -753,6 +773,12 @@
                                  (assoc r :positive? false :channel :incomplete-review :incomplete-reason incomplete)
                                  (= "APPROVED" (:state r))
                                  (assoc r :positive? true :channel :github-approved)
+                                 (and (= "COMMENTED" (:state r)) (:kimi-publication r))
+                                 ;; A later full nonpassing publication cannot leave
+                                 ;; this same principal's prior passing verdict alive.
+                                 (let [passing? (kimi-passing-verdict? r)]
+                                   (assoc r :positive? passing? :channel
+                                          (if passing? :explicit-review-verdict :publication-nonpassing)))
                                  (and (= "COMMENTED" (:state r))
                                       (re-find #"(?im)^\s*(?:\*\*)?(?:Confirmed findings:\s*none|No confirmed findings|No issues found)(?:\*\*)?\s*(?:[.—-]|$)" (or (reviewer-prose (:body r)) "")))
                                  (assoc r :positive? true :channel :explicit-review-verdict)))) trusted)
@@ -849,7 +875,8 @@
         provider (trusted-reviewer review identities)]
     (and provider (nil? (incomplete-review-reason (:body review)))
          (not (re-find #"(?im)^(?:#+\s*)?Review (?:queued|requested|triggered|in progress)[.!]?\s*$|^(?:Acknowledged|Working on it)[.!]?\s*$" (or prose "")))
-         (or (#{"APPROVED" "CHANGES_REQUESTED"} (:state review))
+         (or (publication/admitted? review)
+             (#{"APPROVED" "CHANGES_REQUESTED"} (:state review))
              (and (= "COMMENTED" (:state review))
                   (if (= "coderabbit" provider)
                     (re-find #"(?i)actionable comments posted:\s*[0-9]+|no actionable comments (?:were generated|posted|found)" (or prose ""))
@@ -997,10 +1024,11 @@
    Pending, absent, failed and incomplete reviews remain obligations; an
    expired cooldown or newer completed review restores availability. Unknown
    resets remain explicit until a new request/response observes recovery."
-  [{:keys [head comments reviews checks identities mandatory now-ms]
+  [{:keys [head comments reviews checks identities mandatory now-ms repository publication-profile]
     :or {identities default-reviewer-identities mandatory #{}}}]
-  (let [configured (into (set mandatory)
-                         (for [[p logins] identities :when (and (eligible-reviewers p) (seq logins))] p))
+  (let [configured (cond-> (into (set mandatory)
+                                (for [[p logins] identities :when (and (eligible-reviewers p) (seq logins))] p))
+                     (publication/applicable? repository publication-profile) (conj "kimi"))
         completed (completed-review-rounds reviews comments identities checks)
         observations
         (into {}
