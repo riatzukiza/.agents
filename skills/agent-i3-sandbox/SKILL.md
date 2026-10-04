@@ -77,6 +77,9 @@ checkout and the bundled minimal private layer; it has no host-layer mount.
 Full Spacemacs package initialization currently requires online ELPA bootstrap
 and is not verified. Core tests prove graphical Emacs, not a fully bootstrapped
 Spacemacs environment. Do not report its core daemon smoke as Spacemacs parity.
+The optional target permits 600 seconds for initial package synchronization
+(`SPACEMACS_STARTUP_TIMEOUT`); Compose waits another 30 seconds for health.
+Initialization errors still fail visibly. The core readiness budget remains 5 seconds.
 
 ## Espanso fidelity note
 

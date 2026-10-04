@@ -16,6 +16,8 @@ jobs:
     uses: open-hax/eta-mu/.github/workflows/opencode-code-review.yml@b5b28237c45323cdc1914317260192163d957735
     with:
       pr_head_sha: ${{ github.event.pull_request.head.sha }}
+      # Muse #18 normalizes Git C-quoted UTF-8 paths before review publication.
+      muse_revision: 68d0e53d1369c1c0577fc3eacedb6a1b402b2f30
       setup_eta_mu_toolchain: false
       evidence_gates_script: |
         run_gate diff_stat git diff --stat "${PR_BASE_SHA}...HEAD"

@@ -3,7 +3,7 @@ set -euo pipefail
 
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$root"
-bash -n scripts/agentctl scripts/agent-entrypoint scripts/smoke-i3 scripts/test-i3-regression scripts/test-espanso-regression scripts/install.sh
+bash -n scripts/agentctl scripts/agent-entrypoint scripts/wait-emacs scripts/smoke-i3 scripts/test-i3-regression scripts/test-espanso-regression scripts/install.sh
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 docker compose config >"$tmp/compose.yml"
@@ -14,7 +14,10 @@ fi
 grep -nE '^USER agent:agent$' Dockerfile
 grep -RnE 'TARGETARCH.*amd64|read_only: true|EMACS_DAEMON_NAME|espanso --help' Dockerfile docker-compose.optional.yml scripts
 [[ -f emacs/init.el && -f spacemacs/private/agent-sandbox/packages.el ]]
-! grep -Eq '^  - trigger: ":sandbox-unicode-[^"]+"$' espanso/match/base.yml
+if grep -Eq '^  - trigger: ":sandbox-unicode-[^"]+"$' espanso/match/base.yml; then
+  echo 'ambiguous trigger prefix in espanso fixture' >&2
+  exit 1
+fi
 grep -Fq ':sandbox-keys' espanso/match/base.yml
 grep -Fq 'persist-credentials: false' ../../.github/workflows/desktop-config-sandbox.yml
 grep -Fq 'SPACEMACS_REF: "${SPACEMACS_REF:-491e17ba9cdcb253a3292a3049abb8767c91b9bb}"' docker-compose.yml

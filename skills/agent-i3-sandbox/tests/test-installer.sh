@@ -31,6 +31,8 @@ refuses "$tmp/managed"
 refuses "$root"
 refuses "$root/nested-install"
 "$root/scripts/install.sh" --apply --dest "$tmp/extras"
+ln -s "$tmp/extras" "$tmp/managed-link"
+refuses "$tmp/managed-link/"
 printf 'preserved\n' > "$tmp/extras/user-file"
 "$root/scripts/install.sh" --apply --dest "$tmp/extras"
 [[ "$(<"$tmp/extras/user-file")" == preserved ]]
@@ -41,5 +43,8 @@ second=0; wait "$two" || second=$?
 (( first == 0 || second == 0 )) || { echo "concurrent installation had no successful writer: $first/$second" >&2; exit 1; }
 [[ -f "$tmp/concurrent/.agent-i3-sandbox-managed" ]]
 [[ "$(grep -hF 'installed managed sandbox skill' "$tmp"/concurrent-*.log | wc -l)" == 1 ]]
-! compgen -G "$tmp/concurrent/.agent-i3-sandbox-stage.*" >/dev/null
+if compgen -G "$tmp/.agent-i3-sandbox-stage.*" >/dev/null; then
+  echo 'concurrent installation left a staging directory' >&2
+  exit 1
+fi
 echo 'installer checks passed'

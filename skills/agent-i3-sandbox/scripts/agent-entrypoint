@@ -14,7 +14,7 @@ if [[ -d /inputs/espanso ]]; then
   # Candidate is a read-only snapshot; daemon gets its own writable copy.
   rm -rf "$HOME/.config/espanso"
   mkdir -p "$HOME/.config/espanso"
-  cp -a /inputs/espanso/. "$HOME/.config/espanso/"
+  cp -a --no-preserve=ownership /inputs/espanso/. "$HOME/.config/espanso/"
   chmod -R u+rwX "$HOME/.config/espanso"
 fi
 
@@ -36,8 +36,11 @@ for _ in $(seq 1 50); do i3-msg -t get_version >/dev/null 2>&1 && break; sleep 0
 i3-msg -t get_version >/dev/null
 emacs --fg-daemon="$EMACS_DAEMON_NAME" >/workspace/.artifacts/emacs.log 2>&1 &
 emacs_pid=$!
-for _ in $(seq 1 50); do emacsclient -s "$EMACS_DAEMON_NAME" -e t >/dev/null 2>&1 && break; sleep 0.1; done
-emacsclient -s "$EMACS_DAEMON_NAME" -e t >/dev/null
+emacs_budget=5
+if [[ "$EMACS_DAEMON_NAME" == agent-spacemacs ]]; then
+  emacs_budget="${SPACEMACS_STARTUP_TIMEOUT:-600}"
+fi
+/home/agent/bin/wait-emacs "$EMACS_DAEMON_NAME" "$emacs_pid" "$emacs_budget"
 eval "$(dbus-launch --sh-syntax)"
 espanso daemon >/workspace/.artifacts/espanso-daemon.log 2>&1 &
 espanso_pid=$!

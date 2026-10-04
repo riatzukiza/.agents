@@ -5,6 +5,7 @@ apply=false dest=
 source_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)"
 while (($#)); do case "$1" in --apply) apply=true;; --dest) dest="${2:?--dest requires a path}"; shift;; *) echo "usage: $0 [--apply] --dest DESTINATION" >&2; exit 64;; esac; shift; done
 [[ -n "$dest" && "$dest" = /* ]] || { echo '--dest must be absolute' >&2; exit 64; }
+while [[ "$dest" != / && "$dest" == */ ]]; do dest="${dest%/}"; done
 check_ancestors() { local p="$1"; while [[ "$p" != / ]]; do [[ ! -L "$p" ]] || { echo "refusing symlink ancestor: $p" >&2; exit 1; }; p="$(dirname "$p")"; done; }
 check_ancestors "$dest"
 dest_real="$(realpath -m "$dest")"

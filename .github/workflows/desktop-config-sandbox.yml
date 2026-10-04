@@ -25,7 +25,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Static and installer tests
-        run: bash tests/test-static.sh && bash tests/test-installer.sh
+        run: bash tests/test-static.sh && bash tests/test-installer.sh && bash tests/test-readiness.sh
       - name: Build and wait for isolated desktop
         run: bash scripts/agentctl up core
       - name: Desktop and expansion regressions

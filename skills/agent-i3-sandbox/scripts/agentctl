@@ -9,7 +9,18 @@ target="${2:-core}"
 [[ "$target" == core || "$target" == spacemacs ]] || { echo "unknown target: $target" >&2; exit 64; }
 
 case "$command" in
-  up) if [[ "$target" == spacemacs ]]; then "${compose[@]}" build core; docker tag "${project}-core" "${project}-core-base"; "${compose[@]}" build --build-arg CORE_IMAGE="${project}-core-base" spacemacs; "${compose[@]}" up --detach --wait --wait-timeout 40 spacemacs; else "${compose[@]}" up --detach --build --wait --wait-timeout 40 "$target"; fi ;;
+  up)
+    if [[ "$target" == spacemacs ]]; then
+      budget="${SPACEMACS_STARTUP_TIMEOUT:-600}"
+      [[ "$budget" =~ ^[1-9][0-9]*$ ]] || { echo 'SPACEMACS_STARTUP_TIMEOUT must be positive seconds' >&2; exit 64; }
+      "${compose[@]}" build core
+      docker tag "${project}-core" "${project}-core-base"
+      "${compose[@]}" build --build-arg CORE_IMAGE="${project}-core-base" spacemacs
+      "${compose[@]}" up --detach --wait --wait-timeout "$((budget + 30))" spacemacs
+    else
+      "${compose[@]}" up --detach --build --wait --wait-timeout 40 "$target"
+    fi
+    ;;
   down) "${compose[@]}" down --volumes ;;
   smoke) "${compose[@]}" exec "$target" /home/agent/bin/smoke-i3 ;;
   i3-regression) "${compose[@]}" exec "$target" /home/agent/bin/test-i3-regression ;;
