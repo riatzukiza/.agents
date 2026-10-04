@@ -1,0 +1,38 @@
+services:
+  core:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      DISPLAY: ":99"
+      EMACS_DAEMON_NAME: "agent-core"
+      XDG_RUNTIME_DIR: "/tmp/runtime-agent"
+    working_dir: /workspace
+    tty: true
+    stdin_open: true
+    healthcheck:
+      test: ["CMD-SHELL", "i3-msg -t get_version >/dev/null && emacsclient -s $$EMACS_DAEMON_NAME -e t >/dev/null && espanso status | grep -Fx 'espanso is running' >/dev/null"]
+      interval: 2s
+      timeout: 5s
+      retries: 15
+
+  spacemacs:
+    build:
+      context: .
+      dockerfile: Dockerfile.spacemacs
+      args:
+        SPACEMACS_REF: "${SPACEMACS_REF:-491e17ba9cdcb253a3292a3049abb8767c91b9bb}"
+    environment:
+      DISPLAY: ":99"
+      EMACS_DAEMON_NAME: "agent-spacemacs"
+      SPACEMACS_STARTUP_TIMEOUT: "${SPACEMACS_STARTUP_TIMEOUT:-600}"
+      XDG_RUNTIME_DIR: "/tmp/runtime-agent"
+    working_dir: /workspace
+    tty: true
+    stdin_open: true
+    healthcheck:
+      test: ["CMD-SHELL", "i3-msg -t get_version >/dev/null && emacsclient -s $$EMACS_DAEMON_NAME -e '(and (boundp (quote spacemacs-version)) (featurep (quote bind-map)))' | grep -Fx t >/dev/null && espanso status | grep -Fx 'espanso is running' >/dev/null"]
+      start_period: "${SPACEMACS_STARTUP_TIMEOUT:-600}s"
+      interval: 2s
+      timeout: 5s
+      retries: 15

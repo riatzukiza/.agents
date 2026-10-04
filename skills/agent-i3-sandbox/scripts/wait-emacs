@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+set -euo pipefail
+socket="${1:?socket required}"
+pid="${2:?daemon PID required}"
+budget="${3:?readiness timeout required}"
+[[ "$budget" =~ ^[1-9][0-9]*$ ]] || { echo 'readiness timeout must be positive seconds' >&2; exit 64; }
+deadline=$((SECONDS + budget))
+while ((SECONDS < deadline)); do
+  kill -0 "$pid" 2>/dev/null || { echo 'Emacs exited during initialization; inspect emacs.log' >&2; exit 1; }
+  if timeout 2 emacsclient -s "$socket" -e t >/dev/null 2>&1; then exit 0; fi
+  sleep 0.1
+done
+echo "Emacs did not become ready within ${budget}s; inspect emacs.log" >&2
+exit 1

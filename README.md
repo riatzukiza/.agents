@@ -95,6 +95,27 @@ Do not duplicate and independently edit copied skill trees. Harness-specific ada
 
 ## Working on this repository
 
+### Desktop configuration test toolkit
+
+[`agent-i3-sandbox`](skills/agent-i3-sandbox/SKILL.md) extracts the Spacemacs-local
+X11/i3/Emacs sandbox into a portable skill bundle, with Espanso ASCII/Unicode
+regressions, focus-checked input, and a dry-run-first installer. Start with:
+
+```bash
+cd skills/agent-i3-sandbox
+SANDBOX_PROJECT=my-config-test ./scripts/agentctl up core
+SANDBOX_PROJECT=my-config-test ./scripts/agentctl smoke core
+SANDBOX_PROJECT=my-config-test ./scripts/agentctl i3-regression core
+SANDBOX_PROJECT=my-config-test ./scripts/agentctl espanso-regression core
+SANDBOX_PROJECT=my-config-test ./scripts/agentctl down core
+```
+
+The skill bundles its own fixtures and private layer; it does not require the
+Spacemacs configuration repository. Installation takes an explicit destination
+and refuses unowned or locally modified installs. OS packages remain mutable;
+the Espanso binary is version- and digest-pinned. See the skill's provenance and
+fidelity notes before interpreting results against a live desktop.
+
 Before changing a skill:
 
 1. read [`PRINCIPLE.edn`](PRINCIPLE.edn) and [`AGENTS.md`](AGENTS.md),
