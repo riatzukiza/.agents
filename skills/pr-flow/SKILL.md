@@ -33,7 +33,8 @@ Run `pr.cljs flow` to print it, or `pr.cljs flow <state>` for one state's skill,
 exit condition, CLI and next states.
 
 Executable `:flow/defaults` are `:review/min-rounds`, `:review/approval-quorum`,
-`:review/required`, `:review/by-repo-name`, `:review/identities` and the separate
+`:review/required`, `:review/by-repo-name`, `:review/identities`, the Proxx-only
+`:review/kimi-publication` profile and the separate
 provisional `:review/actionability` admission profile. Review
 settlement rules live in `law/classify-thread` and `law/unsettled-blockers`; the default merge-commit method lives in
 the CLI. Neither is configured by this data file. Its policy comments are
@@ -181,3 +182,51 @@ The user accepted explicit passing verdicts with verified commit coverage on
 identity and commit binding, and retains the source channel and record ID.
 
 On 2026-10-03 the user clarified the cohort as **all available agents**, because provider quotas are expected and multiple review routes are intentional. Prefer the available economical MiMo/Kimi routes; verify advertised model IDs and supported thinking controls before selecting them. Model aliases may change underlying versions or capabilities without a name change. Observe catalog and capability drift separately from review verdicts; catalog request failures are UNKNOWN, never proof of delisting. Provider health evidence does not manufacture a passing review.
+
+### Proxx Kimi publication admission (source proposal)
+
+The separate profile names only `open-hax/proxx` and the observed
+`opencode-agent[bot]` principal (Bot ID `219766164`, node ID
+`BOT_kgDODRldlA`). Global Kimi identities stay empty; OpenCode rejection
+corroboration stays separate. One physical App cannot corroborate its own
+finding or supply two provider votes. Other repositories do not acquire Kimi
+from this profile; explicit mandatory reviewers remain obligations everywhere.
+
+The CLI reads native run/attempt/job metadata, the unexpired GitHub artifact
+and its SHA256-verified ZIP, immutable merge-parent/workflow/runtime source,
+base ancestry, and native review/inline readback. It never executes those
+sources or exchanges App credentials. The reviewed workflow byte hashes bind
+the fresh publisher's independent full-diff validation to the structured
+submission and exact body/provenance bytes. Neither a model summary, login,
+body tag, canary, job name nor passing check alone admits a review. The observed
+SDK route and variant are `kimi-code-plan-global/kimi-for-coding`, `low`;
+hidden provider model and actual reasoning budget remain UNKNOWN.
+
+Qualified finding-bearing COMMENTED publications complete a review without
+approving. The observed authenticated artifact sentence “I found no actionable
+correctness, security, or workflow findings.” can supply an explicit completed
+passing verdict only after full publication admission and zero inline findings.
+Quoted/fenced/generated examples, incomplete scope or a negative/retracted
+verdict supply no approval. A later full nonpassing publication clears this
+principal's prior passing verdict on the same head; no formal APPROVED state
+is fabricated. API diagnostics
+and actionability assessments receive zero coverage, round or approval credit.
+Historical configured rosters remain unchanged; this profile adds Kimi only
+to the current Proxx cohort. Failed/pending/skipped reviews are not quota
+exclusions. All findings, mandatory reviewers and required CI retain their gates.
+
+The profile currently makes Kimi an obligation for all Proxx PRs, even where a
+base still carries an unsupported MAIN pipeline. The captured proof qualifies
+the D4/staging publication source only; it does not establish MAIN propagation.
+An unsupported source denies publication admission and remains a cohort
+obligation, rather than becoming a fabricated quota exclusion. Propagate the
+reviewed source to applicable bases and collect its native proof before claiming
+that execution route operational or qualified.
+
+This isolated source proposal is not installation or native qualification.
+Workflow drift, missing/expired artifacts, inaccessible metadata, mismatched
+source or edited readback deny admission and print a safe publication-proof
+failure. Collect a fresh qualifying review or repair the concrete read-access
+gap; never replace the proof with a pasted transcript or an identity alias.
+The reader needs `gh`, Node 22 and the platform `unzip` tool. Review and adopt
+the canonical source before operational use; no local fixture enables enrollment.

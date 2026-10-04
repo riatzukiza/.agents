@@ -1,6 +1,6 @@
 #!/usr/bin/env nbb
 (ns test-policy
-  (:require ["fs" :as fs] ["path" :as path]
+  (:require ["fs" :as fs] ["path" :as path] ["crypto" :as crypto]
             [nbb.core :refer [*file*]]
             [cljs.test :refer [deftest is run-tests]]
             [clojure.string :as str]
@@ -20,6 +20,139 @@
                :required-reviewers #{} :approval-quorum 1
                :checks [{:name "laws" :state "SUCCESS" :required? true}]
                :threads []})
+
+(def native-kimi
+  (js->clj (js/JSON.parse (fs/readFileSync
+                          (path/join (path/dirname *file*) "fixtures/native-proxx-kimi-publication.json") "utf8"))
+           :keywordize-keys true))
+(def kimi-identities (assoc law/default-reviewer-identities "opencode" #{"opencode-agent[bot]"}))
+(def admitted-kimi (assoc (:review native-kimi) :kimi-publication (:proof native-kimi)))
+
+(deftest native-proxx-kimi-completion-is-not-approval
+  ;; Genuine finding-bearing 2e7 retry2 publication, replayed without approval.
+  (let [sha (:commit_id admitted-kimi)
+        evidence (law/review-evidence sha [admitted-kimi] [] kimi-identities)]
+    (is (= "kimi" (law/trusted-reviewer admitted-kimi kimi-identities)))
+    (is (law/full-review? admitted-kimi kimi-identities))
+    (is (= #{sha} (get-in evidence [:reviewed-heads "kimi"])))
+    (is (empty? (:approved-heads evidence)))
+    (is (= 1 (count (law/completed-review-rounds [admitted-kimi] [] kimi-identities))))
+    (is (empty? (:approved-heads (law/review-evidence head [admitted-kimi] [] kimi-identities)))))
+  (doseq [r [(:review native-kimi) (:canary native-kimi)
+             (assoc (:canary native-kimi) :kimi-publication (:proof native-kimi))
+             (assoc (:review native-kimi) :provider "kimi" :publication-approved? true)]]
+    (is (nil? (law/trusted-reviewer r kimi-identities)))
+    (is (not (law/full-review? r kimi-identities)))
+    (is (empty? (:reviewed-heads (law/review-evidence (:commit_id r) [r] [] kimi-identities)))))
+  (doseq [[at value] [[[:user :id] 1] [[:user :node_id] "BOT_other"] [[:user :type] "User"]
+                      [[:user :login] "github-actions[bot]"]
+                      [[:kimi-publication :context :repository] "open-hax/uxx"]
+                      [[:kimi-publication :context :head] head]
+                      [[:kimi-publication :context :base] old-head]
+                      [[:kimi-publication :publisher-job :conclusion] "failure"]
+                      [[:kimi-publication :run :workflow_id] 1]
+                      [[:kimi-publication :provenance :runtimeSha] head]
+                      [[:kimi-publication :runtime-comparison :merge_base_commit :sha] head]
+                      [[:kimi-publication :provenance :executionControl :observedAssistantVariant] "high"]
+                      [[:kimi-publication :workflow-commit :parents] [{:sha head} {:sha old-head}]]
+                      [[:kimi-publication :artifact :expired] true]
+                      [[:kimi-publication :submission :summary] "No issues found."]
+                      [[:kimi-publication :submission :comments] []]
+                      [[:kimi-publication :source-digests :workflow] (apply str (repeat 64 "0"))]
+                      [[:kimi-publication :review-sha256] (apply str (repeat 64 "0"))]
+                      [[:kimi-publication :archive-sha256] (apply str (repeat 64 "0"))]
+                      [[:kimi-publication :provenance :coveredFiles] []]
+                      [[:kimi-publication :readback :body] "No issues found."]]]
+    (let [r (assoc-in admitted-kimi at value)]
+      (is (nil? (law/trusted-reviewer r kimi-identities)) (pr-str at))
+      (is (empty? (:approved-heads (law/review-evidence (:commit_id r) [r] [] kimi-identities))))))
+  (is (nil? (law/trusted-reviewer admitted-kimi
+                                  (assoc kimi-identities "mimo" #{"opencode-agent[bot]"}))))
+  (is (nil? (law/trusted-reviewer admitted-kimi
+                                  (assoc kimi-identities "kimi" #{"opencode-agent[bot]"}))))
+  (is (empty? (get-in (law/review-evidence (:commit_id admitted-kimi)
+                                         [(assoc admitted-kimi :state "APPROVED")] [] kimi-identities)
+                    [:approved-heads]))))
+
+(deftest proxx-admission-adds-only-current-repository-cohort
+  (let [input {:head (:commit_id admitted-kimi) :comments [] :reviews [] :checks []
+               :identities kimi-identities :publication-profile (:profile native-kimi)}]
+    (is (= #{"coderabbit" "codex" "mimo" "kimi"}
+           (:review-participants (law/reviewer-availability (assoc input :repository "open-hax/proxx")))))
+    (is (= #{"coderabbit" "codex" "mimo"}
+           (:review-participants (law/reviewer-availability (assoc input :repository "open-hax/uxx")))))
+    (is (contains? (:review-participants (law/reviewer-availability
+                                         (assoc input :repository "open-hax/uxx" :mandatory #{"kimi"}))) "kimi"))))
+
+(def native-kimi-passing
+  (js->clj (js/JSON.parse (fs/readFileSync
+                          (path/join (path/dirname *file*) "fixtures/native-proxx-kimi-passing.json") "utf8"))
+           :keywordize-keys true))
+(def passing-kimi (assoc (:review native-kimi-passing) :kimi-publication (:proof native-kimi-passing)))
+(defn rebound-summary
+  "Synthetic adverse pure-boundary facts, not another native review. Keep the
+   publication body/readback binding so only verdict semantics decide credit."
+  [review summary]
+  (let [proof (:kimi-publication review) old (get-in proof [:submission :summary])
+        submission (assoc (:submission proof) :summary summary)
+        hash (fn [value] (.digest (.update (crypto/createHash "sha256") value) "hex"))
+        review-sha (hash (js/JSON.stringify (clj->js submission)))
+        marker (hash (js/JSON.stringify #js {:base (get-in proof [:context :base]) :review (clj->js submission)}))
+        body (-> (:body review) (str/replace old summary)
+                 (str/replace (:review-sha256 proof) review-sha)
+                 (str/replace (:submission-marker-sha256 proof) marker))]
+    (-> review (assoc :body body)
+        (assoc-in [:kimi-publication :submission] submission)
+        (assoc-in [:kimi-publication :provenance :reviewBlobSha256] review-sha)
+        (assoc-in [:kimi-publication :review-sha256] review-sha)
+        (assoc-in [:kimi-publication :submission-marker-sha256] marker)
+        (assoc-in [:kimi-publication :expected-body] body)
+        (assoc-in [:kimi-publication :readback :body] body))))
+
+(deftest native-proxx-kimi-explicit-passing-is-proof-bound
+  (let [sha (:commit_id passing-kimi)
+        evidence (law/review-evidence sha [passing-kimi] [] kimi-identities)]
+    (is (= "kimi" (law/trusted-reviewer passing-kimi kimi-identities)))
+    (is (law/full-review? passing-kimi kimi-identities))
+    (is (= #{sha} (get-in evidence [:approved-heads "kimi"])))
+    (is (= :explicit-review-verdict (get-in evidence [:approval-evidence "kimi" :channel])))
+    (is (empty? (:approved-heads (law/review-evidence head [passing-kimi] [] kimi-identities))))
+    (is (= #{"coderabbit" "codex" "mimo" "kimi"}
+           (:review-participants (law/reviewer-availability
+                                  {:head sha :reviews [passing-kimi] :comments [] :checks []
+                                   :repository "open-hax/proxx" :identities kimi-identities
+                                   :publication-profile (:profile native-kimi-passing)})))))
+  (doseq [[at value] [[[:user :id] 1] [[:user :node_id] "BOT_other"]
+                      [[:kimi-publication :context :repository] "open-hax/uxx"]
+                      [[:kimi-publication :source-digests :workflow] (apply str (repeat 64 "0"))]
+                      [[:kimi-publication :review-sha256] (apply str (repeat 64 "0"))]
+                      [[:kimi-publication :provenance :coveredFiles] []]
+                      [[:kimi-publication :inline-comments] [{:id 1 :body "Actionable finding"}]]]]
+    (let [r (assoc-in passing-kimi at value)]
+      (is (nil? (law/trusted-reviewer r kimi-identities)))
+      (is (empty? (:approved-heads (law/review-evidence (:commit_id r) [r] [] kimi-identities))))))
+  (let [verdict "I found no actionable correctness, security, or workflow findings."]
+    (doseq [summary [(str "> " verdict)
+                     (str "```text\n" verdict "\n```")
+                     (str "<blockquote>" verdict "</blockquote>")
+                     (str "Generated example verdict. " verdict)
+                     (str "For example. " verdict)
+                     (str verdict " However, I found an actionable correctness finding.")
+                     (str verdict " However, there is one security issue.")
+                     (str verdict " I retract that verdict: a security issue remains.")
+                     (str verdict " Review incomplete; unreviewed files remain.")
+                     (str verdict " I cannot approve this change.")
+                     "Assessed all ten changed files; no explicit passing verdict supplied."]]
+      (let [r (rebound-summary passing-kimi summary)]
+        (is (= "kimi" (law/trusted-reviewer r kimi-identities)) summary)
+        (is (empty? (:approved-heads (law/review-evidence (:commit_id r) [r] [] kimi-identities))) summary)
+        (let [later (-> r (update :id inc) (update-in [:kimi-publication :readback :id] inc))]
+          (is (= "kimi" (law/trusted-reviewer later kimi-identities)))
+          (is (empty? (:approved-heads (law/review-evidence (:commit_id r) [passing-kimi later] [] kimi-identities))) summary)))))
+  (doseq [r [(:review native-kimi-passing) (:canary native-kimi-passing)
+             (assoc (:canary native-kimi-passing) :kimi-publication (:proof native-kimi-passing))]]
+    (is (nil? (law/trusted-reviewer r kimi-identities)))
+    (is (empty? (:approved-heads (law/review-evidence (:commit_id r) [r] [] kimi-identities))))))
 
 (deftest one-approval-and-all-findings
   (is (:pass? (law/merge-gate baseline)))
