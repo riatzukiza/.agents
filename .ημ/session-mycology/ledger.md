@@ -284,3 +284,13 @@
   note: Select one immutable qualified functional pair, compare the real reusable interface and preserve every caller guard, credential name and inherited Node policy. Adopt Raman's exact prior receipt with its original proposed-source boundary intact and explicit current adoption provenance. Preserve complete174577/18805 histories and frozen Raman hashes; main981 history belongs to the parent ordinary merge. Local declaration checks and prior source tests do not install policy or supply current-head native qualification. No new spore or activation.
 
 - 2026-10-04T08:25:41.119618909Z — Integrated actual main981 histories and prepared review source. Full main prefixes and exact source-exclusive blocks preserved; qualified694/Muse0b caller retained over old-Muse conflict. Initial scope check mishandled quoted Unicode paths; NUL-delimited independent sixpath verification proved owned scope. New-head CI/reviews pending, no installation or spore promotion.
+
+- ts: "2026-10-04T09:16:23.402994814Z"
+  session: /home/err/spaces/review-repair/agents-policy-integration
+  task: Agents8 standalone-card descriptive flow contract repair (CR4176785586)
+  p-efficiency: 0.96
+  p-friction: 0.04
+  p-skill-candidate: 0.10
+  spore: none
+  receipt-refs: Agents8 CR4176785586 standalone-card contract repair
+  note: Inspect actual consumers before treating descriptive artifacts as executable admission. Reconcile standalone-card prose across the graph and skills, retain graph/defaults and all native review obligations, and use existing flow rendering plus document compatibility checks. No mirror tests, RED/GREEN claim, suite repeat, policy installation or board transition. Parent owns publication.

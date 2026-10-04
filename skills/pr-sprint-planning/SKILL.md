@@ -1,6 +1,6 @@
 ---
 name: pr-sprint-planning
-description: pr-flow stages plan, planning-review and card-ready. Turn a link map into an epic and substories (Rheos Markdown cards), open a PR carrying them (ready, auto-merge off), ask CodeRabbit and other agents to review the agile artifacts like a sprint-planning session, settle every comment, then move the stories to ready through Rheos.
+description: pr-flow stages plan, planning-review and card-ready. Turn a link map into a standalone card for simple work or an epic with stories when decomposition is needed (Rheos Markdown cards), open a PR carrying the cards (ready, auto-merge off), ask CodeRabbit and other agents to review the agile artifacts like a sprint-planning session, settle every comment, then move the standalone card or stories to ready through Rheos.
 license: GPL-3.0-or-later
 metadata:
   tier: provisional
@@ -21,10 +21,10 @@ metadata:
 ## Plan
 
 1. **Find the board.** Read the repository's `openhax.kanban.json` (`tasksDir`, `fsm`). Cards are Markdown with frontmatter. Hand-authoring a card is a supported Rheos entry point; status changes are not.
-2. **Write the epic and stories.** Each card has an explicit `uuid:`, `title`, `priority`, `points` and `labels`, plus `epic:`, `parent:` and `blocked_by:` as uuids. Omit empty fields.
+2. **Choose the card scope.** Simple work may use one standalone card; create an epic with stories only when decomposition is needed. Each card has an explicit `uuid:`, `title`, `priority`, `points` and `labels`. Add `epic:`, `parent:` and `blocked_by:` as uuids when those relationships are needed; omit empty fields.
    - The body has these sections: Context, Outcome, Scope, Non-goals, Acceptance criteria (testable), Verification, Risks.
    - Follow the repository's existing card style. Look at two neighbours before writing.
-3. **Branch and commit.** Use a branch such as `plan/<epic-slug>`. Stage only the cards. If the cards depend on cards in an open PR, base the branch on that PR's head (a stacked PR) and say so in the body.
+3. **Branch and commit.** Use a branch such as `plan/<card-or-epic-slug>`. Stage only the cards. If the cards depend on cards in an open PR, base the branch on that PR's head (a stacked PR) and say so in the body.
 
 ## Planning review
 
@@ -43,5 +43,5 @@ metadata:
 
 ## Ready
 
-6. **Move each reviewed story to ready** through Rheos: `eta-mu kanban …`. Never edit `status:` by hand. A harness without Rheos may stop here and report the transition it could not perform.
-7. **Hand off** each ready story to `pr-red-green`. The planning PR may merge on its own through the merge gate, or carry on as the implementation PR.
+6. **Move the reviewed standalone card or each reviewed story to ready** through Rheos: `eta-mu kanban …`. Never edit `status:` by hand. A harness without Rheos may stop here and report the transition it could not perform.
+7. **Hand off** the ready standalone card or each ready story to `pr-red-green`. The planning PR may merge on its own through the merge gate, or carry on as the implementation PR.

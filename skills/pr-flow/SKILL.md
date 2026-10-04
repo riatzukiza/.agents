@@ -1,6 +1,6 @@
 ---
 name: pr-flow
-description: Entry point for every pull-request interaction. A state machine (flow.edn) that routes muse → epic/stories → PR (ready, auto-merge off) with CodeRabbit planning review → ready cards → red (laws, tests) → green (domain, infra) → iterative code review → an exact-head approval quorum → authorized merge, naming the skill, inputs, outputs and exit for each state, with an nbb CLI for the GitHub mechanics.
+description: Entry point for every pull-request interaction. A state machine (flow.edn) that routes muse → standalone card or epic/stories → PR (ready, auto-merge off) with CodeRabbit planning review → ready cards → red (laws, tests) → green (domain, infra) → iterative code review → an exact-head approval quorum → authorized merge, naming the skill, inputs, outputs and exit for each state, with an nbb CLI for the GitHub mechanics.
 license: GPL-3.0-or-later
 metadata:
   tier: provisional
@@ -49,15 +49,17 @@ allowlist in `flow.edn`.
 | State | Skill | Leaves when |
 | --- | --- | --- |
 | muse (ambient) | `pr-muse-connect` | intent names an outcome and a card |
-| plan | `pr-sprint-planning` | epic + stories on a branch, uuid-linked |
+| plan | `pr-sprint-planning` | a standalone card, or an epic with stories when decomposition is needed, on a branch; uuid-linked when needed |
 | planning-review | `pr-sprint-planning` + `pr-review-settlement` | every planning finding is settled; five review rounds completed or unanimous current-head approval |
-| card-ready | `pr-sprint-planning` | stories are `ready` in Rheos |
+| card-ready | `pr-sprint-planning` | the standalone card or stories are `ready` in Rheos |
 | red | `pr-red-green` | new laws and tests fail for the right reason |
 | green | `pr-red-green` | domain then infra pass all gates |
 | code-review | `pr-review-settlement` | all findings settled; five review rounds completed or unanimous current-head approval |
 | merge-gate | `pr-review-to-merge` + `pr.cljs gate --apply` | ready, and auto-merge enabled or a direct merge performed at the exact head that passed |
 | merged | `pr-review-to-merge` | merge verified, stack advanced, parent pointers bumped, cards closed via Rheos |
 | reflected | `session-mycology` + `receipt-river` | receipt appended; at most one spore incubated |
+
+The descriptive `:card/plan` artifact in `flow.edn` means one standalone card for simple work or an epic with stories when decomposition is needed. Both follow planning review → card-ready → red; these artifact notes do not implement card-shape validation in the CLI.
 
 Card status belongs to Rheos. A state's `:board/expects` only names the transition to perform through `eta-mu kanban …`. Never hand-edit `status:` to move a card.
 
