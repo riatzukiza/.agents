@@ -1070,6 +1070,101 @@
                                             :rounds (rheos-rounds rheos-completed markers)
                                             :review-participants rheos-participants))))))))
 
+(def native-coderabbit-quota-info
+  ;; Exact captured native bodies/identities; these observations have no head
+  ;; coverage, full-review, cohort, or approval authority.
+  (:comments (js->clj (js/JSON.parse (fs/readFileSync
+                                      (path/join (path/dirname *file*)
+                                                 "fixtures/native-coderabbit-quota-info.json") "utf8"))
+                      :keywordize-keys true)))
+
+(defn quota-info-input [comments now]
+  {:head head :reviewer "coderabbit" :round 1 :stage "code"
+   :comments comments :reviews [] :checks [] :identities law/default-reviewer-identities
+   :now-ms (js/Date.parse now)})
+
+(deftest native-coderabbit-quota-information-supersedes-older-unknown
+  (let [{:keys [unknown wait available]} native-coderabbit-quota-info
+        reset (js/Date.parse "2026-10-05T00:24:51Z")
+        input (quota-info-input [unknown wait] "2026-10-05T00:24:50Z")]
+    (doseq [c [unknown wait available]]
+      (is (= "coderabbit" (law/trusted-reviewer c law/default-reviewer-identities)))
+      (is (not (law/full-review? c law/default-reviewer-identities))))
+    (is (= 3120000 (law/cooldown-ms (:body wait))))
+    (is (= {:status :cooldown :retry-at-ms reset} (law/request-verdict input)))
+    (is (= :request (:status (law/request-verdict (assoc input :now-ms reset)))))
+    (is (= 0 (law/cooldown-ms (:body available))))
+    (is (= :request (:status (law/request-verdict
+                              (quota-info-input [unknown wait available] "2026-10-05T00:42:07Z")))))
+    (is (= :rate-limited (:status (law/request-verdict
+                                   (quota-info-input [unknown] "2026-10-05T00:42:07Z")))))
+    (is (empty? (law/completed-review-rounds [] [wait available] law/default-reviewer-identities)))
+    (is (empty? (:approved-heads (law/review-evidence head [] [wait available]
+                                                        law/default-reviewer-identities))))
+    (is (= #{"coderabbit" "codex" "mimo"}
+           (:review-participants (law/reviewer-availability
+                                  (quota-info-input [wait available] "2026-10-05T00:42:07Z")))))))
+
+(deftest quota-information-retains-later-notices-and-pending-work
+  (let [{:keys [unknown wait available]} native-coderabbit-quota-info
+        input (quota-info-input [unknown available] "2026-10-05T00:44:00Z")
+        later (assoc unknown :updated_at "2026-10-05T00:43:00Z")
+        later-wait (assoc wait :updated_at "2026-10-05T00:43:00Z")
+        request {:id 9001 :trusted? true :created_at "2026-10-05T00:43:00Z"
+                 :body (str "@coderabbitai full review <!-- pr-flow-review:" head
+                            " --> <!-- pr-flow-reviewer:coderabbit -->")}]
+    (doseq [comments [[later available] [available later]]]
+      (is (= :rate-limited (:status (law/request-verdict (assoc input :comments comments))))))
+    (is (= {:status :cooldown :retry-at-ms (js/Date.parse "2026-10-05T01:35:00Z")}
+           (law/request-verdict (assoc input :comments [available later-wait]))))
+    (doseq [state ["PENDING" "QUEUED" "IN_PROGRESS"]]
+      (is (= :pending (:status (law/request-verdict
+                                (assoc input :checks [{:name "CodeRabbit" :headSha head :state state}]))))))
+    (is (= :pending (:status (law/request-verdict (update input :comments conj request)))))
+    (is (= :request (:status (law/request-verdict
+                              (update input :comments conj (assoc request :trusted? false))))))
+    (is (= :invalid (:status (law/request-verdict (assoc input :head "not-a-head")))))
+    (let [codex-quota {:user {:login "chatgpt-codex-connector[bot]" :type "Bot"}
+                       :created_at "2026-10-05T00:41:00Z"
+                       :body "You have reached your Codex usage limits for code reviews."}]
+      (is (= :rate-limited (:status (law/request-verdict
+                                     (assoc input :reviewer "codex"
+                                                  :comments [codex-quota available]))))))))
+
+(deftest quota-information-spoofs-and-examples-cannot-clear-unknown
+  (let [{:keys [unknown available]} native-coderabbit-quota-info
+        input (quota-info-input [unknown] "2026-10-05T00:44:00Z")]
+    (doseq [forged [(assoc-in available [:user :type] "User")
+                    (assoc-in available [:user :login] "github-actions[bot]")
+                    (assoc-in available [:user :login] "coderabbitai-lookalike[bot]")
+                    (assoc-in available [:user :login] "chatgpt-codex-connector[bot]")
+                    (assoc available :provider "codex")
+                    (update available :body #(str "```text\n" % "\n```"))
+                    (update available :body #(str "~~~text\n" % "\n~~~"))
+                    (update available :body #(str "```text\n" %))
+                    (update available :body #(str "> " (str/replace % "\n" "\n> ")))
+                    (update available :body #(str "Walkthrough example:\n" %))
+                    (assoc available :body "Your plan provides 1 included review per hour; 0 remain.")]]
+      (is (= :rate-limited (:status (law/request-verdict (update input :comments conj forged))))))
+    (let [ambiguous (assoc law/default-reviewer-identities "codex" #{"coderabbitai[bot]"})]
+      (is (nil? (law/trusted-reviewer available ambiguous)))
+      (is (empty? (:approved-heads (law/review-evidence head [] [available] ambiguous)))))))
+
+(deftest malformed-new-quota-information-remains-unknown
+  (let [{:keys [wait available]} native-coderabbit-quota-info
+        input (quota-info-input [available] "2026-10-05T00:44:00Z")]
+    (doseq [body [(str/replace (:body wait) "52 minutes" "unknown minutes")
+                  (str/replace (:body wait) "52 minutes" "52 credits")
+                  (str/replace (:body wait) "52 minutes." "")
+                  (str/replace (:body available) "Reviews are available now." "Reviews are available now, unless blocked.")]]
+      (let [later (assoc wait :body body :updated_at "2026-10-05T00:43:00Z")]
+        (is (nil? (law/cooldown-ms body)))
+        (is (= :rate-limited (:status (law/request-verdict (update input :comments conj later)))))))
+    (is (nil? (law/cooldown-ms (str "Review rate limited.\n" (:body available)))))
+    (is (= :rate-limited (:status (law/request-verdict
+                                   (assoc input :comments
+                                          [(assoc available :body (str "Review rate limited.\n" (:body available)))])))))))
+
 (defmethod cljs.test/report [:cljs.test/default :end-run-tests] [m]
   (when-not (cljs.test/successful? m) (set! (.-exitCode js/process) 1)))
 (run-tests)

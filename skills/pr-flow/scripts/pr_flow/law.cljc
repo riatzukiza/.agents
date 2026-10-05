@@ -837,16 +837,20 @@
            (:name check))))
 
 (defn cooldown-ms
-  "Parse a wait/retry duration from a rate-limit reply, not allowance counts."
+  "Parse a wait/retry duration from a rate-limit reply, not allowance counts.
+   Only the exact native CodeRabbit information paragraph supplies zero wait."
   [body]
-  (when-let [[_ duration] (re-find #"(?i)(?:wait|retry(?: again)?(?: in| after)?|try again in|cooldown:?|next included review (?:will be )?available in)[^0-9]*([^\n.<]+)" (str body))]
-    (let [parts (re-seq #"(?i)([0-9]+)\s*(hours?|minutes?|seconds?)" duration)]
-      (when (seq parts)
-        (reduce + (for [[_ n unit] parts]
-                    (* #?(:clj (Long/parseLong n) :cljs (js/parseInt n 10))
-                       (cond (str/starts-with? (str/lower-case unit) "hour") 3600000
-                             (str/starts-with? (str/lower-case unit) "minute") 60000
-                             :else 1000))))))))
+  (if (re-matches #"Your plan includes PR reviews subject to rate limits\. Reviews are available now\."
+                  (str/trim (or (reviewer-prose body) "")))
+    0
+    (when-let [[_ duration] (re-find #"(?i)(?:wait|retry(?: again)?(?: in| after)?|try again in|cooldown:?|next included review (?:will be )?available in|more reviews (?:will be )?available in)[^0-9]*([^\n.<]+)" (str body))]
+      (let [parts (re-seq #"(?i)([0-9]+)\s*(hours?|minutes?|seconds?)" duration)]
+        (when (seq parts)
+          (reduce + (for [[_ n unit] parts]
+                      (* #?(:clj (Long/parseLong n) :cljs (js/parseInt n 10))
+                         (cond (str/starts-with? (str/lower-case unit) "hour") 3600000
+                               (str/starts-with? (str/lower-case unit) "minute") 60000
+                               :else 1000)))))))))
 
 (defn- instant-ms [value]
   (when (string? value)
@@ -865,6 +869,11 @@
 (defn- quota-notice? [provider body]
   (let [prose (or (quota-prose body) "")]
     (or (re-find #"(?im)^[ \t>]*(?:#+[ \t]*)?(?:\*\*)?(?:review limit reached|rate limit (?:reached|exceeded)|review rate[ -]limited|(?:review )?quota (?:reached|exceeded)|your included review limit is currently reached)\b" prose)
+        (and (= "coderabbit" provider)
+             ;; Native info, not walkthrough/quoted examples. Recognize malformed
+             ;; durations as notices too: they retain nil/UNKNOWN, never zero.
+             (re-matches #"Your plan includes PR reviews subject to rate limits\. (?:More reviews will be available in\b[^\n]*|Reviews are available now\b[^\n]*)"
+                         (str/trim (or (reviewer-prose body) ""))))
         (and (= "codex" provider) (codex-account-quota? body)))))
 
 (defn full-review?
