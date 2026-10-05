@@ -354,3 +354,10 @@
   spore: none
   receipt-refs: 96c69b9d-f6ec-40c6-87c4-ab345dcbe6af; d8cdb454-6bf4-4f9d-a91f-e1fb69b7d5e0
   note: Bind provider information to exact native body and identity before repairing the two pure parsing helpers. A fresh zero-delay observation supersedes an older unknown notice only through existing trusted chronology; it creates no review or approval credit. Test the actual request caller and adversarial provider, fence, duration, ordering, pending and native-head paths. Preserve setup mistakes separately from semantic RED and replay final caller bytes after fixture correction. All required local suites pass; native effects and qualified source adoption remain parent-owned after real protected review/CI/merge. Preserve every inherited receipt/reflection byte; no spore or global installation.
+
+
+## 2026-10-05T05:42:07.373468+00:00 — One observed Kimi caller source extension
+
+- Source admission and positive approval remain separate. Actual native705 proof binds9742 caller/run/artifact/body with a nonapproving summary. Production profile adds exactly that source digest; global identity, verdict and authority rules stay exact. New fixture exercises actual hydration/ZIP/native bytes, not a favorable marker.
+- Same production policy old5fail/candidateGREEN; corrected native empty-page wrapper yields focused actualCLI old2fail/candidateGREEN. Initial wrapper transport refusal remains diagnostic. Full200tests4046assertionsPASS,555unowned blob/modes and fullMAIN receipt/reflection prefixes preserved. New typed event valid without whole historical validity claim.
+- Local source is preparation; reviewed protected canonical merge and immutable adoption remain required. No native historical approval transfer/model/provider-effect/global activation claim. p-efficiency=0.87, p-friction=0.31, p-skill-candidate=0.40; no new spore/promotion.
