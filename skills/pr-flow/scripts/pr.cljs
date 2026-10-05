@@ -121,14 +121,14 @@
                            (:decisions receipt))))
                      (remove str/blank? (str/split-lines (fs/readFileSync file "utf8")))))))
     (catch :default _ nil)))
-(defn- append-actionability-observations! [observations]
+(defn- append-actionability-observations! [repo observations]
   (when (seq observations)
     (let [file (actionability-ledger)]
       (when-not (fs/existsSync file)
         (throw (ex-info "Canonical actionability receipt ledger unavailable; no disposition admitted" {:path file})))
       (doseq [o observations]
         (fs/appendFileSync file
-          (str (pr-str {:ts (.toISOString (js/Date.)) :kind :observation
+          (str (pr-str {:ts (.toISOString (js/Date.)) :kind :observation :repo repo
                         :origin "pr-flow-actionability-observation" :owner "pr-flow-cli"
                         :dod "Preserve native actionability admission/revocation append-only"
                         :pi "pr-flow/actionability" :host "local-cli-native-github"
@@ -205,7 +205,7 @@
                                                            :url (:url c) :created-at (:createdAt c) :updated-at (:updatedAt c)})
                                                   (get-in t [:comments :nodes]))}))) acc)
                 observations (vec (distinct (mapcat #(get-in % [:actionability :observations]) threads)))
-                _ (append-actionability-observations! observations)
+                _ (append-actionability-observations! repo observations)
                 history (when (some? history) (into history observations))]
            {:draft? (if (nil? draft?) (:isDraft pr) draft?)
            :head (:headRefOid pr) :pr-author (get-in pr [:author :login])

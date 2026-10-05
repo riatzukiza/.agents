@@ -368,3 +368,10 @@
 - A valid native model result and App POST can precede canonical rejection. Here a real CommonJS test reference was excluded by the mechanical suffix list. Repair the canonical source list and expose its existing predicate for adapter preflight, preserving independent judgment and all native bindings.
 - Recover missing operational history from the complete reviewed Git ledger; never invent empty history or repair an unproven parser defect. The unchanged gate still refuses incompatible evidence.
 - p-efficiency=0.83; p-friction=0.31; p-skill-candidate=0.54. Existing canonical-boundary and native-checkpoint practices cover this incident; no new spore or promotion.
+
+
+## 2026-10-05T12:20:30.850Z — Bind native observations before operational adoption
+
+- Pre-adoption validation reproduced a missing repository field in the unchanged observation writer. Pass the existing scoped repo into that writer rather than derive names from opaque IDs or rewrite historical rows. Both admission and revocation must preserve complete decisions and history.
+- Exact candidate output passes the real pinned upstream compatibility validator; this is no typed migration or native disposition credit. Public evidence compatibility and observation validity remain separately tested.
+- p-efficiency=0.86; p-friction=0.28; p-skill-candidate=0.49. The initial wrong BB test path was an owned harness error and is retained. No new spore or promotion.

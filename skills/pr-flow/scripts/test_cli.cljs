@@ -1448,6 +1448,39 @@
     (is (not-any? #(str/includes? (str (:args %)) "/actions/runs/") (:calls r)))
     (is (empty? (mutations r)))))
 
+(deftest observation-writer-binds-the-repository-for-admission-and-revocation
+  (doseq [s informational/captures]
+    (let [repo (get-in s [:repository :nameWithOwner])
+          n (str (get-in s [:pr :number]))
+          t (informational/evidence (informational/input s))
+          accepted (first (:observations (actionability/disposition t)))
+          seed {:ts "2026-10-03T14:00:00Z" :kind :observation :repo repo
+                :origin "existing-receipt" :owner "fixture" :dod "preserve history"
+                :pi "fixture" :host "isolated-fixture" :manifest [] :refs []}
+          prefix (str (pr-str seed) "\n")
+          qualified (execute (assoc (informational-config s) :receipt-text prefix)
+                             "status" repo n)
+          revoked-seed (assoc seed :origin "pr-flow-actionability-observation"
+                             :decisions [accepted])
+          revoked-prefix (str (pr-str revoked-seed) "\n")
+          revoked (execute (assoc (informational-config s) :receipt-text revoked-prefix
+                                  :threadPageResponses
+                                  [(informational-response (assoc-in s [:thread :isResolved] false))])
+                           "status" repo n)]
+      (doseq [[r existing expected] [[qualified prefix :qualified]
+                                    [revoked revoked-prefix :revoked]]]
+        (is (= 0 (:exit r)) (:err r))
+        (is (str/starts-with? (:receipts r) existing))
+        (let [appended (map edn/read-string
+                            (remove str/blank? (str/split-lines
+                                               (subs (:receipts r) (count existing)))))]
+          (is (= 1 (count appended)))
+          (is (= repo (:repo (first appended)))
+              "Bind the repository name supplied to the native CLI, not its opaque GraphQL ID")
+          (is (= expected (get-in (first appended) [:decisions 0 :status])))
+          (is (= (:thread-id accepted) (get-in (first appended) [:decisions 0 :thread-id]))))
+        (is (empty? (writes r "merge")))))))
+
 (defmethod cljs.test/report [:cljs.test/default :end-run-tests] [m]
   (when-not (cljs.test/successful? m) (set! (.-exitCode js/process) 1)))
 (run-tests)
