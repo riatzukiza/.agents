@@ -103,7 +103,7 @@
     {:native-context context :context-manifest manifest :context-digest (sha256 (pr-str manifest))}))
 
 (defn- actionability-ledger [] (path/resolve here ".." ".." ".." ".ημ" "receipts.edn"))
-(defn- actionability-observations []
+(defn- actionability-observations [repo]
   ;; nil is unavailable, distinct from an existing valid empty ledger ([]).
   ;; Read every complete record before using any history; never skip bad lines.
   (try
@@ -118,7 +118,8 @@
                            (when-not (and (vector? (:decisions receipt))
                                           (every? #(and (map? %) (= :thread-actionability (:purpose %))) (:decisions receipt)))
                              (throw (ex-info "Invalid actionability observation record" {})))
-                           (:decisions receipt))))
+                           (when (or (nil? (:repo receipt)) (= repo (:repo receipt)))
+                             (:decisions receipt)))))
                      (remove str/blank? (str/split-lines (fs/readFileSync file "utf8")))))))
     (catch :default _ nil)))
 (defn- append-actionability-observations! [repo observations]
@@ -181,7 +182,7 @@
         issue-comments (mapv #(cond-> (assoc (hash-body %) :source-channel :github-issue-comment)
                                (= "User" (get-in % [:user :type]))
                                (assoc :authorized? (boolean (authorized? (get-in % [:user :login]))))) issue-comments)
-        history (actionability-observations)
+        history (actionability-observations repo)
         policy (get-in (load-flow) [:flow/defaults :review/actionability])]
     (loop [after nil acc [] draft? nil]
       (let [pr (threads-page owner name n after)

@@ -375,3 +375,10 @@
 - Pre-adoption validation reproduced a missing repository field in the unchanged observation writer. Pass the existing scoped repo into that writer rather than derive names from opaque IDs or rewrite historical rows. Both admission and revocation must preserve complete decisions and history.
 - Exact candidate output passes the real pinned upstream compatibility validator; this is no typed migration or native disposition credit. Public evidence compatibility and observation validity remain separately tested.
 - p-efficiency=0.86; p-friction=0.28; p-skill-candidate=0.49. The initial wrong BB test path was an owned harness error and is retained. No new spore or promotion.
+
+
+## 2026-10-05T13:36:25.684Z — Scope observations after full history admission
+
+- A repository field on the producer also needs a reader boundary. Apply the explicit repository filter after whole-record parsing and validation; preserve missing-repo legacy observations and local revocations. Synthetic reused IDs exercise isolation without claiming a native collision.
+- Shipped fake-GH tests, full prefix checks and before/after production execution distinguish adapter correctness from model judgment or native settlement. The parent retained the previous exact-head review proof before preparing a successor.
+- p-efficiency=0.86; p-friction=0.24; p-skill-candidate=0.46. Initial focused output/exit assertions were owned harness mistakes, retained and corrected. No spore or promotion.

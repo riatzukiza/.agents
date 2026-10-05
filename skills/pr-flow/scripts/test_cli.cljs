@@ -1481,6 +1481,60 @@
           (is (= (:thread-id accepted) (get-in (first appended) [:decisions 0 :thread-id]))))
         (is (empty? (writes r "merge")))))))
 
+(deftest observation-reader-scopes-explicit-repositories-after-validating-all-history
+  (doseq [s informational/captures]
+    (let [repo (get-in s [:repository :nameWithOwner])
+          n (str (get-in s [:pr :number]))
+          t (informational/evidence (informational/input s))
+          accepted (first (:observations (actionability/disposition t)))
+          record {:ts "2026-10-03T14:04:00Z" :kind :observation :repo repo
+                  :origin "pr-flow-actionability-observation" :owner "fixture"
+                  :dod "scope stored history" :pi "fixture" :host "isolated-fixture"
+                  :manifest [] :refs [] :decisions [accepted]}
+          local (str (pr-str record) "\n")
+          ;; Deliberate synthetic ID reuse exercises repository isolation. This
+          ;; is not evidence that an actual native GitHub ID collided.
+          foreign-revoked (assoc record :repo "other/foreign"
+                                :decisions [(assoc accepted :repo-id "R_foreign"
+                                                   :pr-id "PR_foreign" :thread-id "PRRT_foreign"
+                                                   :status :revoked :reason :withdrawn)])
+          prefix (str local (pr-str foreign-revoked) "\n")
+          healthy (execute (assoc (informational-config s) :receipt-text prefix)
+                           "status" repo n)]
+      (is (= 0 (:exit healthy)) (:err healthy))
+      (is (str/includes? (:out healthy) "informational 1") (:out healthy))
+      (is (not (str/includes? (:out healthy) "actionability history: UNAVAILABLE")))
+      (is (= prefix (:receipts healthy)) "Never rewrite, delete or duplicate scoped history")
+      (is (empty? (mutations healthy)))
+      ;; Current-repository and repository-absent legacy revocations remain
+      ;; terminal even when the corresponding native source is still present.
+      (doseq [seed [(assoc record :decisions [accepted (assoc accepted :status :revoked :reason :withdrawn)])
+                    (dissoc (assoc record :decisions [accepted (assoc accepted :status :revoked :reason :withdrawn)]) :repo)]]
+        (let [text (str (pr-str seed) "\n")
+              blocked (execute (assoc (informational-config s) :receipt-text text)
+                               "gate" repo n "--apply")]
+          (is (= 2 (:exit blocked)) (:err blocked))
+          (is (str/includes? (:out blocked) "informational 0"))
+          (is (not (str/includes? (:out blocked) "history: UNAVAILABLE")))
+          (is (str/starts-with? (:receipts blocked) text))
+          (is (empty? (mutations blocked)))))
+      ;; Parse and validate the entire ledger before selecting repositories:
+      ;; malformed foreign records at either end are never silently skipped.
+      (doseq [invalid [(str (pr-str (assoc foreign-revoked :decisions nil)) "\n")
+                       "{:repo \"other/foreign\" :origin \"other\"} trailing\n"]
+              text [(str invalid local) (str local invalid)]]
+        (let [blocked (execute (assoc (informational-config s) :receipt-text text)
+                               "gate" repo n "--apply")]
+          (is (= 2 (:exit blocked)) (:err blocked))
+          (is (str/includes? (:out blocked) "actionability history: UNAVAILABLE"))
+          (is (= text (:receipts blocked)))
+          (is (empty? (mutations blocked)))))
+      (let [blocked (execute (assoc (informational-config s) :receipt-text prefix
+                                    :checks [{:name "laws" :state "FAILURE" :required true}])
+                             "gate" repo n "--apply")]
+        (is (= 2 (:exit blocked)))
+        (is (empty? (mutations blocked)))))))
+
 (defmethod cljs.test/report [:cljs.test/default :end-run-tests] [m]
   (when-not (cljs.test/successful? m) (set! (.-exitCode js/process) 1)))
 (run-tests)
