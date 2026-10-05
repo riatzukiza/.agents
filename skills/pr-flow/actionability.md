@@ -77,6 +77,14 @@ assessments fail closed. Reason length and evidence syntax are mechanical minima
 An assessor can be wrong. A real defect must not be called informational; native
 assessment/source review remains necessary rather than a semantic regex classifier.
 
+`actionability/details?` exposes this mechanical reason/evidence minimum for
+transport adapters to check before publication. Named JavaScript (`.js`),
+CommonJS (`.cjs`) and JavaScript module (`.mjs`) sources are accepted alongside
+the existing code/document references and HTTP(S) URLs. This predicate checks
+neither native authority nor the assessment's meaning: adapters must retain
+complete binding checks before minting and native disposition verification
+after publication. Calling it alone supplies no classification or review credit.
+
 ```text
 Actionability withdrawal v1 for <40-hex-current-head>:
 ["actionability/v1" "<repo-node>" "<PR-node>" "<thread-node>" <root-numeric-id> "<context-sha256>" "resolved-author-only-empty-reviews" <assessment-native-id> "<assessment-body-sha256>" "<reason>"]

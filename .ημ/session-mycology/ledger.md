@@ -361,3 +361,10 @@
 - Source admission and positive approval remain separate. Actual native705 proof binds9742 caller/run/artifact/body with a nonapproving summary. Production profile adds exactly that source digest; global identity, verdict and authority rules stay exact. New fixture exercises actual hydration/ZIP/native bytes, not a favorable marker.
 - Same production policy old5fail/candidateGREEN; corrected native empty-page wrapper yields focused actualCLI old2fail/candidateGREEN. Initial wrapper transport refusal remains diagnostic. Full200tests4046assertionsPASS,555unowned blob/modes and fullMAIN receipt/reflection prefixes preserved. New typed event valid without whole historical validity claim.
 - Local source is preparation; reviewed protected canonical merge and immutable adoption remain required. No native historical approval transfer/model/provider-effect/global activation claim. p-efficiency=0.87, p-friction=0.31, p-skill-candidate=0.40; no new spore/promotion.
+
+
+## 2026-10-05T11:52:31.641Z — Validate real code evidence before privileged publication
+
+- A valid native model result and App POST can precede canonical rejection. Here a real CommonJS test reference was excluded by the mechanical suffix list. Repair the canonical source list and expose its existing predicate for adapter preflight, preserving independent judgment and all native bindings.
+- Recover missing operational history from the complete reviewed Git ledger; never invent empty history or repair an unproven parser defect. The unchanged gate still refuses incompatible evidence.
+- p-efficiency=0.83; p-friction=0.31; p-skill-candidate=0.54. Existing canonical-boundary and native-checkpoint practices cover this incident; no new spore or promotion.

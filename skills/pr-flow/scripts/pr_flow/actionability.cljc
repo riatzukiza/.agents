@@ -114,11 +114,13 @@
                (str/ends-with? (or header "") (str " for " (:head t) ":"))
                (or (nil? explicit-target) (= (target t) explicit-target)))
       (or (protocol c) {:kind :proposal :head (:head t) :source c}))))
-(defn- details? [reason evidence]
-  ;; Mechanical minimum only. The meaning/independence of the judgment still
-  ;; requires native assessment and review; verbosity cannot prove correctness.
+(defn details?
+  "Mechanical reason/evidence minimum for adapters before publication.
+   Native identity, scope, freshness and independent judgment remain separate
+   disposition requirements; details alone grant no classification or review."
+  [reason evidence]
   (and (string? reason) (<= 40 (count (str/trim reason)))
-       (string? evidence) (boolean (re-find #"https?://\S+|[a-zA-Z0-9_.-]+\.(?:cljc?|cljs|md|edn|json|ya?ml|tsx?|py|sh)" evidence))))
+       (string? evidence) (boolean (re-find #"https?://\S+|[a-zA-Z0-9_.-]+\.(?:cljc?|cljs|[cm]?js|md|edn|json|ya?ml|tsx?|py|sh)" evidence))))
 
 (defn disposition
   "Default finding. Only the separate provisional policy and complete native
