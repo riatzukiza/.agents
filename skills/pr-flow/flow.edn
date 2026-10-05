@@ -39,7 +39,8 @@
                   ;; Unknown source drift fails closed; neither pin supplies review approval.
                   :workflow-digests #{"15e129cb2fe1a21f8c22e69c6705cc302bdb50b175141ba0db9e6a76b7b5ec25"
                                       "74c281f49af87a975fa78aa783343ca2d097940a44218849629c993abee7a1cb"
-                                      "90117459b8c0a6883b27df816127fdd3bcb4799e5e25e52f356d04ac134f68bb"}
+                                      "90117459b8c0a6883b27df816127fdd3bcb4799e5e25e52f356d04ac134f68bb"
+                                      "974215a7113347a78bd2e0af48925838cc0d58e54e0acbe3ed7a0aaf5a183736"}
                   :runtime-sha "2810f4515424a146fe37390fb0baf532cca31236"
                   :runtime-digest "0fa9d7838df3f0718d971beb972a48d2bf73fce6d90f09411a656e57ce3960d7"
                   :auth-digest "fd4d5630c462f0f202ac20e39ec1433fba4dfa13e12a6f6ffd5c0ec035d2a7e1"}

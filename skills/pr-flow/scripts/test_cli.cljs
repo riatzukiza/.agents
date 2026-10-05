@@ -1402,6 +1402,52 @@
       (is (str/includes? (:out r) "No request sent: rate-limited"))
       (is (empty? (writes r "comment"))))))
 
+(def native-kimi-705
+  (let [raw (js/JSON.parse (fs/readFileSync (path/join here "fixtures/native-proxx-kimi-705.json") "utf8"))]
+    (assoc (js->clj raw :keywordize-keys true) :apiResponses
+           (into {} (for [endpoint (js/Object.keys (.-apiResponses raw))]
+                      [endpoint (js->clj (aget (.-apiResponses raw) endpoint) :keywordize-keys true)])))))
+(defn kimi-705-config []
+  ;; Use the actual shipped flow, never the proposed profile in the capture.
+  (-> base (assoc :head (get-in native-kimi-705 [:review :commit_id])
+                  :reviews [(:review native-kimi-705)] :apiResponses (:apiResponses native-kimi-705)
+                  :flow-data the-flow)))
+
+(deftest native-705-production-cli-source-artifact-and-verdict-binding
+  (let [r (execute (kimi-705-config) "status" "open-hax/proxx" "452")]
+    (is (= 0 (:exit r)) (:err r))
+    (is (str/includes? (:out r) "observed commit binding: {\"kimi\""))
+    (is (not (str/includes? (:out r) "Kimi publication proof:")))
+    (is (str/includes? (:out r) "exact-head approvals: #{}"))
+    (is (some #(= ["api" "repos/open-hax/proxx/pulls/452/reviews/5410087807"]
+                  (vec (take 2 (:args %)))) (:calls r)))
+    (is (some #(str/includes? (str (:args %)) "/artifacts/11325898191/zip") (:calls r)))
+    (is (empty? (mutations r))))
+  (let [config (update-in (kimi-705-config) [:flow-data :flow/defaults :review/kimi-publication :workflow-digests]
+                          disj "974215a7113347a78bd2e0af48925838cc0d58e54e0acbe3ed7a0aaf5a183736")
+        r (execute config "status" "open-hax/proxx" "452")]
+    (is (str/includes? (:out r) "Kimi publication proof: mismatch"))
+    (is (not (str/includes? (:out r) "observed commit binding: {\"kimi\"")))
+    (is (str/includes? (:out r) "exact-head approvals: #{}"))
+    (is (empty? (mutations r))))
+  (doseq [[endpoint at value]
+          [["repos/open-hax/proxx/pulls/452/reviews/5410087807" [:user :node_id] "BOT_other"]
+           ["repos/open-hax/proxx/pulls/452/reviews/5410087807" [:body] "No issues found."]
+           ["repos/open-hax/proxx/actions/runs/37264607437/attempts/1/jobs?per_page=100" [:jobs 1 :conclusion] "failure"]
+           ["repos/open-hax/proxx/actions/runs/37264607437/artifacts?per_page=100" [:artifacts 0 :expired] true]
+           ["repos/open-hax/proxx/actions/runs/37264607437/artifacts?per_page=100" [:artifacts 0 :digest]
+            (str "sha256:" (apply str (repeat 64 "0")))]]]
+    (let [r (execute (assoc-in (kimi-705-config) (into [:apiResponses endpoint] at) value)
+                     "status" "open-hax/proxx" "452")]
+      (is (not (str/includes? (:out r) "observed commit binding: {\"kimi\"")))
+      (is (str/includes? (:out r) "Kimi publication proof:"))
+      (is (str/includes? (:out r) "exact-head approvals: #{}"))
+      (is (empty? (mutations r)))))
+  (let [r (execute (kimi-705-config) "status" "open-hax/uxx" "14")]
+    (is (not (str/includes? (:out r) "observed commit binding: {\"kimi\"")))
+    (is (not-any? #(str/includes? (str (:args %)) "/actions/runs/") (:calls r)))
+    (is (empty? (mutations r)))))
+
 (defmethod cljs.test/report [:cljs.test/default :end-run-tests] [m]
   (when-not (cljs.test/successful? m) (set! (.-exitCode js/process) 1)))
 (run-tests)

@@ -4,6 +4,8 @@
             [nbb.core :refer [*file*]]
             [cljs.test :refer [deftest is run-tests]]
             [clojure.string :as str]
+            [clojure.edn :as edn]
+            [pr-flow.kimi-publication :as publication]
             [pr-flow.law :as law]))
 
 (def head (apply str (repeat 40 "a")))
@@ -1164,6 +1166,63 @@
     (is (= :rate-limited (:status (law/request-verdict
                                    (assoc input :comments
                                           [(assoc available :body (str "Review rate limited.\n" (:body available)))])))))))
+
+(def native-kimi-705
+  (js->clj (js/JSON.parse (fs/readFileSync
+                          (path/join (path/dirname *file*) "fixtures/native-proxx-kimi-705.json") "utf8"))
+           :keywordize-keys true))
+(def production-flow-705
+  (edn/read-string (fs/readFileSync (path/join (path/dirname *file*) ".." "flow.edn") "utf8")))
+(def production-profile-705 (get-in production-flow-705 [:flow/defaults :review/kimi-publication]))
+(def production-identities-705
+  (merge law/default-reviewer-identities (get-in production-flow-705 [:flow/defaults :review/identities])))
+(def publication-705
+  (assoc (:review native-kimi-705) :kimi-publication
+         (assoc (:proof native-kimi-705) :profile production-profile-705)))
+
+(deftest native-705-production-source-admission-preserves-nonapproval
+  ;; Actual native source/ZIP/body facts, with the shipped profile rather than
+  ;; the proposed profile embedded in the capture. No verdict is rewritten.
+  (let [sha (:commit_id publication-705)
+        evidence (law/review-evidence sha [publication-705] [] production-identities-705 [])]
+    (is (publication/admitted? publication-705))
+    (is (law/full-review? publication-705 production-identities-705))
+    (is (= #{sha} (get-in evidence [:reviewed-heads "kimi"])))
+    (is (publication/finding-free? publication-705))
+    (is (empty? (:approved-heads evidence)))
+    (is (empty? (:approval-evidence evidence)))
+    (is (empty? (get-in production-flow-705 [:flow/defaults :review/identities "kimi"])))
+    (is (= 15 (count (get-in publication-705 [:kimi-publication :submission :coveredFiles]))))))
+
+(deftest native-705-admission-is-one-source-extension
+  (let [digest "974215a7113347a78bd2e0af48925838cc0d58e54e0acbe3ed7a0aaf5a183736"
+        old-digests #{"15e129cb2fe1a21f8c22e69c6705cc302bdb50b175141ba0db9e6a76b7b5ec25"
+                      "74c281f49af87a975fa78aa783343ca2d097940a44218849629c993abee7a1cb"
+                      "90117459b8c0a6883b27df816127fdd3bcb4799e5e25e52f356d04ac134f68bb"}]
+    (is (= (conj old-digests digest) (:workflow-digests production-profile-705)))
+    (is (not (publication/admitted?
+              (assoc-in publication-705 [:kimi-publication :profile :workflow-digests] old-digests))))))
+
+(deftest native-705-existing-authority-and-transport-boundaries-still-refuse
+  ;; Adverse derivatives of the genuine capture are fixtures, not native facts.
+  (doseq [[at value] [[[:user :id] 1] [[:user :node_id] "BOT_other"]
+                      [[:user :login] "github-actions[bot]"] [[:user :type] "User"]
+                      [[:kimi-publication :context :repository] "open-hax/uxx"]
+                      [[:kimi-publication :context :head] head]
+                      [[:kimi-publication :run :run_attempt] 0]
+                      [[:kimi-publication :publisher-job :conclusion] "failure"]
+                      [[:kimi-publication :provenance :runtimeSha] head]
+                      [[:kimi-publication :source-digests :workflow] (apply str (repeat 64 "0"))]
+                      [[:kimi-publication :source-digests :auth] (apply str (repeat 64 "0"))]
+                      [[:kimi-publication :provenance :executionControl :observedAssistantVariant] "high"]
+                      [[:kimi-publication :artifact :expired] true]
+                      [[:kimi-publication :archive-sha256] (apply str (repeat 64 "0"))]
+                      [[:kimi-publication :submission :coveredFiles] []]
+                      [[:kimi-publication :readback :body] "No issues found."]]]
+    (let [r (assoc-in publication-705 at value)]
+      (is (nil? (law/trusted-reviewer r production-identities-705)) (pr-str at))
+      (is (not (law/full-review? r production-identities-705)) (pr-str at))
+      (is (empty? (:approved-heads (law/review-evidence (:commit_id r) [r] [] production-identities-705 [])))))))
 
 (defmethod cljs.test/report [:cljs.test/default :end-run-tests] [m]
   (when-not (cljs.test/successful? m) (set! (.-exitCode js/process) 1)))
