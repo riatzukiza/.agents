@@ -1535,6 +1535,59 @@
         (is (= 2 (:exit blocked)))
         (is (empty? (mutations blocked)))))))
 
+(deftest observation-repository-case-round-trip-retains-revocation
+  (doseq [s informational/captures]
+    (let [repo (get-in s [:repository :nameWithOwner])
+          varied (str/upper-case repo)
+          n (str (get-in s [:pr :number]))
+          accepted (first (:observations (actionability/disposition
+                                          (informational/evidence (informational/input s)))))
+          seed {:ts "2026-10-03T14:04:00Z" :kind :observation :repo repo
+                :origin "existing-receipt" :owner "fixture" :dod "case round trip"
+                :pi "fixture" :host "isolated-fixture" :manifest [] :refs []}
+          prefix (str (pr-str seed) "\n")
+          qualified (execute (assoc (informational-config s) :receipt-text prefix)
+                             "status" varied n)
+          qualified-record (last (observation-receipts qualified))]
+      (is (= 0 (:exit qualified)) (:err qualified))
+      (is (str/includes? (:out qualified) "informational 1"))
+      (is (str/starts-with? (:receipts qualified) prefix))
+      (is (= (str/lower-case repo) (:repo qualified-record)))
+      (is (= :qualified (get-in qualified-record [:decisions 0 :status])))
+      (is (empty? (mutations qualified)))
+      ;; Both existing mixed-case records and varied CLI spellings must keep
+      ;; the same native repository's stored revocation terminal.
+      (doseq [[stored operator] [[repo varied] [varied repo] [varied varied]]]
+        (let [record (assoc seed :repo stored :origin "pr-flow-actionability-observation"
+                           :decisions [accepted (assoc accepted :status :revoked :reason :withdrawn)])
+              text (str (pr-str record) "\n")
+              blocked (execute (assoc (informational-config s) :receipt-text text)
+                               "gate" operator n "--apply")]
+          (is (= 2 (:exit blocked)) (:err blocked))
+          (is (str/includes? (:out blocked) "informational 0") (:out blocked))
+          (is (not (str/includes? (:out blocked) "history: UNAVAILABLE")))
+          (is (= text (:receipts blocked)))
+          (is (empty? (writes blocked "merge")))
+          (is (empty? (mutations blocked)))))
+      ;; The writer uses the same normalized key when a real native-state
+      ;; change revokes a previously admitted observation.
+      (let [revoked (execute (assoc (informational-config s) :receipt-text (:receipts qualified)
+                                   :threadPageResponses
+                                   [(informational-response (assoc-in s [:thread :isResolved] false))])
+                            "status" varied n)
+            revoked-record (last (observation-receipts revoked))
+            round-trip (execute (assoc (informational-config s) :receipt-text (:receipts revoked))
+                                "gate" repo n "--apply")]
+        (is (= 0 (:exit revoked)) (:err revoked))
+        (is (str/starts-with? (:receipts revoked) (:receipts qualified)))
+        (is (= (str/lower-case repo) (:repo revoked-record)))
+        (is (= :revoked (get-in revoked-record [:decisions 0 :status])))
+        (is (= 2 (:exit round-trip)) (:err round-trip))
+        (is (str/includes? (:out round-trip) "informational 0"))
+        (is (= (:receipts revoked) (:receipts round-trip)))
+        (is (empty? (writes round-trip "merge")))
+        (is (empty? (mutations round-trip)))))))
+
 (defmethod cljs.test/report [:cljs.test/default :end-run-tests] [m]
   (when-not (cljs.test/successful? m) (set! (.-exitCode js/process) 1)))
 (run-tests)

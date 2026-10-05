@@ -116,7 +116,10 @@ When actual scoped evidence exists, these normally observational CLI commands
 also append admission/revocation observations to the canonical skill repository's
 existing `.ημ/receipts.edn`, using Receipt River's unversioned compatibility
 record format. Each new observation includes the repository name supplied to
-the CLI alongside its native IDs and complete decisions vector. The reader
+the CLI in lowercase alongside its native IDs and complete decisions vector.
+The reader compares explicit repository names case-insensitively after
+validating the complete history; records without a repository remain readable.
+The reader
 continues to preserve and read existing records without rewriting them. This is **local
 receipt I/O**, not GitHub mutation or a second ledger authority. The ledger is
 needed to remember observed source revocation across executions; it is not

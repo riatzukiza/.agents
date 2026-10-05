@@ -118,7 +118,8 @@
                            (when-not (and (vector? (:decisions receipt))
                                           (every? #(and (map? %) (= :thread-actionability (:purpose %))) (:decisions receipt)))
                              (throw (ex-info "Invalid actionability observation record" {})))
-                           (when (or (nil? (:repo receipt)) (= repo (:repo receipt)))
+                           (when (or (nil? (:repo receipt))
+                                     (= (str/lower-case repo) (str/lower-case (:repo receipt))))
                              (:decisions receipt)))))
                      (remove str/blank? (str/split-lines (fs/readFileSync file "utf8")))))))
     (catch :default _ nil)))
@@ -129,7 +130,7 @@
         (throw (ex-info "Canonical actionability receipt ledger unavailable; no disposition admitted" {:path file})))
       (doseq [o observations]
         (fs/appendFileSync file
-          (str (pr-str {:ts (.toISOString (js/Date.)) :kind :observation :repo repo
+          (str (pr-str {:ts (.toISOString (js/Date.)) :kind :observation :repo (str/lower-case repo)
                         :origin "pr-flow-actionability-observation" :owner "pr-flow-cli"
                         :dod "Preserve native actionability admission/revocation append-only"
                         :pi "pr-flow/actionability" :host "local-cli-native-github"

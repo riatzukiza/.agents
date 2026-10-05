@@ -382,3 +382,10 @@
 - A repository field on the producer also needs a reader boundary. Apply the explicit repository filter after whole-record parsing and validation; preserve missing-repo legacy observations and local revocations. Synthetic reused IDs exercise isolation without claiming a native collision.
 - Shipped fake-GH tests, full prefix checks and before/after production execution distinguish adapter correctness from model judgment or native settlement. The parent retained the previous exact-head review proof before preparing a successor.
 - p-efficiency=0.86; p-friction=0.24; p-skill-candidate=0.46. Initial focused output/exit assertions were owned harness mistakes, retained and corrected. No spore or promotion.
+
+
+## 2026-10-05T14:26:07.432Z — Repository spelling must preserve revocation
+
+- A repository-name scope must follow the native identity boundary: GitHub resolves case variants to the same repository. Normalize new writer keys and compare old keys without case sensitivity after validating every record. Legacy absent-repo records and whole immutable prefixes remain intact.
+- The same66assertions exposed28actual old-source failures, including fake-GH requalification/merge after lost revocation; the minimum two-site correction passes. Local206/4271 and native exact-head reviews are distinct evidence. No predecessor approval transfers to the successor.
+- p-efficiency=0.85; p-friction=0.20; p-skill-candidate=0.48. A tracked symlink revealed an audit-reader mistake; comparing link bytes corrected the audit without touching sources or Git state. No new spore or promotion.
