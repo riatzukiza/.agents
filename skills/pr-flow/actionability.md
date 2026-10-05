@@ -117,8 +117,11 @@ also append admission/revocation observations to the canonical skill repository'
 existing `.ημ/receipts.edn`, using Receipt River's unversioned compatibility
 record format. Each new observation includes the repository name supplied to
 the CLI in lowercase alongside its native IDs and complete decisions vector.
-The reader compares explicit repository names case-insensitively after
-validating the complete history; records without a repository remain readable.
+The reader selects decisions by the authoritative native repository ID after
+validating the complete history. Display names are provenance, so rename or
+owner transfer cannot discard retained revocation. Repository-less legacy
+records remain readable when their decisions carry that native ID. Missing,
+invalid or conflicting decision repository IDs make history unavailable.
 The reader
 continues to preserve and read existing records without rewriting them. This is **local
 receipt I/O**, not GitHub mutation or a second ledger authority. The ledger is

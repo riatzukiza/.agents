@@ -103,10 +103,12 @@
     {:native-context context :context-manifest manifest :context-digest (sha256 (pr-str manifest))}))
 
 (defn- actionability-ledger [] (path/resolve here ".." ".." ".." ".ημ" "receipts.edn"))
-(defn- actionability-observations [repo]
+(defn- actionability-observations [repo-id]
   ;; nil is unavailable, distinct from an existing valid empty ledger ([]).
   ;; Read every complete record before using any history; never skip bad lines.
   (try
+    (when-not (and (string? repo-id) (not (str/blank? repo-id)))
+      (throw (ex-info "Native repository identity unavailable" {})))
     (let [file (actionability-ledger)]
       (when (fs/existsSync file)
         (vec (mapcat (fn [line]
@@ -115,12 +117,14 @@
                          (when-not (and (= 1 (count forms)) (map? receipt))
                            (throw (ex-info "Invalid receipt record" {})))
                          (when (= "pr-flow-actionability-observation" (:origin receipt))
-                           (when-not (and (vector? (:decisions receipt))
-                                          (every? #(and (map? %) (= :thread-actionability (:purpose %))) (:decisions receipt)))
+                           (when-not (and (or (nil? (:repo receipt)) (string? (:repo receipt)))
+                                          (vector? (:decisions receipt))
+                                          (every? #(and (map? %) (= :thread-actionability (:purpose %))
+                                                        (string? (:repo-id %)) (not (str/blank? (:repo-id %))))
+                                                  (:decisions receipt))
+                                          (<= (count (set (map :repo-id (:decisions receipt)))) 1))
                              (throw (ex-info "Invalid actionability observation record" {})))
-                           (when (or (nil? (:repo receipt))
-                                     (= (str/lower-case repo) (str/lower-case (:repo receipt))))
-                             (:decisions receipt)))))
+                           (filterv #(= repo-id (:repo-id %)) (:decisions receipt)))))
                      (remove str/blank? (str/split-lines (fs/readFileSync file "utf8")))))))
     (catch :default _ nil)))
 (defn- append-actionability-observations! [repo observations]
@@ -183,7 +187,6 @@
         issue-comments (mapv #(cond-> (assoc (hash-body %) :source-channel :github-issue-comment)
                                (= "User" (get-in % [:user :type]))
                                (assoc :authorized? (boolean (authorized? (get-in % [:user :login]))))) issue-comments)
-        history (actionability-observations repo)
         policy (get-in (load-flow) [:flow/defaults :review/actionability])]
     (loop [after nil acc [] draft? nil]
       (let [pr (threads-page owner name n after)
@@ -191,7 +194,8 @@
             acc (into acc (:nodes conn))]
         (if (get-in conn [:pageInfo :hasNextPage])
           (recur (get-in conn [:pageInfo :endCursor]) acc (:isDraft pr))
-          (let [threads (mapv (fn [t]
+          (let [history (actionability-observations (get-in pr [:native-repository :id]))
+                threads (mapv (fn [t]
                                (law/classify-thread
                                 (merge (hydrate-actionability-context (:native-repository pr) pr t)
                                  {:id (:id t) :resolved? (:isResolved t) :outdated? (:isOutdated t)

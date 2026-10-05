@@ -389,3 +389,10 @@
 - A repository-name scope must follow the native identity boundary: GitHub resolves case variants to the same repository. Normalize new writer keys and compare old keys without case sensitivity after validating every record. Legacy absent-repo records and whole immutable prefixes remain intact.
 - The same66assertions exposed28actual old-source failures, including fake-GH requalification/merge after lost revocation; the minimum two-site correction passes. Local206/4271 and native exact-head reviews are distinct evidence. No predecessor approval transfers to the successor.
 - p-efficiency=0.85; p-friction=0.20; p-skill-candidate=0.48. A tracked symlink revealed an audit-reader mistake; comparing link bytes corrected the audit without touching sources or Git state. No new spore or promotion.
+
+
+## 2026-10-05T23:11:04.347Z — Stable repository identity preserves durable revocation
+
+- Select existing decision repository IDs after obtaining authoritative native identity and validating complete history. Keep display names as writer provenance and the native context digest as a separate guard. Synthetic healthy-context tests demonstrate scope behavior without claiming an actual revoked production merge.
+- Identical shipped280 assertions: old25RED/candidateGREEN; complete207/4551 allzero. Initial derived fixture expectations wrongly forbade normal revocation appends; corrected only those assertions, preserving the initial diagnostic and exact seed prefixes. Local verification never transfers old native review credit.
+- p-efficiency=0.83; p-friction=0.22; p-skill-candidate=0.46. Preserve unchanged audits and distinguish fixture adapters from production semantics. No spore or promotion.
