@@ -1336,6 +1336,72 @@
       (is (empty? (mutations r)))
       (is (empty? (writes r "merge"))))))
 
+(def native-coderabbit-quota-info
+  (:comments (js->clj (js/JSON.parse (fs/readFileSync
+                                      (path/join here "fixtures/native-coderabbit-quota-info.json") "utf8"))
+                      :keywordize-keys true)))
+
+(deftest actual-request-caller-recognizes-native-quota-information
+  (let [{:keys [unknown wait available]} native-coderabbit-quota-info
+        request {:id 9001 :user {:login "riatzukiza" :type "User"}
+                 :created_at (.toISOString (js/Date.))
+                 :body (str "@coderabbitai full review <!-- pr-flow-stage:code --> <!-- pr-flow-review:"
+                            head " --> <!-- pr-flow-reviewer:coderabbit -->")}
+        later-unknown (assoc unknown :updated_at (.toISOString (js/Date.)))
+        later-wait (assoc wait :updated_at (.toISOString (js/Date.)))
+        malformed (assoc later-wait :body (str/replace (:body wait) "52 minutes" "unknown minutes"))]
+    ;; Only timestamps of synthetic later-boundary variants change; the two
+    ;; positive cases replay exact native bodies, identities and timestamps.
+    (doseq [comments [[unknown wait] [unknown available]]]
+      (let [r (execute (assoc base :comments comments)
+                       "request" "riatzukiza/.agents" "8" "code")
+            posted (first (writes r "comment"))]
+        (is (= 0 (:exit r)) (:err r))
+        (is (= 1 (count (writes r "comment"))))
+        (is (str/starts-with? (:input posted "") "@coderabbitai full review"))
+        (is (str/includes? (:input posted "") (str "pr-flow-review:" head " -->")))
+        (is (str/includes? (:input posted "") "pr-flow-reviewer:coderabbit -->"))
+        (is (str/includes? (:input posted "") "pr-flow-round:6 -->"))
+        (is (empty? (mutations r)))
+        (is (empty? (writes r "merge")))))
+    (doseq [[comments expected] [[[unknown] "rate-limited"]
+                                 [[unknown later-wait] "cooldown"]
+                                 [[available later-unknown] "rate-limited"]
+                                 [[available malformed] "rate-limited"]
+                                 [[unknown available request] "pending"]
+                                 [[unknown (assoc-in available [:user :type] "User")] "rate-limited"]
+                                 [[unknown (update available :body #(str "```text\n" % "\n```"))] "rate-limited"]]]
+      (let [r (execute (assoc base :comments comments)
+                       "request" "riatzukiza/.agents" "8" "code")]
+        (is (str/includes? (:out r) (str "No request sent: " expected)))
+        (is (empty? (writes r "comment")))
+        (is (empty? (mutations r)))
+        (is (empty? (writes r "merge")))))
+    (let [pending (execute (assoc base :comments [unknown available]
+                                 :checks [{:name "CodeRabbit" :state "PENDING"}])
+                           "request" "riatzukiza/.agents" "8" "code")
+          changed (execute (assoc base :comments [unknown available] :heads [head head head other])
+                           "request" "riatzukiza/.agents" "8" "code")
+          public-marker (execute (assoc base :comments [unknown available request] :authorized false)
+                                 "request" "riatzukiza/.agents" "8" "code")]
+      (is (str/includes? (:out pending) "No request sent: pending"))
+      (is (empty? (writes pending "comment")))
+      (is (= 1 (:exit changed)))
+      (is (str/includes? (:err changed) "PR head changed before review request"))
+      (is (empty? (writes changed "comment")))
+      (is (= 0 (:exit public-marker)) (:err public-marker))
+      (is (= 1 (count (writes public-marker "comment"))))
+      (is (some #(str/includes? (second (:args %)) "/collaborators/riatzukiza/permission")
+                (:calls public-marker))))
+    (let [codex-quota {:id 9002 :user {:login "chatgpt-codex-connector[bot]" :type "Bot"}
+                       :created_at (.toISOString (js/Date.))
+                       :body "You have reached your Codex usage limits for code reviews."}
+          r (execute (assoc base :comments [codex-quota available])
+                     "request" "riatzukiza/.agents" "8" "code" "--reviewer" "codex")]
+      (is (= 1 (:exit r)))
+      (is (str/includes? (:out r) "No request sent: rate-limited"))
+      (is (empty? (writes r "comment"))))))
+
 (defmethod cljs.test/report [:cljs.test/default :end-run-tests] [m]
   (when-not (cljs.test/successful? m) (set! (.-exitCode js/process) 1)))
 (run-tests)

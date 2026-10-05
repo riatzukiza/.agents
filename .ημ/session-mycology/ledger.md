@@ -344,3 +344,13 @@
   spore: none
   receipt-refs: 23bbab3c-c1ed-4530-8667-133473372377
   note: A signed full publication and positive phrase still need a contradictory-verdict guard. Reproduce the exact synthetic statement before broadening that narrow guard; retain prior source/test evidence and rerun only affected checks. No native verdict is invented or transferred.
+
+- ts: 2026-10-05T01:42:57.474Z
+  session: /home/err/spaces/review-repair/agents-coderabbit-quota-info
+  task: Canonical CodeRabbit native quota-information compatibility
+  p-efficiency: 0.75
+  p-friction: 0.30
+  p-skill-candidate: 0.20
+  spore: none
+  receipt-refs: 96c69b9d-f6ec-40c6-87c4-ab345dcbe6af; d8cdb454-6bf4-4f9d-a91f-e1fb69b7d5e0
+  note: Bind provider information to exact native body and identity before repairing the two pure parsing helpers. A fresh zero-delay observation supersedes an older unknown notice only through existing trusted chronology; it creates no review or approval credit. Test the actual request caller and adversarial provider, fence, duration, ordering, pending and native-head paths. Preserve setup mistakes separately from semantic RED and replay final caller bytes after fixture correction. All required local suites pass; native effects and qualified source adoption remain parent-owned after real protected review/CI/merge. Preserve every inherited receipt/reflection byte; no spore or global installation.
