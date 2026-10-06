@@ -396,3 +396,10 @@
 - Select existing decision repository IDs after obtaining authoritative native identity and validating complete history. Keep display names as writer provenance and the native context digest as a separate guard. Synthetic healthy-context tests demonstrate scope behavior without claiming an actual revoked production merge.
 - Identical shipped280 assertions: old25RED/candidateGREEN; complete207/4551 allzero. Initial derived fixture expectations wrongly forbade normal revocation appends; corrected only those assertions, preserving the initial diagnostic and exact seed prefixes. Local verification never transfers old native review credit.
 - p-efficiency=0.83; p-friction=0.22; p-skill-candidate=0.46. Preserve unchanged audits and distinguish fixture adapters from production semantics. No spore or promotion.
+
+
+## 2026-10-06T00:57:26.574Z — Native cooldown format without a request exception
+
+- Match the whole authenticated provider notice, then use the existing duration parser. Preserve malformed or unknown information as unavailable and retain writer/head/pending guards.
+- Integrate from actual protected merged MAIN before reviewing a separate source repair. Same final tests reproduce policy22 andCLI10 genuine old failures; combined211/4668 passes. Preserve every original test and history byte.
+- p-efficiency=0.92; p-friction=0.12; p-skill-candidate=0.31. No spore or promotion. Native successor qualification and actual protected merge remain required.

@@ -1704,4 +1704,94 @@
 
 (defmethod cljs.test/report [:cljs.test/default :end-run-tests] [m]
   (when-not (cljs.test/successful? m) (set! (.-exitCode js/process) 1)))
+
+(def native-coderabbit-next-review-info
+  (:comments (js->clj (js/JSON.parse (fs/readFileSync
+                                      (path/join here "fixtures/native-coderabbit-next-review-info.json") "utf8"))
+                      :keywordize-keys true)))
+
+(defn execute-at [instant config & args]
+  ;; Substitute only the child process clock. Real pr.cljs, law, native REST
+  ;; data, writer lookup and final head recheck run through the existing fake gh.
+  (let [tmp (fs/mkdtempSync (path/join (os/tmpdir) "pr-flow-clock-"))
+        clock (path/join tmp "clock.cjs")
+        previous (aget js/process.env "NODE_OPTIONS")]
+    (try
+      (fs/writeFileSync clock (str "Date.now = () => " (js/Date.parse instant) ";\n"))
+      (aset js/process.env "NODE_OPTIONS" (str (when previous (str previous " ")) "--require=" clock))
+      (apply execute config args)
+      (finally
+        (if (nil? previous) (js-delete js/process.env "NODE_OPTIONS")
+            (aset js/process.env "NODE_OPTIONS" previous))
+        (fs/rmSync tmp #js {:recursive true :force true})))))
+
+(deftest actual-request-caller-observes-native-next-review-reset-and-zero-post-guards
+  (let [{:keys [inquiry wait]} native-coderabbit-next-review-info
+        {:keys [unknown available]} native-coderabbit-quota-info
+        before "2026-10-05T12:31:00Z" after "2026-10-05T12:54:40Z"
+        request {:id 9003 :user (:user inquiry) :created_at "2026-10-05T12:54:40Z"
+                 :body (str "@coderabbitai full review <!-- pr-flow-stage:code --> <!-- pr-flow-review:"
+                            head " --> <!-- pr-flow-reviewer:coderabbit --> <!-- pr-flow-round:6 -->")}
+        later-unknown (assoc unknown :updated_at "2026-10-05T12:54:40Z")
+        malformed (assoc wait :updated_at "2026-10-05T12:54:40Z"
+                         :body (str/replace (:body wait) "30 minutes." "unknown minutes"))]
+    (doseq [comments [[inquiry wait] [unknown wait] [available wait]]]
+      (let [r (execute-at before (assoc base :comments comments)
+                          "request" "riatzukiza/.agents" "17" "code")]
+        (is (= 0 (:exit r)) (:err r))
+        (is (str/includes? (:out r) "No request sent: cooldown; retry after 2026-10-05T12:54:40.000Z"))
+        (is (empty? (writes r "comment")))
+        (is (empty? (mutations r)))
+        (is (empty? (writes r "merge")))))
+    (doseq [[comments expected] [[[wait later-unknown] "rate-limited"]
+                                 [[available malformed] "rate-limited"]
+                                 [[wait request] "pending"]]]
+      (let [r (execute-at after (assoc base :comments comments)
+                          "request" "riatzukiza/.agents" "17" "code")]
+        (is (str/includes? (:out r) (str "No request sent: " expected)))
+        (is (= (if (= expected "rate-limited") 1 0) (:exit r)))
+        (when (= expected "rate-limited")
+          (is (str/includes? (:err r) "operator attention; no retry scheduled")))
+        (is (empty? (writes r "comment")))
+        (is (empty? (mutations r)))
+        (is (empty? (writes r "merge")))))
+    (let [pending (execute-at after (assoc base :comments [inquiry wait]
+                                          :checks [{:name "CodeRabbit" :state "PENDING"}])
+                              "request" "riatzukiza/.agents" "17" "code")
+          changed (execute-at after (assoc base :comments [inquiry wait] :heads [head head head other])
+                              "request" "riatzukiza/.agents" "17" "code")]
+      (is (str/includes? (:out pending) "No request sent: pending"))
+      (is (empty? (writes pending "comment")))
+      (is (= 1 (:exit changed)))
+      (is (str/includes? (:err changed) "PR head changed before review request"))
+      (is (empty? (writes changed "comment"))))
+    (let [allowed (execute-at after (assoc base :comments [inquiry wait] :authorized true)
+                              "request" "riatzukiza/.agents" "17" "code")
+          posted (first (writes allowed "comment"))]
+      (is (= 0 (:exit allowed)) (:err allowed))
+      (is (= 1 (count (writes allowed "comment"))))
+      (is (str/starts-with? (:input posted "") "@coderabbitai full review"))
+      (is (str/includes? (:input posted "") (str "pr-flow-review:" head " -->")))
+      (is (str/includes? (:input posted "") "pr-flow-reviewer:coderabbit -->"))
+      (is (str/includes? (:input posted "") "pr-flow-stage:code -->"))
+      (is (str/includes? (:input posted "") "pr-flow-round:6 -->"))
+      (is (empty? (mutations allowed)))
+      (is (empty? (writes allowed "merge"))))
+    ;; Public exact-head markers cannot create a trusted pending request. The
+    ;; actual caller still consults the native writer lookup and current head.
+    (let [public (execute-at after (assoc base :comments [inquiry wait request] :authorized false)
+                             "request" "riatzukiza/.agents" "17" "code")]
+      (is (= 0 (:exit public)) (:err public))
+      (is (= 1 (count (writes public "comment"))))
+      (is (some #(str/includes? (second (:args %)) "/collaborators/riatzukiza/permission")
+                (:calls public))))
+    (let [codex-quota (assoc unknown :user {:login "chatgpt-codex-connector[bot]" :type "Bot"}
+                                    :created_at "2026-10-05T12:24:40Z" :updated_at "2026-10-05T12:24:40Z"
+                                    :body "You have reached your Codex usage limits for code reviews.")
+          r (execute-at after (assoc base :comments [codex-quota wait])
+                        "request" "riatzukiza/.agents" "17" "code" "--reviewer" "codex")]
+      (is (= 1 (:exit r)))
+      (is (str/includes? (:out r) "No request sent: rate-limited"))
+      (is (empty? (writes r "comment"))))))
+
 (run-tests)
