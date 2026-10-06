@@ -426,3 +426,12 @@
   spore: none
   receipt-refs: riatzukiza/.agents#19,riatzukiza/.agents#20
   note: Use real disposable linked-worktree fixtures with pre-call sentinel byte snapshots to separate source-routing defects from scalar schema defects; preserve actual misplaced bytes and respect planning readiness before helper implementation.
+
+- ts: 2026-10-06T13:56:48.737594Z
+  session: foresight-parallel-goal
+  task: Canonical helper planning fixture review settlement
+  p-efficiency: 0.9
+  p-friction: 0.2
+  p-skill-candidate: 0.3
+  receipt-refs: 2026-10-06T13:56:48.737594Z
+  note: Test subprocess environment isolation by intercepting the effect before exercising actual disposable Git fixtures. Caller Git overrides must not reach Git or helper children. No spore warranted.

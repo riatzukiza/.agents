@@ -1,12 +1,16 @@
 from pathlib import Path
-import json, subprocess, tempfile, shutil, hashlib
+import json, subprocess, tempfile, shutil, hashlib, os
 
 source = Path(__file__).resolve().parents[3]
 fixture = Path(tempfile.mkdtemp(prefix='receipt-helper-isolation-fixture-'))
 results = []
 
 def run(args, cwd):
-    return subprocess.run(args, cwd=cwd, text=True, capture_output=True)
+    # Git overrides may select or configure repositories outside this fixture.
+    environment = {key: value for key, value in os.environ.items()
+                   if not key.startswith("GIT_")}
+    return subprocess.run(args, cwd=cwd, env=environment,
+                          text=True, capture_output=True)
 
 def check(name, condition, **evidence):
     results.append({'case': name, 'passed': bool(condition), **evidence})
