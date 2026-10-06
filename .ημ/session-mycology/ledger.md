@@ -403,3 +403,10 @@
 - Match the whole authenticated provider notice, then use the existing duration parser. Preserve malformed or unknown information as unavailable and retain writer/head/pending guards.
 - Integrate from actual protected merged MAIN before reviewing a separate source repair. Same final tests reproduce policy22 andCLI10 genuine old failures; combined211/4668 passes. Preserve every original test and history byte.
 - p-efficiency=0.92; p-friction=0.12; p-skill-candidate=0.31. No spore or promotion. Native successor qualification and actual protected merge remain required.
+
+
+## 2026-10-06T02:30:31.763Z — Preserve the first retry cue and its duration boundary
+
+- Bound the existing captured duration before unrelated allowance prose; retain compound waits and malformed-first-cue refusal. Identical final old policy13 plus CLI1 genuine failures become complete213/4687 passing.
+- Correct the unsupported attribution of an extra archive guard to the user, preserve exact49/current34 requirements and every historical failed audit, and state unretained surfaces literally.
+- p-efficiency=0.88; p-friction=0.24; p-skill-candidate=0.43. No spore or promotion; fresh successor qualification remains required.

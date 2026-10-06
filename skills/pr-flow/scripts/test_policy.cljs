@@ -1324,4 +1324,25 @@
       (is (= :request (:status (law/request-verdict
                                 (assoc input :identities ambiguous :comments [wait]))))))))
 
+
+(deftest native-cooldown-duration-stops-before-unrelated-later-duration
+  (let [{:keys [wait]} native-coderabbit-next-review-info
+        reset (js/Date.parse "2026-10-05T12:54:40Z")]
+    (doseq [suffix [", with the allowance resetting in 60 minutes."
+                   "; the next billing window lasts 2 hours."
+                   " while the hourly allowance resets after 60 minutes."]]
+      (let [notice (assoc wait :body (str/replace (:body wait) "30 minutes." (str "30 minutes" suffix)))
+            input (quota-info-input [notice] "2026-10-05T12:54:40Z")]
+        (is (= 1800000 (law/cooldown-ms (:body notice))))
+        (is (= {:status :cooldown :retry-at-ms reset}
+               (law/request-verdict (assoc input :now-ms (dec reset)))))
+        (is (= :request (:status (law/request-verdict input))))))
+    (doseq [[duration expected] [["53 minutes and 12 seconds" 3192000]
+                                 ["1 hour, 2 minutes and 3 seconds" 3723000]
+                                 ["1 hour 2 minutes 3 seconds" 3723000]
+                                 ["0 seconds" 0]]]
+      (is (= expected (law/cooldown-ms (str "Retry in " duration ", while the allowance resets in 60 minutes.")))))
+    (is (nil? (law/cooldown-ms "Next review will be available in unknown minutes.")))
+    (is (nil? (law/cooldown-ms "Retry in 8 credits. Retry in 60 minutes.")))))
+
 (run-tests)

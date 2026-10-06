@@ -1794,4 +1794,17 @@
       (is (str/includes? (:out r) "No request sent: rate-limited"))
       (is (empty? (writes r "comment"))))))
 
+
+(deftest request-caller-does-not-add-an-unrelated-later-duration
+  (let [{:keys [inquiry wait]} native-coderabbit-next-review-info
+        notice (assoc wait :body (str/replace (:body wait) "30 minutes."
+                                            "30 minutes, with the allowance resetting in 60 minutes."))
+        result (execute-at "2026-10-05T12:54:40Z"
+                           (assoc base :comments [inquiry notice] :checks [])
+                           "request" "riatzukiza/.agents" "17" "code" "--reviewer" "coderabbit")]
+    (is (= 0 (:exit result)) (:err result))
+    (is (= 1 (count (writes result "comment"))))
+    (is (empty? (writes result "merge")))
+    (is (empty? (mutations result)))))
+
 (run-tests)
