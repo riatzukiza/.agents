@@ -417,3 +417,21 @@
 - Keep the original first retry cue, but refuse a supported prefix when another numeric duration remains. Preserve valid compound waits and unrelated later allowance prose. Same final old policy21 plus CLI12 genuine failures become complete215/4730 passing.
 - Keep exact first-stage chronology: current full approval and stage convergence are separate. The narrow Uxx21 review exception remains pending; no retroactive binding or source-policy waiver.
 - p-efficiency=0.82; p-friction=0.33; p-skill-candidate=0.48. No spore or promotion; fresh successor qualification remains required.
+- ts: 2026-10-06T13:45:57.947147+00:00
+  session: codex/receipt-helper-planning
+  task: Bound canonical receipt schema and worktree-root repair planning
+  p-efficiency: 0.85
+  p-friction: 0.35
+  p-skill-candidate: 0.4
+  spore: none
+  receipt-refs: riatzukiza/.agents#19,riatzukiza/.agents#20
+  note: Use real disposable linked-worktree fixtures with pre-call sentinel byte snapshots to separate source-routing defects from scalar schema defects; preserve actual misplaced bytes and respect planning readiness before helper implementation.
+
+- ts: 2026-10-06T13:56:48.737594Z
+  session: foresight-parallel-goal
+  task: Canonical helper planning fixture review settlement
+  p-efficiency: 0.9
+  p-friction: 0.2
+  p-skill-candidate: 0.3
+  receipt-refs: 2026-10-06T13:56:48.737594Z
+  note: Test subprocess environment isolation by intercepting the effect before exercising actual disposable Git fixtures. Caller Git overrides must not reach Git or helper children. No spore warranted.
