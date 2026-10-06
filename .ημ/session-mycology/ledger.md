@@ -437,3 +437,13 @@
   spore: none
   receipt-refs: agents23-native-id-wording-source-20261006T1900Z/new-source-receipt.edn
   note: Fix verified prose findings with the smallest source change and a new correction receipt. Preserve all historical bytes and keep source history distinct from the operational history that later acquired authentic revocation. Fresh successor native qualification is required. No spore or promotion.
+
+
+- ts: "2026-10-06T20:21:11.547Z"
+  origin: current-history adoption wording correction
+  p-efficiency: 0.83
+  p-friction: 0.29
+  p-skill-candidate: 0.51
+  spore: none
+  receipt-refs: agents23-current-history-wording-source-20261006T2020Z/new-source-receipt.edn
+  note: Use entire then-current authentic operational history and reflection in adoption guidance; preserve source-fork provenance separately. Fixed snapshot counts belong to historical proofs, never future adoption authority. Every old physical byte is preserved. No spore or promotion.

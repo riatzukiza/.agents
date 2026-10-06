@@ -27,7 +27,8 @@ foreign repositories and matching names with different IDs do not admit MiMo.
 The real full-review tuple supplies identity evidence, not a new scoped native
 assessment, independent execution proof or activation credit. This extension
 still needs fresh full native source qualification, protected source publication
-and explicit adoption with the entire authentic current 131-map history.
+and explicit adoption with the entire then-current authentic operational
+history and reflection; retain this source fork's provenance separately.
 Protocol withdrawals must match their source's exact admitted Bot tuple.
 Neither rejection identities nor approval
 identities automatically admit an actionability assessor. The default reviewer
