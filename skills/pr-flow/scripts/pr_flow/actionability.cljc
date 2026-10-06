@@ -86,6 +86,15 @@
   (and (= :github-issue-comment (:source-channel c)) (positive-id? (:id c)) (text? (:node_id c))
        (text? (:html_url c)) (time? (:created_at c)) (time? (:updated_at c))
        (= (:created_at c) (:updated_at c)) (sha? 64 (:body-sha256 c))))
+(defn assessor-policy
+  "Select separate actionability identities by exact native repository name/ID.
+   Existing global identities remain; no approval or rejection roster is read."
+  [policy repository]
+  (assoc policy :identities
+         (into (set (:identities policy))
+               (get (:repository-identities policy)
+                    [(:nameWithOwner repository) (:databaseId repository)]))))
+
 (defn assessor-identity? [c policy]
   (and (= 1 (:version policy)) (= :provisional (:status policy))
        (= "Bot" (get-in c [:user :type]))
@@ -129,7 +138,8 @@
   [{:keys [issue-comments actionability-policy actionability-observations actionability-source-withdrawals] :as t}]
   (if-not (vector? actionability-observations)
     {:kind :finding :status :unavailable :context-digest (:context-digest t) :observations []}
-  (let [records (keep protocol issue-comments)
+  (let [actionability-policy (assessor-policy actionability-policy (get-in t [:native-context :repository]))
+        records (keep protocol issue-comments)
         scoped (filter #(scoped? % t) records)
         proposals (sort-by #(get-in % [:source :updated_at])
                            (keep #(proposal-attempt % t) issue-comments))
@@ -147,6 +157,8 @@
                                   (some (fn [r]
                                           (and (= :withdrawal (:kind r))
                                                (assessor-identity? (:source r) actionability-policy)
+                                               (= (select-keys (get-in r [:source :user]) [:login :id :node_id])
+                                                  (select-keys (:user source) [:login :id :node_id]))
                                                (= (context-binding t) (vec (take 7 (:payload r))))
                                                (= 10 (count (:payload r)))
                                                (= [(:id source) (:body-sha256 source)] (subvec (:payload r) 7 9))

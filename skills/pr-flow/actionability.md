@@ -19,7 +19,17 @@ Unknown/missing metadata and partial pagination block admission. The current
 
 `:review/actionability` is a separate consumed candidate flow default. Only
 verified native OpenCode `opencode-agent[bot]`, user `219766164`, node
-`BOT_kgDODRldlA`, is admitted here. Neither rejection identities nor approval
+`BOT_kgDODRldlA`, is admitted globally here. A source-preparation extension in
+`:repository-identities` additionally admits native MiMo `eta-mu-ai[bot]`, user
+`270021952`, node `BOT_kgDOEBg1QA`, only for the exact native repository pair
+`["open-hax/proxx" 1178288746]`. Both fields must match; aliases, renames,
+foreign repositories and matching names with different IDs do not admit MiMo.
+The real full-review tuple supplies identity evidence, not a new scoped native
+assessment, independent execution proof or activation credit. This extension
+still needs fresh full native source qualification, protected source publication
+and explicit adoption with the entire authentic current 131-map history.
+Protocol withdrawals must match their source's exact admitted Bot tuple.
+Neither rejection identities nor approval
 identities automatically admit an actionability assessor. The default reviewer
 quorum, participants, minimum, mandatory overrides and invitations are unchanged.
 
