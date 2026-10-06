@@ -396,3 +396,24 @@
 - Select existing decision repository IDs after obtaining authoritative native identity and validating complete history. Keep display names as writer provenance and the native context digest as a separate guard. Synthetic healthy-context tests demonstrate scope behavior without claiming an actual revoked production merge.
 - Identical shipped280 assertions: old25RED/candidateGREEN; complete207/4551 allzero. Initial derived fixture expectations wrongly forbade normal revocation appends; corrected only those assertions, preserving the initial diagnostic and exact seed prefixes. Local verification never transfers old native review credit.
 - p-efficiency=0.83; p-friction=0.22; p-skill-candidate=0.46. Preserve unchanged audits and distinguish fixture adapters from production semantics. No spore or promotion.
+
+
+## 2026-10-06T00:57:26.574Z — Native cooldown format without a request exception
+
+- Match the whole authenticated provider notice, then use the existing duration parser. Preserve malformed or unknown information as unavailable and retain writer/head/pending guards.
+- Integrate from actual protected merged MAIN before reviewing a separate source repair. Same final tests reproduce policy22 andCLI10 genuine old failures; combined211/4668 passes. Preserve every original test and history byte.
+- p-efficiency=0.92; p-friction=0.12; p-skill-candidate=0.31. No spore or promotion. Native successor qualification and actual protected merge remain required.
+
+
+## 2026-10-06T02:30:31.763Z — Preserve the first retry cue and its duration boundary
+
+- Bound the existing captured duration before unrelated allowance prose; retain compound waits and malformed-first-cue refusal. Identical final old policy13 plus CLI1 genuine failures become complete213/4687 passing.
+- Correct the unsupported attribution of an extra archive guard to the user, preserve exact49/current34 requirements and every historical failed audit, and state unretained surfaces literally.
+- p-efficiency=0.88; p-friction=0.24; p-skill-candidate=0.43. No spore or promotion; fresh successor qualification remains required.
+
+
+## 2026-10-06T04:32:51.945Z — Refuse an incomplete numeric compound reset
+
+- Keep the original first retry cue, but refuse a supported prefix when another numeric duration remains. Preserve valid compound waits and unrelated later allowance prose. Same final old policy21 plus CLI12 genuine failures become complete215/4730 passing.
+- Keep exact first-stage chronology: current full approval and stage convergence are separate. The narrow Uxx21 review exception remains pending; no retroactive binding or source-policy waiver.
+- p-efficiency=0.82; p-friction=0.33; p-skill-candidate=0.48. No spore or promotion; fresh successor qualification remains required.

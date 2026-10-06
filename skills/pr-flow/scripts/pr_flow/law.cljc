@@ -843,8 +843,8 @@
   (if (re-matches #"Your plan includes PR reviews subject to rate limits\. Reviews are available now\."
                   (str/trim (or (reviewer-prose body) "")))
     0
-    (when-let [[_ duration] (re-find #"(?i)(?:wait|retry(?: again)?(?: in| after)?|try again in|cooldown:?|next included review (?:will be )?available in|more reviews (?:will be )?available in)[^0-9]*([^\n.<]+)" (str body))]
-      (let [parts (re-seq #"(?i)([0-9]+)\s*(hours?|minutes?|seconds?)" duration)]
+    (when-let [[_ duration] (re-find #"(?i)(?:wait|retry(?: again)?(?: in| after)?|try again in|cooldown:?|next (?:included )?review (?:will be )?available in|more reviews (?:will be )?available in)[^0-9]*([^\n.<]+)" (str body))]
+      (let [parts (re-seq #"(?i)([0-9]+)\s*(hours?|minutes?|seconds?)" (or (re-find #"(?i)^[0-9]+[ \t]*(?:hours?|minutes?|seconds?)(?:[ \t]*(?:(?:,|and)[ \t]*)?[0-9]+[ \t]*(?:hours?|minutes?|seconds?))*\b(?![ \t]*(?:(?:,|and)[ \t]*)*[0-9])" duration) ""))]
         (when (seq parts)
           (reduce + (for [[_ n unit] parts]
                       (* #?(:clj (Long/parseLong n) :cljs (js/parseInt n 10))
@@ -872,7 +872,7 @@
         (and (= "coderabbit" provider)
              ;; Native info, not walkthrough/quoted examples. Recognize malformed
              ;; durations as notices too: they retain nil/UNKNOWN, never zero.
-             (re-matches #"Your plan includes PR reviews subject to rate limits\. (?:More reviews will be available in\b[^\n]*|Reviews are available now\b[^\n]*)"
+             (re-matches #"(?:Your plan includes PR reviews subject to rate limits\. (?:More reviews will be available in\b[^\n]*|Reviews are available now\b[^\n]*)|You're currently rate limited under our Fair Usage Limits Policy\. Your current included review allowance is based on your included PR review attempts over the past 7 days\. Your next review will be available in\b[^\n]*)"
                          (str/trim (or (reviewer-prose body) ""))))
         (and (= "codex" provider) (codex-account-quota? body)))))
 

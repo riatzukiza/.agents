@@ -1226,4 +1226,140 @@
 
 (defmethod cljs.test/report [:cljs.test/default :end-run-tests] [m]
   (when-not (cljs.test/successful? m) (set! (.-exitCode js/process) 1)))
+
+(def native-coderabbit-next-review-info
+  ;; Unmodified REST metadata/body from the genuine free inquiry and reply.
+  (:comments (js->clj (js/JSON.parse (fs/readFileSync
+                                      (path/join (path/dirname *file*)
+                                                 "fixtures/native-coderabbit-next-review-info.json") "utf8"))
+                      :keywordize-keys true)))
+
+(deftest native-next-review-information-observes-only-its-duration
+  (let [{:keys [inquiry wait]} native-coderabbit-next-review-info
+        {:keys [unknown available]} native-coderabbit-quota-info
+        reset (js/Date.parse "2026-10-05T12:54:40Z")
+        input (quota-info-input [inquiry wait] "2026-10-05T12:31:00Z")]
+    (is (= "coderabbit" (law/trusted-reviewer wait law/default-reviewer-identities)))
+    (is (= 1800000 (law/cooldown-ms (:body wait))))
+    (doseq [comments [[inquiry wait] [unknown wait] [available wait]
+                      [wait unknown] [wait available]]]
+      (is (= {:status :cooldown :retry-at-ms reset}
+             (law/request-verdict (assoc input :comments comments)))))
+    (is (= {:status :cooldown :retry-at-ms reset}
+           (law/request-verdict (assoc input :now-ms (dec reset)))))
+    (is (= :request (:status (law/request-verdict (assoc input :now-ms reset)))))
+    (is (= :pending (:status (law/request-verdict
+                              (assoc input :now-ms reset :checks [{:name "CodeRabbit" :state "PENDING"}])))))
+    (is (= :rate-limited (:status (law/request-verdict (dissoc input :now-ms)))))
+    (is (= :rate-limited (:status (law/request-verdict
+                                   (assoc input :comments [(dissoc wait :created_at :updated_at)])))))
+    (is (not (law/full-review? wait law/default-reviewer-identities)))
+    (is (empty? (law/completed-review-rounds [] [inquiry wait] law/default-reviewer-identities)))
+    (is (empty? (:approved-heads (law/review-evidence head [] [inquiry wait]
+                                                        law/default-reviewer-identities))))
+    (is (= #{"coderabbit" "codex" "mimo"}
+           (:review-participants (law/reviewer-availability input))))))
+
+(deftest next-review-information-retains-unknown-order-and-pending-guards
+  (let [{:keys [wait]} native-coderabbit-next-review-info
+        {:keys [unknown available]} native-coderabbit-quota-info
+        input (quota-info-input [wait] "2026-10-05T12:55:00Z")
+        later-unknown (assoc unknown :updated_at "2026-10-05T12:54:50Z")
+        later-wait (assoc wait :updated_at "2026-10-05T12:54:50Z")
+        request {:id 9003 :trusted? true :user {:login "riatzukiza" :type "User"}
+                 :created_at "2026-10-05T12:54:45Z"
+                 :body (str "@coderabbitai full review <!-- pr-flow-stage:code --> <!-- pr-flow-review:"
+                            head " --> <!-- pr-flow-reviewer:coderabbit --> <!-- pr-flow-round:1 -->")}]
+    (doseq [comments [[wait later-unknown] [later-unknown wait]]]
+      (is (= :rate-limited (:status (law/request-verdict (assoc input :comments comments))))))
+    (doseq [comments [[wait later-wait] [later-wait wait]]]
+      (is (= {:status :cooldown :retry-at-ms (js/Date.parse "2026-10-05T13:24:50Z")}
+             (law/request-verdict (assoc input :comments comments)))))
+    (doseq [tail ["unknown minutes" "30 credits" "soon" ""]]
+      (let [body (str/replace (:body wait) "30 minutes." tail)
+            malformed (assoc wait :body body :updated_at "2026-10-05T12:54:50Z")]
+        (is (nil? (law/cooldown-ms body)))
+        (doseq [comments [[available malformed] [malformed available]]]
+          (is (= :rate-limited (:status (law/request-verdict (assoc input :comments comments))))))))
+    (is (= :pending (:status (law/request-verdict (update input :comments conj request)))))
+    (is (= :request (:status (law/request-verdict
+                              (update input :comments conj (assoc request :trusted? false))))))
+    (is (= :invalid (:status (law/request-verdict (assoc input :head "invalid")))))
+    (doseq [body [(str/replace (:body wait) "30 minutes." "Reviews are available now.")
+                  (str/replace (:body wait) "30 minutes." "available now, unless blocked.")]]
+      (is (nil? (law/cooldown-ms body)))
+      (is (= :rate-limited (:status (law/request-verdict (assoc input :comments [(assoc wait :body body)]))))))
+    ;; Numeric zero remains the old timestamp-bound duration behavior, never a
+    ;; new generic available-now exception or permission to bypass pending work.
+    (let [zero (assoc wait :body (str/replace (:body wait) "30 minutes" "0 seconds"))]
+      (is (= 0 (law/cooldown-ms (:body zero))))
+      (is (= :pending (:status (law/request-verdict
+                                (assoc input :comments [zero] :checks [{:name "CodeRabbit" :state "PENDING"}]))))))))
+
+(deftest next-review-information-does-not-admit-public-or-other-provider-prose
+  (let [{:keys [wait]} native-coderabbit-next-review-info
+        {:keys [unknown available]} native-coderabbit-quota-info
+        input (quota-info-input [unknown] "2026-10-05T12:31:00Z")
+        codex (assoc wait :user {:login "chatgpt-codex-connector[bot]" :type "Bot"})
+        codex-unknown (assoc unknown :user (:user codex)
+                            :body "You have reached your Codex usage limits for code reviews.")]
+    (doseq [forged [(assoc-in wait [:user :type] "User")
+                    (assoc-in wait [:user :login] "coderabbitai-helper[bot]")
+                    (assoc-in wait [:user :login] "eta-mu-ai[bot]")
+                    (update wait :body #(str "```text\n" % "\n```"))
+                    (update wait :body #(str "~~~\n" % "\n~~~"))
+                    (update wait :body #(str "```text\n" %))
+                    (update wait :body #(str "> " (str/replace % "\n" "\n> ")))
+                    (update wait :body #(str "Walkthrough example:\n" %))
+                    (update wait :body #(str "Example of a quota response: " %))
+                    (assoc wait :body "Your plan provides 1 included review per hour; 0 remain.")]]
+      (is (= :rate-limited (:status (law/request-verdict (update input :comments conj forged)))))
+      (is (= :request (:status (law/request-verdict (assoc input :comments [available forged]))))))
+    (is (= :request (:status (law/request-verdict
+                              (assoc input :reviewer "codex" :comments [codex])))))
+    (is (= :rate-limited (:status (law/request-verdict
+                                   (assoc input :reviewer "codex" :comments [codex-unknown wait codex])))))
+    (let [ambiguous (assoc law/default-reviewer-identities "codex" #{"coderabbitai[bot]"})]
+      (is (nil? (law/trusted-reviewer wait ambiguous)))
+      (is (= :request (:status (law/request-verdict
+                                (assoc input :identities ambiguous :comments [wait]))))))))
+
+
+(deftest native-cooldown-duration-stops-before-unrelated-later-duration
+  (let [{:keys [wait]} native-coderabbit-next-review-info
+        reset (js/Date.parse "2026-10-05T12:54:40Z")]
+    (doseq [suffix [", with the allowance resetting in 60 minutes."
+                   "; the next billing window lasts 2 hours."
+                   " while the hourly allowance resets after 60 minutes."]]
+      (let [notice (assoc wait :body (str/replace (:body wait) "30 minutes." (str "30 minutes" suffix)))
+            input (quota-info-input [notice] "2026-10-05T12:54:40Z")]
+        (is (= 1800000 (law/cooldown-ms (:body notice))))
+        (is (= {:status :cooldown :retry-at-ms reset}
+               (law/request-verdict (assoc input :now-ms (dec reset)))))
+        (is (= :request (:status (law/request-verdict input))))))
+    (doseq [[duration expected] [["53 minutes and 12 seconds" 3192000]
+                                 ["1 hour, 2 minutes and 3 seconds" 3723000]
+                                 ["1 hour 2 minutes 3 seconds" 3723000]
+                                 ["0 seconds" 0]]]
+      (is (= expected (law/cooldown-ms (str "Retry in " duration ", while the allowance resets in 60 minutes.")))))
+    (is (nil? (law/cooldown-ms "Next review will be available in unknown minutes.")))
+    (is (nil? (law/cooldown-ms "Retry in 8 credits. Retry in 60 minutes.")))))
+
+
+(deftest unsupported-numeric-compound-cooldown-stays-unknown
+  (let [{:keys [wait]} native-coderabbit-next-review-info]
+    (doseq [duration ["30 minutes and 2 days" "30 minutes, 2 days"
+                      "30 minutes 2 days" "30 minutes, and 2 days"
+                      "1 hour, 2 minutes and 3 days" "30 minutes and 2 credits"
+                      "30 minutes and 2.5 hours"]]
+      (let [notice (assoc wait :body (str/replace (:body wait) "30 minutes" duration))]
+        (is (nil? (law/cooldown-ms (:body notice))) duration)
+        (doseq [at ["2026-10-05T12:54:40Z" "2026-10-06T12:54:40Z"]]
+          (is (= :rate-limited (:status (law/request-verdict (quota-info-input [notice] at)))) duration))))
+    (doseq [[duration expected] [["30 minutes and 2 seconds" 1802000]
+                                 ["1 hour, 2 minutes and 3 seconds" 3723000]
+                                 ["30 minutes, with the allowance resetting in 60 minutes" 1800000]
+                                 ["30 minutes while 2 hours remain in the billing window" 1800000]]]
+      (is (= expected (law/cooldown-ms (str/replace (:body wait) "30 minutes" duration))) duration))))
+
 (run-tests)
