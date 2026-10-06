@@ -488,3 +488,60 @@
         (let [changed (update t :issue-comments conj c)]
           (is (not (:pass? (gate (law/classify-thread changed)))))
           (is (= #{7002} (revoked-ids (persist-disposition changed)))))))))
+
+
+(def native-cjs-assessment
+  (js->clj (js/JSON.parse
+            (fs/readFileSync (path/join (path/dirname *file*) "fixtures/native-actionability-cjs.json") "utf8"))
+           :keywordize-keys true))
+(defn native-cjs-input []
+  (let [{:keys [native_context proposal assessment writer_permission]} native-cjs-assessment]
+    (assert (= "admin" (:permission writer_permission)))
+    (assoc (input native_context) :issue-comments
+           [(hash-body (assoc proposal :source-channel :github-issue-comment :authorized? true))
+            (hash-body (assoc assessment :source-channel :github-issue-comment))])))
+
+(deftest complete-native-cjs-evidence-is-an-informational-disposition-only
+  (let [t (native-cjs-input) d (actionability/disposition t)
+        a (second (:issue-comments t)) p (first (:issue-comments t))]
+    (is (= "b7306bf00fcc7a888728c29e0aecf6c6bda2b7239fcd38922782eedbc0104b88" (:context-digest t)))
+    (is (= 5993311862 (:id p)))
+    (is (= 5993346659 (:id a)))
+    (is (= :informational (:kind d)))
+    (is (= :qualified (:status d)))
+    (is (= 5993346659 (:assessment-id d)))
+    (is (= :github-issue-comment (:channel d)))
+    (is (= 1 (count (:observations d))))
+    (is (empty? (:approved-heads (law/review-evidence (:head t) [] [a] law/default-reviewer-identities))))
+    (is (empty? (law/completed-review-rounds [] [a] law/default-reviewer-identities)))))
+
+(deftest javascript-source-evidence-retains-native-authority-and-freshness
+  (let [t (native-cjs-input)]
+    (doseq [extension ["js" "cjs" "mjs"]]
+      (let [changed (change-issue t 1 #(change-payload % (fn [v] (assoc v 12 (str "Tests in src/assessment." extension " bind the native context.")))))]
+        (is (= :qualified (:status (actionability/disposition changed))) extension)
+        (doseq [f [#(assoc-in % [:issue-comments 1 :user :id] 41898282)
+                   #(assoc-in % [:issue-comments 1 :user :node_id] "BOT_unknown")
+                   #(assoc-in % [:issue-comments 0 :authorized?] false)
+                   #(assoc-in % [:issue-comments 1 :updated_at] "2026-10-05T11:16:48Z")
+                   #(assoc % :head (apply str (repeat 40 "a")))
+                   #(assoc % :actionability-observations nil)
+                   #(change-issue % 1 (fn [c] (change-payload c (fn [v] (assoc v 9 "finding")))))
+                   #(change-issue % 1 (fn [c] (change-payload c (fn [v] (assoc v 11 "Agree.")))))
+                   #(change-issue % 1 (fn [c] (change-payload c (fn [v] (assoc v 12 "No evidence.")))))]]
+          (is (not= :qualified (:status (actionability/disposition (f changed)))) extension))))))
+
+
+(deftest canonical-details-boundary-is-public-and-mechanical-only
+  (let [predicate #'actionability/details?
+        reason "The complete native conversation supplies no request, question or defect."]
+    (is (false? (boolean (:private (meta predicate)))))
+    (doseq [evidence ["src/model.js" "test/model.cjs" "scripts/model.mjs"
+                     "model.clj" "model.cljs" "model.cljc" "model.md" "model.edn"
+                     "model.json" "model.yaml" "model.yml" "model.ts" "model.tsx"
+                     "model.py" "model.sh" "https://example.invalid/source"]]
+      (is (true? (predicate reason evidence)) evidence))
+    (doseq [[r e] [[nil "model.cjs"] [123 "model.cjs"] ["Agree." "model.cjs"]
+                   [reason nil] [reason 123] [reason ""] [reason "   "]
+                   [reason "I agree with this judgment."]]]
+      (is (false? (predicate r e))))))

@@ -1448,6 +1448,260 @@
     (is (not-any? #(str/includes? (str (:args %)) "/actions/runs/") (:calls r)))
     (is (empty? (mutations r)))))
 
+(deftest observation-writer-binds-the-repository-for-admission-and-revocation
+  (doseq [s informational/captures]
+    (let [repo (get-in s [:repository :nameWithOwner])
+          n (str (get-in s [:pr :number]))
+          t (informational/evidence (informational/input s))
+          accepted (first (:observations (actionability/disposition t)))
+          seed {:ts "2026-10-03T14:00:00Z" :kind :observation :repo repo
+                :origin "existing-receipt" :owner "fixture" :dod "preserve history"
+                :pi "fixture" :host "isolated-fixture" :manifest [] :refs []}
+          prefix (str (pr-str seed) "\n")
+          qualified (execute (assoc (informational-config s) :receipt-text prefix)
+                             "status" repo n)
+          revoked-seed (assoc seed :origin "pr-flow-actionability-observation"
+                             :decisions [accepted])
+          revoked-prefix (str (pr-str revoked-seed) "\n")
+          revoked (execute (assoc (informational-config s) :receipt-text revoked-prefix
+                                  :threadPageResponses
+                                  [(informational-response (assoc-in s [:thread :isResolved] false))])
+                           "status" repo n)]
+      (doseq [[r existing expected] [[qualified prefix :qualified]
+                                    [revoked revoked-prefix :revoked]]]
+        (is (= 0 (:exit r)) (:err r))
+        (is (str/starts-with? (:receipts r) existing))
+        (let [appended (map edn/read-string
+                            (remove str/blank? (str/split-lines
+                                               (subs (:receipts r) (count existing)))))]
+          (is (= 1 (count appended)))
+          (is (= repo (:repo (first appended)))
+              "Bind the repository name supplied to the native CLI, not its opaque GraphQL ID")
+          (is (= expected (get-in (first appended) [:decisions 0 :status])))
+          (is (= (:thread-id accepted) (get-in (first appended) [:decisions 0 :thread-id]))))
+        (is (empty? (writes r "merge")))))))
+
+(deftest observation-reader-scopes-explicit-repositories-after-validating-all-history
+  (doseq [s informational/captures]
+    (let [repo (get-in s [:repository :nameWithOwner])
+          n (str (get-in s [:pr :number]))
+          t (informational/evidence (informational/input s))
+          accepted (first (:observations (actionability/disposition t)))
+          record {:ts "2026-10-03T14:04:00Z" :kind :observation :repo repo
+                  :origin "pr-flow-actionability-observation" :owner "fixture"
+                  :dod "scope stored history" :pi "fixture" :host "isolated-fixture"
+                  :manifest [] :refs [] :decisions [accepted]}
+          local (str (pr-str record) "\n")
+          ;; Deliberate synthetic ID reuse exercises repository isolation. This
+          ;; is not evidence that an actual native GitHub ID collided.
+          foreign-revoked (assoc record :repo "other/foreign"
+                                :decisions [(assoc accepted :repo-id "R_foreign"
+                                                   :pr-id "PR_foreign" :thread-id "PRRT_foreign"
+                                                   :status :revoked :reason :withdrawn)])
+          prefix (str local (pr-str foreign-revoked) "\n")
+          healthy (execute (assoc (informational-config s) :receipt-text prefix)
+                           "status" repo n)]
+      (is (= 0 (:exit healthy)) (:err healthy))
+      (is (str/includes? (:out healthy) "informational 1") (:out healthy))
+      (is (not (str/includes? (:out healthy) "actionability history: UNAVAILABLE")))
+      (is (= prefix (:receipts healthy)) "Never rewrite, delete or duplicate scoped history")
+      (is (empty? (mutations healthy)))
+      ;; Current-repository and repository-absent legacy revocations remain
+      ;; terminal even when the corresponding native source is still present.
+      (doseq [seed [(assoc record :decisions [accepted (assoc accepted :status :revoked :reason :withdrawn)])
+                    (dissoc (assoc record :decisions [accepted (assoc accepted :status :revoked :reason :withdrawn)]) :repo)]]
+        (let [text (str (pr-str seed) "\n")
+              blocked (execute (assoc (informational-config s) :receipt-text text)
+                               "gate" repo n "--apply")]
+          (is (= 2 (:exit blocked)) (:err blocked))
+          (is (str/includes? (:out blocked) "informational 0"))
+          (is (not (str/includes? (:out blocked) "history: UNAVAILABLE")))
+          (is (str/starts-with? (:receipts blocked) text))
+          (is (empty? (mutations blocked)))))
+      ;; Parse and validate the entire ledger before selecting repositories:
+      ;; malformed foreign records at either end are never silently skipped.
+      (doseq [invalid [(str (pr-str (assoc foreign-revoked :decisions nil)) "\n")
+                       "{:repo \"other/foreign\" :origin \"other\"} trailing\n"]
+              text [(str invalid local) (str local invalid)]]
+        (let [blocked (execute (assoc (informational-config s) :receipt-text text)
+                               "gate" repo n "--apply")]
+          (is (= 2 (:exit blocked)) (:err blocked))
+          (is (str/includes? (:out blocked) "actionability history: UNAVAILABLE"))
+          (is (= text (:receipts blocked)))
+          (is (empty? (mutations blocked)))))
+      (let [blocked (execute (assoc (informational-config s) :receipt-text prefix
+                                    :checks [{:name "laws" :state "FAILURE" :required true}])
+                             "gate" repo n "--apply")]
+        (is (= 2 (:exit blocked)))
+        (is (empty? (mutations blocked)))))))
+
+(deftest observation-repository-case-round-trip-retains-revocation
+  (doseq [s informational/captures]
+    (let [repo (get-in s [:repository :nameWithOwner])
+          varied (str/upper-case repo)
+          n (str (get-in s [:pr :number]))
+          accepted (first (:observations (actionability/disposition
+                                          (informational/evidence (informational/input s)))))
+          seed {:ts "2026-10-03T14:04:00Z" :kind :observation :repo repo
+                :origin "existing-receipt" :owner "fixture" :dod "case round trip"
+                :pi "fixture" :host "isolated-fixture" :manifest [] :refs []}
+          prefix (str (pr-str seed) "\n")
+          qualified (execute (assoc (informational-config s) :receipt-text prefix)
+                             "status" varied n)
+          qualified-record (last (observation-receipts qualified))]
+      (is (= 0 (:exit qualified)) (:err qualified))
+      (is (str/includes? (:out qualified) "informational 1"))
+      (is (str/starts-with? (:receipts qualified) prefix))
+      (is (= (str/lower-case repo) (:repo qualified-record)))
+      (is (= :qualified (get-in qualified-record [:decisions 0 :status])))
+      (is (empty? (mutations qualified)))
+      ;; Both existing mixed-case records and varied CLI spellings must keep
+      ;; the same native repository's stored revocation terminal.
+      (doseq [[stored operator] [[repo varied] [varied repo] [varied varied]]]
+        (let [record (assoc seed :repo stored :origin "pr-flow-actionability-observation"
+                           :decisions [accepted (assoc accepted :status :revoked :reason :withdrawn)])
+              text (str (pr-str record) "\n")
+              blocked (execute (assoc (informational-config s) :receipt-text text)
+                               "gate" operator n "--apply")]
+          (is (= 2 (:exit blocked)) (:err blocked))
+          (is (str/includes? (:out blocked) "informational 0") (:out blocked))
+          (is (not (str/includes? (:out blocked) "history: UNAVAILABLE")))
+          (is (= text (:receipts blocked)))
+          (is (empty? (writes blocked "merge")))
+          (is (empty? (mutations blocked)))))
+      ;; The writer uses the same normalized key when a real native-state
+      ;; change revokes a previously admitted observation.
+      (let [revoked (execute (assoc (informational-config s) :receipt-text (:receipts qualified)
+                                   :threadPageResponses
+                                   [(informational-response (assoc-in s [:thread :isResolved] false))])
+                            "status" varied n)
+            revoked-record (last (observation-receipts revoked))
+            round-trip (execute (assoc (informational-config s) :receipt-text (:receipts revoked))
+                                "gate" repo n "--apply")]
+        (is (= 0 (:exit revoked)) (:err revoked))
+        (is (str/starts-with? (:receipts revoked) (:receipts qualified)))
+        (is (= (str/lower-case repo) (:repo revoked-record)))
+        (is (= :revoked (get-in revoked-record [:decisions 0 :status])))
+        (is (= 2 (:exit round-trip)) (:err round-trip))
+        (is (str/includes? (:out round-trip) "informational 0"))
+        (is (= (:receipts revoked) (:receipts round-trip)))
+        (is (empty? (writes round-trip "merge")))
+        (is (empty? (mutations round-trip)))))))
+
+;; Stable native repository history, using existing isolated CLI fixtures.
+(defn repository-scope-execute [label config repo n]
+  (let [r (execute config "gate" repo n)]
+    (is (empty? (writes r "merge")) label)
+    (is (empty? (mutations r)) label)
+    (is (str/starts-with? (:receipts r) (:receipt-text config)) label)
+    (assoc r :history-seed (:receipt-text config))))
+(defn record-for [s display]
+  (let [accepted (first (:observations (actionability/disposition (informational/evidence (informational/input s)))))]
+    {:ts "2026-10-05T16:25:00Z" :kind :observation :repo display :origin "pr-flow-actionability-observation"
+     :owner "isolated-fixture" :dod "stable native repository history" :pi "fixture" :host "local fakeGH"
+     :manifest [] :refs [] :decisions [accepted (assoc accepted :status :revoked :reason :withdrawn)]}))
+(defn text-of [record] (str (pr-str record) "\n"))
+(defn require-block [r label]
+  (is (= (:history-seed r) (:receipts r)) label)
+  (is (str/includes? (:out r) "gate: BLOCKED") label)
+  (is (str/includes? (:out r) "informational 0") label))
+(defn require-unavailable [r label]
+  (require-block r label)
+  (is (str/includes? (:out r) "actionability history: UNAVAILABLE") label))
+(defn require-pass [r label]
+  (is (str/includes? (:out r) "gate: PASS") label)
+  (is (str/includes? (:out r) "informational 1") label))
+(defn require-revoked-block [r label]
+  ;; The real CLI appends a terminal revocation when existing qualified
+  ;; evidence loses authority; preserve that append and the complete seed.
+  (let [records (observation-receipts r)]
+    (is (str/includes? (:out r) "gate: BLOCKED") label)
+    (is (str/includes? (:out r) "informational 0") label)
+    (is (= 2 (count records)) label)
+    (is (= :revoked (get-in (last records) [:decisions 0 :status])) label)
+    (is (= (get-in (first records) [:decisions 0 :assessment-id])
+           (get-in (last records) [:decisions 0 :assessment-id])) label)))
+(deftest stable-native-repository-history-contract
+  (doseq [[ix s] (map-indexed vector informational/captures)]
+    (let [repo (get-in s [:repository :nameWithOwner]) n (str (get-in s [:pr :number]))
+          record (record-for s repo) config (informational-config s)]
+      (doseq [[label r operator] [["canonical" record repo]
+                                 ["case" (assoc record :repo (str/upper-case repo)) (str/upper-case repo)]
+                                 ["legacy-nil" (assoc record :repo nil) repo]
+                                 ["legacy-absent" (dissoc record :repo) repo]]]
+        (require-block (repository-scope-execute (str ix "-" label) (assoc config :receipt-text (text-of r)) operator n) label))
+      ;; This tests scope selection with healthy current synthetic protocols,
+      ;; not immutable native comment mutation during a real GitHub rename.
+      (doseq [[label current-name] [["rename-healthy-current-context" (str repo "-renamed")]
+                                    ["transfer-healthy-current-context" (str "new-owner/" (last (str/split repo #"/")))]]]
+        (let [current (assoc-in s [:repository :nameWithOwner] current-name)
+              current-record (record-for current repo)
+              r (repository-scope-execute (str ix "-" label) (assoc (informational-config current)
+                                                         :receipt-text (text-of current-record)) current-name n)]
+          (require-block r label)))
+      ;; An actual native name change with the old protocol unchanged is
+      ;; independently ineligible through context-digest binding, even in old21ad.
+      (let [current-name (str repo "-renamed") current (assoc-in s [:repository :nameWithOwner] current-name)
+            unchanged (assoc config :receipt-text (text-of record)
+                                    :threadPageResponses [(informational-response current)])]
+        (require-block (repository-scope-execute (str ix "-unchanged-old-protocol-context-change") unchanged current-name n)
+                       "old protocol must stay ineligible after canonical context changes"))
+      ;; New independent native IDs remain eligible; old revoked ID is terminal,
+      ;; rather than forbidding all future evidence for the repository.
+      (let [current-name (str repo "-renamed") current (assoc-in s [:repository :nameWithOwner] current-name)
+            comments (:comments (informational-config current))
+            p (informational/hash-body (assoc (first comments) :id 8101 :node_id "IC_fresh_8101"
+                                              :created_at "2026-10-03T14:03:00Z" :updated_at "2026-10-03T14:03:00Z"))
+            a (-> (second comments)
+                  (assoc :id 8102 :node_id "IC_fresh_8102" :created_at "2026-10-03T14:04:00Z" :updated_at "2026-10-03T14:04:00Z")
+                  (informational/change-payload #(assoc % 7 (:id p) 8 (:body-sha256 p))) informational/hash-body)
+            cfg (assoc (informational-config current) :comments [p a] :receipt-text (text-of record))]
+        (require-pass (repository-scope-execute (str ix "-fresh-independent-source") cfg current-name n) "fresh independent IDs remain possible"))
+      (let [accepted (first (:decisions record)) local (text-of (assoc record :decisions [accepted]))
+            foreign (assoc record :repo "other/foreign" :decisions [(assoc accepted :repo-id "R_foreign" :pr-id "PR_foreign"
+                                                                                      :thread-id "PRRT_foreign" :status :revoked)])]
+        (require-pass (repository-scope-execute (str ix "-foreign-control") (assoc config :receipt-text (str local (text-of foreign))) repo n)
+                      "genuine foreign records excluded")
+        (require-pass (repository-scope-execute (str ix "-same-display-foreign-native-id")
+                                    (assoc config :receipt-text (str local (text-of (assoc foreign :repo repo)))) repo n)
+                      "display-name reuse cannot choose a foreign native repository"))))
+  (let [s (first informational/captures) repo (get-in s [:repository :nameWithOwner])
+        n (str (get-in s [:pr :number])) record (record-for s repo) config (informational-config s)
+        local (text-of record) accepted (first (:decisions record))]
+    (doseq [[label value] [["missing" ::missing] ["nil" nil] ["number" 42] ["blank" " "] ["map" {}]]]
+      (let [bad (update record :decisions #(mapv (fn [o] (if (= ::missing value) (dissoc o :repo-id) (assoc o :repo-id value))) %))]
+        (require-unavailable (repository-scope-execute (str "invalid-decision-id-" label)
+                                           (assoc config :receipt-text (text-of bad)) repo n) label)))
+    (let [bad (assoc record :decisions [accepted (assoc accepted :repo-id "R_foreign" :status :revoked)])]
+      (require-unavailable (repository-scope-execute "same-record-conflicting-native-ids" (assoc config :receipt-text (text-of bad)) repo n)
+                           "conflicting IDs cannot be partially selected"))
+    (require-pass (repository-scope-execute "empty-decisions-no-op" (assoc config :receipt-text (text-of (assoc record :decisions []))) repo n)
+                  "valid empty decisions do not fabricate history")
+    (doseq [[ix bad] (map-indexed vector [(text-of (assoc record :repo "other/foreign" :decisions nil))
+                                         "{:repo \"other/foreign\" :origin \"other\"} trailing\n"
+                                         (text-of (assoc record :repo 42))])
+            [side text] [["front" (str bad local)] ["tail" (str local bad)]]]
+      (require-unavailable (repository-scope-execute (str "whole-parse-" ix "-" side) (assoc config :receipt-text text) repo n)
+                           "complete history validates before selection"))
+    (doseq [[label value] [["nil" nil] ["number" 42] ["blank" " "]]]
+      (let [response (informational-response (assoc-in s [:repository :id] value))]
+        (require-unavailable (repository-scope-execute (str "native-identity-" label)
+                                           (assoc config :receipt-text local :threadPageResponses [response]) repo n) label)))
+    (let [healthy-record (text-of (assoc record :decisions [accepted]))]
+      (doseq [[label cfg] [["spoof-assessor-id" (update-in config [:comments 1 :user :id] inc)]
+                          ["spoof-assessor-node" (assoc-in config [:comments 1 :user :node_id] "BOT_wrong")]
+                          ["human-assessor" (assoc-in config [:comments 1 :user :type] "User")]
+                          ["edited-assessment" (assoc-in config [:comments 1 :updated_at] "2026-10-03T14:02:00Z")]
+                          ["stale-native-head" (assoc config :head (apply str (repeat 40 "f"))
+                                                          :threadPageResponses [(informational-response (assoc-in s [:pr :headRefOid]
+                                                                                                                  (apply str (repeat 40 "f"))))])]
+                          ["context-digest" (update-in config [:comments 1]
+                                                       #(-> % (informational/change-payload (fn [v] (assoc v 5 (apply str (repeat 64 "a")))))
+                                                              informational/hash-body))]
+                          ["proposal-id" (update-in config [:comments 1]
+                                                    #(-> % (informational/change-payload (fn [v] (assoc v 7 9001))) informational/hash-body))]]]
+        (require-revoked-block (repository-scope-execute (str "authority-" label) (assoc cfg :receipt-text healthy-record) repo n) label)))))
+
 (defmethod cljs.test/report [:cljs.test/default :end-run-tests] [m]
   (when-not (cljs.test/successful? m) (set! (.-exitCode js/process) 1)))
 (run-tests)
