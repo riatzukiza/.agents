@@ -410,3 +410,10 @@
 - Bound the existing captured duration before unrelated allowance prose; retain compound waits and malformed-first-cue refusal. Identical final old policy13 plus CLI1 genuine failures become complete213/4687 passing.
 - Correct the unsupported attribution of an extra archive guard to the user, preserve exact49/current34 requirements and every historical failed audit, and state unretained surfaces literally.
 - p-efficiency=0.88; p-friction=0.24; p-skill-candidate=0.43. No spore or promotion; fresh successor qualification remains required.
+
+
+## 2026-10-06T04:32:51.945Z — Refuse an incomplete numeric compound reset
+
+- Keep the original first retry cue, but refuse a supported prefix when another numeric duration remains. Preserve valid compound waits and unrelated later allowance prose. Same final old policy21 plus CLI12 genuine failures become complete215/4730 passing.
+- Keep exact first-stage chronology: current full approval and stage convergence are separate. The narrow Uxx21 review exception remains pending; no retroactive binding or source-policy waiver.
+- p-efficiency=0.82; p-friction=0.33; p-skill-candidate=0.48. No spore or promotion; fresh successor qualification remains required.

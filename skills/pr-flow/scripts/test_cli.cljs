@@ -1807,4 +1807,20 @@
     (is (empty? (writes result "merge")))
     (is (empty? (mutations result)))))
 
+
+(deftest request-caller-refuses-incomplete-numeric-compound-cooldown
+  (let [{:keys [inquiry wait]} native-coderabbit-next-review-info]
+    (doseq [duration ["30 minutes and 2 days" "1 hour, 2 minutes and 3 days"
+                      "30 minutes, 2 credits"]]
+      (let [notice (assoc wait :body (str/replace (:body wait) "30 minutes" duration))
+            result (execute-at "2026-10-06T12:54:40Z"
+                               (assoc base :comments [inquiry notice] :checks [])
+                               "request" "riatzukiza/.agents" "17" "code" "--reviewer" "coderabbit")]
+        (is (= 1 (:exit result)) (:err result))
+        (is (str/includes? (:out result) "No request sent: rate-limited"))
+        (is (str/includes? (:err result) "operator attention; no retry scheduled"))
+        (is (empty? (writes result "comment")))
+        (is (empty? (writes result "merge")))
+        (is (empty? (mutations result)))))))
+
 (run-tests)

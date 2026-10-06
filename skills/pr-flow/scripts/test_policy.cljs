@@ -1345,4 +1345,21 @@
     (is (nil? (law/cooldown-ms "Next review will be available in unknown minutes.")))
     (is (nil? (law/cooldown-ms "Retry in 8 credits. Retry in 60 minutes.")))))
 
+
+(deftest unsupported-numeric-compound-cooldown-stays-unknown
+  (let [{:keys [wait]} native-coderabbit-next-review-info]
+    (doseq [duration ["30 minutes and 2 days" "30 minutes, 2 days"
+                      "30 minutes 2 days" "30 minutes, and 2 days"
+                      "1 hour, 2 minutes and 3 days" "30 minutes and 2 credits"
+                      "30 minutes and 2.5 hours"]]
+      (let [notice (assoc wait :body (str/replace (:body wait) "30 minutes" duration))]
+        (is (nil? (law/cooldown-ms (:body notice))) duration)
+        (doseq [at ["2026-10-05T12:54:40Z" "2026-10-06T12:54:40Z"]]
+          (is (= :rate-limited (:status (law/request-verdict (quota-info-input [notice] at)))) duration))))
+    (doseq [[duration expected] [["30 minutes and 2 seconds" 1802000]
+                                 ["1 hour, 2 minutes and 3 seconds" 3723000]
+                                 ["30 minutes, with the allowance resetting in 60 minutes" 1800000]
+                                 ["30 minutes while 2 hours remain in the billing window" 1800000]]]
+      (is (= expected (law/cooldown-ms (str/replace (:body wait) "30 minutes" duration))) duration))))
+
 (run-tests)

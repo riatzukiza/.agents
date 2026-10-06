@@ -844,7 +844,7 @@
                   (str/trim (or (reviewer-prose body) "")))
     0
     (when-let [[_ duration] (re-find #"(?i)(?:wait|retry(?: again)?(?: in| after)?|try again in|cooldown:?|next (?:included )?review (?:will be )?available in|more reviews (?:will be )?available in)[^0-9]*([^\n.<]+)" (str body))]
-      (let [parts (re-seq #"(?i)([0-9]+)\s*(hours?|minutes?|seconds?)" (or (re-find #"(?i)^[0-9]+[ \t]*(?:hours?|minutes?|seconds?)(?:[ \t]*(?:(?:,|and)[ \t]*)?[0-9]+[ \t]*(?:hours?|minutes?|seconds?))*\b" duration) ""))]
+      (let [parts (re-seq #"(?i)([0-9]+)\s*(hours?|minutes?|seconds?)" (or (re-find #"(?i)^[0-9]+[ \t]*(?:hours?|minutes?|seconds?)(?:[ \t]*(?:(?:,|and)[ \t]*)?[0-9]+[ \t]*(?:hours?|minutes?|seconds?))*\b(?![ \t]*(?:(?:,|and)[ \t]*)*[0-9])" duration) ""))]
         (when (seq parts)
           (reduce + (for [[_ n unit] parts]
                       (* #?(:clj (Long/parseLong n) :cljs (js/parseInt n 10))
