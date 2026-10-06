@@ -545,3 +545,225 @@
                    [reason nil] [reason 123] [reason ""] [reason "   "]
                    [reason "I agree with this judgment."]]]
       (is (false? (predicate r e))))))
+
+
+;; Proxx-only MiMo admission source preparation. All protocol records below
+;; are synthetic controls, not native assessments, agreements or activation.
+(def mimo-test-policy
+  (get-in (edn/read-string (fs/readFileSync
+                            (path/join (path/dirname *file*) "../flow.edn") "utf8"))
+          [:flow/defaults :review/actionability]))
+(def mimo-test-user
+  {:login "eta-mu-ai[bot]" :id 270021952 :node_id "BOT_kgDOEBg1QA" :type "Bot"})
+(def mimo-test-source
+  (first (filter #(= 1178288746 (get-in % [:repository :databaseId])) captures)))
+(defn mimo-test-input
+  ([] (mimo-test-input identity))
+  ([f] (-> (evidence (input (f mimo-test-source)))
+           (assoc :actionability-policy mimo-test-policy)
+           (assoc-in [:issue-comments 1 :user] mimo-test-user))))
+(defn mimo-test-decision [t] (:actionability (law/classify-thread t)))
+(defn mimo-test-finding [t label]
+  (is (= :finding (:kind (mimo-test-decision t))) label)
+  (is (law/finding-obligation? t) label))
+
+(deftest mimo-exact-native-tuple-is-separate-repository-policy
+  (is (= #{{:login "opencode-agent[bot]" :id 219766164 :node-id "BOT_kgDODRldlA"}}
+         (:identities mimo-test-policy)))
+  (is (= {["open-hax/proxx" 1178288746]
+          #{{:login "eta-mu-ai[bot]" :id 270021952 :node-id "BOT_kgDOEBg1QA"}}}
+         (:repository-identities mimo-test-policy)))
+  (is (false? (boolean (actionability/assessor-identity?
+                        {:user mimo-test-user} mimo-test-policy))))
+  (is (= "resolved-author-only-empty-reviews" actionability/scope)))
+
+(deftest mimo-proxx-author-only-informational-supplies-zero-other-credit
+  (let [t (mimo-test-input) c (law/classify-thread t) d (:actionability c)
+        a (second (:issue-comments t)) head (:head t)]
+    (is (= :informational (:kind d)))
+    (is (= :qualified (:status d)))
+    (is (= 7002 (:assessment-id d)))
+    (is (= :github-issue-comment (:channel d)))
+    (is (= 270021952 (get-in d [:observations 0 :assessment-user-id])))
+    (is (= "BOT_kgDOEBg1QA" (get-in d [:observations 0 :assessment-user-node])))
+    (is (false? (:settled? c)))
+    (is (nil? (:resolution c)))
+    (is (false? (:rejection-approved? c)))
+    (is (empty? (:approved-heads (law/review-evidence head [] [a] law/default-reviewer-identities))))
+    (is (empty? (:reviewed-heads (law/review-evidence head [] [a] law/default-reviewer-identities))))
+    (is (empty? (law/completed-review-rounds [] [a] law/default-reviewer-identities)))
+    (let [accepted (persist-disposition t)]
+      (is (= :informational (:kind (mimo-test-decision accepted))))
+      (is (empty? (:observations (mimo-test-decision accepted)))))))
+
+(deftest mimo-foreign-repositories-ids-and-aliases-refuse-even-fresh-bindings
+  ;; Rebuild manifest, proposal and assessment for each altered repository;
+  ;; these refusals therefore exercise identity scope, not a stale digest.
+  (doseq [[label f]
+          [["foreign repository" #(assoc-in % [:repository :nameWithOwner] "other/proxx")]
+           ["wrong native repository ID" #(assoc-in % [:repository :databaseId] 1178288747)]
+           ["matching ID with foreign name" #(assoc-in % [:repository :nameWithOwner] "open-hax/uxx")]
+           ["case alias" #(assoc-in % [:repository :nameWithOwner] "Open-Hax/proxx")]
+           ["whitespace alias" #(assoc-in % [:repository :nameWithOwner] "open-hax/proxx ")]
+           ["missing repository name" #(update % :repository dissoc :nameWithOwner)]
+           ["missing repository ID" #(update % :repository dissoc :databaseId)]
+           ["string repository ID" #(assoc-in % [:repository :databaseId] "1178288746")]]]
+    (mimo-test-finding (mimo-test-input f) label))
+  (let [uxx (second captures)]
+    (mimo-test-finding (-> (evidence (input uxx))
+                          (assoc :actionability-policy mimo-test-policy)
+                          (assoc-in [:issue-comments 1 :user] mimo-test-user)) "actual captured foreign repository"))
+  (doseq [s captures]
+    (is (= :informational (:kind (mimo-test-decision
+                                  (assoc (evidence (input s)) :actionability-policy mimo-test-policy))))
+        "original global OpenCode admission retained")))
+
+(deftest mimo-wrong-actor-and-policy-never-admit
+  (let [t (mimo-test-input)]
+    (doseq [[label f]
+            [["wrong login" #(assoc-in % [:issue-comments 1 :user :login] "opencode-agent[bot]")]
+             ["suffixless alias" #(assoc-in % [:issue-comments 1 :user :login] "eta-mu-ai")]
+             ["case alias" #(assoc-in % [:issue-comments 1 :user :login] "Eta-Mu-Ai[bot]")]
+             ["wrong numeric Bot ID" #(assoc-in % [:issue-comments 1 :user :id] 219766164)]
+             ["wrong node ID" #(assoc-in % [:issue-comments 1 :user :node_id] "BOT_kgDODRldlA")]
+             ["human actor" #(assoc-in % [:issue-comments 1 :user :type] "User")]
+             ["generic actions actor" #(assoc-in % [:issue-comments 1 :user :login] "github-actions[bot]")]
+             ["missing actor ID" #(update-in % [:issue-comments 1 :user] dissoc :id)]
+             ["missing actor node" #(update-in % [:issue-comments 1 :user] dissoc :node_id)]
+             ["missing policy" #(dissoc % :actionability-policy)]
+             ["wrong policy version" #(assoc-in % [:actionability-policy :version] 2)]
+             ["wrong policy status" #(assoc-in % [:actionability-policy :status] :accepted)]
+             ["ordinary MiMo roster alone" #(assoc % :actionability-policy policy
+                                                   :identities {"mimo" #{"eta-mu-ai[bot]"}})]
+             ["wrong policy repository binding" #(assoc-in % [:actionability-policy :repository-identities]
+                                                           {["open-hax/proxx" 1178288747]
+                                                            #{{:login "eta-mu-ai[bot]" :id 270021952
+                                                               :node-id "BOT_kgDOEBg1QA"}}})]]]
+      (mimo-test-finding (f t) label))))
+
+(deftest mimo-native-source-proposal-body-and-chronology-guards-remain
+  (let [t (mimo-test-input)]
+    (doseq [[label f]
+            [["non-native review-body channel" #(assoc-in % [:issue-comments 1 :source-channel] :github-review)]
+             ["missing source channel" #(update-in % [:issue-comments 1] dissoc :source-channel)]
+             ["missing native source ID" #(update-in % [:issue-comments 1] dissoc :id)]
+             ["missing source node" #(update-in % [:issue-comments 1] dissoc :node_id)]
+             ["missing source URL" #(update-in % [:issue-comments 1] dissoc :html_url)]
+             ["invalid source body hash" #(assoc-in % [:issue-comments 1 :body-sha256] "bad")]
+             ["unauthorized proposal" #(assoc-in % [:issue-comments 0 :authorized?] false)]
+             ["edited proposal" #(assoc-in % [:issue-comments 0 :updated_at] "2026-10-03T14:00:10Z")]
+             ["edited/restored assessment" #(assoc-in % [:issue-comments 1 :updated_at] "2026-10-03T14:01:10Z")]
+             ["assessment precedes proposal" #(update-in % [:issue-comments 1] assoc
+                                                         :created_at "2026-10-03T13:59:00Z"
+                                                         :updated_at "2026-10-03T13:59:00Z")]
+             ["proposal ID mismatch" #(change-issue % 1 (fn [c] (change-payload c (fn [v] (assoc v 7 9001)))))]
+             ["proposal hash mismatch" #(change-issue % 1 (fn [c] (change-payload c (fn [v] (assoc v 8 (apply str (repeat 64 "b")))))))]
+             ["wrong head" #(assoc % :head (apply str (repeat 40 "a")))]
+             ["wrong root" #(update % :root-comment-id inc)]
+             ["wrong context digest" #(assoc % :context-digest (apply str (repeat 64 "b")))]
+             ["wrong scope" #(change-issue % 1 (fn [c] (change-payload c (fn [v] (assoc v 6 "all-findings")))))]
+             ["finding result" #(change-issue % 1 (fn [c] (change-payload c (fn [v] (assoc v 9 "finding")))))]
+             ["uncertain result" #(change-issue % 1 (fn [c] (change-payload c (fn [v] (assoc v 9 "uncertain")))))]
+             ["generic assent" #(change-issue % 1 (fn [c] (change-payload c (fn [v] (assoc v 11 "Agree.")))))]
+             ["missing evidence" #(change-issue % 1 (fn [c] (change-payload c (fn [v] (assoc v 12 "none")))))]
+             ["quoted assessment" #(change-issue % 1 (fn [c] (update c :body (fn [b] (str "> " b)))))]
+             ["duplicate payload" #(change-issue % 1 (fn [c] (change-payload c (fn [v] (conj v "informational")))))]
+             ["duplicate native record" #(update % :issue-comments conj (second (:issue-comments %)))]]]
+      (mimo-test-finding (f t) label))))
+
+(deftest mimo-author-only-context-and-edits-cannot-be-expanded
+  (let [t (mimo-test-input)]
+    (doseq [[label f]
+            [["unresolved" #(assoc-in % [:thread :isResolved] false)]
+             ["incomplete comments" #(assoc-in % [:thread :comments :pageInfo :hasNextPage] true)]
+             ["comment count mismatch" #(update-in % [:thread :comments :totalCount] inc)]
+             ["changed native body" #(assoc-in % [:thread :comments :nodes 0 :body] "Please answer this defect report.")]
+             ["changed diff hunk" #(assoc-in % [:thread :comments :nodes 0 :diffHunk] "@@ changed context @@")]
+             ["native comment edit" #(assoc-in % [:thread :comments :nodes 0 :updatedAt] "2026-10-03T14:03:00Z")]
+             ["enclosing review edit" #(assoc-in % [:thread :comments :nodes 0 :pullRequestReview :updatedAt]
+                                                "2026-10-03T14:03:00Z")]
+             ["Kimi-rooted thread" #(assoc-in % [:thread :comments :nodes 0 :author]
+                                           {:id "BOT_kgDODRldlA" :databaseId 219766164
+                                            :login "opencode-agent[bot]" :__typename "Bot"})]
+             ["nonempty review body" #(assoc-in % [:thread :comments :nodes 0 :pullRequestReview :body] "P2: Fix this.")]
+             ["wrong enclosing review state" #(assoc-in % [:thread :comments :nodes 0 :pullRequestReview :state] "APPROVED")]
+             ["duplicate context comments" #(update-in % [:thread :comments :nodes] conj
+                                                      (get-in % [:thread :comments :nodes 0]))]]]
+      (mimo-test-finding (assoc (refresh-context t f) :actionability-policy mimo-test-policy) label))
+    ;; Even fresh correctly rebound evidence cannot relax the author-only scope.
+    (doseq [[label f]
+            [["fresh Kimi root" #(assoc-in % [:thread :comments :nodes 0 :author]
+                                          {:id "BOT_kgDODRldlA" :databaseId 219766164
+                                           :login "opencode-agent[bot]" :__typename "Bot"})]
+             ["fresh nonempty enclosing review" #(assoc-in % [:thread :comments :nodes 0 :pullRequestReview :body]
+                                                          "Please fix this defect.")]]]
+      (mimo-test-finding (mimo-test-input f) label))))
+
+(deftest mimo-latest-malformed-or-edited-proposal-revokes-without-fallback
+  (let [t (persist-disposition (mimo-test-input)) p (first (:issue-comments t))
+        bad (later-proposal t (str "Actionability proposal v1 for " (:head t) ":\n["))]
+    (doseq [later [bad (assoc bad :updated_at "2026-10-03T14:04:00Z")
+                   (later-proposal t (str (:body p) "\nExtra payload"))
+                   (later-proposal t (str/replace (:body p) "v1 for" "v2 for"))]]
+      (let [changed (update t :issue-comments conj later)
+            recorded (persist-disposition changed)]
+        (mimo-test-finding changed "latest invalid proposal")
+        (is (= #{7002} (revoked-ids recorded)))
+        (mimo-test-finding (assoc t :actionability-observations (:actionability-observations recorded))
+                           "restoring prior proposal cannot restore observed revoked source")))))
+
+(deftest mimo-withdrawals-are-same-bot-exact-source-and-retained
+  (let [t (persist-disposition (mimo-test-input)) bot mimo-test-user
+        foreign {:login "opencode-agent[bot]" :id 219766164 :node_id "BOT_kgDODRldlA" :type "Bot"}]
+    (doseq [c [(native-comment 7003 bot "2026-10-03T14:02:00Z" "I withdraw my agreement in issuecomment7002.")
+               (native-comment 7003 bot "2026-10-03T14:02:00Z"
+                               "I withdraw my agreement in https://example.invalid/issuecomment-7002.")
+               (withdrawal t 7002)]]
+      (let [changed (update t :issue-comments conj c) recorded (persist-disposition changed)]
+        (mimo-test-finding changed "same MiMo source withdrawal")
+        (is (= #{7002} (revoked-ids recorded)))
+        (mimo-test-finding (assoc t :actionability-observations (:actionability-observations recorded))
+                           "withdrawn source cannot be restored")))
+    (doseq [c [(assoc (withdrawal t 7002) :user foreign)
+               (native-comment 7003 foreign "2026-10-03T14:02:00Z" "I withdraw my agreement in issuecomment7002.")
+               (native-comment 7003 (assoc bot :id 219766164) "2026-10-03T14:02:00Z"
+                               "I withdraw my agreement in issuecomment7002.")
+               (native-comment 7003 bot "2026-10-03T14:02:00Z" "> I withdraw my agreement in issuecomment7002.")
+               (native-comment 7003 bot "2026-10-03T14:02:00Z" "I withdraw my agreement in issuecomment9999.")
+               (withdrawal t 9999)]]
+      (is (= :informational (:kind (mimo-test-decision (update t :issue-comments conj c))))
+          "foreign/forged/quoted/wrong-source withdrawal cannot revoke MiMo"))))
+
+(deftest mimo-conflicts-edits-deletion-and-policy-loss-retain-revocation
+  (let [t (persist-disposition (mimo-test-input)) a (second (:issue-comments t))]
+    (doseq [[label changed]
+            [["edited source" (assoc-in t [:issue-comments 1 :updated_at] "2026-10-03T14:02:00Z")]
+             ["deleted source" (update t :issue-comments pop)]
+             ["lost scoped admission" (assoc t :actionability-policy policy)]
+             ["adverse new assessment"
+              (update t :issue-comments conj
+                      (-> a (assoc :id 7004 :node_id "IC_7004")
+                          (change-payload #(assoc % 9 "finding")) hash-body))]
+             ["malformed admitted actor assessment"
+              (update t :issue-comments conj
+                      (native-comment 7004 mimo-test-user "2026-10-03T14:02:00Z"
+                                      (str "Actionability assessment v1 for " (:head t) ":\n[")))]]]
+      (let [recorded (persist-disposition changed)]
+        (mimo-test-finding changed label)
+        (is (= #{7002} (revoked-ids recorded)) label)
+        (mimo-test-finding (assoc t :actionability-observations (:actionability-observations recorded))
+                           "restored source cannot erase history")))))
+
+(deftest mimo-unavailable-history-unresolved-and-required-failures-stay-blocking
+  (let [t (mimo-test-input) c (law/classify-thread t)
+        baseline {:threads [c] :head (:head t) :snapshot-head (:head t)
+                  :approved-heads {"mimo" #{(:head t)}} :rounds 5
+                  :review-participants #{"mimo"} :checks [{:name "laws" :state "SUCCESS"}]}]
+    (mimo-test-finding (assoc t :actionability-observations nil) "unavailable history")
+    (doseq [bad [(assoc baseline :approved-heads {}) (assoc baseline :rounds 0)
+                 (assoc baseline :review-bodies-unanswered 1)
+                 (assoc baseline :checks [{:name "laws" :required? true :state "FAILURE"}])
+                 (assoc baseline :checks [{:name "laws" :required? true :state "CANCELLED"}])
+                 (assoc baseline :checks [{:name "laws" :required? true :state "PENDING"}])
+                 (assoc baseline :threads [(assoc c :resolved? false)])]]
+      (is (not (:pass? (law/merge-gate bad))) "actionability cannot supply another gate's credit"))))

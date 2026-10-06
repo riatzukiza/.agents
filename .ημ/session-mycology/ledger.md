@@ -417,3 +417,33 @@
 - Keep the original first retry cue, but refuse a supported prefix when another numeric duration remains. Preserve valid compound waits and unrelated later allowance prose. Same final old policy21 plus CLI12 genuine failures become complete215/4730 passing.
 - Keep exact first-stage chronology: current full approval and stage convergence are separate. The narrow Uxx21 review exception remains pending; no retroactive binding or source-policy waiver.
 - p-efficiency=0.82; p-friction=0.33; p-skill-candidate=0.48. No spore or promotion; fresh successor qualification remains required.
+
+
+- ts: "2026-10-06T17:28:56.744Z"
+  origin: bounded Proxx MiMo author-actionability source verification
+  p-efficiency: 0.83
+  p-friction: 0.29
+  p-skill-candidate: 0.51
+  spore: none
+  receipt-refs: proxx-mimo-author-admission-parent-source-review-20261006T1715Z/new-source-receipt.edn
+  note: Identity admission belongs to the canonical pure policy and needs fresh native source qualification. It does not implement a producer or establish model independence. Preserve every historical byte and the entire then-current authentic mutable history for any later adoption. No spore or promotion.
+
+
+- ts: "2026-10-06T19:53:56.224Z"
+  origin: native repository ID wording correction
+  p-efficiency: 0.83
+  p-friction: 0.29
+  p-skill-candidate: 0.51
+  spore: none
+  receipt-refs: agents23-native-id-wording-source-20261006T1900Z/new-source-receipt.edn
+  note: Fix verified prose findings with the smallest source change and a new correction receipt. Preserve all historical bytes and keep source history distinct from the operational history that later acquired authentic revocation. Fresh successor native qualification is required. No spore or promotion.
+
+
+- ts: "2026-10-06T20:21:11.547Z"
+  origin: current-history adoption wording correction
+  p-efficiency: 0.83
+  p-friction: 0.29
+  p-skill-candidate: 0.51
+  spore: none
+  receipt-refs: agents23-current-history-wording-source-20261006T2020Z/new-source-receipt.edn
+  note: Use entire then-current authentic operational history and reflection in adoption guidance; preserve source-fork provenance separately. Fixed snapshot counts belong to historical proofs, never future adoption authority. Every old physical byte is preserved. No spore or promotion.

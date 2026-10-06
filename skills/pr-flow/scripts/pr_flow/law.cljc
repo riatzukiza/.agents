@@ -288,7 +288,9 @@
   "Reuse the existing native withdrawal grammar with ONLY the separately
    admitted actionability identity. No rejection-list or approval admission."
   [{:keys [issue-comments actionability-policy] :as thread}]
-  (let [assessor? #(actionability/assessor-identity? % actionability-policy)
+  (let [actionability-policy (actionability/assessor-policy actionability-policy
+                                                         (get-in thread [:native-context :repository]))
+        assessor? #(actionability/assessor-identity? % actionability-policy)
         sources (filter (fn [c]
                           (let [r (actionability/protocol c)]
                             (and (assessor? c) (= :assessment (:kind r)) (= (:head thread) (:head r))
