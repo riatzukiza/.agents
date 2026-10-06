@@ -1,0 +1,87 @@
+{
+  "fixture": "/tmp/receipt-helper-isolation-fixture-1953v85u",
+  "source": "/tmp/foresight-receipt-river-issues19-20-_bgo888_/worktree",
+  "results": [
+    {
+      "case": "ordinary receipt root",
+      "passed": true
+    },
+    {
+      "case": "ordinary mycology root",
+      "passed": true
+    },
+    {
+      "case": "omitted collections",
+      "passed": false,
+      "manifest": "none",
+      "refs": "none"
+    },
+    {
+      "case": "omitted collections prefix preserved",
+      "passed": true
+    },
+    {
+      "case": "CSV collections with spaces",
+      "passed": false,
+      "manifest": "src/file with spaces.clj, docs/note.md",
+      "refs": "abc123, issue-19"
+    },
+    {
+      "case": "CSV collections with spaces prefix preserved",
+      "passed": true
+    },
+    {
+      "case": "EDN vector collections",
+      "passed": false,
+      "manifest": "[\"comma,path.clj\" \"space path.clj\"]",
+      "refs": "[\"issue-19\"]"
+    },
+    {
+      "case": "EDN vector collections prefix preserved",
+      "passed": true
+    },
+    {
+      "case": "receipt-river linked worktree boundary",
+      "passed": false,
+      "selected": "/tmp/receipt-helper-isolation-fixture-1953v85u/ancestor",
+      "expected": "/tmp/receipt-helper-isolation-fixture-1953v85u/ancestor/nested/linked"
+    },
+    {
+      "case": "session-mycology linked worktree boundary",
+      "passed": false,
+      "selected": "/tmp/receipt-helper-isolation-fixture-1953v85u/ancestor",
+      "expected": "/tmp/receipt-helper-isolation-fixture-1953v85u/ancestor/nested/linked"
+    },
+    {
+      "case": "append owns linked worktree ledger",
+      "passed": false,
+      "exit": 0
+    },
+    {
+      "case": "ancestor receipt bytes unchanged",
+      "passed": false,
+      "original_sha256": "277c5f5cf29d4c0a08cebf949f03ea14d8d97f7d366fc75815d53b3dcd721134",
+      "after_sha256": "3759ca8765e866cbe1e6f5de31c104d2c45fec1dcd268413eba355e731fccfb8"
+    },
+    {
+      "case": "mycology owns linked worktree ledger",
+      "passed": false,
+      "exit": 0
+    },
+    {
+      "case": "ancestor mycology bytes unchanged",
+      "passed": false
+    },
+    {
+      "case": "receipt-river invalid boundary refuses ancestor",
+      "passed": false,
+      "selected": "/tmp/receipt-helper-isolation-fixture-1953v85u/ancestor"
+    },
+    {
+      "case": "session-mycology invalid boundary refuses ancestor",
+      "passed": false,
+      "selected": "/tmp/receipt-helper-isolation-fixture-1953v85u/ancestor"
+    }
+  ],
+  "failed": 11
+}
