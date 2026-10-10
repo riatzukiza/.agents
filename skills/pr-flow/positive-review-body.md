@@ -31,7 +31,7 @@ item ID and conservative fallback severity; attach positive-format provenance
 rather than removing the historical item or pretending the reviewer assigned
 a lower priority.
 
-The `Handled` admission also needs configured native CodeRabbit Bot identity,
+The `Handled` admission also needs a configured native CodeRabbit Bot identity,
 a native COMMENTED review ID, its observed full source commit and submission
 time, and a distinct true-authorized native User writer whose settlement has
 its native comment ID. The CLI supplies writer authorization from the native
