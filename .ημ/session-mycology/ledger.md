@@ -478,3 +478,12 @@
   spore: none
   receipt-refs: 11a11874-1e24-49ee-8ee4-9ad59044ee06
   note: Native review found an in-source docstring inconsistent with the bounded positive admission already implemented. Fix only prose and verify exact reverse transformation; retain source behavior and historical hosted qualification as separate facts. No policy adoption or approval transfer. Preserve every historical byte. No extra spore or promotion.
+- ts: 2026-10-10T23:41:22.936500125Z
+  session: /home/err/.local/share/openhax-codex/20261010/pr-flow-positive-review
+  task: Repair native Codex PR26 CDATA/processing-instruction settlement evidence gap
+  p-efficiency: 0.98
+  p-friction: 0.12
+  p-skill-candidate: 0.20
+  spore: none
+  receipt-refs: ce3c30a1fec49518488c283c67d44dd6d26ea18c04aa32b8b1f73e487b5ed566
+  note: Actual public-law RED reproduced eight XML-hidden binding/item cases; one raw-start guard made all controls GREEN while preserving actual native plaintext and conservative unknown/P1. Independent source seal e52393d4 has54 passing checks. Canonical receipt validates and preserves full prior bytes. Source proposal only; hosted successor CI/reviews, native settlement and deployment remain separate observations. Historical full local CLI failure retained; no CLI rerun, installed catalog adoption, new spore or promotion.

@@ -651,7 +651,7 @@
   (let [raw (str (:body writer))
         ;; This admission supports native plaintext only. Deny markup before
         ;; shared sanitation can assemble evidence across excluded regions.
-        prose (when-not (re-find #"<!--|</?[A-Za-z]" raw)
+        prose (when-not (re-find #"<!|<\?|</?[A-Za-z]" raw)
                 (rejection-prose (str "[positive writer source boundary]\n" raw)))
         submitted (native-positive-time (:submitted_at review))
         created (native-positive-time (:created_at writer))

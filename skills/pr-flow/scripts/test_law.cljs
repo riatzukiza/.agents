@@ -680,6 +680,35 @@
                   (positive-body (str/replace positive-item "LGTM!" "LGTM! But fix this."))]]
       (is (= 1 (positive-unanswered (assoc positive-review :body body) positive-writer))))))
 
+(deftest positive-handled-refuses-xml-markup-source
+  (let [binding (str "review-id:" (:id positive-review))
+        item (first (str/split-lines positive-first-item-body))
+        hidden-writers
+        [["complete CDATA writer" (str "<![CDATA[\n" (:body positive-writer) "\n]]>")]
+         ["incomplete CDATA writer" (str "<![CDATA[\n" (:body positive-writer))]
+         ["complete processing instruction writer" (str "<?settlement\n" (:body positive-writer) "\n?>")]
+         ["incomplete processing instruction writer" (str "<?settlement\n" (:body positive-writer))]
+         ["complete declaration writer" (str "<!DOCTYPE settlement [\n" (:body positive-writer) "\n]>")]
+         ["incomplete declaration writer" (str "<!DOCTYPE settlement\n" (:body positive-writer))]
+         ["CDATA binding after live item" (str item "\n\n<![CDATA[\n" binding "\n]]>")]
+         ["processing instruction item after live binding" (str binding "\n\n<?settlement\n" item "\n?>")]]]
+    (doseq [[label body] hidden-writers]
+      (is (= 1 (positive-unanswered positive-review (assoc positive-writer :body body))) label))
+    (testing "markup cannot clear conservative P1 or unknown concerns"
+      (doseq [body [(str "P1 unsafe\n<!-- cr-comment:v1:" positive-id " -->")
+                    (str "Unclassified unknown concern\n<!-- cr-comment:v1:" positive-id " -->")]
+              :let [review (assoc positive-review :body body)
+                    finding (first (law/review-findings review))]]
+        (is (= :p1 (:severity finding)))
+        (is (nil? (:positive-body-item finding)))
+        (doseq [[label writer-body] hidden-writers]
+          (is (= 1 (positive-unanswered review (assoc positive-writer :body writer-body))) label))))
+    (testing "ordinary native plaintext remains admitted"
+      (is (= 0 (positive-unanswered positive-review positive-writer)))
+      (is (= 0 (positive-unanswered positive-review (assoc positive-writer :body positive-first-item-body))))
+      (is (= 0 (law/unanswered-review-count [native-positive-review]
+                                            [native-positive-writer] {:head positive-head}))))))
+
 (defmethod cljs.test/report [:cljs.test/default :end-run-tests] [m]
   (when-not (cljs.test/successful? m) (set! (.-exitCode js/process) 1)))
 
