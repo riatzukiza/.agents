@@ -712,8 +712,10 @@
 (defn unanswered-review-count
   "A flagged review clears only when each identified item has an authorized,
    later settlement from a known author other than the opener. P0/P1 items
-   require Fixed or independent head/item-bound rejection agreement. Context
-   is required for rejection and post-minimum deferral; absence fails closed."
+   require Fixed or independent head/item-bound rejection agreement, except
+   bounded native positive-format items admitted by positive-handled?. Context
+   is required for that Handled admission, rejection and post-minimum deferral;
+   absence fails closed."
   ([reviews comments] (unanswered-review-count reviews comments {}))
   ([reviews comments context]
    (let [comments (vec (sort-by :created_at comments))]
