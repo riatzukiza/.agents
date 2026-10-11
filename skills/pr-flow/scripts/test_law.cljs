@@ -1009,6 +1009,96 @@
     (is (nil? (:positive-body-item (first (law/review-findings review)))) file)
     (is (= 1 (positive-unanswered review positive-writer)) file)))
 
+(def skipped-scope-fixture
+  (js->clj (js/JSON.parse (fs/readFileSync (path/join here "fixtures/native-agents26-skipped-review-scope.json") "utf8")) :keywordize-keys true))
+
+(def scope-header
+  "<details>\n<summary><strong>🚧 Files skipped from review as they are similar to previous changes (1)</strong></summary>")
+(def scope-section (str scope-header "\n* .ημ/receipts.edn\n</details>"))
+(defn scope-evidence [body]
+  (law/review-evidence (:head skipped-scope-fixture) []
+    [(assoc (:nativeComment skipped-scope-fixture) :body body)]
+    law/default-reviewer-identities [(:observedCheck skipped-scope-fixture)]))
+(deftest native-skipped-scope-refuses-positive-count-omission
+  (let [body (get-in skipped-scope-fixture [:nativeComment :body])
+        evidence (scope-evidence body)
+        formal {:id 99001 :user (get-in skipped-scope-fixture [:nativeComment :user])
+                :state "APPROVED" :commit_id (:head skipped-scope-fixture)
+                :submitted_at "2026-10-11T02:35:11Z" :body body}]
+    (is (= :unreviewed-input (law/incomplete-review-reason body)))
+    (is (empty? (:approved-heads evidence)))
+    (is (= :unreviewed-input (get-in evidence [:incomplete-evidence "coderabbit" :reason])))
+    (is (empty? (:approved-heads (law/review-evidence (:head skipped-scope-fixture) [formal] [] law/default-reviewer-identities))))
+    (is (not (law/full-review? formal law/default-reviewer-identities)))
+    (is (empty? (law/completed-review-rounds [formal] [] law/default-reviewer-identities))))
+  (doseq [n ["1" "2" "10" "999999999999999999999999999999"]]
+    (is (= :unreviewed-input (law/incomplete-review-reason (str/replace scope-section "(1)" (str "(" n ")")))) n)))
+(deftest native-skipped-scope-live-html-block-interrupts-quoted-preface
+  (doseq [prefix ["> Example\n" "  > > Example\n"]
+          :let [body (str/replace (get-in skipped-scope-fixture [:nativeComment :body])
+                                 (:removedControlSection skipped-scope-fixture)
+                                 (str prefix (:removedControlSection skipped-scope-fixture)))
+                evidence (scope-evidence body)]]
+    (is (= :unreviewed-input (law/incomplete-review-reason body)) prefix)
+    (is (empty? (:approved-heads evidence)) prefix)
+    (is (= :unreviewed-input (get-in evidence [:incomplete-evidence "coderabbit" :reason])) prefix)))
+(deftest native-skipped-scope-inline-paragraph-cannot-hide-html-block
+  (doseq [[open close] [["`\n" "\n`"] ["``\n" "\n``"] ["`\r" "\r`"] ["``\r\n" "\r\n``"]]
+          :let [body (str/replace (get-in skipped-scope-fixture [:nativeComment :body])
+                                 (:removedControlSection skipped-scope-fixture)
+                                 (str open (:removedControlSection skipped-scope-fixture) close))
+                evidence (scope-evidence body)]]
+    (is (= :unreviewed-input (law/incomplete-review-reason body)) open)
+    (is (empty? (:approved-heads evidence)) open)
+    (is (= :unreviewed-input (get-in evidence [:incomplete-evidence "coderabbit" :reason])) open)))
+(deftest native-skipped-scope-complete-control-remains-eligible
+  (let [body (get-in skipped-scope-fixture [:derivedNoSkippedSectionControl :body])
+        evidence (scope-evidence body)]
+    (is (nil? (law/incomplete-review-reason body)))
+    (is (= #{(:head skipped-scope-fixture)} (get-in evidence [:approved-heads "coderabbit"])))
+    (is (empty? (:incomplete-evidence evidence)))))
+(deftest native-skipped-scope-excludes-examples-without-manufacturing-admissions
+  (doseq [[label body]
+          [["zero" (str/replace scope-section "(1)" "(0)")]
+           ["plain prose" "Files skipped from review as they are similar to previous changes (1)"]
+           ["quoted" (str/join "\n" (map #(str "> " %) (str/split-lines scope-section)))]
+           ["fence" (str "```html\n" scope-section "\n```")]
+           ["tilde fence" (str "~~~html\n" scope-section "\n~~~")]
+           ["pre wrapper" (str "<pre>\n" scope-section "\n</pre>")]
+           ["code wrapper" (str "<code>\n" scope-section "\n</code>")]
+           ["HTML quote" (str "<blockquote>\n" scope-section "\n</blockquote>")]
+           ["comment" (str "<!--\n" scope-section "\n-->")]
+           ["generated" (str "<!-- This is an auto-generated comment: tweet message by coderabbit.ai -->\n" scope-section "\n<!-- end of auto-generated comment: tweet message by coderabbit.ai -->")]
+           ["encoded tags" (-> scope-section (str/replace "<" "&lt;") (str/replace ">" "&gt;"))]
+           ["escaped tags" (str/replace scope-section "<" "\\<")]
+           ["same-line comment composition" (str/replace scope-section "<details>" "<!-- example --> <details>")]
+           ["same-line inline span composition" (str "`example`" scope-section)]]]
+    (is (nil? (law/incomplete-review-reason body)) label))
+  (doseq [[label body]
+          [["single span" (str "`\n" scope-section "\n`")]
+           ["double span" (str "``\n" scope-section "\n``")]
+           ["CR span" (str "`\r" (str/replace scope-section "\n" "\r") "\r`")]
+           ["CRLF double span" (str "``\r\n" (str/replace scope-section "\n" "\r\n") "\r\n``")]
+           ["escaped residual single" (str "\\``\n" scope-section "\n`")]
+           ["escaped residual double" (str "\\```\n" scope-section "\n``")]
+           ["escaped-looking closer" (str "`\n" scope-section "\n\\`")]]]
+    (is (= :unreviewed-input (law/incomplete-review-reason body)) label))
+  (is (= :ambiguous-prose (law/incomplete-review-reason (str "```\nexample\n```" scope-section))))
+  (doseq [[label prefix]
+          [["native HTML block interrupts quote" "> Example\n"]
+           ["native HTML block interrupts nested quote" "  > > Example\n"]
+           ["blank terminates lazy quote" "> Example\n\n"]
+           ["unrelated matched span" "`line\nline`\n\n"]
+           ["unmatched run" "`` example\n\n"]
+           ["escaped opener" "\\` example\n\n"]
+           ["literal backticks in comment" "<!-- ` example -->\n\n"]
+           ["literal backticks in fence" "```\n` example\n```\n\n"]
+           ["generated backticks" "<!-- This is an auto-generated comment: tweet message by coderabbit.ai -->\n` example\n<!-- end of auto-generated comment: tweet message by coderabbit.ai -->\n\n"]
+           ["unfamiliar unrelated tag" "<div>example</div>\n\n"]
+           ["span delimiter in comment" "`\n<!-- ` -->\n"]
+           ["span delimiter in fence" "`\n~~~\n`\n~~~\n"]]]
+    (is (= :unreviewed-input (law/incomplete-review-reason (str prefix scope-section))) label)))
+
 (defmethod cljs.test/report [:cljs.test/default :end-run-tests] [m]
   (when-not (cljs.test/successful? m) (set! (.-exitCode js/process) 1)))
 

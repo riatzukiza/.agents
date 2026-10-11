@@ -884,6 +884,24 @@
       (recur (str/replace-first prose block ""))
       (when-not (re-find #"(?m)^[ \t]*(?:`{3,}|~{3,})" prose) prose))))
 
+(defn- native-scope-prose [body]
+  ;; Preserve excluded regions inline, so removal cannot assemble a heading.
+  ;; Raw native details blocks interrupt paragraphs before inline-code parsing:
+  ;; stray backticks or a quoted paragraph cannot hide this live block opener.
+  ;; Complete fences/comments/generated blocks and explicit quote/code HTML
+  ;; wrappers remain examples; unrelated HTML is not blanket-excluded.
+  (retain-excluded-regions
+   (str body)
+   #"(?im)<!-- This is an auto-generated comment: tweet message by coderabbit\.ai -->[\s\S]*?<!-- end of auto-generated comment: tweet message by coderabbit\.ai -->|<!--[\s\S]*?-->|<(pre|code|blockquote)\b[^>]*>[\s\S]*?</\1>|^[ ]{0,3}>[^\r\n]*(?:(?:\r\n|\r|\n)(?![ \t]*(?:\r\n|\r|\n|$)|<details>(?:\r\n|\r|\n|$))[^\r\n]*)*|^[ \t]*(`{3,}|~{3,})[^\r\n]*(?:\r\n|\r|\n)[\s\S]*?^[ \t]*\2[ \t]*(?:$|\r)"))
+
+(defn- native-skipped-review-input? [body]
+  ;; Match the observed live section header, not arbitrary skipped-file prose.
+  ;; The positive digit grammar avoids overflow and never treats zero as an
+  ;; omission. Keep literal raw line boundaries; do not decode/normalize HTML.
+  (boolean
+   (re-find #"(?m)^<details>(?:\r\n|\r|\n)<summary><strong>🚧 Files skipped from review as they are similar to previous changes \([1-9][0-9]*\)</strong></summary>[ \t]*(?:\r?$)"
+            (native-scope-prose body))))
+
 (defn incomplete-review-reason
   "Commit binding is distinct from completed review scope. Reject an actual
    admission of unfinished/omitted input, including formal approvals. Quotes
@@ -899,7 +917,8 @@
       (nil? prose) :ambiguous-prose
       (re-find #"(?i)\breview (?:is |was |remains )?(?:incomplete|rate limited)\b|\b(?:partial|incomplete) review\b|\b(?:unable to|could not|couldn't|cannot|can't) complete (?:the )?review\b" scope-prose)
       :incomplete-review
-      (or (re-find #"(?im)(?:^|[.;]\s*)(?:some |the |these )?unreviewed (?:files|changes|input) (?:still )?remain\b" prose)
+      (or (native-skipped-review-input? body)
+          (re-find #"(?im)(?:^|[.;]\s*)(?:some |the |these )?unreviewed (?:files|changes|input) (?:still )?remain\b" prose)
           (and (re-find #"(?i)\btruncat(?:ed|ion)\b" prose)
                (re-find #"(?i)\b(?:rather than|instead of) (?:being )?(?:fully |exhaustively )?(?:read|reviewed)\b|\b(?:tail|omitted (?:files|changes|input)) (?:was |were |is |are )?not (?:read|reviewed)\b" prose))
           (and (re-find #"(?i)\btruncat(?:ed|ion)\b" prose)

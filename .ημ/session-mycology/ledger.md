@@ -559,3 +559,12 @@
   spore: none
   receipt-refs: 17f9dea5-aae3-4ef0-9a06-dd692dff6c5d;sha256:268b08cc81ce0f1b04b73deaa3b5f001efddd11051798cbfcdc02d2b06f4bf68
   note: Independent reading found that a bare carriage return could expose a review binding inside an otherwise hidden multiline code span. Actual pre-CR candidate RED in both Node and Babashka has two failures and zero errors. Four CR/CRLF controls expand the final suite to 217 added assertions: exact-874 RED retains 77 failures in Node 111 tests/2,846 assertions and Babashka 12 tests/839 assertions, while final source passes both. The minimal helper change recognizes CR or LF; supported native wrapper and fence grammar stays unchanged. Earlier 213-control/73-failure qualification and reflection remain intact as historical steps. Three failed external preparation attempts remain INVALID and supply no execution credit. Final frozen five paths require independent assessment before persistence; no installed adoption, prior approval transfer, paid activation, new spore or promotion.
+- ts: 2026-10-11T02:59:14.176110486Z
+  session: /home/err/.local/share/openhax-codex/20261010/pr-flow-positive-review
+  task: Repair actual native CodeRabbit positive-count skipped-review scope
+  p-efficiency: 0.82
+  p-friction: 0.45
+  p-skill-candidate: 0.54
+  spore: none
+  receipt-refs: 4b13daaa-8363-4250-99a2-8a42d4dd5e98;sha256:8029d823b523bf49bc9bc7e2048a35bab2a815baa23fc98d299a559a3e7d6b04
+  note: Actual d06 native report skipped one file despite passing exact-head coverage; predecessor and installed reader both admitted approval. Full actual source remains external, with only generated capability token redacted in curated fixture. Independent read caught candidate quote and inline parsing that hid raw native HTML blocks; actual8/19 failure controls drove a smaller block-only helper using existing inline exclusion sentinels. Final exact predecessor116/2911 and portable5/65 each reproduce47 failures, final source passes; policy61/1554 and lint/diff pass. Initial parse, wrong already-ambiguous fence expectation, audit field and unsupported receipt kind are retained as invalid preparations without recasting failure. Original law/test helpers and historical ledger prefixes preserved. Native d06 CLI/MiMo completed results remain historical for successor. No included request at zero quota/no reset, paid activation, optional-reviewer exclusion, installed adoption, approval transfer, new spore or promotion.

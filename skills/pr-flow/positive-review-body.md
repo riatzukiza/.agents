@@ -87,6 +87,37 @@ inside adverse prose does not qualify. The actual P0/P1 settlement rules,
 writer authority, complete native context, review scope, exact-head approval,
 cohort minimum, mandatory CI and branch protection remain in force.
 
+## Native skipped-review scope
+
+Commit coverage does not establish complete input. The observed CodeRabbit
+section headed “🚧 Files skipped from review as they are similar to previous
+changes (N)” supplies `unreviewed-input` when its exact native details/strong
+header is live and N is a positive decimal count. Zero and arbitrary prose
+mentions supply no omitted-input admission through this format. The positive
+digit grammar avoids numeric overflow; it does not normalize or decode HTML.
+
+This scope-only reader preserves raw LF, CRLF and bare-CR line boundaries and
+excludes complete native generated tweet blocks, HTML comments,
+pre/code/blockquote wrappers, fences, and explicitly quoted regions. A genuine
+blank paragraph ends a quoted paragraph; an unprefixed native details opener
+interrupts it as a live HTML block. Block structure precedes inline-code parsing,
+so stray or paired paragraph backticks cannot hide this raw native block opener.
+The independently bounded positive-item and plaintext-writer code-span guards
+remain unchanged. Excluded regions leave an inline non-authoritative sentinel,
+so their removal cannot manufacture a live native section header. An unrelated
+example does not hide a later live scope admission. Shared verdict sanitation
+and legacy settlement, approval and round policy remain unchanged.
+
+The [native skipped-scope fixture](scripts/fixtures/native-agents26-skipped-review-scope.json)
+retains the complete observed PR26 comment, identity, verdict, scope section and
+coverage markers, with one generated review-stack capability token redacted
+explicitly in its provenance. The complete original body and its SHA-256 remain
+external evidence. Its derived control removes only the observed skipped
+section. A skipped available review supplies no approval or full-review round,
+and is not a quota exclusion; included-review footer constraints still govern
+requests. This local source qualification supplies no native successor approval,
+CI, merge or installed-policy credit.
+
 ## Evidence and limits
 
 The regression fixture preserves the actual native review and writer context.
