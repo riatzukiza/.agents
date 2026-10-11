@@ -913,6 +913,102 @@
   (is (= 33 (count (filter :positive-body-item (law/review-findings native-positive-review)))))
   (is (= 0 (law/unanswered-review-count [native-positive-review] [native-positive-writer] {:head positive-head}))))
 
+(deftest positive-review-refuses-multiline-inline-code
+  (doseq [[open close] [["`" "`"] ["``" "``"] ["Example `" "` end"]
+                       ["Example ``" "`` end"] ["Example ```" "``` end"]
+                       ["Example `` ` unmatched" "`` end"]
+                       ["\\``" "` end"] ["\\```" "`` end"] ["Example ``" "\\`` end"]]
+          :let [review (assoc positive-review :body (str open "\n" (:body positive-review) "\n" close))
+                findings (law/review-findings review) finding (first findings)]]
+    (is (= 1 (count findings)) open)
+    (is (= positive-id (:id finding)) open)
+    (is (= :p1 (:severity finding)) open)
+    (is (nil? (:positive-body-item finding)) open)
+    (is (= 1 (positive-unanswered review positive-writer)) open))
+  (doseq [preface ["Ordinary `same-line code`" "Ordinary ``single ` inside``"
+                   "\\` escaped delimiter" "<!-- comment with ```\nliteral ```\ncontent -->"
+                   "<!-- ordinary comment `\ncode-like example\n` -->"
+                   "```text\nordinary fenced ` example\n```"
+                   "Unmatched ````` literal" "Unmatched `` literal"]
+          :let [review (assoc positive-review :body (str preface "\n\n" (:body positive-review)))]]
+    (is (= :native-additional-lgtm
+           (get-in (first (law/review-findings review)) [:positive-body-item :format])) preface)
+    (is (= 0 (positive-unanswered review positive-writer)) preface))
+  ;; This native-format guard conservatively rejects raw equal-run pairs
+  ;; across blank paragraphs too; it is not a general Markdown renderer.
+  (let [review (update positive-review :body #(str "Unmatched ` preface\n\n" %))
+        finding (first (law/review-findings review))]
+    (is (= positive-id (:id finding)))
+    (is (= :p1 (:severity finding)))
+    (is (nil? (:positive-body-item finding)))
+    (is (= 1 (positive-unanswered review positive-writer))))
+  (let [review (update native-positive-review :body #(str "``\n" % "\n``"))]
+    (is (= (set (map :id (law/review-findings native-positive-review)))
+           (set (map :id (law/review-findings review)))))
+    (is (zero? (count (filter :positive-body-item (law/review-findings review)))))
+    (is (= 33 (law/unanswered-review-count [review] [native-positive-writer] {:head positive-head})))))
+
+(deftest positive-handled-refuses-multiline-inline-code
+  (doseq [[open close] [["`" "`"] ["``" "``"] ["Example `" "` end"]
+                       ["Example ``" "`` end"] ["Example ```" "``` end"]
+                       ["Example `` ` unmatched" "`` end"]
+                       ["\\``" "` end"] ["\\```" "`` end"] ["Example ``" "\\`` end"]]
+          body [(:body positive-writer) positive-first-item-body]
+          :let [writer (assoc positive-writer :body (str open "\n" body "\n" close))]]
+    (is (= 1 (positive-unanswered positive-review writer)) open))
+  (doseq [ending ["\r" "\r\n"] delimiter ["`" "``"]
+          :let [binding (str "review-id:" (:id positive-review))
+                item (first (str/split-lines positive-first-item-body))
+                writer (assoc positive-writer :body
+                              (str delimiter ending binding ending delimiter "\n\n" item))]]
+    (is (= 1 (positive-unanswered positive-review writer)) (pr-str [ending delimiter])))
+  (doseq [preface ["Ordinary `same-line code`" "Ordinary ``single ` inside``"
+                   "\\` escaped single delimiter" "Unmatched ` literal" "Unmatched ````` literal" "Unmatched `` literal"]
+          :let [writer (update positive-writer :body #(str preface "\n\n" %))]]
+    (is (= 0 (positive-unanswered positive-review writer)) preface))
+  (is (= 33 (law/unanswered-review-count [native-positive-review]
+                                        [(update native-positive-writer :body #(str "``\n" % "\n``"))]
+                                        {:head positive-head}))))
+
+(deftest positive-review-refuses-incomplete-generic-html-starts
+  (doseq [preface ["<script" "<SCRIPT" "<script type=\"text/plain\"" "</script"
+                   "<style" "<pre" "<div" "</div" "Ordinary <script"
+                   "<script\n<!-- ordinary intervening comment -->"]
+          :let [review (assoc positive-review :body (str preface "\n" (:body positive-review)))
+                findings (law/review-findings review) finding (first findings)]]
+    (is (= 1 (count findings)) preface)
+    (is (= positive-id (:id finding)) preface)
+    (is (= :p1 (:severity finding)) preface)
+    (is (nil? (:positive-body-item finding)) preface)
+    (is (= 1 (positive-unanswered review positive-writer)) preface))
+  (doseq [suffix ["<script" "</script" "<style" "<pre" "<div" "</div"]
+          :let [review (update positive-review :body #(str % "\n\n" suffix))
+                finding (first (law/review-findings review))]]
+    (is (= positive-id (:id finding)) suffix)
+    (is (= :p1 (:severity finding)) suffix)
+    (is (nil? (:positive-body-item finding)) suffix)
+    (is (= 1 (positive-unanswered review positive-writer)) suffix))
+  (let [review (assoc positive-review :body (str "<!-- literal <script and </div examples -->\n\n"
+                                                (:body positive-review)))]
+    (is (= :native-additional-lgtm
+           (get-in (first (law/review-findings review)) [:positive-body-item :format])))
+    (is (= 0 (positive-unanswered review positive-writer)))))
+
+(deftest positive-review-admits-literal-space-file-names
+  (doseq [file ["src/my file.clj" "my file" "src/my (2) file.clj" " leading" "trailing "
+                "src/ leading file.clj" "src/trailing file.clj " "src/λ 名前.cljc"]
+          :let [review (update positive-review :body str/replace "src/example.cljc" file)
+                finding (first (law/review-findings review)) item (:positive-body-item finding)]]
+    (is (= positive-id (:id finding)) file)
+    (is (= :p1 (:severity finding)) file)
+    (is (= :native-additional-lgtm (:format item)) file)
+    (is (= file (:file item)) file)
+    (is (= 0 (positive-unanswered review positive-writer)) file))
+  (doseq [file ["src/my\tfile.clj" "src/my\rfile.clj"]
+          :let [review (update positive-review :body str/replace "src/example.cljc" file)]]
+    (is (nil? (:positive-body-item (first (law/review-findings review)))) file)
+    (is (= 1 (positive-unanswered review positive-writer)) file)))
+
 (defmethod cljs.test/report [:cljs.test/default :end-run-tests] [m]
   (when-not (cljs.test/successful? m) (set! (.-exitCode js/process) 1)))
 

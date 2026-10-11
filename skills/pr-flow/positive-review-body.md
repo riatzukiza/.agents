@@ -27,7 +27,8 @@ Recognize a candidate only inside a complete authored Additional-comments file
 group using the observed native wrapper grammar. The section scanner treats
 XML declaration, CDATA and processing-instruction starts, including incomplete
 constructs, as unsupported boundaries. Complete native HTML comments remain
-supported; unterminated comments fail closed. Markdown code indentation on
+supported; unterminated comments fail closed. Incomplete generic HTML tag
+starts also deny the section, including unsupported starts after its outer close. Markdown code indentation on
 any structural opening or closing tag fails closed; native inline summary and blockquote
 tags remain supported. Any raw quote-prefixed review line denies this bounded
 section admission, so lazy continuations cannot become top-level source through
@@ -37,7 +38,9 @@ a newline or the body boundary; a same-line suffix cannot be silently excluded.
 Excluded regions retain a non-authoritative sentinel without inserting line
 boundaries, so sanitation cannot manufacture a clean final closing line.
 File paths must have no empty, dot or dot-dot slash components and no NUL;
-legal literal filenames, including extensionless root names, remain unnormalized.
+supported literal filenames, including extensionless root names and ordinary
+spaces, remain unnormalized. Leading or trailing spaces stay part of the filename;
+tabs and line whitespace remain outside this bounded single-line grammar.
 Each item must be an exact
 numeric range followed by `LGTM!`, its unique 24-hex stable marker, and only the
 supported numeric “Also applies to” ranges and item separator. Preserve the
@@ -68,6 +71,15 @@ Writer creation must be strictly later than both submission and the latest
 review-body edit; the writer's own edit cannot precede its creation. The
 review update cannot precede submission. The reviewed historical head and the current writer/head remain
 separate coordinates; this supplies no current-source review credit.
+
+Both the review section and plaintext writer deny raw equal-length backtick
+runs spanning an LF, CRLF or bare-CR line boundary, including blank paragraphs. This is a conservative
+native-format guard, not a general Markdown renderer. Complete outside comments
+and fenced examples are skipped. Backslashes, comment starts and fence syntax
+inside an open span cannot hide a matching closing delimiter; escaped-looking
+closers still close. Same-line code and unmatched delimiter lengths
+remain supported. A stray single run before a later native single-run range can
+therefore conservatively deny the format even across a blank paragraph.
 
 Unknown, negative, malformed, nested, quoted, fenced, generated, duplicate-ID
 and mixed-negative inputs remain conservative. A positive-looking sentence

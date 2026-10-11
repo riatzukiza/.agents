@@ -541,3 +541,21 @@
   spore: none
   receipt-refs: 4ade6b82-7f8e-4e5a-8bd1-d58a9d41fcbf;04ba5ae8-576c-4d1c-9e73-33a54c009bd6;sha256:faa74370df3645a3dcf68daf74b2bb3a833c4b047df3152588647b7beaf1b5e2
   note: Native current-head review supplied four distinct source-boundary findings. Preserve all complete finding bodies before narrowing scope. Exact a778 RED reproduces 59 failures; final Node qualification covers 107 tests and 2,629 assertions, while Babashka covers 8 tests and 622 assertions. Focused CLI qualification covers 1 test and 66 assertions: 16 failures become zero through authenticated native review-edit hydration, with 16 owned temporary fixture roots removed and 500 final Node 24 runtime observations verified. Generated same-line suffix composition independently reproduced 4 candidate failures; an inline non-authoritative sentinel preserves the original boundary. A real API schema check corrected the mocked Actor ID assumption through the Bot fragment before freezing. All historical bytes and the earlier readable ledger restatement remain preserved. Current a778 hosted success and MiMo approval remain historical after a successor push; the full local CLI failure stays failed. No installed adoption, approval transfer, new spore or promotion.
+- ts: 2026-10-11T02:16:04.378819356Z
+  session: /home/err/.local/share/openhax-codex/20261010/pr-flow-positive-review
+  task: Repair four native positive-format Markdown and filename boundaries
+  p-efficiency: 0.9
+  p-friction: 0.35
+  p-skill-candidate: 0.51
+  spore: none
+  receipt-refs: 0a8343c0-aad2-4f7b-adcf-372a6fd0f767;c6e0d125-449c-461b-b4f0-b844433fb2f9;sha256:2520b7df0e0c797d7e8450267822dfddaf60015118fd2f0be36f12e3da2c36e6
+  note: Read all four complete native findings before narrowing source scope. Exact 874 predecessor qualification reproduces 73 failures across 111 tests and 2,842 assertions; Babashka reproduces the same 73 failures across 12 tests and 835 assertions. Both final runs pass. The shared positive-only raw backtick guard is deliberately conservative across line and paragraph boundaries, while complete outside comments/fences, same-line code, escaped-looking delimiters and unmatched lengths remain covered. The reported incomplete HTML prefix was already rejected; the separate suffix gap supplies 12 actual failures and the minimal start-token fix. Legal literal filename spaces retain their exact bytes. One initial fixture count assertion was wrong and remains INVALID; corrected ID preservation preceded final RED. Native 874 hosted CLI passes all 70 tests and 1,822 assertions, and MiMo approval 5481575979 remains historical for this successor. Current source and all historical ledger bytes are frozen for independent review before publishing. No installed adoption, policy/gate weakening, approval transfer, new spore or promotion.
+- ts: 2026-10-11T02:23:30.666764952Z
+  session: /home/err/.local/share/openhax-codex/20261010/pr-flow-positive-review
+  task: Close the independently identified bare-CR code-span boundary
+  p-efficiency: 0.9
+  p-friction: 0.35
+  p-skill-candidate: 0.51
+  spore: none
+  receipt-refs: 17f9dea5-aae3-4ef0-9a06-dd692dff6c5d;sha256:268b08cc81ce0f1b04b73deaa3b5f001efddd11051798cbfcdc02d2b06f4bf68
+  note: Independent reading found that a bare carriage return could expose a review binding inside an otherwise hidden multiline code span. Actual pre-CR candidate RED in both Node and Babashka has two failures and zero errors. Four CR/CRLF controls expand the final suite to 217 added assertions: exact-874 RED retains 77 failures in Node 111 tests/2,846 assertions and Babashka 12 tests/839 assertions, while final source passes both. The minimal helper change recognizes CR or LF; supported native wrapper and fence grammar stays unchanged. Earlier 213-control/73-failure qualification and reflection remain intact as historical steps. Three failed external preparation attempts remain INVALID and supply no execution credit. Final frozen five paths require independent assessment before persistence; no installed adoption, prior approval transfer, paid activation, new spore or promotion.

@@ -487,6 +487,41 @@
 
 
 
+(defn- multiline-code-span? [text]
+  ;; Positive admission alone denies raw equal backtick runs across lines,
+  ;; including blank paragraphs; this is a conservative native-format guard.
+  ;; Outside a code span, complete native comments/fences remain examples.
+  ;; Inside one, backslashes, comments and fences cannot hide its delimiter.
+  (let [matching-close
+        (fn [cursor size]
+          (loop [cursor cursor]
+            (when-let [run (re-find #"`+" (subs text cursor))]
+              (let [start (+ cursor (str/index-of (subs text cursor) run))
+                    end (+ start (count run))]
+                (if (= size (count run)) [start end] (recur end))))))]
+    (loop [cursor 0]
+      (if-let [token (re-find #"<!--[\s\S]*?-->|`+|~{3,}" (subs text cursor))]
+        (let [start (+ cursor (str/index-of (subs text cursor) token))
+              end (+ start (count token))
+              line-start (inc (or (str/last-index-of (subs text 0 start) "\n") -1))
+              fence (when (and (>= (count token) 3)
+                               (re-matches #"[ \t]*" (subs text line-start start)))
+                      (when-let [match (re-find #"(?ms)^([ \t]*)(`{3,}|~{3,})[^\n]*\n.*?^\1\2[ \t]*$"
+                                                (subs text line-start))]
+                        (when (zero? (str/index-of (subs text line-start) (first match))) (first match))))
+              escaped? (odd? (loop [index (dec start) n 0]
+                               (if (and (>= index 0) (= "\\" (subs text index (inc index))))
+                                 (recur (dec index) (inc n)) n)))]
+          (cond
+            (str/starts-with? token "<!--") (recur end)
+            fence (recur (+ line-start (count fence)))
+            (str/starts-with? token "~") (recur end)
+            escaped? (recur (inc start))
+            :else (if-let [[close after] (matching-close end (count token))]
+                    (if (re-find #"[\r\n]" (subs text end close)) true (recur after))
+                    (recur end))))
+        false))))
+
 (defn- retain-excluded-regions [text pattern]
   ;; Exclusion must not sanitize extra own-item source into an exact LGTM.
   ;; The sentinel cannot match a native item or a complete section header,
@@ -506,7 +541,7 @@
   ;; Quotes/fences/generated share examples are not authored LGTM evidence.
   ;; A deliberately small balanced tag grammar rejects unfamiliar HTML rather
   ;; than borrowing a closing boundary from a nested or sibling example.
-  (let [text (some-> (str body)
+  (let [text (some-> (when-not (multiline-code-span? (str body)) (str body))
                      (retain-excluded-regions #"(?s)<!-- This is an auto-generated comment: tweet message by coderabbit\.ai -->.*?<!-- end of auto-generated comment: tweet message by coderabbit\.ai -->")
                      (#(when (verdict-prose %) %))
                      (retain-excluded-regions #"(?ms)^[ \t]*(`{3,}|~{3,})[^\n]*\n.*?^[ \t]*\1[ \t]*$")
@@ -515,7 +550,7 @@
                      (#(when-not (re-find #"(?m)^[ \t]*>" (str body)) %)))]
     (when (and text (not (re-find #"(?i)<!--\s*(?:This is an auto-generated comment:|end of auto-generated comment:)" text)))
       (loop [remaining text offset 0 stack [] sections []]
-        (if-let [token (re-find #"<!--[\s\S]*?-->|</?[A-Za-z][^>]*>|<\?|<!" remaining)]
+        (if-let [token (re-find #"<!--[\s\S]*?-->|</?[A-Za-z][^>]*>|</?[A-Za-z]|<\?|<!" remaining)]
           (let [start (+ offset (str/index-of remaining token))
                 end (+ start (count token))
                 tail (subs text end)]
@@ -563,7 +598,7 @@
                 (for [[_ file item-count content] groups
                       ;; Authored repository-relative paths; never a generated
                       ;; nested summary, absolute path, or traversal fragment.
-                      :when (and (re-matches #"[^\s<>]+" file)
+                      :when (and (re-matches #"(?:[^\s<>]| )+" file)
                                  (not (re-find #"[\u0000:\\]" file))
                                  (not (str/starts-with? file "/"))
                                  (not (some #{"" ".." "."} (str/split file #"/" -1))))
@@ -658,7 +693,8 @@
   (let [raw (str (:body writer))
         ;; This admission supports native plaintext only. Deny markup before
         ;; shared sanitation can assemble evidence across excluded regions.
-        prose (when-not (or (re-find #"<!|<\?|</?[A-Za-z]" raw)
+        prose (when-not (or (multiline-code-span? raw)
+                            (re-find #"<!|<\?|</?[A-Za-z]" raw)
                             (re-find #"(?m)^[ \t]*>" raw))
                 (rejection-prose (str "[positive writer source boundary]\n" raw)))
         submitted (native-positive-time (:submitted_at review))
