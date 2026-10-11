@@ -280,12 +280,39 @@
     (when-not (= 0 (.-status r)) (throw (ex-info "Kimi publication archive unavailable" {})))
     (.-stdout r)))
 
+(defn hydrate-positive-review-update
+  "Bind the latest native body edit to the same REST positive review. Missing
+   or changed source custody cannot fall back to submission-only settlement."
+  [review]
+  (if (and (= "coderabbit" (law/trusted-reviewer review (reviewer-identities)))
+           (= "COMMENTED" (:state review))
+           (some :positive-body-item (law/review-findings review)))
+    (let [id (:node_id review)
+          response (when (and (string? id) (not (str/blank? id)))
+                     (gh-json "api" "graphql" "-f"
+                              "query=query($id:ID!){node(id:$id){... on PullRequestReview{id databaseId state body updatedAt submittedAt commit{oid} author{__typename ... on Bot{id}}}}}"
+                              "-f" (str "id=" id)))
+          native (get-in response [:data :node])
+          matches? (and (not (seq (:errors response))) (map? native)
+                        (= id (:id native)) (= (:id review) (:databaseId native))
+                        (= (:body review) (:body native)) (= (:state review) (:state native))
+                        (= (:commit_id review) (get-in native [:commit :oid]))
+                        (= (:submitted_at review) (:submittedAt native))
+                        (string? (get-in review [:user :node_id]))
+                        (= (get-in review [:user :node_id]) (get-in native [:author :id]))
+                        (= "Bot" (get-in native [:author :__typename]))
+                        (string? (:updatedAt native)))]
+      (cond-> (assoc review :updated_at (when matches? (:updatedAt native)))
+        (not matches?) (assoc :positive-review-update-error :native-source-mismatch)))
+    review))
+
 (defn fetch-heads
   "Collect hosted approval, commit binding and incomplete scope separately."
   [repo n]
   (let [head (str/trim (gh! "pr" "view" (str n) "-R" repo "--json" "headRefOid" "-q" ".headRefOid"))
         reviews (kimi-native/hydrate repo (js/parseInt n 10) head
-                                    (gh-pages (str "repos/" repo "/pulls/" n "/reviews"))
+                                    (mapv hydrate-positive-review-update
+                                          (gh-pages (str "repos/" repo "/pulls/" n "/reviews")))
                                     (get-in (load-flow) [:flow/defaults :review/kimi-publication])
                                     {:get-json #(gh-json "api" %) :get-pages publication-pages :get-archive publication-archive})
         raw-comments (fetch-issue-comments repo n)
@@ -458,6 +485,8 @@
       (println (str "  incomplete review scope: " (pr-str (:incomplete-evidence heads)))))
     (doseq [r (:reviews heads) :when (:kimi-publication-error r)]
       (println (str "  Kimi publication proof: " (name (:kimi-publication-error r)) " native review " (:id r))))
+    (doseq [r (:reviews heads) :when (:positive-review-update-error r)]
+      (println (str "  positive review edit custody: " (name (:positive-review-update-error r)) " native review " (:id r))))
     (println (str "  gate: " (if (:pass? gate) "PASS" "BLOCKED")))
     (doseq [r (:reasons gate)] (println (str "    - " r)))
     gate))

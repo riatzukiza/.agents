@@ -475,7 +475,11 @@
   (js->clj (js/JSON.parse (fs/readFileSync
                           (path/join here "fixtures/native-services94-positive-review.json") "utf8"))
            :keywordize-keys true))
-(def native-positive-review (:review native-positive-fixture))
+;; Native node PRR_kwDOSuY53c8AAAABRqlEYA read on 2026-10-11: exact body,
+;; ID/state/commit/submission match the unchanged fixture; updatedAt equals
+;; submission. The REST fixture does not itself contain this GraphQL field.
+(def native-positive-review
+  (assoc (:review native-positive-fixture) :updated_at "2026-10-10T19:18:33Z"))
 (def native-positive-writer (assoc (:writer native-positive-fixture) :authorized? true))
 (def positive-head (get-in native-positive-fixture [:context :head]))
 (def positive-id "1234567890abcdef12345678")
@@ -843,6 +847,71 @@
       (is (= :native-additional-lgtm
              (get-in (first (law/review-findings review)) [:positive-body-item :format])))
       (is (= 0 (positive-unanswered review positive-writer))))))
+
+(deftest positive-review-refuses-lazy-quoted-section
+  (doseq [quote ["> quoted preface" ">quoted preface" " > quoted preface"
+                 "  > quoted preface" "   > quoted preface" "> > nested preface"]
+          :let [review (assoc positive-review :body (str quote "\n" (:body positive-review)))
+                findings (law/review-findings review) finding (first findings)]]
+    (is (= 1 (count findings)) quote)
+    (is (= positive-id (:id finding)) quote)
+    (is (= :p1 (:severity finding)) quote)
+    (is (nil? (:positive-body-item finding)) quote)
+    (is (= 1 (positive-unanswered review positive-writer)) quote))
+  (doseq [preface ["Ordinary preface" "Literal > sign" "\\> escaped preface"]
+          :let [review (assoc positive-review :body (str preface "\n\n" (:body positive-review)))]]
+    (is (= :native-additional-lgtm
+           (get-in (first (law/review-findings review)) [:positive-body-item :format])) preface)
+    (is (= 0 (positive-unanswered review positive-writer)) preface)))
+
+(deftest positive-review-admits-extensionless-native-file-names
+  (doseq [file ["Makefile" "Dockerfile" "LICENSE" "README" ".gitignore" "-entry" "λ名前" "%2F"]
+          :let [review (update positive-review :body str/replace "src/example.cljc" file)
+                finding (first (law/review-findings review)) item (:positive-body-item finding)]]
+    (is (= positive-id (:id finding)) file)
+    (is (= :p1 (:severity finding)) file)
+    (is (= :native-additional-lgtm (:format item)) file)
+    (is (= file (:file item)) file)
+    (is (= 0 (positive-unanswered review positive-writer)) file)))
+
+(deftest positive-review-requires-clean-final-wrapper-line
+  (doseq [suffix [" P1: these items require changes" "\tP0: unsafe" "adverse correction"
+                  " <!-- same-line correction -->" " <details><summary>correction</summary></details>"
+                  "<!-- This is an auto-generated comment: tweet message by coderabbit.ai -->P1: correction<!-- end of auto-generated comment: tweet message by coderabbit.ai -->"
+                  " <!-- This is an auto-generated comment: tweet message by coderabbit.ai -->\nP1: correction\n<!-- end of auto-generated comment: tweet message by coderabbit.ai -->"]
+          :let [review (update positive-review :body str suffix)
+                findings (law/review-findings review) finding (first findings)]]
+    (is (= 1 (count findings)) suffix)
+    (is (= positive-id (:id finding)) suffix)
+    (is (= :p1 (:severity finding)) suffix)
+    (is (nil? (:positive-body-item finding)) suffix)
+    (is (= 1 (positive-unanswered review positive-writer)) suffix))
+  (doseq [suffix ["" " " "\t" " \t  " "\n" "\r\n" " \t\r\nOrdinary later prose" " \t\nOrdinary later prose"]
+          :let [review (update positive-review :body str suffix)]]
+    (is (= :native-additional-lgtm
+           (get-in (first (law/review-findings review)) [:positive-body-item :format])) suffix)
+    (is (= 0 (positive-unanswered review positive-writer)) suffix))
+  (let [review (update native-positive-review :body str/replace
+                       "\n\n</blockquote></details>\n\n</blockquote></details>"
+                       "\n\n</blockquote></details>\n\n</blockquote></details> P1: these items require changes")]
+    (is (not= (:body native-positive-review) (:body review)))
+    (is (zero? (count (filter :positive-body-item (law/review-findings review)))))
+    (is (= 33 (law/unanswered-review-count [review] [native-positive-writer] {:head positive-head})))))
+
+(deftest positive-handled-follows-latest-native-review-edit
+  (doseq [[label review]
+          [["missing edit time" (dissoc positive-review :updated_at)]
+           ["invalid edit time" (assoc positive-review :updated_at "unknown")]
+           ["impossible edit time" (assoc positive-review :updated_at "2026-10-32T19:18:33Z")]
+           ["edit before submission" (assoc positive-review :updated_at "2026-10-10T19:18:32Z")]
+           ["writer before edit" (assoc positive-review :updated_at "2026-10-10T19:34:35Z")]
+           ["writer equals edit" (assoc positive-review :updated_at (:created_at positive-writer))]
+           ["fractional edit after writer" (assoc positive-review :updated_at "2026-10-10T19:34:34.001Z")]]]
+    (is (= 1 (positive-unanswered review positive-writer)) label))
+  (doseq [edited [(:submitted_at positive-review) "2026-10-10T19:34:33Z" "2026-10-10T19:34:33.999Z"]]
+    (is (= 0 (positive-unanswered (assoc positive-review :updated_at edited) positive-writer)) edited))
+  (is (= 33 (count (filter :positive-body-item (law/review-findings native-positive-review)))))
+  (is (= 0 (law/unanswered-review-count [native-positive-review] [native-positive-writer] {:head positive-head}))))
 
 (defmethod cljs.test/report [:cljs.test/default :end-run-tests] [m]
   (when-not (cljs.test/successful? m) (set! (.-exitCode js/process) 1)))

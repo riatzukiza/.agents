@@ -489,10 +489,11 @@
 
 (defn- retain-excluded-regions [text pattern]
   ;; Exclusion must not sanitize extra own-item source into an exact LGTM.
-  ;; The sentinel cannot match a native item or a complete section header.
+  ;; The sentinel cannot match a native item or a complete section header,
+  ;; and must not invent line boundaries around an excluded source region.
   (loop [text text]
     (if-let [match (re-find pattern text)]
-      (recur (str/replace-first text (if (string? match) match (first match)) "\n[excluded non-authoritative source]\n"))
+      (recur (str/replace-first text (if (string? match) match (first match)) "[excluded non-authoritative source]"))
       text)))
 
 (defn- trim-blank-lines [text]
@@ -509,7 +510,9 @@
                      (retain-excluded-regions #"(?s)<!-- This is an auto-generated comment: tweet message by coderabbit\.ai -->.*?<!-- end of auto-generated comment: tweet message by coderabbit\.ai -->")
                      (#(when (verdict-prose %) %))
                      (retain-excluded-regions #"(?ms)^[ \t]*(`{3,}|~{3,})[^\n]*\n.*?^[ \t]*\1[ \t]*$")
-                     (retain-excluded-regions #"(?m)^[ \t]*>[^\n]*(?:\n|$)"))]
+                     ;; Raw quote starts can own unprefixed lazy continuations.
+                     ;; The supported native section has no quoted source.
+                     (#(when-not (re-find #"(?m)^[ \t]*>" (str body)) %)))]
     (when (and text (not (re-find #"(?i)<!--\s*(?:This is an auto-generated comment:|end of auto-generated comment:)" text)))
       (loop [remaining text offset 0 stack [] sections []]
         (if-let [token (re-find #"<!--[\s\S]*?-->|</?[A-Za-z][^>]*>|<\?|<!" remaining)]
@@ -522,7 +525,9 @@
                 (when-not (re-matches #"(?: {4}| {0,3}\t)[ \t]*"
                                       (last (str/split (subs text 0 start) #"\n" -1)))
                   (if (= closing "/")
-                    (when (= tag (:tag (peek stack)))
+                    (when (and (= tag (:tag (peek stack)))
+                               (or (not (:additional? (peek stack)))
+                                   (re-find #"^[ \t]*(?:\r?\n|$)" tail)))
                       (let [frame (peek stack)
                             sections (if (:additional? frame)
                                        (conj sections (subs text (:start frame) end)) sections)]
@@ -558,7 +563,7 @@
                 (for [[_ file item-count content] groups
                       ;; Authored repository-relative paths; never a generated
                       ;; nested summary, absolute path, or traversal fragment.
-                      :when (and (re-matches #"[^\s<>]+/[^\s<>]+|[^\s<>]+\.[^\s<>]+" file)
+                      :when (and (re-matches #"[^\s<>]+" file)
                                  (not (re-find #"[\u0000:\\]" file))
                                  (not (str/starts-with? file "/"))
                                  (not (some #{"" ".." "."} (str/split file #"/" -1))))
@@ -657,6 +662,7 @@
                             (re-find #"(?m)^[ \t]*>" raw))
                 (rejection-prose (str "[positive writer source boundary]\n" raw)))
         submitted (native-positive-time (:submitted_at review))
+        review-updated (native-positive-time (:updated_at review))
         created (native-positive-time (:created_at writer))
         updated (native-positive-time (:updated_at writer))
         ;; The observed native writer binds one complete plaintext line. Code
@@ -673,10 +679,12 @@
           (some? prose)
           (= "coderabbit" (trusted-reviewer review (or (:identities context) default-reviewer-identities)))
           (= "COMMENTED" (:state review)) (valid-head? (:commit_id review))
-          (integer? (:id review)) (pos? (:id review)) submitted
+          (integer? (:id review)) (pos? (:id review)) submitted review-updated
+          (not (neg? (compare review-updated submitted)))
           (true? (:authorized? writer)) (= "User" (get-in writer [:user :type]))
           (integer? (:id writer)) (pos? (:id writer))
-          created updated (pos? (compare created submitted)) (not (neg? (compare updated created)))
+          created updated (pos? (compare created submitted))
+          (pos? (compare created review-updated)) (not (neg? (compare updated created)))
           (valid-head? head) (= 1 (count (re-seq #"(?i)\breview-id:" (str prose))))
           (= [(str (:id review))] (vec bindings) (vec raw-bindings))
           (some (fn [[line id tail]]

@@ -523,3 +523,21 @@
   spore: none
   receipt-refs: 5c40a1827258320e444668ec98f440c27ddb6884cd9e65796ea5c1ac784715b7,ade635abcc013f9a970c366675d884fcbd16ab9b5d81c498aaf97f63fc8f0456
   note: Full immutable native review had three items, while initial interpretation used a truncated tool-output tail and selected one. Correct scope before persistence; preserve bounded path-only qualification and record the selection mistake. Exact predecessor RED distinguishes newly reproduced file-openers/lazyquotes from already-denied outer/summary controls. Independent closer boundary inspection adds actual32 failures before minimally moving the same code-prefix guard to all structural tokens. Shared sanitation remains unchanged; strict observed plaintext writer denies raw quote lines rather than attempting CommonMark parsing. Exact all-reader RED74 becomes GREEN, native33 and legal names retained. External preparation assertions remain INVALID without source/test credit. Preserve whole source reversals and ledger prefixes; no spore/promotion or successor approval/CI transfer.
+- ts: 2026-10-11T01:24:59.972342061Z
+  session: /home/err/.local/share/openhax-codex/20261010/pr-flow-positive-review
+  task: Append readable restatements of four historical ledger notes
+  p-efficiency: 0.96
+  p-friction: 0.13
+  p-skill-candidate: 0.18
+  spore: none
+  receipt-refs: eef0102ee1155cbd2ea9db582a1a1d56d379584f89c0882ca7ca4a1d52372bcb
+  note: Readable correction for the four historical notes in source a7786e26a11f5923ca753c72e958f5bf159cf944: line 498 refers to historical commit 18afa85c651a60a69c1b9e31b214b298b47ae1f0 and its hosted qualification, separate from successor evidence. Line 507 records a RED result with 18 failures followed by GREEN qualification of 99 tests and 2,007 assertions. Line 516 records 20 failures on each source reader branch before the empty-component/NUL repair and preservation of the native 33-item fixture. Line 525 records 32 newly reproduced closing-boundary failures and the combined RED result with 74 failures before GREEN, with the native 33-item fixture and legal names retained. These are readability restatements of historical observations, not new test runs or an upgrade of evidence. The original entries and all other historical bytes remain preserved. All six reviewed skill files remain byte-identical; no source admission, CI, review or approval transfers to a new head.
+- ts: 2026-10-11T01:45:39.813501568Z
+  session: /home/err/.local/share/openhax-codex/20261010/pr-flow-positive-review
+  task: Repair four native positive-review boundaries with exact native edit custody
+  p-efficiency: 0.89
+  p-friction: 0.34
+  p-skill-candidate: 0.49
+  spore: none
+  receipt-refs: 4ade6b82-7f8e-4e5a-8bd1-d58a9d41fcbf;04ba5ae8-576c-4d1c-9e73-33a54c009bd6;sha256:faa74370df3645a3dcf68daf74b2bb3a833c4b047df3152588647b7beaf1b5e2
+  note: Native current-head review supplied four distinct source-boundary findings. Preserve all complete finding bodies before narrowing scope. Exact a778 RED reproduces 59 failures; final Node qualification covers 107 tests and 2,629 assertions, while Babashka covers 8 tests and 622 assertions. Focused CLI qualification covers 1 test and 66 assertions: 16 failures become zero through authenticated native review-edit hydration, with 16 owned temporary fixture roots removed and 500 final Node 24 runtime observations verified. Generated same-line suffix composition independently reproduced 4 candidate failures; an inline non-authoritative sentinel preserves the original boundary. A real API schema check corrected the mocked Actor ID assumption through the Bot fragment before freezing. All historical bytes and the earlier readable ledger restatement remain preserved. Current a778 hosted success and MiMo approval remain historical after a successor push; the full local CLI failure stays failed. No installed adoption, approval transfer, new spore or promotion.

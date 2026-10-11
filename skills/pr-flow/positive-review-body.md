@@ -29,8 +29,15 @@ XML declaration, CDATA and processing-instruction starts, including incomplete
 constructs, as unsupported boundaries. Complete native HTML comments remain
 supported; unterminated comments fail closed. Markdown code indentation on
 any structural opening or closing tag fails closed; native inline summary and blockquote
-tags remain supported. File paths must have no empty, dot or dot-dot slash
-components and no NUL; legal literal filenames remain unnormalized.
+tags remain supported. Any raw quote-prefixed review line denies this bounded
+section admission, so lazy continuations cannot become top-level source through
+sanitation. Literal greater-than signs and escaped leading signs remain supported.
+The final outer close must end its line with only optional spaces or tabs before
+a newline or the body boundary; a same-line suffix cannot be silently excluded.
+Excluded regions retain a non-authoritative sentinel without inserting line
+boundaries, so sanitation cannot manufacture a clean final closing line.
+File paths must have no empty, dot or dot-dot slash components and no NUL;
+legal literal filenames, including extensionless root names, remain unnormalized.
 Each item must be an exact
 numeric range followed by `LGTM!`, its unique 24-hex stable marker, and only the
 supported numeric “Also applies to” ranges and item separator. Preserve the
@@ -40,7 +47,7 @@ a lower priority.
 
 The `Handled` admission also needs a configured native CodeRabbit Bot identity,
 a native COMMENTED review ID, its observed full source commit and submission
-time, and a distinct true-authorized native User writer whose settlement has
+time and latest native review-body edit time, and a distinct true-authorized native User writer whose settlement has
 its native comment ID. The CLI supplies writer authorization from the native
 repository relationship; an author name in pasted prose supplies none.
 The supported writer is native plaintext. Raw HTML tag and comment starts,
@@ -54,8 +61,12 @@ binding line and name the exact current full head in live, itemized prose. The
 raw and live binding values must match, and the raw live `Handled` line must
 remain unchanged by sanitation. Indented code, inline backticks, quotes, fences
 and HTML attributes cannot supply that binding.
-Creation and edit chronology must remain strictly later than
-the review. The reviewed historical head and the current writer/head remain
+The CLI binds the native GraphQL review update to the REST review's node ID,
+database ID, author identity, exact body, state, commit and submission timestamp.
+Missing or mismatched native update custody supplies no positive settlement.
+Writer creation must be strictly later than both submission and the latest
+review-body edit; the writer's own edit cannot precede its creation. The
+review update cannot precede submission. The reviewed historical head and the current writer/head remain
 separate coordinates; this supplies no current-source review credit.
 
 Unknown, negative, malformed, nested, quoted, fenced, generated, duplicate-ID
