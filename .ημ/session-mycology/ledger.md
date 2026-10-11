@@ -505,3 +505,21 @@
   spore: none
   receipt-refs: 943a166ae91aeafbda54482ceb6f3e38d3393a9921c68760e53bbf96d2aba25d
   note: Actual native P2 exposed a review-side scanner boundary gap after writer-side denial. Preserve complete native HTML comment recognition before rejecting declaration and PI starts. Expanded exact predecessor RED18failures and repaired GREEN99/2007 distinguish authority denial from stable marker discovery. Whole-file reverse/insertion custody bounds the repair; parse, audit field and external layout failures remain INVALID evidence. Preserve historical CLI failure and append-only provenance; require independent source freeze and successor CI/reviews before native convergence. No installed adoption, approval transfer, spore or promotion.
+- ts: 2026-10-11T00:59:27.796776375Z
+  session: /home/err/.local/share/openhax-codex/20261010/pr-flow-positive-review
+  task: Reject empty and NUL components in positive native review paths
+  p-efficiency: 0.94
+  p-friction: 0.17
+  p-skill-candidate: 0.19
+  spore: none
+  receipt-refs: 92bf91879dd1b59079c2d8efdf7173e4e56968b56b393721882588d5fcf94e9e,4c2385b4fd376ddff793646fda781279a72298efc6c595be31314c40902c6c41
+  note: Actual native P2 plus independent Git-invalid NUL inspection yielded20 failures on each source reader branch. Split limit -1 preserves trailing empty components portably; literal NUL guard preserves legal names without decoding or normalization. Seven legal-name controls and native33 fixture pass. The first external portable fixture lacked the existing test-only authorization seam; retain it as INVALID and copy canonical permission admission in corrected v2, never change production authority. Entire prior source/test bytes and ledger prefixes remain inspectable. Independent source freeze and fresh successor CI/reviews required before protected merge; no live adoption, approval transfer, new spore or promotion.
+- ts: 2026-10-11T01:14:11.657606433Z
+  session: /home/err/.local/share/openhax-codex/20261010/pr-flow-positive-review
+  task: Repair all three actual native positive-review live-context findings together
+  p-efficiency: 0.87
+  p-friction: 0.34
+  p-skill-candidate: 0.29
+  spore: none
+  receipt-refs: 5c40a1827258320e444668ec98f440c27ddb6884cd9e65796ea5c1ac784715b7,ade635abcc013f9a970c366675d884fcbd16ab9b5d81c498aaf97f63fc8f0456
+  note: Full immutable native review had three items, while initial interpretation used a truncated tool-output tail and selected one. Correct scope before persistence; preserve bounded path-only qualification and record the selection mistake. Exact predecessor RED distinguishes newly reproduced file-openers/lazyquotes from already-denied outer/summary controls. Independent closer boundary inspection adds actual32 failures before minimally moving the same code-prefix guard to all structural tokens. Shared sanitation remains unchanged; strict observed plaintext writer denies raw quote lines rather than attempting CommonMark parsing. Exact all-reader RED74 becomes GREEN, native33 and legal names retained. External preparation assertions remain INVALID without source/test credit. Preserve whole source reversals and ledger prefixes; no spore/promotion or successor approval/CI transfer.

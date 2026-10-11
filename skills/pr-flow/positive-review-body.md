@@ -27,7 +27,11 @@ Recognize a candidate only inside a complete authored Additional-comments file
 group using the observed native wrapper grammar. The section scanner treats
 XML declaration, CDATA and processing-instruction starts, including incomplete
 constructs, as unsupported boundaries. Complete native HTML comments remain
-supported; unterminated comments fail closed. Each item must be an exact
+supported; unterminated comments fail closed. Markdown code indentation on
+any structural opening or closing tag fails closed; native inline summary and blockquote
+tags remain supported. File paths must have no empty, dot or dot-dot slash
+components and no NUL; legal literal filenames remain unnormalized.
+Each item must be an exact
 numeric range followed by `LGTM!`, its unique 24-hex stable marker, and only the
 supported numeric “Also applies to” ranges and item separator. Preserve the
 item ID and conservative fallback severity; attach positive-format provenance
@@ -42,7 +46,10 @@ repository relationship; an author name in pasted prose supplies none.
 The supported writer is native plaintext. Raw HTML tag and comment starts,
 XML declaration, CDATA, and processing-instruction starts, including incomplete
 markup, fail closed before prose sanitation, so markup cannot construct a
-binding or item marker. The writer must identify the review in the observed standalone native
+binding or item marker. Any raw blockquote-prefixed line also denies this
+plaintext admission, including bindings inherited through lazy continuations.
+Literal greater-than signs within plaintext and escaped leading signs remain
+supported. The writer must identify the review in the observed standalone native
 binding line and name the exact current full head in live, itemized prose. The
 raw and live binding values must match, and the raw live `Handled` line must
 remain unchanged by sanitation. Indented code, inline backticks, quotes, fences

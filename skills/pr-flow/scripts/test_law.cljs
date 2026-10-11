@@ -744,6 +744,106 @@
       (is (= 0 (law/unanswered-review-count [native-positive-review]
                                             [native-positive-writer] {:head positive-head}))))))
 
+(deftest positive-review-refuses-invalid-git-path-components
+  (doseq [file ["src//example.cljc" "src///example.cljc" "src/library//example.cljc"
+                "src/example.cljc/" "src/example.cljc//" "src/example.cljc///"
+                "src//" "src/.cljs/" "/src/example.cljc" "src/./example.cljc"
+                "src/../example.cljc" "C:/src/example.cljc" "src\\example.cljc"
+                "src/example\u0000.cljc" "rootfile\u0000.cljc"]
+          :let [review (update positive-review :body str/replace "src/example.cljc" file)
+                findings (law/review-findings review)
+                finding (first findings)]]
+    (is (= 1 (count findings)) file)
+    (is (= positive-id (:id finding)) file)
+    (is (= :p1 (:severity finding)) file)
+    (is (nil? (:positive-body-item finding)) file)
+    (is (= 1 (positive-unanswered review positive-writer)) file))
+  (doseq [file ["example.cljc" "src/library/example.cljc" "src/v1.0/example.cljc"
+                ".config.cljc" "-entry.cljc" "src/λ名前.cljc" "src/%2Fexample.cljc"]
+          :let [review (update positive-review :body str/replace "src/example.cljc" file)
+                item (:positive-body-item (first (law/review-findings review)))]]
+    (is (= :native-additional-lgtm (:format item)) file)
+    (is (= file (:file item)) file)
+    (is (= 0 (positive-unanswered review positive-writer)) file))
+  (is (= 33 (count (filter :positive-body-item (law/review-findings native-positive-review)))))
+  (is (= 0 (law/unanswered-review-count [native-positive-review]
+                                        [native-positive-writer] {:head positive-head}))))
+
+
+(deftest positive-review-refuses-code-indented-structural-openers
+  (let [section (:body positive-review)
+        opener-forms
+        [["first outer details" (fn [indent] (str indent section))]
+         ["outer details after blank lines" (fn [indent] (str "\n\n" indent section))]
+         ["file details" (fn [indent] (str/replace section "\n\n<details>\n<summary>src/"
+                                                  (str "\n\n" indent "<details>\n<summary>src/")))]
+         ["outer summary" (fn [indent] (str/replace section "\n<summary>🔇"
+                                                    (str "\n" indent "<summary>🔇")))]
+         ["file summary" (fn [indent] (str/replace section "\n<summary>src/"
+                                                   (str "\n" indent "<summary>src/")))]
+         ["outer blockquote" (fn [indent] (str/replace section "(1)</summary><blockquote>\n\n<details>"
+                                                       (str "(1)</summary>\n" indent "<blockquote>\n\n<details>")))]
+         ["file blockquote" (fn [indent] (str/replace section "src/example.cljc (1)</summary><blockquote>"
+                                                      (str "src/example.cljc (1)</summary>\n" indent "<blockquote>")))]]]
+    (doseq [indent ["    " "        " "\t" " \t" "  \t" "   \t" "    \t" "\t "]
+            [label body-for] opener-forms
+            :let [review (assoc positive-review :body (body-for indent))
+                  findings (law/review-findings review)
+                  finding (first findings)
+                  context (str label " / " (pr-str indent))]]
+      (is (= 1 (count findings)) context)
+      (is (= positive-id (:id finding)) context)
+      (is (= :p1 (:severity finding)) context)
+      (is (nil? (:positive-body-item finding)) context)
+      (is (= 1 (positive-unanswered review positive-writer)) context))
+    (doseq [body [section (str "\n\n" section) (str "\n    \n" section)
+                  (str "<!-- Native example only:\n    <details>\n\t<summary>\n  \t<blockquote>\n-->\n" section)]
+            :let [review (assoc positive-review :body body)]]
+      (is (= :native-additional-lgtm
+             (get-in (first (law/review-findings review)) [:positive-body-item :format])))
+      (is (= 0 (positive-unanswered review positive-writer))))
+    (is (= 33 (count (filter :positive-body-item (law/review-findings native-positive-review)))))
+    (is (= 0 (law/unanswered-review-count [native-positive-review]
+                                          [native-positive-writer] {:head positive-head})))))
+
+(deftest positive-handled-refuses-lazy-blockquote-binding
+  (let [binding (str "review-id:" (:id positive-review))
+        item (first (str/split-lines positive-first-item-body))]
+    (doseq [quote ["> quoted preface" " > quoted preface" "  > quoted preface"
+                  "   > quoted preface" "> > nested preface" "> first preface\n> second preface"]]
+      (is (= 1 (positive-unanswered positive-review
+                                    (assoc positive-writer :body (str quote "\n" binding "\n\n" item))))
+          quote))
+    (doseq [preface ["Ordinary comparison: 2 > 1." "\\> escaped plaintext preface." "Ordinary native plaintext preface."]]
+      (is (= 0 (positive-unanswered positive-review
+                                    (assoc positive-writer :body (str preface "\n\n" binding "\n\n" item))))
+          preface))
+    (is (= 0 (law/unanswered-review-count [native-positive-review]
+                                          [native-positive-writer] {:head positive-head})))))
+
+
+(deftest positive-review-refuses-code-indented-structural-closers
+  (let [section (:body positive-review)]
+    (doseq [indent ["    " "        " "\t" " \t" "  \t" "   \t" "    \t" "\t "]
+            [label body] [["file close" (str/replace section "\n\n</blockquote></details>\n\n"
+                                                   (str "\n\n" indent "</blockquote></details>\n\n"))]
+                          ["outer close" (str (subs section 0 (- (count section) (count "</blockquote></details>")))
+                                              indent "</blockquote></details>")]]
+            :let [review (assoc positive-review :body body)
+                  findings (law/review-findings review)
+                  finding (first findings)
+                  context (str label " / " (pr-str indent))]]
+      (is (= 1 (count findings)) context)
+      (is (= positive-id (:id finding)) context)
+      (is (= :p1 (:severity finding)) context)
+      (is (nil? (:positive-body-item finding)) context)
+      (is (= 1 (positive-unanswered review positive-writer)) context))
+    (let [review (assoc positive-review :body
+                        (str "<!-- Native example:\n    </blockquote></details>\n\t</summary>\n-->\n" section))]
+      (is (= :native-additional-lgtm
+             (get-in (first (law/review-findings review)) [:positive-body-item :format])))
+      (is (= 0 (positive-unanswered review positive-writer))))))
+
 (defmethod cljs.test/report [:cljs.test/default :end-run-tests] [m]
   (when-not (cljs.test/successful? m) (set! (.-exitCode js/process) 1)))
 

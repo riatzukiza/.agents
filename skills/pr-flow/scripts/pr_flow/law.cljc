@@ -519,16 +519,18 @@
             (if (str/starts-with? token "<!--")
               (recur tail end stack sections)
               (when-let [[_ closing tag] (re-matches #"<(\/?)(details|summary|blockquote)>" token)]
-                (if (= closing "/")
-                  (when (= tag (:tag (peek stack)))
-                    (let [frame (peek stack)
-                          sections (if (:additional? frame)
-                                     (conj sections (subs text (:start frame) end)) sections)]
-                      (recur tail end (pop stack) sections)))
-                  (let [own-line? (or (zero? start) (= "\n" (subs text (dec start) start)))
-                        additional? (and (= tag "details") (empty? stack) own-line?
-                                         (re-find #"^<details>\n<summary>🔇 Additional comments \([1-9][0-9]{0,3}\)</summary><blockquote>" (subs text start)))]
-                    (recur tail end (conj stack {:tag tag :start start :additional? additional?}) sections))))))
+                (when-not (re-matches #"(?: {4}| {0,3}\t)[ \t]*"
+                                      (last (str/split (subs text 0 start) #"\n" -1)))
+                  (if (= closing "/")
+                    (when (= tag (:tag (peek stack)))
+                      (let [frame (peek stack)
+                            sections (if (:additional? frame)
+                                       (conj sections (subs text (:start frame) end)) sections)]
+                        (recur tail end (pop stack) sections)))
+                    (let [own-line? (or (zero? start) (= "\n" (subs text (dec start) start)))
+                          additional? (and (= tag "details") (empty? stack) own-line?
+                                           (re-find #"^<details>\n<summary>🔇 Additional comments \([1-9][0-9]{0,3}\)</summary><blockquote>" (subs text start)))]
+                      (recur tail end (conj stack {:tag tag :start start :additional? additional?}) sections)))))))
           (when (and (empty? stack) (= 1 (count sections))) (first sections)))))))
 
 (defn- native-positive-item [item file]
@@ -557,9 +559,9 @@
                       ;; Authored repository-relative paths; never a generated
                       ;; nested summary, absolute path, or traversal fragment.
                       :when (and (re-matches #"[^\s<>]+/[^\s<>]+|[^\s<>]+\.[^\s<>]+" file)
-                                 (not (re-find #"[:\\]" file))
+                                 (not (re-find #"[\u0000:\\]" file))
                                  (not (str/starts-with? file "/"))
-                                 (not (some #{".." "."} (str/split file #"/"))))
+                                 (not (some #{"" ".." "."} (str/split file #"/" -1))))
                       :let [parts (str/split (trim-blank-lines content) #"\n[ \t]*\n---\n[ \t]*\n")
                             items (mapv #(native-positive-item % file) parts)]
                       :when (and (= (number item-count) (count parts)) (every? some? items))
@@ -651,7 +653,8 @@
   (let [raw (str (:body writer))
         ;; This admission supports native plaintext only. Deny markup before
         ;; shared sanitation can assemble evidence across excluded regions.
-        prose (when-not (re-find #"<!|<\?|</?[A-Za-z]" raw)
+        prose (when-not (or (re-find #"<!|<\?|</?[A-Za-z]" raw)
+                            (re-find #"(?m)^[ \t]*>" raw))
                 (rejection-prose (str "[positive writer source boundary]\n" raw)))
         submitted (native-positive-time (:submitted_at review))
         created (native-positive-time (:created_at writer))
