@@ -3,6 +3,7 @@
   (:require [clojure.string :as str] [clojure.edn :as edn]))
 
 (def scope "resolved-author-only-empty-reviews")
+(def commented-review-scope "resolved-author-only-commented-review-context")
 (def empty-sha "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")
 (defn- text? [s] (and (string? s) (not (str/blank? s))))
 (defn- positive-id? [n] (and (integer? n) (pos? n)))
@@ -28,7 +29,17 @@
               [(:id r) (:databaseId r) (:state r) (:updatedAt r) (author-row (:author r))
                (get-in r [:commit :oid]) (:body-sha256 r)]])) (get-in thread [:comments :nodes]))])
 
-(defn- context-valid? [{:keys [id head pr-author resolved? root-comment-id comments native-context context-manifest context-digest]}]
+(defn context-scope
+  "Derive a binding scope from native enclosing bodies, never a caller flag.
+   This selects a protocol target, not an informational judgment. Missing body
+   metadata has no scope; nonempty bodies require independent full-context
+   assessment under the distinct COMMENTED-review scope."
+  [t]
+  (let [reviews (map :pullRequestReview (get-in t [:native-context :thread :comments :nodes]))]
+    (when (and (seq reviews) (every? #(string? (:body %)) reviews))
+      (if (every? #(= "" (:body %)) reviews) scope commented-review-scope))))
+
+(defn- context-valid? [{:keys [id head pr-author resolved? root-comment-id comments native-context context-manifest context-digest] :as t}]
   (let [{:keys [repository pr thread]} native-context
         nodes (get-in thread [:comments :nodes]) a (:author pr)
         times (mapv :createdAt nodes)]
@@ -54,16 +65,17 @@
                           (not (pos? (compare (:createdAt c) (:updatedAt c))))
                           (= head (get-in c [:commit :oid])) (sha? 40 (get-in c [:originalCommit :oid]))
                           (text? (:id r)) (positive-id? (:databaseId r)) (= "COMMENTED" (:state r))
-                          (= "" (:body r)) (= empty-sha (:body-sha256 r))
+                          (string? (:body r)) (sha? 64 (:body-sha256 r))
+                          (= (= "" (:body r)) (= empty-sha (:body-sha256 r)))
                           (= (author-row a) (author-row (:author r))) (time? (:updatedAt r))
                           (sha? 40 (get-in r [:commit :oid]))))) nodes)
-         (sha? 64 context-digest)
+         (some? (context-scope t)) (sha? 64 context-digest)
          (= context-manifest (pr-flow.actionability/context-manifest native-context)))))
 
 (defn target [t]
   ["actionability/v1" (get-in t [:native-context :repository :id])
    (get-in t [:native-context :pr :id]) (:id t) (:root-comment-id t)])
-(defn context-binding [t] (into (target t) [(:context-digest t) scope]))
+(defn context-binding [t] (into (target t) [(:context-digest t) (context-scope t)]))
 
 (defn protocol
   "Two unquoted protocol lines: head-bound first line + canonical EDN scalar

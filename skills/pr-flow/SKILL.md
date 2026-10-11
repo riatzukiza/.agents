@@ -130,8 +130,12 @@ head, native thread/root-comment binding and proposal/agreement/final chronology
 are mandatory. They supply neither merge approval nor full-review/round credit;
 required checks remain enforced even if an assessment's workflow later cancels.
 The separate [candidate informational disposition](actionability.md) is scoped
-to resolved author-only native User threads with empty enclosing reviews. Default
-all other threads to findings. Fresh independently admitted native evidence can
+to resolved author-only native User threads: the original scope requires empty
+enclosing reviews, while a distinct COMMENTED-review scope binds nonempty
+bodies for complete independent assessment. Default all other threads to
+findings. The additional Knoxx actionability tuple is repository-ID scoped;
+this pure source slice does not resolve the native settle-before-resolve
+sequencing gap or provide an assessor transport. Fresh independently admitted native evidence can
 remove a finding obligation, never create settlement/approval/round credit or
 waive unresolved conversations. When such evidence exists, status/threads/settle/
 gate also append local Receipt River admission/revocation observations; these

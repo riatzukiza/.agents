@@ -571,6 +571,8 @@
   (is (= #{{:login "opencode-agent[bot]" :id 219766164 :node-id "BOT_kgDODRldlA"}}
          (:identities mimo-test-policy)))
   (is (= {["open-hax/proxx" 1178288746]
+          #{{:login "eta-mu-ai[bot]" :id 270021952 :node-id "BOT_kgDOEBg1QA"}}
+          ["open-hax/knoxx" 1199983316]
           #{{:login "eta-mu-ai[bot]" :id 270021952 :node-id "BOT_kgDOEBg1QA"}}}
          (:repository-identities mimo-test-policy)))
   (is (false? (boolean (actionability/assessor-identity?
@@ -767,3 +769,193 @@
                  (assoc baseline :checks [{:name "laws" :required? true :state "PENDING"}])
                  (assoc baseline :threads [(assoc c :resolved? false)])]]
       (is (not (:pass? (law/merge-gate bad))) "actionability cannot supply another gate's credit"))))
+
+;; FIRST pure admission slice only. This fixture preserves actual UNRESOLVED
+;; Knoxx author walkthroughs. All resolution flags and protocol records below
+;; are isolated synthetic controls, never native assessment/settlement credit.
+(def knoxx-author-context-fixture
+  (js->clj (js/JSON.parse (fs/readFileSync
+             (path/join (path/dirname *file*) "fixtures/native-knoxx387-author-review-context.json") "utf8"))
+           :keywordize-keys true))
+(def knoxx-author-contexts (:snapshots knoxx-author-context-fixture))
+(def knoxx-commented-review-scope "resolved-author-only-commented-review-context")
+(defn knoxx-binding [t]
+  (assoc (scoped t) 6 knoxx-commented-review-scope))
+(defn knoxx-author-context-input
+  ([s] (knoxx-author-context-input s mimo-test-user))
+  ([s assessor]
+   (let [t (assoc (input s) :actionability-policy mimo-test-policy)
+         a (get-in s [:pr :author])
+         binding (knoxx-binding t)
+         p (assoc (native-comment 7001 {:id (:databaseId a) :node_id (:id a)
+                                       :login (:login a) :type "User"}
+                      "2026-10-11T01:00:00Z"
+                      (str "Actionability proposal v1 for " (:head t) ":\n" (pr-str binding)))
+                  :authorized? true)
+         assessment (native-comment 7002 assessor "2026-10-11T01:01:00Z"
+                      (str "Actionability assessment v1 for " (:head t) ":\n"
+                           (pr-str (into binding [(:id p) (:body-sha256 p) "informational"
+                            "complete-context/no-defect/no-request/no-question"
+                            "Synthetic independent assessment of the complete author review body, conversation and immutable source; no defect, request or question is supported."
+                            (str (:path (:thread s)) " and scripts/test-production-checkout.py")]))))]
+     (assoc t :issue-comments [p assessment]))))
+(defn knoxx-resolved-input [s]
+  (knoxx-author-context-input (assoc-in s [:thread :isResolved] true)))
+(defn knoxx-refresh [t f]
+  (assoc (refresh-context t f) :actionability-policy mimo-test-policy))
+(defn knoxx-finding [t label]
+  (is (= :finding (get-in (law/classify-thread t) [:actionability :kind])) label)
+  (is (law/finding-obligation? t) label))
+
+(deftest knoxx-native-originals-and-enclosing-body-remain-exact-and-unresolved
+  (is (= 3 (count knoxx-author-contexts)))
+  (is (= [4235204044 4235204054 4235204061]
+         (mapv #(get-in % [:thread :comments :nodes 0 :databaseId]) knoxx-author-contexts)))
+  (doseq [s knoxx-author-contexts]
+    (let [r (get-in s [:thread :comments :nodes 0 :pullRequestReview])
+          t (knoxx-author-context-input s)]
+      (is (= 1199983316 (get-in s [:repository :databaseId])))
+      (is (= "662a1f8f9f522c7fc601aea6f857e36378bdecc2" (:head t)))
+      (is (false? (get-in s [:thread :isResolved])))
+      (is (= 5476110662 (:databaseId r)))
+      (is (= "COMMENTED" (:state r)))
+      (is (= "9fdf3487fb1388fd4016ea1a39df083a1a1adbab357a9d03a520dc9c6244961d" (sha (:body r))))
+      (is (= "0e1bb4162fa7f281442a5809db5ffa6029d5b369" (get-in r [:commit :oid])))
+      (knoxx-finding t "the unchanged unresolved native original remains a finding")
+      (is (not (:pass? (gate (law/classify-thread t))))))))
+
+(deftest knoxx-nonempty-author-commented-context-needs-its-distinct-scope
+  ;; Global OpenCode positives isolate the new body scope from the separately
+  ;; proposed Knoxx MiMo tuple; no newly defined production vars are needed RED.
+  (doseq [s knoxx-author-contexts
+          assessor [mimo-test-user {:login "opencode-agent[bot]" :id 219766164
+                                   :node_id "BOT_kgDODRldlA" :type "Bot"}]]
+    (let [t (knoxx-author-context-input (assoc-in s [:thread :isResolved] true) assessor)
+          d (actionability/disposition t)]
+      (is (= (knoxx-binding t) (actionability/context-binding t)))
+      (is (= :informational (:kind d)))
+      (is (= :qualified (:status d)))
+      (is (= 7002 (:assessment-id d)))
+      (is (:pass? (gate (law/classify-thread t))))
+      (knoxx-finding (-> t
+                         (change-issue 0 #(change-payload % (fn [v] (assoc v 6 actionability/scope))))
+                         (change-issue 1 #(change-payload % (fn [v] (assoc v 6 actionability/scope)))))
+                     "fresh old-scope evidence cannot admit a nonempty author review")))
+  (doseq [s knoxx-author-contexts]
+    (let [empty-review (assoc-in s [:thread :comments :nodes 0 :pullRequestReview :body] "")]
+      (knoxx-finding (knoxx-author-context-input (assoc-in empty-review [:thread :isResolved] true))
+                     "new-scope evidence cannot reclassify an empty-review context"))))
+
+(deftest knoxx-repository-tuple-remains-local-and-actionability-only
+  (let [t (knoxx-resolved-input (first knoxx-author-contexts))
+        selected (actionability/assessor-policy mimo-test-policy (get-in t [:native-context :repository]))]
+    (is (actionability/assessor-identity? {:user mimo-test-user} selected))
+    (is (not (actionability/assessor-identity? {:user mimo-test-user} mimo-test-policy)))
+    (doseq [[label f] [["wrong name" #(assoc-in % [:repository :nameWithOwner] "other/knoxx")]
+                      ["wrong native numeric ID" #(assoc-in % [:repository :databaseId] 1199983317)]
+                      ["numeric ID with foreign name" #(assoc-in % [:repository :nameWithOwner] "open-hax/uxx")]
+                      ["name alias" #(assoc-in % [:repository :nameWithOwner] "Open-Hax/knoxx")]
+                      ["string ID" #(assoc-in % [:repository :databaseId] "1199983316")]]]
+      (knoxx-finding (knoxx-author-context-input (f (get-in t [:native-context]))) label))
+    (doseq [[label f] [["wrong node" #(assoc-in % [:issue-comments 1 :user :node_id] "BOT_other")]
+                      ["wrong numeric Bot ID" #(assoc-in % [:issue-comments 1 :user :id] 270021953)]
+                      ["native User impersonation" #(assoc-in % [:issue-comments 1 :user :type] "User")]
+                      ["generic GHA login" #(assoc-in % [:issue-comments 1 :user :login] "github-actions[bot]")]
+                      ["no separate actionability policy" #(dissoc % :actionability-policy)]
+                      ["Proxx policy alone" #(update-in % [:actionability-policy :repository-identities]
+                                                     dissoc ["open-hax/knoxx" 1199983316])]]]
+      (knoxx-finding (f t) label))))
+
+(deftest knoxx-fresh-invalid-author-context-cannot-qualify
+  (let [s (assoc-in (first knoxx-author-contexts) [:thread :isResolved] true)]
+    (doseq [[label f]
+            [["unresolved" #(assoc-in % [:thread :isResolved] false)]
+             ["partial comments" #(assoc-in % [:thread :comments :pageInfo :hasNextPage] true)]
+             ["count mismatch" #(assoc-in % [:thread :comments :totalCount] 2)]
+             ["non-author participant" #(assoc-in % [:thread :comments :nodes 0 :author :databaseId] 10676926)]
+             ["Bot root" #(assoc-in % [:thread :comments :nodes 0 :author :__typename] "Bot")]
+             ["non-author enclosing review" #(assoc-in % [:thread :comments :nodes 0 :pullRequestReview :author :id] "USER_other")]
+             ["APPROVED enclosing review" #(assoc-in % [:thread :comments :nodes 0 :pullRequestReview :state] "APPROVED")]
+             ["CHANGES_REQUESTED enclosing review" #(assoc-in % [:thread :comments :nodes 0 :pullRequestReview :state] "CHANGES_REQUESTED")]
+             ["wrong current comment commit" #(assoc-in % [:thread :comments :nodes 0 :commit :oid] (apply str (repeat 40 "b")))]]]
+      (knoxx-finding (knoxx-author-context-input (f s)) label))
+    (let [t (knoxx-author-context-input s)]
+      (doseq [[label f]
+              [["missing enclosing body" #(update-in % [:native-context :thread :comments :nodes 0 :pullRequestReview] dissoc :body)]
+               ["invalid body type" #(assoc-in % [:native-context :thread :comments :nodes 0 :pullRequestReview :body] 123)]
+               ["missing body hash" #(update-in % [:native-context :thread :comments :nodes 0 :pullRequestReview] dissoc :body-sha256)]
+               ["invalid hash" #(assoc-in % [:native-context :thread :comments :nodes 0 :pullRequestReview :body-sha256] "bad")]
+               ["nonempty body with empty hash" #(assoc-in % [:native-context :thread :comments :nodes 0 :pullRequestReview :body-sha256] actionability/empty-sha)]
+               ["unavailable retained history" #(assoc % :actionability-observations nil)]]]
+        (knoxx-finding (f t) label)))))
+
+(deftest knoxx-new-body-scope-keeps-proposal-judgment-and-native-chronology
+  (let [t (knoxx-resolved-input (first knoxx-author-contexts))]
+    (doseq [[label f]
+            [["unauthorized writer" #(assoc-in % [:issue-comments 0 :authorized?] false)]
+             ["proposal before review edit" #(update-in % [:issue-comments 0] assoc
+                                                     :created_at "2026-10-09T22:50:50Z" :updated_at "2026-10-09T22:50:50Z")]
+             ["assessment before proposal" #(update-in % [:issue-comments 1] assoc
+                                                     :created_at "2026-10-11T00:59:59Z" :updated_at "2026-10-11T00:59:59Z")]
+             ["edited/restored proposal" #(assoc-in % [:issue-comments 0 :updated_at] "2026-10-11T01:02:00Z")]
+             ["edited/restored assessment" #(assoc-in % [:issue-comments 1 :updated_at] "2026-10-11T01:02:00Z")]
+             ["wrong proposal ID" #(change-issue % 1 (fn [c] (change-payload c (fn [v] (assoc v 7 9999)))))]
+             ["wrong proposal hash" #(change-issue % 1 (fn [c] (change-payload c (fn [v] (assoc v 8 (apply str (repeat 64 "b")))))))]
+             ["finding decision" #(change-issue % 1 (fn [c] (change-payload c (fn [v] (assoc v 9 "finding")))))]
+             ["uncertain decision" #(change-issue % 1 (fn [c] (change-payload c (fn [v] (assoc v 9 "uncertain")))))]
+             ["generic assent" #(change-issue % 1 (fn [c] (change-payload c (fn [v] (assoc v 11 "Agree.")))))]
+             ["quoted assessment" #(change-issue % 1 (fn [c] (update c :body (fn [b] (str "> " b)))))]
+             ["duplicate native issue record" #(update % :issue-comments conj (second (:issue-comments %)))]]]
+      (knoxx-finding (f t) label))))
+
+(deftest knoxx-enclosing-body-and-context-revocation-cannot-resurrect
+  (let [t (persist-disposition (knoxx-resolved-input (first knoxx-author-contexts)))]
+    (doseq [[label changed]
+            [["changed native enclosing review body"
+              (knoxx-refresh t #(assoc-in % [:thread :comments :nodes 0 :pullRequestReview :body] "Please fix the actual source defect."))]
+             ["enclosing review body edit"
+              (knoxx-refresh t #(assoc-in % [:thread :comments :nodes 0 :pullRequestReview :updatedAt] "2026-10-11T01:02:00Z"))]
+             ["changed root body"
+              (knoxx-refresh t #(assoc-in % [:thread :comments :nodes 0 :body] "Please answer the source custody question."))]
+             ["changed diff hunk"
+              (knoxx-refresh t #(assoc-in % [:thread :comments :nodes 0 :diffHunk] "@@ changed source @@"))]
+             ["changed head"
+              (knoxx-refresh t #(assoc-in % [:pr :headRefOid] (apply str (repeat 40 "b"))))]
+             ["deleted native assessment" (update t :issue-comments pop)]
+             ["same-Bot exact-source withdrawal"
+              (update t :issue-comments conj (native-comment 7003 mimo-test-user "2026-10-11T01:02:00Z"
+                                               "I withdraw my agreement in issuecomment7002."))]
+             ["new adverse assessment"
+              (update t :issue-comments conj (-> (second (:issue-comments t))
+                       (assoc :id 7004 :node_id "IC_fixture_7004" :created_at "2026-10-11T01:02:00Z" :updated_at "2026-10-11T01:02:00Z")
+                       (change-payload #(assoc % 9 "finding")) hash-body))]]]
+      (let [recorded (persist-disposition changed)]
+        (knoxx-finding changed label)
+        (is (= #{7002} (revoked-ids recorded)) label)
+        (knoxx-finding (assoc t :actionability-observations (:actionability-observations recorded))
+                       "restoring prior source text cannot erase observed revocation")))))
+
+(deftest knoxx-informational-removes-only-the-finding-obligation
+  (let [t (knoxx-resolved-input (first knoxx-author-contexts)) c (law/classify-thread t)
+        assessment (second (:issue-comments t))
+        baseline {:threads [c] :head (:head t) :snapshot-head (:head t)
+                  :approved-heads {"mimo" #{(:head t)}} :rounds 5
+                  :review-participants #{"mimo"} :checks [{:name "laws" :state "SUCCESS"}]}]
+    (is (false? (:settled? c)))
+    (is (nil? (:resolution c)))
+    (is (false? (:rejection-approved? c)))
+    (is (empty? (:approved-heads (law/review-evidence (:head t) [] [assessment] law/default-reviewer-identities))))
+    (is (empty? (:reviewed-heads (law/review-evidence (:head t) [] [assessment] law/default-reviewer-identities))))
+    (is (empty? (law/completed-review-rounds [] [assessment] law/default-reviewer-identities)))
+    (is (:pass? (law/merge-gate baseline)))
+    (doseq [bad [(assoc baseline :approved-heads {}) (assoc baseline :rounds 0)
+                 (assoc baseline :review-bodies-unanswered 1)
+                 (assoc baseline :checks [{:name "laws" :required? true :state "FAILURE"}])
+                 (assoc baseline :threads [(assoc c :resolved? false)])
+                 (update baseline :threads conj (law/classify-thread (input (first knoxx-author-contexts))))]]
+      (is (not (:pass? (law/merge-gate bad))) "other gate obligations are unchanged"))
+    (let [same-author (update t :comments conj {:author (:pr-author t) :authorized? true
+                                               :user {:login (:pr-author t) :type "User"}
+                                               :body "Handled: I wrote this author walkthrough."})]
+      (is (false? (:settled? (law/classify-thread same-author))))
+      (knoxx-finding same-author "author reply cannot replace native complete context or self-settle"))))
