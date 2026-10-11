@@ -709,6 +709,41 @@
       (is (= 0 (law/unanswered-review-count [native-positive-review]
                                             [native-positive-writer] {:head positive-head}))))))
 
+(deftest positive-review-refuses-xml-section-boundaries
+  (let [section (:body positive-review)
+        hidden-sections
+        [["complete CDATA section" (str "<![CDATA[\n" section "\n]]>")]
+         ["incomplete CDATA section" (str "<![CDATA[\n" section)]
+         ["complete processing instruction section" (str "<?review\n" section "\n?>")]
+         ["incomplete processing instruction section" (str "<?review\n" section)]
+         ["complete declaration section" (str "<!DOCTYPE review [\n" section "\n]>")]
+         ["incomplete declaration section" (str "<!DOCTYPE review\n" section)]
+         ["bare declaration start" (str "<!\n" section)]
+         ["bare processing instruction start" (str "<?\n" section)]
+         ["complete comment wrapper" (str "<!--\n" section "\n-->")]
+         ["incomplete comment wrapper" (str "<!--\n" section)]
+         ["unclosed comment after section" (str section "\n<!--")]]]
+    (doseq [[label body] hidden-sections
+            :let [review (assoc positive-review :body body)
+                  findings (law/review-findings review)
+                  finding (first findings)]]
+      (is (= 1 (count findings)) label)
+      (is (= positive-id (:id finding)) label)
+      (is (= :p1 (:severity finding)) label)
+      (is (nil? (:positive-body-item finding)) label)
+      (is (= 1 (positive-unanswered review positive-writer)) label))
+    (testing "supported complete native comments do not hide live sections"
+      (let [review (assoc positive-review :body
+                          (str "<!-- Native preface with <?example and <![CDATA[ tokens -->\n"
+                               section "\n<!-- Native tail -->"))]
+        (is (= :native-additional-lgtm
+               (get-in (first (law/review-findings review)) [:positive-body-item :format])))
+        (is (= 0 (positive-unanswered review positive-writer)))))
+    (testing "the unwrapped native plaintext and actual 33-item fixture remain admitted"
+      (is (= 0 (positive-unanswered positive-review positive-writer)))
+      (is (= 0 (law/unanswered-review-count [native-positive-review]
+                                            [native-positive-writer] {:head positive-head}))))))
+
 (defmethod cljs.test/report [:cljs.test/default :end-run-tests] [m]
   (when-not (cljs.test/successful? m) (set! (.-exitCode js/process) 1)))
 

@@ -496,3 +496,12 @@
   spore: none
   receipt-refs: 007e94b2c95bcf1a667b7f61da5e04912c368cdc722de0c38246e413b5b20cc7
   note: Native current-head review found one prose omission after the actual XML guard repair. Name declaration, CDATA and processing-instruction starts and preserve every executable and historical ledger byte. Exact whole-document reverse transformation demonstrates bounded scope. Historical18afa hosted suites and completed Codex/MiMo/CodeRabbit review evidence remain separate from successor qualification. Independent source/prefix review required before commit; no installed adoption, approval transfer, new spore or promotion.
+- ts: 2026-10-11T00:36:45.259017801Z
+  session: /home/err/.local/share/openhax-codex/20261010/pr-flow-positive-review
+  task: Reject XML boundary promotion in positive review sections
+  p-efficiency: 0.92
+  p-friction: 0.23
+  p-skill-candidate: 0.18
+  spore: none
+  receipt-refs: 943a166ae91aeafbda54482ceb6f3e38d3393a9921c68760e53bbf96d2aba25d
+  note: Actual native P2 exposed a review-side scanner boundary gap after writer-side denial. Preserve complete native HTML comment recognition before rejecting declaration and PI starts. Expanded exact predecessor RED18failures and repaired GREEN99/2007 distinguish authority denial from stable marker discovery. Whole-file reverse/insertion custody bounds the repair; parse, audit field and external layout failures remain INVALID evidence. Preserve historical CLI failure and append-only provenance; require independent source freeze and successor CI/reviews before native convergence. No installed adoption, approval transfer, spore or promotion.

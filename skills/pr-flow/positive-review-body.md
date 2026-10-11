@@ -24,7 +24,10 @@ These are regression provenance, never an item, repository or thread allowlist.
 ## Bounded admission
 
 Recognize a candidate only inside a complete authored Additional-comments file
-group using the observed native wrapper grammar. Each item must be an exact
+group using the observed native wrapper grammar. The section scanner treats
+XML declaration, CDATA and processing-instruction starts, including incomplete
+constructs, as unsupported boundaries. Complete native HTML comments remain
+supported; unterminated comments fail closed. Each item must be an exact
 numeric range followed by `LGTM!`, its unique 24-hex stable marker, and only the
 supported numeric “Also applies to” ranges and item separator. Preserve the
 item ID and conservative fallback severity; attach positive-format provenance

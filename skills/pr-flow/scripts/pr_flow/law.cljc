@@ -512,7 +512,7 @@
                      (retain-excluded-regions #"(?m)^[ \t]*>[^\n]*(?:\n|$)"))]
     (when (and text (not (re-find #"(?i)<!--\s*(?:This is an auto-generated comment:|end of auto-generated comment:)" text)))
       (loop [remaining text offset 0 stack [] sections []]
-        (if-let [token (re-find #"<!--[\s\S]*?-->|</?[A-Za-z][^>]*>" remaining)]
+        (if-let [token (re-find #"<!--[\s\S]*?-->|</?[A-Za-z][^>]*>|<\?|<!" remaining)]
           (let [start (+ offset (str/index-of remaining token))
                 end (+ start (count token))
                 tail (subs text end)]
