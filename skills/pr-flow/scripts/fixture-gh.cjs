@@ -24,6 +24,15 @@ if (args[0] === 'api' && Object.hasOwn(config.apiResponses || {}, args[1])) {
     } else process.exit(77);
     process.exit(0);
   }
+  if (query.includes('node(id:$id)')) {
+    if (!query.includes('author{__typename ... on Bot{id}}')) {
+      process.stderr.write("Field 'id' doesn't exist on type 'Actor'; use the Bot fragment");
+      process.exit(1);
+    }
+    const id = args.find(x => x.startsWith('id='))?.slice(3);
+    out({data: {node: config.reviewUpdateResponses?.[id] ?? null}});
+    process.exit(0);
+  }
   // Match gh api -F scalar inference before GraphQL String/Int validation.
   const field = name => {
     const i = args.findIndex(x => x.startsWith(`${name}=`));

@@ -447,3 +447,142 @@
   spore: none
   receipt-refs: agents23-current-history-wording-source-20261006T2020Z/new-source-receipt.edn
   note: Use entire then-current authentic operational history and reflection in adoption guidance; preserve source-fork provenance separately. Fixed snapshot counts belong to historical proofs, never future adoption authority. Every old physical byte is preserved. No spore or promotion.
+
+- ts: 2026-10-10T22:02:13.998660+00:00
+  session: riatzukiza/.agents
+  task: Bound positive native review-body settlement without inventing repairs
+  p-efficiency: 0.73
+  p-friction: 0.63
+  p-skill-candidate: 0.56
+  spore: none
+  receipt-refs: 209bbc24-feb9-44aa-9303-0327c4c363f2; evidence-set:openhax-cms-20261010/review-state/pr-flow-positive-body-independent-assessment-20261010T220011Z.json#sha256=495bfbead95cdea4c358f9d5ea9f0d4ed34480613692d92f716816aae5b13873
+  note: Keep stable IDs and conservative severity while admitting only truthful native positive-item replies under complete source, identity, writer and time custody. Sanitizer composition needs raw/live marker equality and adversarial first-line, indentation, quote, fence and incomplete-markup controls. Independent counterexamples become actual RED/GREEN evidence. Retain the full CLI failure and observed process pressure separately; local source qualification never installs policy or supplies native approval. Preserve historical ledger bytes. No extra spore or promotion.
+
+
+- ts: 2026-10-10T22:15:21.184627+00:00
+  session: riatzukiza/.agents
+  task: Correct the single native review article finding
+  p-efficiency: 0.95
+  p-friction: 0.08
+  p-skill-candidate: 0.06
+  spore: none
+  receipt-refs: 611582bd-3b05-4847-b995-6757c36fdf6b
+  note: Exact native finding correction changes one article; independent whole-file reversal verifies scope. Existing behavioral qualification and failed full CLI evidence stay historical. No parser adoption, approval transfer or invented body item. No new spore.
+
+- ts: 2026-10-10T23:04:53.225473+00:00
+  session: pr-flow-positive-review
+  task: positive-review-native-policy-docstring-correction
+  p-efficiency: 0.94
+  p-friction: 0.15
+  p-skill-candidate: 0.12
+  spore: none
+  receipt-refs: 11a11874-1e24-49ee-8ee4-9ad59044ee06
+  note: Native review found an in-source docstring inconsistent with the bounded positive admission already implemented. Fix only prose and verify exact reverse transformation; retain source behavior and historical hosted qualification as separate facts. No policy adoption or approval transfer. Preserve every historical byte. No extra spore or promotion.
+- ts: 2026-10-10T23:41:22.936500125Z
+  session: /home/err/.local/share/openhax-codex/20261010/pr-flow-positive-review
+  task: Repair native Codex PR26 CDATA/processing-instruction settlement evidence gap
+  p-efficiency: 0.98
+  p-friction: 0.12
+  p-skill-candidate: 0.20
+  spore: none
+  receipt-refs: ce3c30a1fec49518488c283c67d44dd6d26ea18c04aa32b8b1f73e487b5ed566
+  note: Actual public-law RED reproduced eight XML-hidden binding/item cases; one raw-start guard made all controls GREEN while preserving actual native plaintext and conservative unknown/P1. Independent source seal e52393d4 has54 passing checks. Canonical receipt validates and preserves full prior bytes. Source proposal only; hosted successor CI/reviews, native settlement and deployment remain separate observations. Historical full local CLI failure retained; no CLI rerun, installed catalog adoption, new spore or promotion.
+- ts: 2026-10-11T00:14:50.059391431Z
+  session: /home/err/.local/share/openhax-codex/20261010/pr-flow-positive-review
+  task: Align positive writer plaintext documentation with existing XML exclusion
+  p-efficiency: 0.97
+  p-friction: 0.09
+  p-skill-candidate: 0.12
+  spore: none
+  receipt-refs: 007e94b2c95bcf1a667b7f61da5e04912c368cdc722de0c38246e413b5b20cc7
+  note: Native current-head review found one prose omission after the actual XML guard repair. Name declaration, CDATA and processing-instruction starts and preserve every executable and historical ledger byte. Exact whole-document reverse transformation demonstrates bounded scope. Historical18afa hosted suites and completed Codex/MiMo/CodeRabbit review evidence remain separate from successor qualification. Independent source/prefix review required before commit; no installed adoption, approval transfer, new spore or promotion.
+- ts: 2026-10-11T00:36:45.259017801Z
+  session: /home/err/.local/share/openhax-codex/20261010/pr-flow-positive-review
+  task: Reject XML boundary promotion in positive review sections
+  p-efficiency: 0.92
+  p-friction: 0.23
+  p-skill-candidate: 0.18
+  spore: none
+  receipt-refs: 943a166ae91aeafbda54482ceb6f3e38d3393a9921c68760e53bbf96d2aba25d
+  note: Actual native P2 exposed a review-side scanner boundary gap after writer-side denial. Preserve complete native HTML comment recognition before rejecting declaration and PI starts. Expanded exact predecessor RED18failures and repaired GREEN99/2007 distinguish authority denial from stable marker discovery. Whole-file reverse/insertion custody bounds the repair; parse, audit field and external layout failures remain INVALID evidence. Preserve historical CLI failure and append-only provenance; require independent source freeze and successor CI/reviews before native convergence. No installed adoption, approval transfer, spore or promotion.
+- ts: 2026-10-11T00:59:27.796776375Z
+  session: /home/err/.local/share/openhax-codex/20261010/pr-flow-positive-review
+  task: Reject empty and NUL components in positive native review paths
+  p-efficiency: 0.94
+  p-friction: 0.17
+  p-skill-candidate: 0.19
+  spore: none
+  receipt-refs: 92bf91879dd1b59079c2d8efdf7173e4e56968b56b393721882588d5fcf94e9e,4c2385b4fd376ddff793646fda781279a72298efc6c595be31314c40902c6c41
+  note: Actual native P2 plus independent Git-invalid NUL inspection yielded20 failures on each source reader branch. Split limit -1 preserves trailing empty components portably; literal NUL guard preserves legal names without decoding or normalization. Seven legal-name controls and native33 fixture pass. The first external portable fixture lacked the existing test-only authorization seam; retain it as INVALID and copy canonical permission admission in corrected v2, never change production authority. Entire prior source/test bytes and ledger prefixes remain inspectable. Independent source freeze and fresh successor CI/reviews required before protected merge; no live adoption, approval transfer, new spore or promotion.
+- ts: 2026-10-11T01:14:11.657606433Z
+  session: /home/err/.local/share/openhax-codex/20261010/pr-flow-positive-review
+  task: Repair all three actual native positive-review live-context findings together
+  p-efficiency: 0.87
+  p-friction: 0.34
+  p-skill-candidate: 0.29
+  spore: none
+  receipt-refs: 5c40a1827258320e444668ec98f440c27ddb6884cd9e65796ea5c1ac784715b7,ade635abcc013f9a970c366675d884fcbd16ab9b5d81c498aaf97f63fc8f0456
+  note: Full immutable native review had three items, while initial interpretation used a truncated tool-output tail and selected one. Correct scope before persistence; preserve bounded path-only qualification and record the selection mistake. Exact predecessor RED distinguishes newly reproduced file-openers/lazyquotes from already-denied outer/summary controls. Independent closer boundary inspection adds actual32 failures before minimally moving the same code-prefix guard to all structural tokens. Shared sanitation remains unchanged; strict observed plaintext writer denies raw quote lines rather than attempting CommonMark parsing. Exact all-reader RED74 becomes GREEN, native33 and legal names retained. External preparation assertions remain INVALID without source/test credit. Preserve whole source reversals and ledger prefixes; no spore/promotion or successor approval/CI transfer.
+- ts: 2026-10-11T01:24:59.972342061Z
+  session: /home/err/.local/share/openhax-codex/20261010/pr-flow-positive-review
+  task: Append readable restatements of four historical ledger notes
+  p-efficiency: 0.96
+  p-friction: 0.13
+  p-skill-candidate: 0.18
+  spore: none
+  receipt-refs: eef0102ee1155cbd2ea9db582a1a1d56d379584f89c0882ca7ca4a1d52372bcb
+  note: Readable correction for the four historical notes in source a7786e26a11f5923ca753c72e958f5bf159cf944: line 498 refers to historical commit 18afa85c651a60a69c1b9e31b214b298b47ae1f0 and its hosted qualification, separate from successor evidence. Line 507 records a RED result with 18 failures followed by GREEN qualification of 99 tests and 2,007 assertions. Line 516 records 20 failures on each source reader branch before the empty-component/NUL repair and preservation of the native 33-item fixture. Line 525 records 32 newly reproduced closing-boundary failures and the combined RED result with 74 failures before GREEN, with the native 33-item fixture and legal names retained. These are readability restatements of historical observations, not new test runs or an upgrade of evidence. The original entries and all other historical bytes remain preserved. All six reviewed skill files remain byte-identical; no source admission, CI, review or approval transfers to a new head.
+- ts: 2026-10-11T01:45:39.813501568Z
+  session: /home/err/.local/share/openhax-codex/20261010/pr-flow-positive-review
+  task: Repair four native positive-review boundaries with exact native edit custody
+  p-efficiency: 0.89
+  p-friction: 0.34
+  p-skill-candidate: 0.49
+  spore: none
+  receipt-refs: 4ade6b82-7f8e-4e5a-8bd1-d58a9d41fcbf;04ba5ae8-576c-4d1c-9e73-33a54c009bd6;sha256:faa74370df3645a3dcf68daf74b2bb3a833c4b047df3152588647b7beaf1b5e2
+  note: Native current-head review supplied four distinct source-boundary findings. Preserve all complete finding bodies before narrowing scope. Exact a778 RED reproduces 59 failures; final Node qualification covers 107 tests and 2,629 assertions, while Babashka covers 8 tests and 622 assertions. Focused CLI qualification covers 1 test and 66 assertions: 16 failures become zero through authenticated native review-edit hydration, with 16 owned temporary fixture roots removed and 500 final Node 24 runtime observations verified. Generated same-line suffix composition independently reproduced 4 candidate failures; an inline non-authoritative sentinel preserves the original boundary. A real API schema check corrected the mocked Actor ID assumption through the Bot fragment before freezing. All historical bytes and the earlier readable ledger restatement remain preserved. Current a778 hosted success and MiMo approval remain historical after a successor push; the full local CLI failure stays failed. No installed adoption, approval transfer, new spore or promotion.
+- ts: 2026-10-11T02:16:04.378819356Z
+  session: /home/err/.local/share/openhax-codex/20261010/pr-flow-positive-review
+  task: Repair four native positive-format Markdown and filename boundaries
+  p-efficiency: 0.9
+  p-friction: 0.35
+  p-skill-candidate: 0.51
+  spore: none
+  receipt-refs: 0a8343c0-aad2-4f7b-adcf-372a6fd0f767;c6e0d125-449c-461b-b4f0-b844433fb2f9;sha256:2520b7df0e0c797d7e8450267822dfddaf60015118fd2f0be36f12e3da2c36e6
+  note: Read all four complete native findings before narrowing source scope. Exact 874 predecessor qualification reproduces 73 failures across 111 tests and 2,842 assertions; Babashka reproduces the same 73 failures across 12 tests and 835 assertions. Both final runs pass. The shared positive-only raw backtick guard is deliberately conservative across line and paragraph boundaries, while complete outside comments/fences, same-line code, escaped-looking delimiters and unmatched lengths remain covered. The reported incomplete HTML prefix was already rejected; the separate suffix gap supplies 12 actual failures and the minimal start-token fix. Legal literal filename spaces retain their exact bytes. One initial fixture count assertion was wrong and remains INVALID; corrected ID preservation preceded final RED. Native 874 hosted CLI passes all 70 tests and 1,822 assertions, and MiMo approval 5481575979 remains historical for this successor. Current source and all historical ledger bytes are frozen for independent review before publishing. No installed adoption, policy/gate weakening, approval transfer, new spore or promotion.
+- ts: 2026-10-11T02:23:30.666764952Z
+  session: /home/err/.local/share/openhax-codex/20261010/pr-flow-positive-review
+  task: Close the independently identified bare-CR code-span boundary
+  p-efficiency: 0.9
+  p-friction: 0.35
+  p-skill-candidate: 0.51
+  spore: none
+  receipt-refs: 17f9dea5-aae3-4ef0-9a06-dd692dff6c5d;sha256:268b08cc81ce0f1b04b73deaa3b5f001efddd11051798cbfcdc02d2b06f4bf68
+  note: Independent reading found that a bare carriage return could expose a review binding inside an otherwise hidden multiline code span. Actual pre-CR candidate RED in both Node and Babashka has two failures and zero errors. Four CR/CRLF controls expand the final suite to 217 added assertions: exact-874 RED retains 77 failures in Node 111 tests/2,846 assertions and Babashka 12 tests/839 assertions, while final source passes both. The minimal helper change recognizes CR or LF; supported native wrapper and fence grammar stays unchanged. Earlier 213-control/73-failure qualification and reflection remain intact as historical steps. Three failed external preparation attempts remain INVALID and supply no execution credit. Final frozen five paths require independent assessment before persistence; no installed adoption, prior approval transfer, paid activation, new spore or promotion.
+- ts: 2026-10-11T02:59:14.176110486Z
+  session: /home/err/.local/share/openhax-codex/20261010/pr-flow-positive-review
+  task: Repair actual native CodeRabbit positive-count skipped-review scope
+  p-efficiency: 0.82
+  p-friction: 0.45
+  p-skill-candidate: 0.54
+  spore: none
+  receipt-refs: 4b13daaa-8363-4250-99a2-8a42d4dd5e98;sha256:8029d823b523bf49bc9bc7e2048a35bab2a815baa23fc98d299a559a3e7d6b04
+  note: Actual d06 native report skipped one file despite passing exact-head coverage; predecessor and installed reader both admitted approval. Full actual source remains external, with only generated capability token redacted in curated fixture. Independent read caught candidate quote and inline parsing that hid raw native HTML blocks; actual8/19 failure controls drove a smaller block-only helper using existing inline exclusion sentinels. Final exact predecessor116/2911 and portable5/65 each reproduce47 failures, final source passes; policy61/1554 and lint/diff pass. Initial parse, wrong already-ambiguous fence expectation, audit field and unsupported receipt kind are retained as invalid preparations without recasting failure. Original law/test helpers and historical ledger prefixes preserved. Native d06 CLI/MiMo completed results remain historical for successor. No included request at zero quota/no reset, paid activation, optional-reviewer exclusion, installed adoption, approval transfer, new spore or promotion.
+- ts: 2026-10-11T03:31:49.689448976Z
+  session: /home/err/.local/share/openhax-codex/20261010/pr-flow-positive-review
+  task: Repair three actual native skipped-scope Markdown boundaries
+  p-efficiency: 0.82
+  p-friction: 0.55
+  p-skill-candidate: 0.61
+  spore: none
+  receipt-refs: 79191b1d-0c93-4d42-9d66-8baa76f717ff;sha256:5199da3259c3ca3ca215b45dbf0ed620e4c3a189357f9ea2df95c8fbc217dd8f
+  note: All three completed Codex findings on exact 551 were read in full and reproduced together. Actual predecessor Node 125/3302 and portable 9/391 each reproduce 354 failures; bounded scope-only source passes both, policy and lint. Real fence and wrapper boundaries require 0–3 spaces; escaped, inline-prefixed, code-indented and invalid backtick-info openers cannot hide later live skipped input. Inner summary indentation remains raw HTML content. The initial inserted-helper parse error and premature running-command metadata read remain invalid preparations. Existing shared laws, native fixture provenance and whole ledger prefixes remain intact. Native MiMo approval 5481737641 and hosted CLI success remain specific to predecessor 551. No installed adoption, native successor evidence, settlement, paid activation, spore promotion or merge credit.
+- ts: 2026-10-11T03:53:41.713958731Z
+  session: /home/err/.local/share/openhax-codex/20261010/pr-flow-positive-review
+  task: Repair native positive-settlement merge assertion with isolated approval and settlement controls
+  p-efficiency: 0.87
+  p-friction: 0.29
+  p-skill-candidate: 0.61
+  spore: none
+  receipt-refs: native4240140866; qualification bb056ef5e24b0164c82086da54af632e93e31d984d6cd8e4237579d895bc6a69
+  note: A negative gate assertion needs successful unrelated gates and exact reason checks. Old wrong key/rounds0 wiring produced3 meaningful failures with stronger controls; corrected actual settlement count/minimum rounds passes125/3305, while trusted test approval passes and removed writer blocks34items. Runtime law/doc/other9packinputs unchanged. Initial parser/path preparation errors retained separately; all historical ledgers preserved. No native successor approval, installed adoption, merge or deployment credit; no spore or promotion.

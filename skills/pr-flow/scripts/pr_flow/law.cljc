@@ -485,6 +485,129 @@
        ;; never cross a sibling/nested blockquote or another finding marker.
        (re-seq #"(?m)^([ \t]*(?:>[ \t]?)*)(?:<summary>[^<\n]+</summary><blockquote>)[ \t]*\n(?:[ \t]*(?:>[ \t]*)*\n)*\1`([1-9][0-9]{0,8})(?:-([1-9][0-9]{0,8}))?`: _[^_\n]+_ \| _([^_\n]+)_ \| _[^_\n]+_[ \t]*\n((?:(?!</?blockquote>|<!-- cr-comment:v1:)[\s\S])*?)^\1<!-- cr-comment:v1:([a-z0-9]+) -->[ \t]*\n(?:(?!</?blockquote>|<!-- cr-comment:v1:)[\s\S])*?^\1</blockquote></details>" text)))))
 
+
+
+(defn- multiline-code-span? [text]
+  ;; Positive admission alone denies raw equal backtick runs across lines,
+  ;; including blank paragraphs; this is a conservative native-format guard.
+  ;; Outside a code span, complete native comments/fences remain examples.
+  ;; Inside one, backslashes, comments and fences cannot hide its delimiter.
+  (let [matching-close
+        (fn [cursor size]
+          (loop [cursor cursor]
+            (when-let [run (re-find #"`+" (subs text cursor))]
+              (let [start (+ cursor (str/index-of (subs text cursor) run))
+                    end (+ start (count run))]
+                (if (= size (count run)) [start end] (recur end))))))]
+    (loop [cursor 0]
+      (if-let [token (re-find #"<!--[\s\S]*?-->|`+|~{3,}" (subs text cursor))]
+        (let [start (+ cursor (str/index-of (subs text cursor) token))
+              end (+ start (count token))
+              line-start (inc (or (str/last-index-of (subs text 0 start) "\n") -1))
+              fence (when (and (>= (count token) 3)
+                               (re-matches #"[ \t]*" (subs text line-start start)))
+                      (when-let [match (re-find #"(?ms)^([ \t]*)(`{3,}|~{3,})[^\n]*\n.*?^\1\2[ \t]*$"
+                                                (subs text line-start))]
+                        (when (zero? (str/index-of (subs text line-start) (first match))) (first match))))
+              escaped? (odd? (loop [index (dec start) n 0]
+                               (if (and (>= index 0) (= "\\" (subs text index (inc index))))
+                                 (recur (dec index) (inc n)) n)))]
+          (cond
+            (str/starts-with? token "<!--") (recur end)
+            fence (recur (+ line-start (count fence)))
+            (str/starts-with? token "~") (recur end)
+            escaped? (recur (inc start))
+            :else (if-let [[close after] (matching-close end (count token))]
+                    (if (re-find #"[\r\n]" (subs text end close)) true (recur after))
+                    (recur end))))
+        false))))
+
+(defn- retain-excluded-regions [text pattern]
+  ;; Exclusion must not sanitize extra own-item source into an exact LGTM.
+  ;; The sentinel cannot match a native item or a complete section header,
+  ;; and must not invent line boundaries around an excluded source region.
+  (loop [text text]
+    (if-let [match (re-find pattern text)]
+      (recur (str/replace-first text (if (string? match) match (first match)) "[excluded non-authoritative source]"))
+      text)))
+
+(defn- trim-blank-lines [text]
+  ;; Retain indentation: four-space Markdown code is not live native prose.
+  (-> text (str/replace #"^(?:[ \t]*\n)+" "")
+      (str/replace #"(?:\n[ \t]*)+$" "")))
+
+(defn- additional-comment-section [body]
+  ;; Only the observed complete, top-level native section is a candidate.
+  ;; Quotes/fences/generated share examples are not authored LGTM evidence.
+  ;; A deliberately small balanced tag grammar rejects unfamiliar HTML rather
+  ;; than borrowing a closing boundary from a nested or sibling example.
+  (let [text (some-> (when-not (multiline-code-span? (str body)) (str body))
+                     (retain-excluded-regions #"(?s)<!-- This is an auto-generated comment: tweet message by coderabbit\.ai -->.*?<!-- end of auto-generated comment: tweet message by coderabbit\.ai -->")
+                     (#(when (verdict-prose %) %))
+                     (retain-excluded-regions #"(?ms)^[ \t]*(`{3,}|~{3,})[^\n]*\n.*?^[ \t]*\1[ \t]*$")
+                     ;; Raw quote starts can own unprefixed lazy continuations.
+                     ;; The supported native section has no quoted source.
+                     (#(when-not (re-find #"(?m)^[ \t]*>" (str body)) %)))]
+    (when (and text (not (re-find #"(?i)<!--\s*(?:This is an auto-generated comment:|end of auto-generated comment:)" text)))
+      (loop [remaining text offset 0 stack [] sections []]
+        (if-let [token (re-find #"<!--[\s\S]*?-->|</?[A-Za-z][^>]*>|</?[A-Za-z]|<\?|<!" remaining)]
+          (let [start (+ offset (str/index-of remaining token))
+                end (+ start (count token))
+                tail (subs text end)]
+            (if (str/starts-with? token "<!--")
+              (recur tail end stack sections)
+              (when-let [[_ closing tag] (re-matches #"<(\/?)(details|summary|blockquote)>" token)]
+                (when-not (re-matches #"(?: {4}| {0,3}\t)[ \t]*"
+                                      (last (str/split (subs text 0 start) #"\n" -1)))
+                  (if (= closing "/")
+                    (when (and (= tag (:tag (peek stack)))
+                               (or (not (:additional? (peek stack)))
+                                   (re-find #"^[ \t]*(?:\r?\n|$)" tail)))
+                      (let [frame (peek stack)
+                            sections (if (:additional? frame)
+                                       (conj sections (subs text (:start frame) end)) sections)]
+                        (recur tail end (pop stack) sections)))
+                    (let [own-line? (or (zero? start) (= "\n" (subs text (dec start) start)))
+                          additional? (and (= tag "details") (empty? stack) own-line?
+                                           (re-find #"^<details>\n<summary>🔇 Additional comments \([1-9][0-9]{0,3}\)</summary><blockquote>" (subs text start)))]
+                      (recur tail end (conj stack {:tag tag :start start :additional? additional?}) sections)))))))
+          (when (and (empty? stack) (= 1 (count sections))) (first sections)))))))
+
+(defn- native-positive-item [item file]
+  (when-let [[_ start end extra id]
+             (re-matches #"`([1-9][0-9]{0,8})-([1-9][0-9]{0,8})`: LGTM!\s*(?:Also applies to: ([1-9][0-9]{0,8}-[1-9][0-9]{0,8}(?:, [1-9][0-9]{0,8}-[1-9][0-9]{0,8})*)\s*)?<!-- cr-comment:v1:([0-9a-f]{24}) -->" (trim-blank-lines item))]
+    (let [number (fn [n] #?(:clj (Long/parseLong n) :cljs (js/parseInt n 10)))
+          ranges (into [[(number start) (number end)]]
+                       (map (fn [[_ a b]] [(number a) (number b)])
+                            (re-seq #"([0-9]+)-([0-9]+)" (str extra))))]
+      (when (and (not (re-find #"(?m)^(?: {4}| {0,3}\t)[ \t]*\S" item))
+                 (every? (fn [[a b]] (<= a b)) ranges))
+        {:id id :format :native-additional-lgtm :file file :ranges ranges :source (trim-blank-lines item)}))))
+
+(defn- native-positive-body-items [body]
+  (when-let [section (additional-comment-section body)]
+    (when-let [[_ total inner]
+               (re-matches #"<details>\n<summary>🔇 Additional comments \(([1-9][0-9]{0,3})\)</summary><blockquote>([\s\S]*)</blockquote></details>" section)]
+      (let [groups (re-seq #"<details>\n<summary>([^<\n]+) \(([1-9][0-9]{0,3})\)</summary><blockquote>([\s\S]*?)</blockquote></details>" inner)
+            remainder (reduce #(str/replace-first %1 (first %2) "") inner groups)
+            number (fn [n] #?(:clj (Long/parseLong n) :cljs (js/parseInt n 10)))
+            frequencies (frequencies (map #(str/lower-case (second %))
+                                          (re-seq #"(?i)<!-- cr-comment:v1:([a-z0-9]+) -->" (str body))))]
+        (when (and (str/blank? remainder) (= (number total) (reduce + (map #(number (nth % 2)) groups))))
+          (into {}
+                (for [[_ file item-count content] groups
+                      ;; Authored repository-relative paths; never a generated
+                      ;; nested summary, absolute path, or traversal fragment.
+                      :when (and (re-matches #"(?:[^\s<>]| )+" file)
+                                 (not (re-find #"[\u0000:\\]" file))
+                                 (not (str/starts-with? file "/"))
+                                 (not (some #{"" ".." "."} (str/split file #"/" -1))))
+                      :let [parts (str/split (trim-blank-lines content) #"\n[ \t]*\n---\n[ \t]*\n")
+                            items (mapv #(native-positive-item % file) parts)]
+                      :when (and (= (number item-count) (count parts)) (every? some? items))
+                      item items :when (= 1 (get frequencies (:id item)))]
+                  [(:id item) (dissoc item :id)])))))))
+
 (defn review-body-findings
   "Extract each outside-diff or nitpick finding and its stable CodeRabbit ID."
   [body]
@@ -497,9 +620,11 @@
         modern-ids (set (map :id modern))
         identified (into modern (remove #(modern-ids (:id %)) (legacy-body-findings body)))
         known (set (map :id identified))
+        positive (native-positive-body-items body)
         other (for [[_ id] (re-seq #"<!-- cr-comment:v1:([a-z0-9]+) -->" (str body))
                     :when (not (known id))]
-                {:id id :severity :p1 :title "Unclassified review-body finding; fix before merge"})]
+                (cond-> {:id id :severity :p1 :title "Unclassified review-body finding; fix before merge"}
+                  (get positive id) (assoc :positive-body-item (get positive id))))]
     (into identified other)))
 
 (defn- body-finding? [body]
@@ -543,9 +668,68 @@
   (when-let [[_ reason evidence] (re-find #"^:[ \t]*Reason:[ \t]*(.+?);[ \t]*Evidence:[ \t]*(.+)$" text)]
     (details reason evidence)))
 
-(defn- answered-finding? [review comments {:keys [id kind severity]} context]
+
+
+(defn- native-positive-time [value]
+  ;; The shared timestamp helper normalizes lexical comparison. This new
+  ;; admission additionally refuses impossible calendar/time components.
+  (when-let [[_ year month day hour minute second]
+             (and (timestamp value)
+                  (re-matches #"([0-9]{4})-([0-9]{2})-([0-9]{2})T([0-9]{2}):([0-9]{2}):([0-9]{2})(?:\.[0-9]{1,3})?Z" value))]
+    (let [number (fn [n] #?(:clj (Long/parseLong n) :cljs (js/parseInt n 10)))
+          [y m d h mn sec] (map number [year month day hour minute second])
+          leap? (and (zero? (mod y 4)) (or (not (zero? (mod y 100))) (zero? (mod y 400))))
+          days (get [0 31 (if leap? 29 28) 31 30 31 30 31 31 30 31 30 31] m)]
+      (when (and (pos? y) (<= 1 m 12) days (<= 1 d days) (<= 0 h 23) (<= 0 mn 59) (<= 0 sec 59))
+        (timestamp value)))))
+
+(defn- positive-handled? [review writer finding context]
+  ;; Classification metadata is never authority by itself. The strict native
+  ;; participants, timestamps and current live item binding admit Handled only
+  ;; for this exact positive format; no severity or approval is downgraded.
+  ;; A non-authoritative boundary prevents legacy trimming from promoting an
+  ;; indented first source line into live settlement prose. Shared rejection
+  ;; rules retain their existing behavior; this marker supplies no evidence.
+  (let [raw (str (:body writer))
+        ;; This admission supports native plaintext only. Deny markup before
+        ;; shared sanitation can assemble evidence across excluded regions.
+        prose (when-not (or (multiline-code-span? raw)
+                            (re-find #"<!|<\?|</?[A-Za-z]" raw)
+                            (re-find #"(?m)^[ \t]*>" raw))
+                (rejection-prose (str "[positive writer source boundary]\n" raw)))
+        submitted (native-positive-time (:submitted_at review))
+        review-updated (native-positive-time (:updated_at review))
+        created (native-positive-time (:created_at writer))
+        updated (native-positive-time (:updated_at writer))
+        ;; The observed native writer binds one complete plaintext line. Code
+        ;; tokens and unknown markup cannot supply a missing live binding.
+        binding-pattern #"(?mi)^review-id:([0-9]+)[ \t]*$"
+        bindings (map second (re-seq binding-pattern (str prose)))
+        raw-bindings (map second (re-seq binding-pattern raw))
+        head (:head context)
+        handled-pattern #"(?mi)^[-*][ \t]+Handled[ \t]+cr-comment:v1:([0-9a-f]{24})\b([^\n]*)$"
+        handled (re-seq handled-pattern (str prose))
+        raw-handled (set (map first (re-seq handled-pattern raw)))]
+    (boolean
+     (and (= :native-additional-lgtm (get-in finding [:positive-body-item :format]))
+          (some? prose)
+          (= "coderabbit" (trusted-reviewer review (or (:identities context) default-reviewer-identities)))
+          (= "COMMENTED" (:state review)) (valid-head? (:commit_id review))
+          (integer? (:id review)) (pos? (:id review)) submitted review-updated
+          (not (neg? (compare review-updated submitted)))
+          (true? (:authorized? writer)) (= "User" (get-in writer [:user :type]))
+          (integer? (:id writer)) (pos? (:id writer))
+          created updated (pos? (compare created submitted))
+          (pos? (compare created review-updated)) (not (neg? (compare updated created)))
+          (valid-head? head) (= 1 (count (re-seq #"(?i)\breview-id:" (str prose))))
+          (= [(str (:id review))] (vec bindings) (vec raw-bindings))
+          (some (fn [[line id tail]]
+                  (and (= id (:id finding)) (contains? raw-handled line)
+                       (re-find (re-pattern (str "(?i)(?:^|[^0-9a-f])" head "(?:$|[^0-9a-f])")) tail))) handled)))))
+
+(defn- answered-finding? [review comments {:keys [id kind severity] :as finding} context]
   (let [opener (get-in review [:user :login])]
-    (some (fn [[settlement-index {:keys [body created_at user authorized?]}]]
+    (some (fn [[settlement-index {:keys [body created_at user authorized?] :as writer}]]
           (and (not (str/blank? opener))
                (not (str/blank? (:login user)))
                (not= (str/lower-case opener) (str/lower-case (:login user)))
@@ -559,7 +743,7 @@
                             (= marker id)
                             (case (str/lower-case verb)
                               "fixed" true
-                              "handled" (not (blocking? severity))
+                              "handled" (or (not (blocking? severity)) (positive-handled? review writer finding context))
                               "deferred" (and (not (blocking? severity))
                                               (integer? (:rounds context))
                                               (> (:rounds context) (or (:min-review-rounds context) default-min-review-rounds)))
@@ -575,8 +759,10 @@
 (defn unanswered-review-count
   "A flagged review clears only when each identified item has an authorized,
    later settlement from a known author other than the opener. P0/P1 items
-   require Fixed or independent head/item-bound rejection agreement. Context
-   is required for rejection and post-minimum deferral; absence fails closed."
+   require Fixed or independent head/item-bound rejection agreement, except
+   bounded native positive-format items admitted by positive-handled?. Context
+   is required for that Handled admission, rejection and post-minimum deferral;
+   absence fails closed."
   ([reviews comments] (unanswered-review-count reviews comments {}))
   ([reviews comments context]
    (let [comments (vec (sort-by :created_at comments))]
@@ -698,6 +884,27 @@
       (recur (str/replace-first prose block ""))
       (when-not (re-find #"(?m)^[ \t]*(?:`{3,}|~{3,})" prose) prose))))
 
+(defn- native-scope-prose [body]
+  ;; Preserve excluded regions inline, so removal cannot assemble a heading.
+  ;; Raw native details blocks interrupt paragraphs before inline-code parsing:
+  ;; stray backticks or a quoted paragraph cannot hide this live block opener.
+  ;; Complete fences/comments/generated blocks and explicit quote/code HTML
+  ;; wrappers remain examples only at raw 0–3-space block starts. Backtick
+  ;; info cannot contain backticks; escaped/code-indented starts stay visible.
+  ;; Unrelated HTML is not blanket-excluded.
+  (retain-excluded-regions
+   (str body)
+   #"(?im)<!-- This is an auto-generated comment: tweet message by coderabbit\.ai -->[\s\S]*?<!-- end of auto-generated comment: tweet message by coderabbit\.ai -->|<!--[\s\S]*?-->|^[ ]{0,3}<(pre|code|blockquote)\b[^>]*>[\s\S]*?</\1>|^[ ]{0,3}>[^\r\n]*(?:(?:\r\n|\r|\n)(?![ \t]*(?:\r\n|\r|\n|$)|[ ]{0,3}<details>[ \t]*(?:\r\n|\r|\n|$))[^\r\n]*)*|^[ ]{0,3}(`{3,})[^`\r\n]*(?:\r\n|\r|\n)[\s\S]*?^[ ]{0,3}\2[ \t]*(?:$|\r)|^[ ]{0,3}(~{3,})[^\r\n]*(?:\r\n|\r|\n)[\s\S]*?^[ ]{0,3}\3[ \t]*(?:$|\r)"))
+
+(defn- native-skipped-review-input? [body]
+  ;; Match the observed live section header, not arbitrary skipped-file prose.
+  ;; The positive digit grammar avoids overflow and never treats zero as an
+  ;; omission. The native opener allows 0–3 spaces; inner summary indentation
+  ;; remains raw HTML content. Preserve raw boundaries without normalization.
+  (boolean
+   (re-find #"(?m)^[ ]{0,3}<details>[ \t]*(?:\r\n|\r|\n)[ \t]*<summary><strong>🚧 Files skipped from review as they are similar to previous changes \([1-9][0-9]*\)</strong></summary>[ \t]*(?:\r?$)"
+            (native-scope-prose body))))
+
 (defn incomplete-review-reason
   "Commit binding is distinct from completed review scope. Reject an actual
    admission of unfinished/omitted input, including formal approvals. Quotes
@@ -713,7 +920,8 @@
       (nil? prose) :ambiguous-prose
       (re-find #"(?i)\breview (?:is |was |remains )?(?:incomplete|rate limited)\b|\b(?:partial|incomplete) review\b|\b(?:unable to|could not|couldn't|cannot|can't) complete (?:the )?review\b" scope-prose)
       :incomplete-review
-      (or (re-find #"(?im)(?:^|[.;]\s*)(?:some |the |these )?unreviewed (?:files|changes|input) (?:still )?remain\b" prose)
+      (or (native-skipped-review-input? body)
+          (re-find #"(?im)(?:^|[.;]\s*)(?:some |the |these )?unreviewed (?:files|changes|input) (?:still )?remain\b" prose)
           (and (re-find #"(?i)\btruncat(?:ed|ion)\b" prose)
                (re-find #"(?i)\b(?:rather than|instead of) (?:being )?(?:fully |exhaustively )?(?:read|reviewed)\b|\b(?:tail|omitted (?:files|changes|input)) (?:was |were |is |are )?not (?:read|reviewed)\b" prose))
           (and (re-find #"(?i)\btruncat(?:ed|ion)\b" prose)

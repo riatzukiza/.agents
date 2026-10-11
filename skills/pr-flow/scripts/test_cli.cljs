@@ -1823,4 +1823,51 @@
         (is (empty? (writes result "merge")))
         (is (empty? (mutations result)))))))
 
+(deftest positive-review-edit-custody-is-hydrated-before-status-and-gate
+  (let [fixture (js->clj (js/JSON.parse (fs/readFileSync
+                      (path/join here "fixtures/native-services94-positive-review.json") "utf8"))
+                         :keywordize-keys true)
+        sha (get-in fixture [:context :head]) id "1234567890abcdef12345678"
+        review (assoc (:review fixture) :updated_at "1900-01-01T00:00:00Z"
+                      :body (str "<details>\n<summary>🔇 Additional comments (1)</summary><blockquote>\n\n"
+                                 "<details>\n<summary>src/example.cljc (1)</summary><blockquote>\n\n"
+                                 "`3-5`: LGTM!\n\n<!-- cr-comment:v1:" id " -->"
+                                 "\n\n</blockquote></details>\n\n</blockquote></details>"))
+        writer (assoc (:writer fixture) :body (str "review-id:" (:id review)
+                       "\n\n- Handled cr-comment:v1:" id ": Retained in " sha "."))
+        native {:id (:node_id review) :databaseId (:id review) :body (:body review)
+                :state (:state review) :commit {:oid (:commit_id review)}
+                :submittedAt (:submitted_at review) :updatedAt (:submitted_at review)
+                :author {:id (get-in review [:user :node_id]) :__typename "Bot"}}
+        config (assoc base :head sha :authorized true :reviews [(assoc approval :commit_id sha) review]
+                      :comments [writer] :reviewUpdateResponses {(:node_id review) native})]
+    (doseq [verb ["status" "gate"]]
+      (let [r (execute config verb "open-hax/services" "94")]
+        (is (= 0 (:exit r)) (:err r))
+        (is (str/includes? (:out r) (if (= verb "status") "gate: PASS" "PASS")) (:out r))
+        (is (some #(some (fn [arg] (str/includes? arg "node(id:$id)")) (:args %)) (:calls r)))
+        (is (empty? (writes r "merge")))
+        (is (empty? (mutations r)))))
+    (doseq [[label node]
+            [["missing node" nil]
+             ["missing edit" (dissoc native :updatedAt)]
+             ["invalid edit" (assoc native :updatedAt "unknown")]
+             ["edit before submission" (assoc native :updatedAt "2026-10-10T19:18:32Z")]
+             ["review changed after writer" (assoc native :updatedAt "2026-10-10T19:34:35Z")]
+             ["writer equals edit" (assoc native :updatedAt (:created_at writer))]
+             ["wrong node" (assoc native :id "PRR_wrong")]
+             ["wrong database ID" (update native :databaseId inc)]
+             ["body changed during collection" (update native :body str " P1: correction")]
+             ["state mismatch" (assoc native :state "CHANGES_REQUESTED")]
+             ["commit mismatch" (assoc-in native [:commit :oid] other)]
+             ["submission mismatch" (assoc native :submittedAt "2026-10-10T19:18:34Z")]
+             ["author mismatch" (assoc-in native [:author :id] "BOT_wrong")]
+             ["author not Bot" (assoc-in native [:author :__typename] "User")]]]
+      (let [r (execute (assoc config :reviewUpdateResponses {(:node_id review) node})
+                       "status" "open-hax/services" "94")]
+        (is (= 0 (:exit r)) (str label " " (:err r)))
+        (is (str/includes? (:out r) "gate: BLOCKED") (str label " " (:out r)))
+        (is (empty? (writes r "merge")) label)
+        (is (empty? (mutations r)) label)))))
+
 (run-tests)
