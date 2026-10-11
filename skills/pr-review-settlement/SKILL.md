@@ -163,8 +163,12 @@ review round, or a waiver of any required check: those laws remain separate.
 ## Candidate informational conversations
 
 The separate [informational disposition](../pr-flow/actionability.md) is a
-provisional bounded correction for resolved author-only User explanations with
-empty native enclosing reviews. Same-author `Handled`, author identity, a
+provisional bounded correction for resolved author-only User explanations. The
+original scope requires empty native enclosing reviews; a distinct scope binds
+nonempty author COMMENTED bodies for whole-context independent assessment.
+Both retain the resolved prerequisite and settle-before-resolve contract; the
+pure Knoxx source slice leaves that bootstrap sequencing gap unresolved.
+Same-author `Handled`, author identity, a
 walkthrough prefix, unknown severity and GitHub resolution do not qualify.
 All threads default to finding obligations. Only fresh independently admitted
 native evidence with exact complete context may remove that obligation; it is

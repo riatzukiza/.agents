@@ -55,6 +55,9 @@
                                         :repository-identities
                                         {["open-hax/proxx" 1178288746]
                                          #{{:login "eta-mu-ai[bot]" :id 270021952
+                                            :node-id "BOT_kgDOEBg1QA"}}
+                                         ["open-hax/knoxx" 1199983316]
+                                         #{{:login "eta-mu-ai[bot]" :id 270021952
                                             :node-id "BOT_kgDOEBg1QA"}}}}
                  :review/identities {"coderabbit" #{"coderabbitai[bot]"}
                                      "codex" #{"chatgpt-codex-connector[bot]"}

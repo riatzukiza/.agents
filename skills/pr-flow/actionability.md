@@ -17,12 +17,25 @@ historical identities. Every comment, enclosing review and diff hunk is retained
 Unknown/missing metadata and partial pagination block admission. The current
 100-comment cap remains fail-closed; this feature does not waive it.
 
+The separate `resolved-author-only-commented-review-context` scope permits a
+nonempty native enclosing body, retaining the same resolved author-only User
+and COMMENTED-review requirements. Its exact body hash is already in the
+ordered manifest. Scope is derived from native bodies: all empty bodies keep
+the original scope; at least one nonempty body selects the additional scope.
+Missing body metadata has no scope. Empty/nonempty body and empty-hash
+consistency are checked; the existing effectful boundary computes exact UTF-8
+hashes. An independent assessment must consider the whole enclosing body,
+complete conversation and relevant source. No walkthrough prefix, caller flag
+or semantic regex grants informational status. Fresh old-scope evidence cannot
+admit a nonempty review, and additional-scope evidence cannot admit an empty one.
+
 `:review/actionability` is a separate consumed candidate flow default. Only
 verified native OpenCode `opencode-agent[bot]`, user `219766164`, node
 `BOT_kgDODRldlA`, is admitted globally here. A source-preparation extension in
 `:repository-identities` additionally admits native MiMo `eta-mu-ai[bot]`, user
-`270021952`, node `BOT_kgDOEBg1QA`, only for the exact native repository pair
-`["open-hax/proxx" 1178288746]`. Both fields must match; aliases, renames,
+`270021952`, node `BOT_kgDOEBg1QA`, only for the exact native repository pairs
+`["open-hax/proxx" 1178288746]` and `["open-hax/knoxx" 1199983316]`.
+Both fields must match; aliases, renames,
 foreign repositories and matching names with different IDs do not admit MiMo.
 The real full-review tuple supplies identity evidence, not a new scoped native
 assessment, independent execution proof or activation credit. This extension
@@ -64,6 +77,10 @@ OpenCode trailing blank line plus `[github run](/owner/repo/actions/runs/id)`
 footer is additionally allowed, bound to the same repository. It is transport
 format, not a run-success/provenance claim. Other extra fields/lines, versions,
 fenced/quoted/generated copies and ambiguous payloads do not qualify.
+
+The examples below show the original scope. The additional scope uses the same
+fixed arities and protocol, with `resolved-author-only-commented-review-context`
+in that field; no other field or semantic agreement requirement changes.
 
 ```text
 Actionability proposal v1 for <40-hex-current-head>:
@@ -145,8 +162,17 @@ preserve/commit these observations across hosts; this feature does not provide
 distributed history or recover deleted evidence absent that history. Parent
 must qualify that operational persistence boundary before deployment.
 
-Tests use current captured Proxx57f/Uxx68e conversations, isolated synthetic
-protocol records and mocked GitHub effects. They prove binding/gate mechanics,
+The Knoxx extension is a first pure admission slice. Its fixture preserves
+three actual unresolved author walkthroughs and their nonempty author review;
+only explicitly synthetic tests set resolved flags or add assessment records.
+The actual unresolved originals remain blocked. The settle-before-resolve
+contract and opener self-settlement exclusion are unchanged, leaving a native
+bootstrap sequencing gap. This slice provides no collector, assessor transport,
+workflow, native resolution, deployment qualification or installed-policy
+adoption. Source and fixtures alone cannot clear those conversations.
+
+Tests use current captured Proxx57f/Uxx68e and Knoxx387 conversations, isolated
+synthetic protocol records and mocked GitHub effects. They prove binding/gate mechanics,
 not actual native approval, model correctness or readiness of either PR.
 `PR_FLOW_BASELINE_PROOF=1` additionally runs the same CLI fixtures against exact
 9ee Git objects locally. Historical objects are not required in shallow hosted
