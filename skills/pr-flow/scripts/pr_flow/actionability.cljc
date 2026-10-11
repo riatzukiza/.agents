@@ -4,6 +4,7 @@
 
 (def scope "resolved-author-only-empty-reviews")
 (def commented-review-scope "resolved-author-only-commented-review-context")
+(def unresolved-commented-review-scope "unresolved-author-only-commented-review-context")
 (def empty-sha "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")
 (defn- text? [s] (and (string? s) (not (str/blank? s))))
 (defn- positive-id? [n] (and (integer? n) (pos? n)))
@@ -30,14 +31,20 @@
                (get-in r [:commit :oid]) (:body-sha256 r)]])) (get-in thread [:comments :nodes]))])
 
 (defn context-scope
-  "Derive a binding scope from native enclosing bodies, never a caller flag.
-   This selects a protocol target, not an informational judgment. Missing body
-   metadata has no scope; nonempty bodies require independent full-context
-   assessment under the distinct COMMENTED-review scope."
+  "Derive a protocol scope from matching native/normalized resolution flags and
+   enclosing bodies, never a supplied classification. Unresolved scope requires
+   nonempty author COMMENTED context; complete custody and independent judgment
+   remain separate. Empty unresolved reviews have no supported scope."
   [t]
-  (let [reviews (map :pullRequestReview (get-in t [:native-context :thread :comments :nodes]))]
+  (let [reviews (map :pullRequestReview (get-in t [:native-context :thread :comments :nodes]))
+        native-resolved? (get-in t [:native-context :thread :isResolved])]
     (when (and (seq reviews) (every? #(string? (:body %)) reviews))
-      (if (every? #(= "" (:body %)) reviews) scope commented-review-scope))))
+      (cond
+        (and (true? (:resolved? t)) (true? native-resolved?))
+        (if (every? #(= "" (:body %)) reviews) scope commented-review-scope)
+        (and (false? (:resolved? t)) (false? native-resolved?)
+             (some #(not= "" (:body %)) reviews)) unresolved-commented-review-scope
+        :else nil))))
 
 (defn- context-valid? [{:keys [id head pr-author resolved? root-comment-id comments native-context context-manifest context-digest] :as t}]
   (let [{:keys [repository pr thread]} native-context
@@ -46,7 +53,7 @@
     (and (map? native-context) (text? (:id repository)) (positive-id? (:databaseId repository))
          (text? (:nameWithOwner repository)) (text? (:id pr)) (positive-id? (:number pr))
          (= "OPEN" (:state pr)) (user? a) (= pr-author (:login a)) (sha? 40 head) (= head (:headRefOid pr))
-         (= id (:id thread)) (text? id) (true? resolved?) (true? (:isResolved thread))
+         (= id (:id thread)) (text? id) (boolean? resolved?) (= resolved? (:isResolved thread))
          (boolean? (:isOutdated thread)) (text? (:path thread)) (positive-id? (:line thread))
          (vector? nodes) (seq nodes) (false? (get-in thread [:comments :pageInfo :hasNextPage]))
          (= (count nodes) (get-in thread [:comments :totalCount]))
@@ -232,3 +239,21 @@
      :context-digest (:context-digest t) :observations observations})))
 
 (defn finding-obligation? [t] (not= :informational (:kind (disposition t))))
+
+(defn resolution-authorization
+  "Pure eligibility for a canonically classified thread, not an effect or actor
+   permission. Require the existing classifier's derived withdrawal set, then
+   recompute disposition; raw context is insufficient. Unresolved informational
+   stays unsettled/merge-blocking. Adapters must classify fresh native custody,
+   refresh permission, and obtain new resolved evidence after resolution."
+  [t]
+  (let [denied {:allowed? false :reason :no-qualified-unresolved-context}]
+    (if-not (and (map? t) (set? (:actionability-source-withdrawals t))
+                 (every? positive-id? (:actionability-source-withdrawals t)))
+      denied
+      (let [d (disposition t)]
+        (if (and (= unresolved-commented-review-scope (context-scope t))
+                 (= :informational (:kind d)) (= :qualified (:status d)))
+          {:allowed? true :head (:head t) :context-binding (context-binding t)
+           :proposal-id (:proposal-id d) :assessment-id (:assessment-id d) :channel (:channel d)}
+          denied)))))

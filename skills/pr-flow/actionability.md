@@ -20,14 +20,43 @@ Unknown/missing metadata and partial pagination block admission. The current
 The separate `resolved-author-only-commented-review-context` scope permits a
 nonempty native enclosing body, retaining the same resolved author-only User
 and COMMENTED-review requirements. Its exact body hash is already in the
-ordered manifest. Scope is derived from native bodies: all empty bodies keep
-the original scope; at least one nonempty body selects the additional scope.
+ordered manifest. For matching true native/normalized resolved flags, all empty
+bodies keep the original scope; at least one nonempty body selects this scope.
 Missing body metadata has no scope. Empty/nonempty body and empty-hash
 consistency are checked; the existing effectful boundary computes exact UTF-8
 hashes. An independent assessment must consider the whole enclosing body,
 complete conversation and relevant source. No walkthrough prefix, caller flag
 or semantic regex grants informational status. Fresh old-scope evidence cannot
 admit a nonempty review, and additional-scope evidence cannot admit an empty one.
+
+The distinct `unresolved-author-only-commented-review-context` scope requires
+both native and normalized resolution flags to be exactly false and at least
+one nonempty enclosing author COMMENTED body. Complete custody, fresh writer
+proposal and independent no-defect/no-request/no-question judgment retain the
+same laws. Empty unresolved reviews and missing/mismatched flags have no
+supported scope. Qualified unresolved informational conversations remain
+unsettled and block the merge gate's all-thread unresolved check.
+
+`actionability/resolution-authorization` is a pure eligibility result for a
+canonically classified thread. A caller must first use `law/classify-thread`,
+which derives existing same-Bot source withdrawals, then pass that complete
+thread. The function requires its derived withdrawal set of positive native
+IDs and recomputes disposition; raw input, malformed sets and supplied
+informational/authorization booleans cannot supply eligibility. This data shape
+alone does not prove native provenance: a future effectful adapter must freshly
+collect and classify the context itself, never accept caller-provided flags or
+derived sets as authority. Its positive result binds the head, context vector,
+proposal and assessment IDs and channel; it grants no actor permission, GitHub
+effect, settlement or merge credit. No resolver/collector/transport exists in
+this pure slice. Every actual finding still needs settlement before resolution,
+and the opener cannot settle their own pushback.
+
+A later guarded resolution changes the manifest's resolved flag and digest.
+Old pre-resolution evidence must lose binding. Recollect native facts and obtain
+a new writer proposal and independent assessment under the resolved scope;
+never flip an old manifest flag or transfer the earlier assessment. Such native
+administration requires a separately reviewed/adopted adapter and actual fresh
+assessment route before use.
 
 `:review/actionability` is a separate consumed candidate flow default. Only
 verified native OpenCode `opencode-agent[bot]`, user `219766164`, node
@@ -78,9 +107,9 @@ footer is additionally allowed, bound to the same repository. It is transport
 format, not a run-success/provenance claim. Other extra fields/lines, versions,
 fenced/quoted/generated copies and ambiguous payloads do not qualify.
 
-The examples below show the original scope. The additional scope uses the same
-fixed arities and protocol, with `resolved-author-only-commented-review-context`
-in that field; no other field or semantic agreement requirement changes.
+The examples below show the original scope. The other scopes use the same
+fixed arities and protocol, replacing that field with the derived resolved or
+unresolved COMMENTED-context scope; no other field or judgment requirement changes.
 
 ```text
 Actionability proposal v1 for <40-hex-current-head>:
@@ -162,13 +191,13 @@ preserve/commit these observations across hosts; this feature does not provide
 distributed history or recover deleted evidence absent that history. Parent
 must qualify that operational persistence boundary before deployment.
 
-The Knoxx extension is a first pure admission slice. Its fixture preserves
-three actual unresolved author walkthroughs and their nonempty author review;
-only explicitly synthetic tests set resolved flags or add assessment records.
-The actual unresolved originals remain blocked. The settle-before-resolve
-contract and opener self-settlement exclusion are unchanged, leaving a native
-bootstrap sequencing gap. This slice provides no collector, assessor transport,
-workflow, native resolution, deployment qualification or installed-policy
+The Knoxx fixture preserves three actual unresolved author walkthroughs and
+their nonempty author review unchanged. New proposals/assessments and prospective
+resolution flags are explicitly synthetic controls. Actual originals without
+fresh independent native evidence remain findings; even qualified unresolved
+informational contexts remain merge-blocking. The pure pre-resolution eligibility
+layer prepares the bootstrap decision but supplies no collector, assessor
+transport, workflow, native resolver, deployment qualification or installed-policy
 adoption. Source and fixtures alone cannot clear those conversations.
 
 Tests use current captured Proxx57f/Uxx68e and Knoxx387 conversations, isolated
