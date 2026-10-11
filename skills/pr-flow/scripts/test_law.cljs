@@ -1099,6 +1099,73 @@
            ["span delimiter in fence" "`\n~~~\n`\n~~~\n"]]]
     (is (= :unreviewed-input (law/incomplete-review-reason (str prefix scope-section))) label)))
 
+(defn scope-boundary-evidence [section label]
+  (let [body (str/replace (get-in skipped-scope-fixture [:nativeComment :body])
+                          (:removedControlSection skipped-scope-fixture) section)
+        evidence (scope-evidence body)
+        formal {:id 99002 :user (get-in skipped-scope-fixture [:nativeComment :user])
+                :state "APPROVED" :commit_id (:head skipped-scope-fixture)
+                :submitted_at "2026-10-11T02:35:11Z" :body body}]
+    (is (= :unreviewed-input (law/incomplete-review-reason body)) label)
+    (is (empty? (:approved-heads evidence)) label)
+    (is (= :unreviewed-input (get-in evidence [:incomplete-evidence "coderabbit" :reason])) label)
+    (is (empty? (:approved-heads (law/review-evidence (:head skipped-scope-fixture) [formal] [] law/default-reviewer-identities))) label)
+    (is (not (law/full-review? formal law/default-reviewer-identities)) label)
+    (is (empty? (law/completed-review-rounds [formal] [] law/default-reviewer-identities)) label)))
+(deftest native-skipped-scope-indented-pseudo-fences-cannot-hide-live-block
+  (doseq [indent ["    " "\t" " \t" "  \t" "   \t"]
+          marker ["```" "~~~"]]
+    (scope-boundary-evidence (str indent marker "html\n" scope-section "\n" indent marker)
+                             (str "code-indented fence " (pr-str indent) marker))))
+(deftest native-skipped-scope-escaped-wrappers-cannot-hide-live-block
+  (doseq [tag ["pre" "code" "blockquote"] indent ["" "  "] escape ["\\" "\\\\\\"]]
+    (scope-boundary-evidence (str indent escape "<" tag ">\n" scope-section "\n" indent escape "</" tag ">")
+                             (str "escaped wrapper " (pr-str [indent escape tag])))))
+(deftest native-skipped-scope-code-indented-wrappers-cannot-hide-live-block
+  (doseq [tag ["pre" "code" "blockquote"] indent ["    " "\t"]]
+    (scope-boundary-evidence (str indent "<" tag ">\n" scope-section "\n" indent "</" tag ">")
+                             (str "code-indented wrapper " (pr-str [indent tag])))))
+(deftest native-skipped-scope-valid-opener-indent-remains-live
+  (doseq [indent [" " "  " "   "]]
+    (scope-boundary-evidence (str/replace scope-section "<details>" (str indent "<details>"))
+                             (str "native opener " (pr-str indent)))))
+(deftest native-skipped-scope-valid-indented-html-block-interrupts-quote
+  (doseq [indent ["" " " "  " "   "] prefix ["> Example\n" "  > > Example\n"]]
+    (scope-boundary-evidence (str prefix (str/replace scope-section "<details>" (str indent "<details>")))
+                             (str "native block after quote " (pr-str [prefix indent])))))
+(deftest native-skipped-scope-invalid-backtick-info-cannot-hide-live-block
+  (doseq [open ["```html`" "``` `example`" "````html`"]]
+    (scope-boundary-evidence (str open "\n" scope-section "\n" (if (str/starts-with? open "````") "````" "```"))
+                             (str "backtick in info " open))))
+(deftest native-skipped-scope-real-indented-examples-remain-excluded
+  (doseq [indent ["" " " "  " "   "] marker ["```" "~~~"]]
+    (is (nil? (law/incomplete-review-reason (str indent marker "html\n" scope-section "\n" indent marker)))
+        (str "real fence " (pr-str [indent marker]))))
+  (doseq [indent ["" " " "  " "   "] tag ["pre" "code" "blockquote"]]
+    (is (nil? (law/incomplete-review-reason (str indent "<" tag ">\n" scope-section "\n" indent "</" tag ">")))
+        (str "real wrapper " (pr-str [indent tag]))))
+  (doseq [indent ["    " "\t" " \t" "   \t"]]
+    (is (nil? (law/incomplete-review-reason (str/replace scope-section "<details>" (str indent "<details>"))))
+        (str "code opener " (pr-str indent)))))
+
+(deftest native-skipped-scope-live-html-header-whitespace-remains-adverse
+  (doseq [trailing [" " "\t" " \t"] prefix ["" "> Example\n"]]
+    (scope-boundary-evidence (str prefix (str/replace scope-section "<details>\n" (str "<details>" trailing "\n")))
+                             (str "horizontal opener suffix " (pr-str [prefix trailing]))))
+  (doseq [indent [" " "    " "\t" "  \t"]]
+    (scope-boundary-evidence (str/replace scope-section "\n<summary>" (str "\n" indent "<summary>"))
+                             (str "raw inner summary indent " (pr-str indent))))
+  (doseq [ending ["\n" "\r\n" "\r"]]
+    (scope-boundary-evidence (str/replace (str/replace scope-section "<details>\n" "  <details> \t\n") "\n" ending)
+                             (str "raw line boundary " (pr-str ending)))))
+
+(deftest native-skipped-scope-inline-wrapper-prefix-cannot-hide-live-block
+  (doseq [tag ["pre" "code" "blockquote"] prefix ["Example " "<!-- example --> "]]
+    (scope-boundary-evidence (str prefix "<" tag ">\n" scope-section "\n</" tag ">")
+                             (str "inline wrapper prefix " (pr-str [prefix tag]))))
+  (is (nil? (law/incomplete-review-reason (str "~~~html`\n" scope-section "\n~~~")))
+      "Backticks are permitted in tilde info strings"))
+
 (defmethod cljs.test/report [:cljs.test/default :end-run-tests] [m]
   (when-not (cljs.test/successful? m) (set! (.-exitCode js/process) 1)))
 

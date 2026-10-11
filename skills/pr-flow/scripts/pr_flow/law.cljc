@@ -889,17 +889,20 @@
   ;; Raw native details blocks interrupt paragraphs before inline-code parsing:
   ;; stray backticks or a quoted paragraph cannot hide this live block opener.
   ;; Complete fences/comments/generated blocks and explicit quote/code HTML
-  ;; wrappers remain examples; unrelated HTML is not blanket-excluded.
+  ;; wrappers remain examples only at raw 0–3-space block starts. Backtick
+  ;; info cannot contain backticks; escaped/code-indented starts stay visible.
+  ;; Unrelated HTML is not blanket-excluded.
   (retain-excluded-regions
    (str body)
-   #"(?im)<!-- This is an auto-generated comment: tweet message by coderabbit\.ai -->[\s\S]*?<!-- end of auto-generated comment: tweet message by coderabbit\.ai -->|<!--[\s\S]*?-->|<(pre|code|blockquote)\b[^>]*>[\s\S]*?</\1>|^[ ]{0,3}>[^\r\n]*(?:(?:\r\n|\r|\n)(?![ \t]*(?:\r\n|\r|\n|$)|<details>(?:\r\n|\r|\n|$))[^\r\n]*)*|^[ \t]*(`{3,}|~{3,})[^\r\n]*(?:\r\n|\r|\n)[\s\S]*?^[ \t]*\2[ \t]*(?:$|\r)"))
+   #"(?im)<!-- This is an auto-generated comment: tweet message by coderabbit\.ai -->[\s\S]*?<!-- end of auto-generated comment: tweet message by coderabbit\.ai -->|<!--[\s\S]*?-->|^[ ]{0,3}<(pre|code|blockquote)\b[^>]*>[\s\S]*?</\1>|^[ ]{0,3}>[^\r\n]*(?:(?:\r\n|\r|\n)(?![ \t]*(?:\r\n|\r|\n|$)|[ ]{0,3}<details>[ \t]*(?:\r\n|\r|\n|$))[^\r\n]*)*|^[ ]{0,3}(`{3,})[^`\r\n]*(?:\r\n|\r|\n)[\s\S]*?^[ ]{0,3}\2[ \t]*(?:$|\r)|^[ ]{0,3}(~{3,})[^\r\n]*(?:\r\n|\r|\n)[\s\S]*?^[ ]{0,3}\3[ \t]*(?:$|\r)"))
 
 (defn- native-skipped-review-input? [body]
   ;; Match the observed live section header, not arbitrary skipped-file prose.
   ;; The positive digit grammar avoids overflow and never treats zero as an
-  ;; omission. Keep literal raw line boundaries; do not decode/normalize HTML.
+  ;; omission. The native opener allows 0–3 spaces; inner summary indentation
+  ;; remains raw HTML content. Preserve raw boundaries without normalization.
   (boolean
-   (re-find #"(?m)^<details>(?:\r\n|\r|\n)<summary><strong>🚧 Files skipped from review as they are similar to previous changes \([1-9][0-9]*\)</strong></summary>[ \t]*(?:\r?$)"
+   (re-find #"(?m)^[ ]{0,3}<details>[ \t]*(?:\r\n|\r|\n)[ \t]*<summary><strong>🚧 Files skipped from review as they are similar to previous changes \([1-9][0-9]*\)</strong></summary>[ \t]*(?:\r?$)"
             (native-scope-prose body))))
 
 (defn incomplete-review-reason

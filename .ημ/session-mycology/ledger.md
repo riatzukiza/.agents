@@ -568,3 +568,12 @@
   spore: none
   receipt-refs: 4b13daaa-8363-4250-99a2-8a42d4dd5e98;sha256:8029d823b523bf49bc9bc7e2048a35bab2a815baa23fc98d299a559a3e7d6b04
   note: Actual d06 native report skipped one file despite passing exact-head coverage; predecessor and installed reader both admitted approval. Full actual source remains external, with only generated capability token redacted in curated fixture. Independent read caught candidate quote and inline parsing that hid raw native HTML blocks; actual8/19 failure controls drove a smaller block-only helper using existing inline exclusion sentinels. Final exact predecessor116/2911 and portable5/65 each reproduce47 failures, final source passes; policy61/1554 and lint/diff pass. Initial parse, wrong already-ambiguous fence expectation, audit field and unsupported receipt kind are retained as invalid preparations without recasting failure. Original law/test helpers and historical ledger prefixes preserved. Native d06 CLI/MiMo completed results remain historical for successor. No included request at zero quota/no reset, paid activation, optional-reviewer exclusion, installed adoption, approval transfer, new spore or promotion.
+- ts: 2026-10-11T03:31:49.689448976Z
+  session: /home/err/.local/share/openhax-codex/20261010/pr-flow-positive-review
+  task: Repair three actual native skipped-scope Markdown boundaries
+  p-efficiency: 0.82
+  p-friction: 0.55
+  p-skill-candidate: 0.61
+  spore: none
+  receipt-refs: 79191b1d-0c93-4d42-9d66-8baa76f717ff;sha256:5199da3259c3ca3ca215b45dbf0ed620e4c3a189357f9ea2df95c8fbc217dd8f
+  note: All three completed Codex findings on exact 551 were read in full and reproduced together. Actual predecessor Node 125/3302 and portable 9/391 each reproduce 354 failures; bounded scope-only source passes both, policy and lint. Real fence and wrapper boundaries require 0–3 spaces; escaped, inline-prefixed, code-indented and invalid backtick-info openers cannot hide later live skipped input. Inner summary indentation remains raw HTML content. The initial inserted-helper parse error and premature running-command metadata read remain invalid preparations. Existing shared laws, native fixture provenance and whole ledger prefixes remain intact. Native MiMo approval 5481737641 and hosted CLI success remain specific to predecessor 551. No installed adoption, native successor evidence, settlement, paid activation, spore promotion or merge credit.

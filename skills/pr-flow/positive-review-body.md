@@ -97,10 +97,14 @@ mentions supply no omitted-input admission through this format. The positive
 digit grammar avoids numeric overflow; it does not normalize or decode HTML.
 
 This scope-only reader preserves raw LF, CRLF and bare-CR line boundaries and
-excludes complete native generated tweet blocks, HTML comments,
-pre/code/blockquote wrappers, fences, and explicitly quoted regions. A genuine
-blank paragraph ends a quoted paragraph; an unprefixed native details opener
-interrupts it as a live HTML block. Block structure precedes inline-code parsing,
+excludes complete native generated tweet blocks, HTML comments, and explicitly
+quoted regions. Real pre/code/blockquote wrapper and fence starts allow at most
+three spaces; escaped, inline-prefixed and code-indented starts do not exclude
+later live input. Backtick fence info cannot contain backticks; tilde info can.
+The native details opener allows zero to three spaces and trailing horizontal
+whitespace; indentation on its inner summary remains raw HTML content. A genuine
+blank paragraph ends a quoted paragraph; this native details opener interrupts
+it as a live HTML block. Block structure precedes inline-code parsing,
 so stray or paired paragraph backticks cannot hide this raw native block opener.
 The independently bounded positive-item and plaintext-writer code-span guards
 remain unchanged. Excluded regions leave an inline non-authoritative sentinel,
