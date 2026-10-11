@@ -37,9 +37,9 @@ time, and a distinct true-authorized native User writer whose settlement has
 its native comment ID. The CLI supplies writer authorization from the native
 repository relationship; an author name in pasted prose supplies none.
 The supported writer is native plaintext. Raw HTML tag and comment starts,
-including incomplete markup, fail
-closed before prose sanitation, so markup cannot construct a binding or item
-marker. The writer must identify the review in the observed standalone native
+XML declaration, CDATA, and processing-instruction starts, including incomplete
+markup, fail closed before prose sanitation, so markup cannot construct a
+binding or item marker. The writer must identify the review in the observed standalone native
 binding line and name the exact current full head in live, itemized prose. The
 raw and live binding values must match, and the raw live `Handled` line must
 remain unchanged by sanitation. Indented code, inline backticks, quotes, fences

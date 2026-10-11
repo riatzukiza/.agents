@@ -487,3 +487,12 @@
   spore: none
   receipt-refs: ce3c30a1fec49518488c283c67d44dd6d26ea18c04aa32b8b1f73e487b5ed566
   note: Actual public-law RED reproduced eight XML-hidden binding/item cases; one raw-start guard made all controls GREEN while preserving actual native plaintext and conservative unknown/P1. Independent source seal e52393d4 has54 passing checks. Canonical receipt validates and preserves full prior bytes. Source proposal only; hosted successor CI/reviews, native settlement and deployment remain separate observations. Historical full local CLI failure retained; no CLI rerun, installed catalog adoption, new spore or promotion.
+- ts: 2026-10-11T00:14:50.059391431Z
+  session: /home/err/.local/share/openhax-codex/20261010/pr-flow-positive-review
+  task: Align positive writer plaintext documentation with existing XML exclusion
+  p-efficiency: 0.97
+  p-friction: 0.09
+  p-skill-candidate: 0.12
+  spore: none
+  receipt-refs: 007e94b2c95bcf1a667b7f61da5e04912c368cdc722de0c38246e413b5b20cc7
+  note: Native current-head review found one prose omission after the actual XML guard repair. Name declaration, CDATA and processing-instruction starts and preserve every executable and historical ledger byte. Exact whole-document reverse transformation demonstrates bounded scope. Historical18afa hosted suites and completed Codex/MiMo/CodeRabbit review evidence remain separate from successor qualification. Independent source/prefix review required before commit; no installed adoption, approval transfer, new spore or promotion.
