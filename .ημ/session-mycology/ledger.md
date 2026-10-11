@@ -447,3 +447,52 @@
   spore: none
   receipt-refs: agents23-current-history-wording-source-20261006T2020Z/new-source-receipt.edn
   note: Use entire then-current authentic operational history and reflection in adoption guidance; preserve source-fork provenance separately. Fixed snapshot counts belong to historical proofs, never future adoption authority. Every old physical byte is preserved. No spore or promotion.
+
+- ts: 2026-10-10T22:02:13.998660+00:00
+  session: riatzukiza/.agents
+  task: Bound positive native review-body settlement without inventing repairs
+  p-efficiency: 0.73
+  p-friction: 0.63
+  p-skill-candidate: 0.56
+  spore: none
+  receipt-refs: 209bbc24-feb9-44aa-9303-0327c4c363f2; evidence-set:openhax-cms-20261010/review-state/pr-flow-positive-body-independent-assessment-20261010T220011Z.json#sha256=495bfbead95cdea4c358f9d5ea9f0d4ed34480613692d92f716816aae5b13873
+  note: Keep stable IDs and conservative severity while admitting only truthful native positive-item replies under complete source, identity, writer and time custody. Sanitizer composition needs raw/live marker equality and adversarial first-line, indentation, quote, fence and incomplete-markup controls. Independent counterexamples become actual RED/GREEN evidence. Retain the full CLI failure and observed process pressure separately; local source qualification never installs policy or supplies native approval. Preserve historical ledger bytes. No extra spore or promotion.
+
+
+- ts: 2026-10-10T22:15:21.184627+00:00
+  session: riatzukiza/.agents
+  task: Correct the single native review article finding
+  p-efficiency: 0.95
+  p-friction: 0.08
+  p-skill-candidate: 0.06
+  spore: none
+  receipt-refs: 611582bd-3b05-4847-b995-6757c36fdf6b
+  note: Exact native finding correction changes one article; independent whole-file reversal verifies scope. Existing behavioral qualification and failed full CLI evidence stay historical. No parser adoption, approval transfer or invented body item. No new spore.
+
+- ts: 2026-10-10T23:04:53.225473+00:00
+  session: pr-flow-positive-review
+  task: positive-review-native-policy-docstring-correction
+  p-efficiency: 0.94
+  p-friction: 0.15
+  p-skill-candidate: 0.12
+  spore: none
+  receipt-refs: 11a11874-1e24-49ee-8ee4-9ad59044ee06
+  note: Native review found an in-source docstring inconsistent with the bounded positive admission already implemented. Fix only prose and verify exact reverse transformation; retain source behavior and historical hosted qualification as separate facts. No policy adoption or approval transfer. Preserve every historical byte. No extra spore or promotion.
+- ts: 2026-10-10T23:41:22.936500125Z
+  session: /home/err/.local/share/openhax-codex/20261010/pr-flow-positive-review
+  task: Repair native Codex PR26 CDATA/processing-instruction settlement evidence gap
+  p-efficiency: 0.98
+  p-friction: 0.12
+  p-skill-candidate: 0.20
+  spore: none
+  receipt-refs: ce3c30a1fec49518488c283c67d44dd6d26ea18c04aa32b8b1f73e487b5ed566
+  note: Actual public-law RED reproduced eight XML-hidden binding/item cases; one raw-start guard made all controls GREEN while preserving actual native plaintext and conservative unknown/P1. Independent source seal e52393d4 has54 passing checks. Canonical receipt validates and preserves full prior bytes. Source proposal only; hosted successor CI/reviews, native settlement and deployment remain separate observations. Historical full local CLI failure retained; no CLI rerun, installed catalog adoption, new spore or promotion.
+- ts: 2026-10-11T00:14:50.059391431Z
+  session: /home/err/.local/share/openhax-codex/20261010/pr-flow-positive-review
+  task: Align positive writer plaintext documentation with existing XML exclusion
+  p-efficiency: 0.97
+  p-friction: 0.09
+  p-skill-candidate: 0.12
+  spore: none
+  receipt-refs: 007e94b2c95bcf1a667b7f61da5e04912c368cdc722de0c38246e413b5b20cc7
+  note: Native current-head review found one prose omission after the actual XML guard repair. Name declaration, CDATA and processing-instruction starts and preserve every executable and historical ledger byte. Exact whole-document reverse transformation demonstrates bounded scope. Historical18afa hosted suites and completed Codex/MiMo/CodeRabbit review evidence remain separate from successor qualification. Independent source/prefix review required before commit; no installed adoption, approval transfer, new spore or promotion.

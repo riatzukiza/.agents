@@ -467,6 +467,248 @@
   (doseq [s (flow/skills the-flow)]
     (is (fs/existsSync (path/join skills-dir s "SKILL.md")) s)))
 
+
+;; This is a decoded native historical review and a later native writer, not a
+;; generated settlement or current-head approval. Tests supply the CLI's
+;; existing repository-permission admission seam explicitly.
+(def native-positive-fixture
+  (js->clj (js/JSON.parse (fs/readFileSync
+                          (path/join here "fixtures/native-services94-positive-review.json") "utf8"))
+           :keywordize-keys true))
+(def native-positive-review (:review native-positive-fixture))
+(def native-positive-writer (assoc (:writer native-positive-fixture) :authorized? true))
+(def positive-head (get-in native-positive-fixture [:context :head]))
+(def positive-id "1234567890abcdef12345678")
+
+(defn- positive-body [item]
+  (str "<details>\n<summary>🔇 Additional comments (1)</summary><blockquote>\n\n"
+       "<details>\n<summary>src/example.cljc (1)</summary><blockquote>\n\n"
+       item "\n\n</blockquote></details>\n\n</blockquote></details>"))
+(def positive-item (str "`3-5`: LGTM!\n\nAlso applies to: 7-7, 10-12\n\n<!-- cr-comment:v1:" positive-id " -->"))
+(def positive-review (assoc native-positive-review :body (positive-body positive-item)))
+(def positive-writer
+  (assoc native-positive-writer :body
+         (str "review-id:" (:id positive-review) "\n\n- Handled cr-comment:v1:" positive-id
+              ": Your LGTM requests no change; retained in " positive-head ".")))
+(def positive-first-item-body
+  (str "- Handled cr-comment:v1:" positive-id ": Your LGTM requests no change; retained in " positive-head
+       ".\n\nreview-id:" (:id positive-review)))
+(defn- positive-unanswered
+  ([r w] (positive-unanswered r w {:head positive-head}))
+  ([r w context] (law/unanswered-review-count [r] [w] context)))
+
+(deftest native-positive-items-have-bounded-provenance-and-handled-admission
+  (let [items (law/review-findings native-positive-review)
+        expected (remove #(= "3f516a61822bc7e8f7be997e" (:id %)) items)]
+    (is (= 34 (count items)))
+    (is (= 33 (count expected)))
+    (is (= 33 (law/unanswered-review-count [native-positive-review]
+                                           [native-positive-writer] {}))
+        "raw/context-free parsing cannot grant settlement authority")
+    (doseq [item expected]
+      (is (= :p1 (:severity item)) (:id item))
+      (is (= :native-additional-lgtm (get-in item [:positive-body-item :format])) (:id item))
+      (is (string? (get-in item [:positive-body-item :source])) (:id item)))
+    (is (= 0 (law/unanswered-review-count [native-positive-review]
+                                          [native-positive-writer] {:head positive-head})))
+    (is (nil? (:positive-body-item (first (filter #(= "3f516a61822bc7e8f7be997e" (:id %)) items)))))
+    (is (not= positive-head (:commit_id native-positive-review)))
+    (is (empty? (:approved-heads (law/review-evidence positive-head [native-positive-review] []
+                                                      law/default-reviewer-identities))))
+    (is (empty? (filter #(= positive-head (:commit_id %))
+                       (law/completed-review-rounds [native-positive-review] [] law/default-reviewer-identities))))
+    (is (not (:pass? (law/merge-gate {:head positive-head :unanswered-reviews 0 :rounds 0}))))))
+
+(deftest positive-format-is-complete-and-item-scoped
+  (let [item (first (law/review-findings positive-review))]
+    (is (= positive-id (:id item)))
+    (is (= :p1 (:severity item)))
+    (is (= "src/example.cljc" (get-in item [:positive-body-item :file])))
+    (is (= [[3 5] [7 7] [10 12]] (get-in item [:positive-body-item :ranges])))
+    (is (= 0 (positive-unanswered positive-review positive-writer))))
+  (doseq [[label body]
+          [["own quoted extra text" (positive-body (str/replace positive-item "LGTM!" "LGTM!\n> Example quotation"))]
+           ["own fenced extra text" (positive-body (str/replace positive-item "LGTM!" "LGTM!\n```text\nExample source\n```"))]
+           ["own generated share text" (positive-body (str/replace positive-item "LGTM!" "LGTM!\n<!-- This is an auto-generated comment: tweet message by coderabbit.ai -->\nExample source\n<!-- end of auto-generated comment: tweet message by coderabbit.ai -->"))]
+           ["own indented code item" (positive-body (str/join "\n" (map #(str "    " %) (str/split-lines positive-item))))]
+           ["own five-space extra range" (positive-body (str/replace positive-item "Also applies to:" "     Also applies to:"))]
+           ["own five-space marker" (positive-body (str/replace positive-item "<!-- cr-comment:v1:" "     <!-- cr-comment:v1:"))]
+           ["own eight-space extra range" (positive-body (str/replace positive-item "Also applies to:" "        Also applies to:"))]
+           ["own eight-space marker" (positive-body (str/replace positive-item "<!-- cr-comment:v1:" "        <!-- cr-comment:v1:"))]
+           ["own tab-space extra range" (positive-body (str/replace positive-item "Also applies to:" "\t Also applies to:"))]
+           ["own tab-space marker" (positive-body (str/replace positive-item "<!-- cr-comment:v1:" "\t <!-- cr-comment:v1:"))]
+           ["own four-space-tab extra range" (positive-body (str/replace positive-item "Also applies to:" "    \tAlso applies to:"))]
+           ["own four-space-tab marker" (positive-body (str/replace positive-item "<!-- cr-comment:v1:" "    \t<!-- cr-comment:v1:"))]
+           ["own space-tab extra range" (positive-body (str/replace positive-item "Also applies to:" " \tAlso applies to:"))]
+           ["own space-tab marker" (positive-body (str/replace positive-item "<!-- cr-comment:v1:" " \t<!-- cr-comment:v1:"))]
+           ["own two-space-tab extra range" (positive-body (str/replace positive-item "Also applies to:" "  \tAlso applies to:"))]
+           ["own two-space-tab marker" (positive-body (str/replace positive-item "<!-- cr-comment:v1:" "  \t<!-- cr-comment:v1:"))]
+           ["own three-space-tab extra range" (positive-body (str/replace positive-item "Also applies to:" "   \tAlso applies to:"))]
+           ["own three-space-tab marker" (positive-body (str/replace positive-item "<!-- cr-comment:v1:" "   \t<!-- cr-comment:v1:"))]
+           ["body-only LGTM" positive-item]
+           ["Windows absolute path" (str/replace (positive-body positive-item) "src/example.cljc" "C:/src/example.cljc")]
+           ["backslash path" (str/replace (positive-body positive-item) "src/example.cljc" "src\\example.cljc")]
+           ["wrong section" (str/replace (positive-body positive-item) "Additional comments" "Nitpick comments")]
+           ["quoted section" (str/join "\n" (map #(str "> " %) (str/split-lines (positive-body positive-item))))]
+           ["four-space code section" (str/join "\n" (map #(str "    " %) (str/split-lines (positive-body positive-item))))]
+           ["generated share section" (str "<!-- This is an auto-generated comment: tweet message by coderabbit.ai -->\n" (positive-body positive-item) "\n<!-- end of auto-generated comment: tweet message by coderabbit.ai -->")]
+           ["uppercase duplicate ID" (str (positive-body positive-item) "\n<!-- cr-comment:v1:" (str/upper-case positive-id) " -->")]
+           ["fenced section" (str "```html\n" (positive-body positive-item) "\n```")]
+           ["unclosed fence" (str "```html\n" (positive-body positive-item))]
+           ["escaped section" (str/replace (positive-body positive-item) "<details>" "&lt;details&gt;")]
+           ["generated nested section" (str "<details>\n<summary>🧩 Analysis chain</summary>\n" (positive-body positive-item) "\n</details>")]
+           ["foreign wrapper" (str "<div>" (positive-body positive-item) "</div>")]
+           ["duplicated section" (str (positive-body positive-item) "\n" (positive-body positive-item))]
+           ["duplicate ID in quote" (str (positive-body positive-item) "\n> <!-- cr-comment:v1:" positive-id " -->")]
+           ["invalid primary range" (positive-body (str/replace positive-item "`3-5`" "`5-3`"))]
+           ["invalid extra range" (positive-body (str/replace positive-item "10-12" "12-10"))]
+           ["zero line" (positive-body (str/replace positive-item "`3-5`" "`0-5`"))]
+           ["unbounded range" (positive-body (str/replace positive-item "`3-5`" "`3333333333-3333333333`"))]
+           ["mismatched item count" (str/replace (positive-body positive-item) "example.cljc (1)" "example.cljc (2)")]
+           ["mismatched section count" (str/replace (positive-body positive-item) "Additional comments (1)" "Additional comments (2)")]
+           ["correction after positive" (positive-body (str positive-item "\nThis still needs a fix."))]
+           ["explicit P1 appended" (positive-body (str positive-item "\nP1: unsafe."))]
+           ["banner inserted" (positive-body (str "_⚠️ Potential issue_ | _🟠 Major_\n" positive-item))]
+           ["second marker" (positive-body (str positive-item "\n<!-- cr-comment:v1:abcdef1234567890abcdef12 -->"))]
+           ["sibling borrowed boundary" (str/replace (positive-body positive-item) "LGTM!" "LGTM!\n</blockquote></details>\n<details><summary>other (1)</summary><blockquote>")]
+           ["missing boundary" (str/replace-first (positive-body positive-item) "</blockquote></details>" "")]
+           ["non-native short ID" (str/replace (positive-body positive-item) positive-id "abc")]
+           ["inline code LGTM" (positive-body (str/replace positive-item "LGTM!" "`LGTM!`"))]]]
+    (let [r (assoc positive-review :body body)]
+      (is (every? #(nil? (:positive-body-item %)) (law/review-findings r)) label)
+      (is (pos? (positive-unanswered r positive-writer)) label))))
+
+(deftest positive-admission-authenticates-both-native-participants
+  (doseq [[label r]
+          [["unconfigured Bot" (assoc-in positive-review [:user :login] "other[bot]")]
+           ["human reviewer" (assoc-in positive-review [:user :type] "User")]
+           ["missing reviewer type" (update positive-review :user dissoc :type)]
+           ["provider claim only" (assoc positive-review :provider "coderabbit" :user {:login "other[bot]" :type "Bot"})]
+           ["changes requested" (assoc positive-review :state "CHANGES_REQUESTED")]
+           ["unknown state" (dissoc positive-review :state)]
+           ["missing review ID" (dissoc positive-review :id)]
+           ["string review ID" (update positive-review :id str)]
+           ["missing reviewed SHA" (dissoc positive-review :commit_id)]
+           ["short reviewed SHA" (assoc positive-review :commit_id "abc123")]
+           ["missing submission" (dissoc positive-review :submitted_at)]
+           ["impossible submission" (assoc positive-review :submitted_at "2026-99-99T99:99:99Z")]
+           ["invalid submission" (assoc positive-review :submitted_at "unknown")]]]
+    (is (= 1 (positive-unanswered r positive-writer)) label))
+  (doseq [[label w]
+          [["permission absent" (dissoc positive-writer :authorized?)]
+           ["permission false" (assoc positive-writer :authorized? false)]
+           ["permission truthy" (assoc positive-writer :authorized? "true")]
+           ["missing User type" (update positive-writer :user dissoc :type)]
+           ["Bot writer" (assoc-in positive-writer [:user :type] "Bot")]
+           ["opener writer" (assoc positive-writer :user (:user positive-review))]
+           ["blank writer" (assoc-in positive-writer [:user :login] "")]
+           ["missing writer ID" (dissoc positive-writer :id)]
+           ["string writer ID" (update positive-writer :id str)]
+           ["missing creation" (dissoc positive-writer :created_at)]
+           ["missing edit" (dissoc positive-writer :updated_at)]
+           ["impossible edit" (assoc positive-writer :updated_at "2026-10-32T19:34:34Z")]
+           ["malformed edit" (assoc positive-writer :updated_at "unknown")]
+           ["equal creation" (assoc positive-writer :created_at (:submitted_at positive-review))]
+           ["backdated creation" (assoc positive-writer :created_at "2026-10-10T18:00:00Z")]
+           ["backdated edit" (assoc positive-writer :updated_at "2026-10-10T18:00:00Z")]]]
+    (is (= 1 (positive-unanswered positive-review w)) label))
+  (doseq [[label context]
+          [["no current head" {}]
+           ["short current head" {:head "abc123"}]
+           ["different current head" {:head (apply str (repeat 40 "a"))}]
+           ["unconfigured identity" {:head positive-head :identities {"coderabbit" #{}}}]
+           ["ambiguous Bot identity" {:head positive-head :identities {"coderabbit" #{"coderabbitai[bot]"} "mimo" #{"coderabbitai[bot]"}}}]]]
+    (is (= 1 (positive-unanswered positive-review positive-writer context)) label)))
+
+(deftest positive-handled-is-live-item-and-head-bound
+  (doseq [[label body]
+          [["quoted writer" (str/join "\n" (map #(str "> " %) (str/split-lines (:body positive-writer))))]
+           ["fenced writer" (str "```text\n" (:body positive-writer) "\n```")]
+           ["unfinished fence" (str "```text\n" (:body positive-writer))]
+           ["generated writer" (str "<details><summary>Example</summary>\n" (:body positive-writer) "\n</details>")]
+           ["quoted head only" (str/replace (:body positive-writer) positive-head (str "\n> " positive-head))]
+           ["head in HTML comment" (str/replace (:body positive-writer) positive-head (str "<!-- " positive-head " -->"))]
+           ["quoted review binding" (str/replace (:body positive-writer) "review-id:" "> review-id:")]
+           ["duplicate review binding" (str (:body positive-writer) "\nreview-id:" (:id positive-review))]
+           ["malformed extra review binding" (str (:body positive-writer) "\nreview-id:not-a-native-id")]
+           ["foreign review binding" (str (:body positive-writer) "\nreview-id:12345")]
+           ["quoted item" (str/replace (:body positive-writer) "- Handled" "> - Handled")]
+           ["different item" (str/replace (:body positive-writer) positive-id "abcdef1234567890abcdef12")]
+           ["head only in intro" (str "Current head " positive-head ".\n" (str/replace (:body positive-writer) positive-head "the current head"))]
+           ["first four-space writer item" (str "    " positive-first-item-body)]
+           ["first five-space writer item" (str "     " positive-first-item-body)]
+           ["first eight-space writer item" (str "        " positive-first-item-body)]
+           ["first tab writer item" (str "\t" positive-first-item-body)]
+           ["first tab-space writer item" (str "\t " positive-first-item-body)]
+           ["first space-tab writer item" (str " \t" positive-first-item-body)]
+           ["first two-space-tab writer item" (str "  \t" positive-first-item-body)]
+           ["first three-space-tab writer item" (str "   \t" positive-first-item-body)]
+           ["four-space review binding" (str/replace positive-first-item-body "review-id:" "    review-id:")]
+           ["five-space review binding" (str/replace positive-first-item-body "review-id:" "     review-id:")]
+           ["eight-space review binding" (str/replace positive-first-item-body "review-id:" "        review-id:")]
+           ["tab review binding" (str/replace positive-first-item-body "review-id:" "\treview-id:")]
+           ["tab-space review binding" (str/replace positive-first-item-body "review-id:" "\t review-id:")]
+           ["space-tab review binding" (str/replace positive-first-item-body "review-id:" " \treview-id:")]
+           ["two-space-tab review binding" (str/replace positive-first-item-body "review-id:" "  \treview-id:")]
+           ["three-space-tab review binding" (str/replace positive-first-item-body "review-id:" "   \treview-id:")]
+           ["inline-code review binding" (str/replace positive-first-item-body (str "review-id:" (:id positive-review)) (str "`review-id:" (:id positive-review) "`"))]
+           ["HTML attribute review binding" (str/replace positive-first-item-body (str "review-id:" (:id positive-review)) (str "<span data-review=\"review-id:" (:id positive-review) "\">example</span>"))]
+           ["HTML wrapper review binding" (str/replace positive-first-item-body (str "review-id:" (:id positive-review)) (str "<div>\nreview-id:" (:id positive-review) "\n</div>"))]
+           ["unclosed HTML review binding" (str/replace positive-first-item-body (str "review-id:" (:id positive-review)) (str "<div>\nreview-id:" (:id positive-review)))]
+           ["fenced review binding" (str/replace positive-first-item-body (str "review-id:" (:id positive-review)) (str "```text\nreview-id:" (:id positive-review) "\n```"))]
+           ["quoted review binding after item" (str/replace positive-first-item-body "review-id:" "> review-id:")]
+           ["generated review binding after item" (str/replace positive-first-item-body (str "review-id:" (:id positive-review)) (str "<!-- This is an auto-generated comment: tweet message by coderabbit.ai -->\nreview-id:" (:id positive-review) "\n<!-- end of auto-generated comment: tweet message by coderabbit.ai -->"))]
+           ["HTML comment review binding" (str/replace positive-first-item-body (str "review-id:" (:id positive-review)) (str "<!-- review-id:" (:id positive-review) " -->"))]
+           ["comment-assembled binding plus quoted native binding" (str (str/replace positive-first-item-body "review-id:" "review<!-- example -->-id:") "\n> review-id:" (:id positive-review))]
+           ["comment-assembled item plus fenced native item" (str (str/replace positive-first-item-body "- Handled" "- Hand<!-- example -->led") "\n```text\n" (first (str/split-lines positive-first-item-body)) "\n```")]
+           ["details-assembled binding plus quoted native binding" (str (str/replace positive-first-item-body "review-id:" "review<details>example</details>-id:") "\n> review-id:" (:id positive-review))]
+           ["details-assembled item plus fenced native item" (str (str/replace positive-first-item-body "- Handled" "- Hand<details>example</details>led") "\n```text\n" (first (str/split-lines positive-first-item-body)) "\n```")]
+           ["incomplete opening HTML before binding" (str/replace positive-first-item-body "review-id:" "<div\nreview-id:")]
+           ["incomplete closing HTML before binding" (str/replace positive-first-item-body "review-id:" "</div\nreview-id:")]
+           ["inline-code item" (str/replace (:body positive-writer) "- Handled" "`- Handled")]]]
+    (is (= 1 (positive-unanswered positive-review (assoc positive-writer :body body))) label))
+  (testing "live first item remains admitted when the review binding follows"
+    (is (= 0 (positive-unanswered positive-review (assoc positive-writer :body positive-first-item-body)))))
+  (testing "configured alternate CodeRabbit identity and later edited live writer"
+    (let [r (assoc-in positive-review [:user :login] "review-helper[bot]")
+          w (assoc positive-writer :updated_at "2026-10-10T19:35:00Z")]
+      (is (= 0 (positive-unanswered r w {:head positive-head :identities {"coderabbit" #{"review-helper[bot]"}}})))))
+  (testing "unknown/P0/P1 concerns retain the existing Fixed requirement"
+    (doseq [body [(str "P0 unsafe\n<!-- cr-comment:v1:" positive-id " -->")
+                  (str "P1 unsafe\n<!-- cr-comment:v1:" positive-id " -->")
+                  (str "Unclassified unknown concern\n<!-- cr-comment:v1:" positive-id " -->")
+                  (positive-body (str/replace positive-item "LGTM!" "LGTM! But fix this."))]]
+      (is (= 1 (positive-unanswered (assoc positive-review :body body) positive-writer))))))
+
+(deftest positive-handled-refuses-xml-markup-source
+  (let [binding (str "review-id:" (:id positive-review))
+        item (first (str/split-lines positive-first-item-body))
+        hidden-writers
+        [["complete CDATA writer" (str "<![CDATA[\n" (:body positive-writer) "\n]]>")]
+         ["incomplete CDATA writer" (str "<![CDATA[\n" (:body positive-writer))]
+         ["complete processing instruction writer" (str "<?settlement\n" (:body positive-writer) "\n?>")]
+         ["incomplete processing instruction writer" (str "<?settlement\n" (:body positive-writer))]
+         ["complete declaration writer" (str "<!DOCTYPE settlement [\n" (:body positive-writer) "\n]>")]
+         ["incomplete declaration writer" (str "<!DOCTYPE settlement\n" (:body positive-writer))]
+         ["CDATA binding after live item" (str item "\n\n<![CDATA[\n" binding "\n]]>")]
+         ["processing instruction item after live binding" (str binding "\n\n<?settlement\n" item "\n?>")]]]
+    (doseq [[label body] hidden-writers]
+      (is (= 1 (positive-unanswered positive-review (assoc positive-writer :body body))) label))
+    (testing "markup cannot clear conservative P1 or unknown concerns"
+      (doseq [body [(str "P1 unsafe\n<!-- cr-comment:v1:" positive-id " -->")
+                    (str "Unclassified unknown concern\n<!-- cr-comment:v1:" positive-id " -->")]
+              :let [review (assoc positive-review :body body)
+                    finding (first (law/review-findings review))]]
+        (is (= :p1 (:severity finding)))
+        (is (nil? (:positive-body-item finding)))
+        (doseq [[label writer-body] hidden-writers]
+          (is (= 1 (positive-unanswered review (assoc positive-writer :body writer-body))) label))))
+    (testing "ordinary native plaintext remains admitted"
+      (is (= 0 (positive-unanswered positive-review positive-writer)))
+      (is (= 0 (positive-unanswered positive-review (assoc positive-writer :body positive-first-item-body))))
+      (is (= 0 (law/unanswered-review-count [native-positive-review]
+                                            [native-positive-writer] {:head positive-head}))))))
+
 (defmethod cljs.test/report [:cljs.test/default :end-run-tests] [m]
   (when-not (cljs.test/successful? m) (set! (.-exitCode js/process) 1)))
 
