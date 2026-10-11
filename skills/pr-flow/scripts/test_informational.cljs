@@ -959,3 +959,154 @@
                                                :body "Handled: I wrote this author walkthrough."})]
       (is (false? (:settled? (law/classify-thread same-author))))
       (knoxx-finding same-author "author reply cannot replace native complete context or self-settle"))))
+
+
+;; PRE-resolution pure slice. The three native false flags remain unchanged;
+;; new scope/proposal/assessment records are synthetic source controls only.
+(def knoxx-unresolved-review-scope "unresolved-author-only-commented-review-context")
+(defn knoxx-pre-resolution-input [s]
+  (let [t (knoxx-author-context-input s)
+        p (hash-body (change-payload (first (:issue-comments t))
+                                    #(assoc % 6 knoxx-unresolved-review-scope)))
+        a (hash-body (change-payload (second (:issue-comments t))
+                                    #(assoc % 6 knoxx-unresolved-review-scope 8 (:body-sha256 p))))]
+    (assoc t :issue-comments [p a])))
+(defn pure-resolution-decision [t]
+  ;; Missing API yields a normal RED assertion, never a missing-var error.
+  (if-let [decide (resolve 'pr-flow.actionability/resolution-authorization)]
+    (decide (law/classify-thread t))
+    {:allowed? false :reason :missing-pure-authorization}))
+(defn pre-resolution-denied [t label]
+  (knoxx-finding t label)
+  (is (false? (:allowed? (pure-resolution-decision t))) label))
+
+(deftest independently-bound-unresolved-author-context-remains-merge-blocking
+  (doseq [s knoxx-author-contexts]
+    (let [t (knoxx-pre-resolution-input s) c (law/classify-thread t)
+          d (actionability/disposition t) a (pure-resolution-decision t)]
+      (is (= (assoc (knoxx-binding t) 6 knoxx-unresolved-review-scope)
+             (actionability/context-binding t)))
+      (is (= :informational (:kind d)))
+      (is (= :qualified (:status d)))
+      (is (not (law/finding-obligation? t)))
+      (is (= {:allowed? true :head (:head t)
+              :context-binding (assoc (knoxx-binding t) 6 knoxx-unresolved-review-scope)
+              :proposal-id 7001 :assessment-id 7002 :channel :github-issue-comment} a))
+      (is (false? (:resolved? c)))
+      (is (false? (:settled? c)))
+      (is (nil? (:resolution c)))
+      (is (false? (:rejection-approved? c)))
+      (is (= ["1 unresolved thread(s)"] (:reasons (gate c))))
+      (is (not (:pass? (gate c))))
+      (is (empty? (:approved-heads (law/review-evidence (:head t) [] (:issue-comments t)
+                                                     law/default-reviewer-identities))))
+      (is (empty? (:reviewed-heads (law/review-evidence (:head t) [] (:issue-comments t)
+                                                     law/default-reviewer-identities))))
+      (is (empty? (law/completed-review-rounds [] (:issue-comments t) law/default-reviewer-identities)))
+      (pre-resolution-denied (knoxx-author-context-input s) "resolved-scope evidence cannot bootstrap false flags")
+      (pre-resolution-denied (assoc t :issue-comments []) "native author prose alone is not independent evidence"))))
+
+(deftest pre-resolution-scope-refuses-empty-incomplete-and-mismatched-context
+  (let [s (first knoxx-author-contexts)]
+    (doseq [[label f]
+            [["empty review excluded" #(assoc-in % [:thread :comments :nodes 0 :pullRequestReview :body] "")]
+             ["missing resolved flag" #(update % :thread dissoc :isResolved)]
+             ["nil resolved flag" #(assoc-in % [:thread :isResolved] nil)]
+             ["resolved native context" #(assoc-in % [:thread :isResolved] true)]
+             ["partial comments" #(assoc-in % [:thread :comments :pageInfo :hasNextPage] true)]
+             ["native count mismatch" #(assoc-in % [:thread :comments :totalCount] 2)]
+             ["non-author participant" #(assoc-in % [:thread :comments :nodes 0 :author :databaseId] 10676926)]
+             ["foreign enclosing review" #(assoc-in % [:thread :comments :nodes 0 :pullRequestReview :author :id] "USER_other")]
+             ["change request review" #(assoc-in % [:thread :comments :nodes 0 :pullRequestReview :state] "CHANGES_REQUESTED")]
+             ["wrong current source" #(assoc-in % [:thread :comments :nodes 0 :commit :oid] (apply str (repeat 40 "b")))]]]
+      (pre-resolution-denied (knoxx-pre-resolution-input (f s)) label))
+    (let [t (knoxx-pre-resolution-input s)]
+      (doseq [[label f]
+              [["normalized true/native false" #(assoc % :resolved? true)]
+               ["normalized nil/native false" #(assoc % :resolved? nil)]
+               ["native true/normalized false" #(assoc-in % [:native-context :thread :isResolved] true)]
+               ["forged disposition" #(assoc (dissoc % :issue-comments) :actionability {:kind :informational :status :qualified})]
+               ["unavailable history" #(assoc % :actionability-observations nil)]
+               ["wrong manifest" #(update % :context-manifest assoc 0 2)]
+               ["missing review hash" #(update-in % [:native-context :thread :comments :nodes 0 :pullRequestReview] dissoc :body-sha256)]
+               ["wrong Bot node" #(assoc-in % [:issue-comments 1 :user :node_id] "BOT_other")]
+               ["User impersonation" #(assoc-in % [:issue-comments 1 :user :type] "User")]
+               ["wrong repository ID" #(assoc-in % [:native-context :repository :databaseId] 1199983317)]]]
+        (pre-resolution-denied (f t) label)))))
+
+(deftest pre-resolution-retains-judgment-chronology-conflict-and-withdrawal
+  (let [t (knoxx-pre-resolution-input (first knoxx-author-contexts))]
+    (doseq [[label f]
+            [["unauthorized proposal" #(assoc-in % [:issue-comments 0 :authorized?] false)]
+             ["proposal before native context" #(update-in % [:issue-comments 0] assoc
+                                         :created_at "2026-10-09T22:50:50Z" :updated_at "2026-10-09T22:50:50Z")]
+             ["assessment before proposal" #(update-in % [:issue-comments 1] assoc
+                                         :created_at "2026-10-11T00:59:59Z" :updated_at "2026-10-11T00:59:59Z")]
+             ["edited assessment" #(assoc-in % [:issue-comments 1 :updated_at] "2026-10-11T01:02:00Z")]
+             ["finding decision" #(change-issue % 1 (fn [c] (change-payload c (fn [v] (assoc v 9 "finding")))))]
+             ["uncertain decision" #(change-issue % 1 (fn [c] (change-payload c (fn [v] (assoc v 9 "uncertain")))))]
+             ["wrong proposal hash" #(change-issue % 1 (fn [c] (change-payload c (fn [v] (assoc v 8 (apply str (repeat 64 "b")))))))]
+             ["newer malformed writer attempt" #(update % :issue-comments conj
+                 (assoc (native-comment 7003 (:user (first (:issue-comments %))) "2026-10-11T01:02:00Z"
+                          (str "Actionability proposal v1 for " (:head %) ":\nunreadable")) :authorized? true))]
+             ["duplicate record" #(update % :issue-comments conj (second (:issue-comments %)))]
+             ["same-Bot source withdrawal" #(update % :issue-comments conj
+                 (native-comment 7003 mimo-test-user "2026-10-11T01:02:00Z"
+                                 "I withdraw my agreement in issuecomment7002."))]
+             ["conflicting current decision" #(update % :issue-comments conj
+                 (hash-body (change-payload
+                  (assoc (second (:issue-comments %)) :id 7004 :node_id "IC_fixture_7004"
+                         :created_at "2026-10-11T01:02:00Z" :updated_at "2026-10-11T01:02:00Z")
+                  (fn [v] (assoc v 9 "finding")))))]
+             ["retained revocation" #(assoc % :actionability-observations [{:assessment-id 7002 :status :revoked}])]]]
+      (pre-resolution-denied (f t) label))))
+
+(deftest pre-resolution-edits-cannot-retain-authority-or-resurrect-old-evidence
+  (let [t (persist-disposition (knoxx-pre-resolution-input (first knoxx-author-contexts)))]
+    (doseq [[label f]
+            [["changed enclosing body" #(assoc-in % [:thread :comments :nodes 0 :pullRequestReview :body] "Please fix this actual defect.")]
+             ["edited enclosing review" #(assoc-in % [:thread :comments :nodes 0 :pullRequestReview :updatedAt] "2026-10-11T01:02:00Z")]
+             ["changed question" #(assoc-in % [:thread :comments :nodes 0 :body] "Please answer this source custody question.")]
+             ["changed diff" #(assoc-in % [:thread :comments :nodes 0 :diffHunk] "@@ changed immutable source @@")]
+             ["changed head" #(assoc-in % [:pr :headRefOid] (apply str (repeat 40 "b")))]]]
+      (let [changed (knoxx-refresh t f) recorded (persist-disposition changed)]
+        (pre-resolution-denied changed label)
+        (is (= #{7002} (revoked-ids recorded)) label)
+        (pre-resolution-denied (assoc t :actionability-observations (:actionability-observations recorded))
+                               "restored old bytes cannot erase recorded loss")))))
+
+(deftest resolving-changes-the-binding-and-needs-fresh-resolved-assessment
+  (let [s (first knoxx-author-contexts) t (persist-disposition (knoxx-pre-resolution-input s))
+        changed (knoxx-refresh t #(assoc-in % [:thread :isResolved] true))
+        recorded (persist-disposition changed)
+        post (knoxx-resolved-input s)
+        p (-> (first (:issue-comments post))
+              (assoc :id 7005 :node_id "IC_fixture_7005" :created_at "2026-10-11T02:00:00Z" :updated_at "2026-10-11T02:00:00Z") hash-body)
+        a (-> (second (:issue-comments post))
+              (assoc :id 7006 :node_id "IC_fixture_7006" :created_at "2026-10-11T02:01:00Z" :updated_at "2026-10-11T02:01:00Z")
+              (change-payload #(assoc % 7 7005 8 (:body-sha256 p))) hash-body)
+        fresh (assoc post :issue-comments [p a] :actionability-observations (:actionability-observations recorded))]
+    (is (not= (:context-digest t) (:context-digest changed)))
+    (pre-resolution-denied changed "old pre-resolution assessment cannot admit resolved context")
+    (is (= #{7002} (revoked-ids recorded)))
+    (is (= :informational (:kind (actionability/disposition fresh))))
+    (is (:pass? (gate (law/classify-thread fresh))))
+    (is (false? (:allowed? (pure-resolution-decision fresh))) "resolved admission never authorizes a pre-resolution operation")
+    (is (false? (:settled? (law/classify-thread fresh))))))
+
+
+(deftest raw-input-never-authorizes-resolution-without-canonical-withdrawal-custody
+  (let [t (knoxx-pre-resolution-input (first knoxx-author-contexts))
+        decide (or (resolve 'pr-flow.actionability/resolution-authorization)
+                   (fn [_] {:allowed? false}))
+        c (law/classify-thread t)]
+    (is (false? (:allowed? (decide t))))
+    (is (false? (:allowed? (decide (assoc c :actionability-source-withdrawals nil)))))
+    (is (false? (:allowed? (decide (assoc c :actionability-source-withdrawals [])))))
+    (doseq [malformed [42 :unclassified {"7002" true} "7002"]]
+      (is (false? (:allowed? (decide (assoc c :actionability-source-withdrawals malformed))))))
+    (doseq [malformed [#{nil} #{"7002"} #{0} #{-1}]]
+      (is (false? (:allowed? (decide (assoc c :actionability-source-withdrawals malformed))))))
+    (is (true? (:allowed? (decide (assoc c :actionability {:kind :finding})))))
+    (is (false? (:allowed? (decide (assoc c :issue-comments [] :actionability {:kind :informational :status :qualified})))))
+    (is (false? (:allowed? (decide (assoc c :actionability-source-withdrawals #{7002})))))))
