@@ -577,3 +577,12 @@
   spore: none
   receipt-refs: 79191b1d-0c93-4d42-9d66-8baa76f717ff;sha256:5199da3259c3ca3ca215b45dbf0ed620e4c3a189357f9ea2df95c8fbc217dd8f
   note: All three completed Codex findings on exact 551 were read in full and reproduced together. Actual predecessor Node 125/3302 and portable 9/391 each reproduce 354 failures; bounded scope-only source passes both, policy and lint. Real fence and wrapper boundaries require 0–3 spaces; escaped, inline-prefixed, code-indented and invalid backtick-info openers cannot hide later live skipped input. Inner summary indentation remains raw HTML content. The initial inserted-helper parse error and premature running-command metadata read remain invalid preparations. Existing shared laws, native fixture provenance and whole ledger prefixes remain intact. Native MiMo approval 5481737641 and hosted CLI success remain specific to predecessor 551. No installed adoption, native successor evidence, settlement, paid activation, spore promotion or merge credit.
+- ts: 2026-10-11T03:53:41.713958731Z
+  session: /home/err/.local/share/openhax-codex/20261010/pr-flow-positive-review
+  task: Repair native positive-settlement merge assertion with isolated approval and settlement controls
+  p-efficiency: 0.87
+  p-friction: 0.29
+  p-skill-candidate: 0.61
+  spore: none
+  receipt-refs: native4240140866; qualification bb056ef5e24b0164c82086da54af632e93e31d984d6cd8e4237579d895bc6a69
+  note: A negative gate assertion needs successful unrelated gates and exact reason checks. Old wrong key/rounds0 wiring produced3 meaningful failures with stronger controls; corrected actual settlement count/minimum rounds passes125/3305, while trusted test approval passes and removed writer blocks34items. Runtime law/doc/other9packinputs unchanged. Initial parser/path preparation errors retained separately; all historical ledgers preserved. No native successor approval, installed adoption, merge or deployment credit; no spore or promotion.

@@ -521,7 +521,26 @@
                                                       law/default-reviewer-identities))))
     (is (empty? (filter #(= positive-head (:commit_id %))
                        (law/completed-review-rounds [native-positive-review] [] law/default-reviewer-identities))))
-    (is (not (:pass? (law/merge-gate {:head positive-head :unanswered-reviews 0 :rounds 0}))))))
+    (let [gate-context {:head positive-head
+                        :review-bodies-unanswered (law/unanswered-review-count
+                                             [native-positive-review] [native-positive-writer]
+                                             {:head positive-head})
+                        :rounds law/default-min-review-rounds
+                        :approved-heads (:approved-heads
+                                         (law/review-evidence positive-head [native-positive-review] []
+                                                              law/default-reviewer-identities))}
+          gate (law/merge-gate gate-context)
+          ;; Test-only approval isolates quorum from the already admitted settlement.
+          approved-context (assoc gate-context :approved-heads {"mimo" #{positive-head}})]
+      (is (not (:pass? gate)))
+      (is (= ["No trusted exact-head APPROVED review meets the quorum"] (:reasons gate)))
+      (is (:pass? (law/merge-gate approved-context)))
+      (is (= ["34 unanswered review summary item(s)"
+              "Review loop requires 5 completed rounds or unanimous current-head approval, with every finding settled"]
+             (:reasons (law/merge-gate
+                        (assoc approved-context :review-bodies-unanswered
+                               (law/unanswered-review-count [native-positive-review] []
+                                                            {:head positive-head})))))))))
 
 (deftest positive-format-is-complete-and-item-scoped
   (let [item (first (law/review-findings positive-review))]
