@@ -586,3 +586,12 @@
   spore: none
   receipt-refs: native4240140866; qualification bb056ef5e24b0164c82086da54af632e93e31d984d6cd8e4237579d895bc6a69
   note: A negative gate assertion needs successful unrelated gates and exact reason checks. Old wrong key/rounds0 wiring produced3 meaningful failures with stronger controls; corrected actual settlement count/minimum rounds passes125/3305, while trusted test approval passes and removed writer blocks34items. Runtime law/doc/other9packinputs unchanged. Initial parser/path preparation errors retained separately; all historical ledgers preserved. No native successor approval, installed adoption, merge or deployment credit; no spore or promotion.
+- ts: 2026-10-11T23:46:01.193229773Z
+  session: /home/err/.local/share/openhax-codex/20261010/pr-flow-native-context
+  task: Qualify native collector on reviewed pre-resolution main and register CI reachability
+  p-efficiency: 0.72
+  p-friction: 0.62
+  p-skill-candidate: 0.65
+  spore: none
+  receipt-refs: e61a60e5-af66-4c3f-b250-daa9b50d4ca7
+  note: Actual whole mocked CLI77/2000 and registered law145/3911, policy61/1554, focused7/178, portable1/16, inert1/7 and zero-warning lint on normal protected391 integration. Bare namespace zero-test invocation remains invalid. All protected events plus exact feature event preserved. Review source before adopter or native effects; no spore or promotion.
