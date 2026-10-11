@@ -6,6 +6,7 @@
             [test-issue-agreement :as native]
             [test-informational :as informational]
             [test-opener-withdrawal :as withdrawal]
+            [test-native-context]
             [pr-flow.actionability :as actionability]
             [nbb.core :refer [*file*]]))
 (def here (path/dirname *file*))
@@ -1870,4 +1871,4 @@
         (is (empty? (writes r "merge")) label)
         (is (empty? (mutations r)) label)))))
 
-(run-tests)
+(run-tests 'test-cli 'test-native-context)

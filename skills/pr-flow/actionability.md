@@ -29,6 +29,21 @@ complete conversation and relevant source. No walkthrough prefix, caller flag
 or semantic regex grants informational status. Fresh old-scope evidence cannot
 admit a nonempty review, and additional-scope evidence cannot admit an empty one.
 
+The importable `scripts/pr_flow/native_context.cljs` collector reuses the CLI's
+native page validation and exact UTF-8 hydration through explicitly injected
+synchronous JSON, repository-permission and history readers. It returns native
+contexts, exact issue records and history separately; unavailable history remains
+distinct from a healthy empty history. Importing or collecting does not classify,
+append observations, dispatch the CLI or authorize a native mutation. The CLI
+retains its canonical classifier, complete history reader, observation writer
+and changed-snapshot guards. Nested comment pagination still marks the collection
+incomplete. The pure `pr-flow.permissions/writer-role?` predicate exposes the
+existing exact `admin`, `maintain` and `write` role membership; native identity,
+permission reads and failure handling remain at the caller boundary. Injected
+data is not proof of native provenance: a later adapter must
+collect fresh native facts and use canonical classification and authorization;
+this extraction supplies no resolver, assessment transport or operational credit.
+
 `:review/actionability` is a separate consumed candidate flow default. Only
 verified native OpenCode `opencode-agent[bot]`, user `219766164`, node
 `BOT_kgDODRldlA`, is admitted globally here. A source-preparation extension in
