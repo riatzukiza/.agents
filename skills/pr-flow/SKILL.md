@@ -108,6 +108,17 @@ Laws live in `scripts/pr_flow/law.cljc` (severity, settlement, merge gate, revie
 
 ## Coverage, approvals and execution boundaries
 
+The [prospective publication source API](actionability.md) reuses canonical
+disposition predicates to validate a body-only summary against freshly
+classified native context, the actual latest proposal and complete history.
+Its result is prospective body eligibility only, without fabricated comment
+identity or time. Live App authentication, accepted invocation and independent
+judgment remain transport obligations; a real POST/readback must subsequently
+pass unchanged disposition. The importable complete-text history decoder keeps
+unavailable history distinct from valid empty history without reading or
+appending the ledger. This stacked proposal is not installation or operational
+permission, and unresolved conversations remain blocked.
+
 The CLI preserves native formal approvals and explicit passing verdicts as
 distinct evidence channels. CodeRabbit’s authenticated issue-comment coverage
 marker alone is observed coverage only; a completed explicit no-actionable

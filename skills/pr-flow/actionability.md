@@ -208,3 +208,46 @@ not actual native approval, model correctness or readiness of either PR.
 checkouts; all candidate GREEN and negative tests always run there.
 
 GPL-3.0-or-later.
+# Prospective publication and complete history (stacked source proposal)
+
+`pr-flow.actionability/assessment-publication` takes a freshly canonically
+classified thread, an accepted summary string, and a prospective native-shaped
+Bot user containing only `:login`, `:id`, `:node_id` and `:type`. It factors the
+existing disposition evaluation rather than introducing a second admission
+policy. The canonical derived positive-ID withdrawal set and complete history
+vector are mandatory; caller classification or eligibility flags supply no
+authority. The existing strict protocol, latest unedited authorized proposal,
+context binding, chronology, conflict and repository-scoped identity predicates
+validate the proposed two-line body. A previous informational assessment is not
+required. The accepted string must exactly equal the reconstructed body; the
+prospective API emits no optional run footer or extra prose.
+
+A positive result contains `:eligible?`, the exact body, native head/context and
+proposal bindings, `:expected-user`, and `:created-after` (the actual proposal
+edit timestamp). It creates no assessment ID, native publication time, source
+URL, assessment body hash, observation or qualified disposition. The principal
+comparison is pure shape/policy eligibility, not live App authentication.
+Invocation acceptance and semantic independent judgment remain host obligations.
+The host must authenticate the actual App, refresh context and history before
+publication, POST only the approved body, and re-GET the real native comment.
+Actual ID/node/URL/author/body hash and unedited creation strictly after the
+proposal must then pass unchanged canonical `disposition`; raced or edited
+records fail. Later resolution eligibility is separate, and every unresolved
+conversation remains merge-blocking.
+
+`pr-flow.actionability-history/observations` accepts complete decoded UTF-8
+receipt text and the native repository ID. It imports the existing edamame
+record decoder without importing operational `pr.cljs`. Every nonblank line is
+validated before repository selection: exactly one map, with the original
+actionability observation grammar and repository binding. Nil, invalid text or
+an invalid repository ID return nil; an existing valid source with no matching
+observations returns `[]`. The CLI retains its module-relative filesystem path,
+actual complete read, error handling and append writer. A pinned source checkout
+does not establish current revocation history. The outer caller must retain the
+complete source bytes/digest and acquisition provenance; unavailable history
+blocks publication. This decoder grants no history or native acquisition
+authority and has no read or append effect.
+
+This is stacked source preparation on PR28, not protected merge, installation,
+native assessment, resolver operation or deployment qualification. It adds no
+identity roster and no approval, coverage, settlement or round credit.
