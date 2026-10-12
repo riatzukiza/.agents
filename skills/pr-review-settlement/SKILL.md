@@ -160,6 +160,30 @@ The actual published assessment remains evidence if its originating workflow
 is subsequently cancelled. This is not an approval, a full review, a completed
 review round, or a waiver of any required check: those laws remain separate.
 
+### Prospective rejection assessment API (source preparation)
+
+`law/rejection-assessment-request` accepts the original normalized selected
+thread, the actual native proposal comment ID and the prospective native Bot
+user. The host must first collect complete native thread and PR issue history,
+use `native-context-law/select-fresh-context`, refresh native writer permissions,
+and bind the complete raw source bytes. The existing thread context digest does
+not cover PR issue comments. No supplied eligibility flag replaces collection.
+The request selects the latest same-writer current-head proposal attempt and
+requires one live exact `Finding:` pair, substantive proposal details and actual
+creation/edit metadata. A malformed later attempt cannot revive an older one.
+
+`law/rejection-assessment-publication` additionally accepts the completed
+assessment summary and reconstructs exact supported agreement text through the
+existing rejection grammar. It returns body-only eligibility plus the exact
+proposal body/ID/edit and expected user bindings. It creates no source ID, URL,
+time, agreement, settlement or approval. Native App authentication, accepted
+full-input invocation, independent judgment, one guarded publication and actual
+readback remain separately reviewed host obligations. After publication, the
+real source must still satisfy unchanged `rejection-evidence` identity,
+proposal/edit/agreement/final chronology, scoped pushback and withdrawal laws
+before the authorized writer can settle. This source preparation does not
+activate a route or supply corroboration for any current finding.
+
 ## Candidate informational conversations
 
 The separate [informational disposition](../pr-flow/actionability.md) is a

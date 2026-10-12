@@ -195,3 +195,94 @@
       (is (approved? (update renewed :issue-comments conj (assoc withdrawal :body direct))))
       (is (not (approved? (update renewed :issue-comments conj
                                  (assoc withdrawal :body (str/replace direct "5968785159" "5968785158")))))))))
+
+;; Explicit inert prospective controls. The node marker below is synthetic;
+;; a unit principal or API eligibility result supplies no native Bot evidence.
+(def prospective-user
+  {:login "opencode-agent[bot]" :id 219766164 :node_id "inert-fixture-only" :type "Bot"})
+(def prospective-thread
+  (assoc input :resolved? false :issue-comments []
+         :comments [(first (:comments input)) proposal]))
+(def prospective-summary
+  (str "Rejection agreement for " (:head fixture) ":\nFinding: " (:thread_id fixture)
+       " comment" (get-in fixture [:root :databaseId])
+       "\nReason: I traced the exact provenance boundary and the native run evidence; the asserted absence of these variables does not hold."
+       "\nEvidence: .github/workflows/opencode-code-review.yml:95; https://example.invalid/inert-evidence"))
+(defn request [thread]
+  (law/rejection-assessment-request thread (:id proposal) prospective-user))
+(defn publish [thread summary]
+  (law/rejection-assessment-publication thread (:id proposal) summary prospective-user))
+
+(deftest prospective-rejection-selects-actual-latest-writer-proposal-only
+  (let [r (request prospective-thread)]
+    (is (:eligible? r))
+    (is (= (:id proposal) (:proposal-id r)))
+    (is (= (:body proposal) (:proposal-body r)))
+    (is (= (:updated-at proposal) (:proposal-updated-at r)))
+    (is (= "2026-10-03T11:34:10.000Z" (:created-after r)))
+    (is (= prospective-user (:expected-user r)))
+    (is (not-any? #(contains? r %) [:source-id :agreement-id :created-at :url :settled? :rejection-approved?])))
+  (doseq [t [(dissoc prospective-thread :issue-comments)
+             (assoc prospective-thread :issue-comments nil)
+             (assoc prospective-thread :head (apply str (repeat 40 "b")))
+             (assoc prospective-thread :root-comment-id 4172695095)
+             (assoc-in prospective-thread [:comments 1 :authorized?] false)
+             (update-in prospective-thread [:comments 1] dissoc :authorized?)
+             (assoc-in prospective-thread [:comments 1 :user :type] "Bot")
+             (assoc-in prospective-thread [:comments 1 :user :login] "other-writer")
+             (assoc-in prospective-thread [:comments 0 :author] (:author proposal))
+             (update-in prospective-thread [:comments 1] dissoc :updated-at)
+             (assoc-in prospective-thread [:comments 1 :updated-at] "invalid")
+             (assoc-in prospective-thread [:comments 1 :updated-at] "2026-10-03T11:33:00Z")
+             (assoc-in prospective-thread [:comments 1 :body] (str "> " (:body proposal)))
+             (update-in prospective-thread [:comments 1 :body] str/replace #"(?m)^Finding:[^\n]*\n" "")
+             (update prospective-thread :comments conj
+                     (assoc proposal :id 4172979880 :created-at "2026-10-03T11:35:00Z" :updated-at "2026-10-03T11:35:00Z"))
+             (update prospective-thread :comments conj
+                     (assoc proposal :id 4172979880 :created-at "2026-10-03T11:35:00Z" :updated-at "2026-10-03T11:35:00Z"
+                            :body (str (:body proposal) "\nRejection proposal for " (:head fixture) ":")))]]
+    (is (not (:eligible? (request t)))))
+  (is (not (:eligible? (law/rejection-assessment-request prospective-thread 1 prospective-user)))))
+
+(deftest prospective-rejection-principal-keeps-existing-independence-policy
+  (doseq [u [(assoc prospective-user :login "coderabbitai[bot]")
+             (assoc prospective-user :login "unknown-assessor[bot]")
+             (assoc prospective-user :type "User")
+             (assoc prospective-user :id nil)
+             (assoc prospective-user :node_id "")
+             (assoc prospective-user :extra true)]]
+    (is (not (:eligible? (law/rejection-assessment-request prospective-thread (:id proposal) u)))))
+  (doseq [t [(assoc prospective-thread :pr-author (:login prospective-user))
+             (assoc-in prospective-thread [:comments 0 :author] (:login prospective-user))
+             (assoc-in prospective-thread [:identities "opencode"] #{"opencode-agent[bot]" "coderabbitai[bot]"})]]
+    (let [u (if (contains? (get-in t [:identities "opencode"]) "coderabbitai[bot]")
+              (assoc prospective-user :login "coderabbitai[bot]") prospective-user)]
+      (is (not (:eligible? (law/rejection-assessment-request t (:id proposal) u)))))))
+
+(deftest prospective-rejection-body-is-reconstructed-without-native-credit
+  (let [r (publish prospective-thread prospective-summary)]
+    (is (:eligible? r))
+    (is (= prospective-summary (:body r)))
+    (is (not-any? #(contains? r %) [:source-id :agreement-id :created-at :url :settled? :rejection-approved?]))
+    (is (not (:settled? (law/classify-thread prospective-thread)))))
+  (doseq [body [nil "I agree."
+               (str "> " (str/replace prospective-summary "\n" "\n> "))
+               (str "```text\n" prospective-summary "\n```")
+               (str "<details><summary>Example</summary>\n" prospective-summary "\n</details>")
+               (str/replace prospective-summary (:head fixture) (apply str (repeat 40 "b")))
+               (str/replace prospective-summary (:thread_id fixture) "PRRT_another")
+               (str prospective-summary "\nFinding: PRRT_another comment42")
+               (str prospective-summary "\nReason: Another reason.")
+               (str/replace prospective-summary #"(?m)^Reason:.*$" "Reason: I agree.")
+               (str/replace prospective-summary #"(?m)^Reason:.*$" "Reason: I disagree with the rejection; this still reproduces.")
+               (str/replace prospective-summary #"(?m)^Evidence:.*$" "Evidence: none")
+               (str prospective-summary "\nExtra unsourced tail.")]]
+    (is (not (:eligible? (publish prospective-thread body)))))
+  ;; Native metadata is supplied only in this explicit inert post-POST control.
+  ;; Prospective eligibility never substitutes for unchanged settlement law.
+  (let [native (assoc agreement :body prospective-summary)]
+    (is (approved? (assoc input :issue-comments [native])))
+    (is (not (approved? (assoc input :issue-comments
+                              [(assoc native :created_at (:updated-at proposal) :updated_at (:updated-at proposal))]))))
+    (is (not (approved? (assoc input :issue-comments
+                              [(assoc native :updated_at "2026-10-03T11:39:00Z")]))))))

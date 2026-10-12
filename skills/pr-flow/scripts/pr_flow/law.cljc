@@ -230,28 +230,41 @@
         (vec (sort-by created
                       (concat comments (map #(assoc % :author (or (:author %) (get-in % [:user :login]))) relevant))))))))
 
+(defn- rejection-marker-line? [head scope kind c]
+  (= (str "Rejection " kind " for " head ":" (when scope (str " " scope)))
+     (first (str/split-lines (or (rejection-prose (:body c)) "")))))
+
+(defn- rejection-agreement-prose? [c]
+  (let [prose (or (rejection-prose (:body c)) "")]
+    (and (not (re-find #"(?i)\b(?:i|we) (?:do not|don't|cannot|can't|no longer) agree|\b(?:withdraw|revoke) (?:my|our|the) agreement|\bdisagree with (?:the )?(?:proposal|rejection)|\b(?:rejection|proposal|agreement) (?:is )?(?:wrong|incorrect|invalid|rejected)"
+                       prose))
+         (not (re-find #"(?i)^(?:(?:i|we) (?:fully )?)?(?:agree(?:d)?(?: with (?:(?:the|this|that|proposed|author's) )?(?:proposal|author|rejection|assessment|conclusion|change))?|lgtm|looks good(?: to me)?|yes|approved)[.! ✅]*$"
+                       (str (:reason (rejection-details (:body c)))))))))
+
+(defn- rejection-marker? [head identities scope thread-scope kind c]
+  (let [prose (or (rejection-prose (:body c)) "")]
+    (and (rejection-marker-line? head scope kind c)
+         (= 1 (count (re-seq #"(?m)^Rejection (?:proposal|agreement) for " prose)))
+         (or (not= :github-issue-comment (:source-channel c))
+             (and thread-scope (= thread-scope (thread-binding (:body c)))
+                  (integer? (:id c)) (pos? (:id c)) (native-agent c identities)
+                  (rejection-agreement-prose? c))))))
+
+(defn- rejection-proposal-index [comments end settler marker?]
+  (last (keep-indexed
+         (fn [i c] (when (and (= settler (comment-login c))
+                              (not= false (:authorized? c)) (marker? c)) i))
+         (subvec comments 0 end))))
+
 (defn- rejection-evidence
   ([head identities pr-author comments settlement-index final-details scope]
    (rejection-evidence head identities pr-author comments settlement-index final-details scope nil))
   ([head identities pr-author comments settlement-index final-details scope thread-scope]
   (when (and (valid-head? head) (not (str/blank? pr-author)) final-details)
     (let [settler (comment-login (nth comments settlement-index))
-          marker (fn [kind] (str "Rejection " kind " for " head ":" (when scope (str " " scope))))
-          marker? (fn [kind c]
-                    (let [prose (or (rejection-prose (:body c)) "")]
-                      (and (= (marker kind) (first (str/split-lines prose)))
-                           (= 1 (count (re-seq #"(?m)^Rejection (?:proposal|agreement) for " prose)))
-                           (or (not= :github-issue-comment (:source-channel c))
-                               (and thread-scope (= thread-scope (thread-binding (:body c)))
-                                    (integer? (:id c)) (pos? (:id c)) (native-agent c identities)
-                                    (not (re-find #"(?i)\b(?:i|we) (?:do not|don't|cannot|can't|no longer) agree|\b(?:withdraw|revoke) (?:my|our|the) agreement|\bdisagree with (?:the )?(?:proposal|rejection)|\b(?:rejection|proposal|agreement) (?:is )?(?:wrong|incorrect|invalid|rejected)"
-                                                  prose))
-                                    (not (re-find #"(?i)^(?:(?:i|we) (?:fully )?)?(?:agree(?:d)?(?: with (?:(?:the|this|that|proposed|author's) )?(?:proposal|author|rejection|assessment|conclusion|change))?|lgtm|looks good(?: to me)?|yes|approved)[.! ✅]*$"
-                                                  (str (:reason (rejection-details (:body c)))))))))))
-          proposal-index (last (keep-indexed
-                               (fn [i c] (when (and (= settler (comment-login c))
-                                                    (not= false (:authorized? c)) (marker? "proposal" c)) i))
-                               (subvec comments 0 settlement-index)))
+          marker? (partial rejection-marker? head identities scope thread-scope)
+          proposal-index (rejection-proposal-index comments settlement-index settler
+                                                   (partial marker? "proposal"))
           proposal (when proposal-index (nth comments proposal-index))
           agreement-index (when proposal-index
                             (last (for [i (range (inc proposal-index) settlement-index)
@@ -283,6 +296,89 @@
                  (= final-details (rejection-details (:body proposal))))
         {:reviewer (native-agent agreement identities) :url (or (:url agreement) (:html_url agreement))
          :channel (or (:source-channel agreement) :github-review-thread) :source-id (:id agreement)})))))
+
+(defn rejection-assessment-request
+  "Prospective scope only for an actual native thread proposal. The host must
+   freshly collect/select the original normalized thread and bind complete raw
+   conversation/issue history and permissions. No native evidence or effect."
+  [{:keys [id root-comment-id head pr-author comments issue-comments identities resolved?] :as thread}
+   proposal-id prospective-user]
+  (let [deny (fn [reason] {:eligible? false :reason reason})
+        identities (or identities default-reviewer-identities)
+        positive-id? (fn [n] (and (integer? n) (pos? n)))
+        created (fn [c] (timestamp (:created-at c)))
+        edited (fn [c] (timestamp (:updated-at c)))
+        matches (when (vector? comments) (filterv #(= proposal-id (:id %)) comments))
+        proposal (when (= 1 (count matches)) (first matches))
+        writer (when proposal (comment-login proposal))
+        scope [id (str root-comment-id)]
+        latest (when (and writer (vector? comments))
+                 ;; First select the latest same-writer bare header attempt. A
+                 ;; malformed later attempt must not revive an older proposal.
+                 (rejection-proposal-index comments (count comments) writer
+                                           (partial rejection-marker-line? head nil "proposal")))]
+    (cond
+      (not (and (map? thread) (string? id) (re-matches #"PRRT_[a-zA-Z0-9_-]+" id)
+                (positive-id? root-comment-id) (valid-head? head)
+                (string? pr-author) (not (str/blank? pr-author)) (boolean? resolved?)
+                (vector? comments) (seq comments) (vector? issue-comments)
+                (= root-comment-id (:id (first comments)))
+                (every? #(and (positive-id? (:id %)) (string? (:body %))
+                              (string? (:url %)) (not (str/blank? (:url %)))
+                              (created %) (edited %) (not (pos? (compare (created %) (edited %))))) comments)
+                (= (count comments) (count (set (map :id comments))))
+                (= (mapv created comments) (sort (map created comments)))
+                (some? (thread-evidence-comments thread))))
+      (deny :invalid-native-context)
+
+      (not (and (positive-id? proposal-id) proposal (some? latest)
+                (= proposal (nth comments latest))
+                (= "User" (get-in proposal [:user :type]))
+                (= writer (str/lower-case (str (get-in proposal [:user :login]))))
+                (true? (:authorized? proposal)) (not (bot? writer))
+                (not= writer (comment-login (first comments)))
+                (rejection-marker? head identities nil scope "proposal" proposal)
+                (= scope (thread-binding (:body proposal)))
+                (rejection-details (:body proposal))))
+      (deny :invalid-latest-proposal)
+
+      (not (and (map? prospective-user)
+                (= #{:login :id :node_id :type} (set (keys prospective-user)))
+                (positive-id? (:id prospective-user)) (string? (:node_id prospective-user))
+                (not (str/blank? (:node_id prospective-user)))
+                (native-agent {:user prospective-user} identities)
+                (not (contains? (set [writer (str/lower-case pr-author)
+                                       (comment-login (first comments))])
+                                (str/lower-case (str (:login prospective-user)))))))
+      (deny :ineligible-principal)
+
+      :else
+      {:eligible? true :head head :thread-id id :root-comment-id root-comment-id
+       :proposal-id proposal-id :proposal-body (:body proposal)
+       :proposal-created-at (:created-at proposal) :proposal-updated-at (:updated-at proposal)
+       :writer-login writer :expected-user prospective-user :created-after (comment-time proposal)})))
+
+(defn rejection-assessment-publication
+  "Validate/reconstruct body-only agreement text through the existing rejection
+   grammar. Never fabricate native source metadata or settle a finding. Actual
+   POST/readback must later pass unchanged rejection-evidence chronology."
+  [thread proposal-id accepted-summary prospective-user]
+  (let [request (rejection-assessment-request thread proposal-id prospective-user)
+        c {:body accepted-summary}
+        scope [(:thread-id request) (str (:root-comment-id request))]
+        parsed (when (string? accepted-summary) (rejection-details accepted-summary))
+        body (when parsed
+               (str "Rejection agreement for " (:head request) ":\n"
+                    "Finding: " (:thread-id request) " comment" (:root-comment-id request) "\n"
+                    "Reason: " (:reason parsed) "\nEvidence: " (:evidence parsed)))]
+    (cond
+      (not (:eligible? request)) request
+      (not (and (rejection-marker? (:head request) (or (:identities thread) default-reviewer-identities)
+                                  nil scope "agreement" c)
+                (= scope (thread-binding accepted-summary))
+                (rejection-agreement-prose? c) parsed (= accepted-summary body)))
+      {:eligible? false :reason :invalid-summary}
+      :else (assoc request :body body))))
 
 (defn- actionability-thread
   "Reuse the existing native withdrawal grammar with ONLY the separately
