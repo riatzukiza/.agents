@@ -178,7 +178,9 @@ existing rejection grammar. It returns body-only eligibility plus the exact
 proposal body/ID/edit and expected user bindings. It creates no source ID, URL,
 time, agreement, settlement or approval. Native App authentication, accepted
 full-input invocation, independent judgment, one guarded publication and actual
-readback remain separately reviewed host obligations. After publication, the
+readback remain separately reviewed host obligations. The host must require
+the readback `:user` to match `:expected-user` for `:login`, `:id`, `:node_id`
+and `:type`; login-only matching is insufficient. After publication, the
 real source must still satisfy unchanged `rejection-evidence` identity,
 proposal/edit/agreement/final chronology, scoped pushback and withdrawal laws
 before the authorized writer can settle. This source preparation does not

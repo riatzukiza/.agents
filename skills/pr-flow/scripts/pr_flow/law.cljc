@@ -361,7 +361,9 @@
 (defn rejection-assessment-publication
   "Validate/reconstruct body-only agreement text through the existing rejection
    grammar. Never fabricate native source metadata or settle a finding. Actual
-   POST/readback must later pass unchanged rejection-evidence chronology."
+   On native readback, :user must match :expected-user for :login, :id,
+   :node_id and :type; login-only matching is insufficient. POST/readback
+   must later pass unchanged rejection-evidence chronology."
   [thread proposal-id accepted-summary prospective-user]
   (let [request (rejection-assessment-request thread proposal-id prospective-user)
         c {:body accepted-summary}
