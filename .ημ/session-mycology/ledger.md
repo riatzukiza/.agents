@@ -640,3 +640,21 @@
   spore: none
   receipt-refs: 5acee5a2-b8af-495a-8473-09f1f3c38d41,6311d61ac26b9c391b132df603e3aa12e0f791aaae71d0a979b2547178c322ea
   note: Focused inherited Enterprise token and host leakage reproduced22environment assertions and became green2tests188assertions; ordinary fallback remains healthy. Actual fullCLI90tests2472assertions law154/4251 policy61/1554 and lint syntax diff docs passed. All9 complete captures and14210 Node audits with0attempts preserve current25d source/index and global W X Y Z A. Exact4source repair and canonical event prepared for ordinary6path persistence. Native current-head reviews protected adoption and operational resolution remain pending. No spore or promotion.
+- ts: 2026-10-12T10:29:39.996961854Z
+  session: /home/err/.local/share/openhax-codex/20261010/pr-flow-publication-api-on-accepted31-v1
+  task: Qualify prospective rejection API on accepted31 with distinct physical installed-source custody
+  p-efficiency: 0.78
+  p-friction: 0.42
+  p-skill-candidate: 0.35
+  spore: none
+  receipt-refs: d647b4b2-6c59-490a-bb45-6a8a97c799d4,2e8740f8267f6248b883d2b0167d3a7cbc212a6e2a15b73b2e83b5d0d500e6be,c3c616c2d52c1f997c18812a4b58c65491707a683c8e9bc62ca7b6ae7222b317
+  note: Distinguish installed physical canonical inputs from tracked Git membership and retain setup/schema refusals instead of inventing source drift or retroactive PASS. Fresh accepted31 focused3/53, laws157/4304, policy61/1554, fullCLI90/2472 and lint/diff passed in nine normal complete captures; 570 outside rows/rawlogical/protected6+physical7 exact and13899 complete measured Node audits0denied. Pure request/publication APIs reconstruct prospective body only; native principal/invocation/agreement/readback/settlement remain separate unqualified host obligations. Old80 is history. No spore, promotion, native effect, global installation, review or deployment credit.
+- ts: 2026-10-12T10:53:51.040615107Z
+  session: /home/err/.local/share/openhax-codex/20261010/pr-flow-publication-api-on-accepted31-v1
+  task: Clarify full native user identity readback for prospective rejection publication
+  p-efficiency: 0.9
+  p-friction: 0.15
+  p-skill-candidate: 0.1
+  spore: none
+  receipt-refs: 1c8a0b3b-0925-46a5-9aae-12ebe439e207,113f6d7cae735e22135436953c8264f48f1b45a5eee591c71f0fc9432114ac27
+  note: Actual reviewer4247045213 identified a documentation gap. Two exact text changes state login/id/node_id/type matching; executable forms unchanged. Touched lint and whitespace pass; old behavioral suite belongs to75d. No new spore, merge, adoption or deployment credit.
