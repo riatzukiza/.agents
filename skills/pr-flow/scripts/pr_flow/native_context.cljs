@@ -2,7 +2,8 @@
 (ns pr-flow.native-context
   (:require ["crypto" :as crypto]
             [clojure.string :as str]
-            [pr-flow.actionability :as actionability]))
+            [pr-flow.actionability :as actionability]
+            [pr-flow.native-context-law :as native-context-law]))
 
 ;; Native reads are supplied by the caller. Importing this namespace performs
 ;; no reads, CLI dispatch, credential lookup, classification or receipt append.
@@ -84,18 +85,22 @@
                                 (= "User" (get-in % [:user :type]))
                                 (assoc :authorized? (boolean (authorized? (get-in % [:user :login])))))
                               raw-issue-comments)]
-     (loop [after nil acc [] draft? nil]
+     (loop [after nil acc [] first-snapshot nil]
        (let [pr (threads-page read-json owner name n after)
+             repository (:native-repository pr)
+             snapshot (native-context-law/page-snapshot repository pr)
+             _ (when (and first-snapshot (not= first-snapshot snapshot))
+                 (throw (ex-info "PR snapshot changed during review-thread pagination"
+                                 {:repo repo :pr n :after after})))
              conn (:reviewThreads pr)
              acc (into acc (:nodes conn))]
          (if (get-in conn [:pageInfo :hasNextPage])
-           (recur (get-in conn [:pageInfo :endCursor]) acc (:isDraft pr))
-           (let [repository (:native-repository pr)
-                 history (read-history (:id repository))]
+           (recur (get-in conn [:pageInfo :endCursor]) acc (or first-snapshot snapshot))
+           (let [history (read-history (:id repository))]
              {:repository repository :pr (dissoc pr :reviewThreads :native-repository)
               :raw-threads acc :raw-issue-comments raw-issue-comments
               :issue-comments issue-comments :history history
-              :draft? (if (nil? draft?) (:isDraft pr) draft?)
+              :draft? (:isDraft pr)
               :head (:headRefOid pr) :pr-author (get-in pr [:author :login])
               :incomplete? (boolean (some #(get-in % [:comments :pageInfo :hasNextPage]) acc))
               :threads (mapv (fn [t]

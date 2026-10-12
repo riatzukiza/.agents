@@ -6,7 +6,8 @@
             [clojure.string :as str]
             [pr-flow.actionability :as actionability]
             [pr-flow.permissions :as permissions]
-            [pr-flow.native-context :as native-context]))
+            [pr-flow.native-context :as native-context]
+            [pr-flow.native-context-law :as native-context-law]))
 
 (def captures
   (:snapshots (js->clj (js/JSON.parse
@@ -214,3 +215,78 @@
   (doseq [role [nil false true "read" "triage" "ADMIN" "Write" "write "
                 "owner" "push" :write {:permission "admin"} ["write"]]]
     (is (nil? (permissions/writer-role? role)))))
+
+(deftest collector-refuses-mixed-native-page-snapshots-before-hydration
+  (let [first-page (page [(:thread sample)] true "first-cursor")
+        second-page (page [] true "second-cursor")]
+    (doseq [[field at replacement]
+            [["repository" [:data :repository :id] "R_other_repository"]
+             ["PR" [:data :repository :pullRequest :id] "PR_other_pull_request"]
+             ["head" [:data :repository :pullRequest :headRefOid] (apply str (repeat 40 "f"))]
+             ["draft" [:data :repository :pullRequest :isDraft] true]]
+            changed [replacement nil]]
+      (testing (str field " changed to " (pr-str changed))
+        (let [r (readers [first-page (assoc-in second-page at changed) (page [])] [[]] [])]
+          (is (thrown? js/Error (native-context/collect-context (:deps r) repo number)))
+          (is (= 3 (count @(:calls r))) "Refuse the differing page before reading a later restored snapshot")
+          (is (empty? @(:history-reads r)) "Never select or read history from mixed native identities")
+          (is (empty? @(:permissions r)) "Never hydrate mixed threads"))))
+    (let [r (readers [first-page second-page (page [])] [[]] [])
+          result (native-context/collect-context (:deps r) repo number)]
+      (is (= [(:thread sample)] (:raw-threads result)))
+      (is (= (:repository sample) (:repository result)))
+      (is (= (:pr sample) (:pr result)))
+      (is (false? (:draft? result)))
+      (is (= [(get-in sample [:repository :id])] @(:history-reads r))))))
+
+(deftest native-page-snapshot-is-the-exact-four-field-binding
+  (let [repository (:repository sample) pr (:pr sample)]
+    (is (= {:repository-id (:id repository) :pr-id (:id pr)
+            :head (:headRefOid pr) :draft? (:isDraft pr)}
+           (native-context-law/page-snapshot repository pr)))
+    (doseq [at [[:id] [:headRefOid] [:isDraft]]]
+      (is (not= (native-context-law/page-snapshot repository pr)
+                (native-context-law/page-snapshot repository (assoc-in pr at nil)))))
+    (is (not= (native-context-law/page-snapshot repository pr)
+              (native-context-law/page-snapshot (assoc repository :id nil) pr)))))
+
+(deftest fresh-native-context-selection-is-structural-and-preserves-the-original-thread
+  (let [r (readers [(page [(:thread sample)])] [[]] [])
+        snapshot (native-context/collect-context (:deps r) repo number)
+        thread (first (:threads snapshot))
+        target {:repo repo :repository-database-id (get-in sample [:repository :databaseId])
+                :pr-number (get-in sample [:pr :number]) :head (:headRefOid (:pr sample))
+                :thread-id (:id thread)}
+        select #(native-context-law/select-fresh-context % target)]
+    (is (= {:selected thread} (select snapshot)))
+    (is (= {:selected thread} (select (assoc snapshot :threads [thread {:id "PRRT_unrelated"}]))))
+    (is (= {:selected thread} (select (assoc snapshot :history [{:status :revoked}]))))
+    (doseq [[at changed reason]
+            [[[:repository :nameWithOwner] "other/repository" :target-mismatch]
+             [[:repository :databaseId] 1 :target-mismatch]
+             [[:pr :number] 1 :target-mismatch]
+             [[:head] (apply str (repeat 40 "f")) :target-mismatch]
+             [[:pr :state] "CLOSED" :pr-not-open]
+             [[:draft?] true :draft-context]
+             [[:draft?] nil :draft-context]
+             [[:incomplete?] true :incomplete-context]
+             [[:incomplete?] nil :incomplete-context]
+             [[:history] nil :history-unavailable]
+             [[:history] '() :history-unavailable]
+             [[:threads] [] :thread-selection]
+             [[:threads] [thread thread] :thread-selection]
+             [[:threads] nil :thread-selection]]]
+      (is (= {:refusal reason} (select (assoc-in snapshot at changed))) (pr-str at)))
+    (doseq [key [:repo :repository-database-id :pr-number :head :thread-id]]
+      (is (= {:refusal :target-unavailable}
+             (native-context-law/select-fresh-context snapshot (dissoc target key))))
+      (is (= {:refusal :target-unavailable}
+             (native-context-law/select-fresh-context snapshot (assoc target key nil)))))
+    (is (= {:refusal :context-unavailable} (select nil)))
+    (is (= {:refusal :target-unavailable} (native-context-law/select-fresh-context snapshot nil)))
+    (is (= {:refusal :target-mismatch}
+           (select (assoc snapshot :head "unbound" :selected thread :qualified? true
+                                   :permission true :disposition :informational))))
+    (is (= #{:selected} (set (keys (select snapshot)))))
+    (is (not-any? #(contains? (select snapshot) %)
+                  [:permission :qualified? :actionability :disposition :approval :publication]))))

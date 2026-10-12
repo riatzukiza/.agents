@@ -123,7 +123,8 @@
                                    :actionability-observations history :identities identities))
                        (:threads collected))
          observations (vec (distinct (mapcat #(get-in % [:actionability :observations]) threads)))
-         _ (append-actionability-observations! repo observations)
+         _ (when (some? history)
+             (append-actionability-observations! repo observations))
          history (when (some? history) (into history observations))]
      (assoc (select-keys collected [:draft? :head :pr-author :incomplete?])
             :actionability-history-available? (some? history)

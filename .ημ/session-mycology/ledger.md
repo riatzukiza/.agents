@@ -613,3 +613,12 @@
   spore: none
   receipt-refs: 61339bcd98f72bf8842c00aa27f6688c98358f06ee24da85cc97069ef12645b9
   note: Normal merge composes both extraction seams and both hosted law registrations. Preserve protectedledger prefixes plus exactowned appendtails through conflicts. ActualfullCLI77/2000 pluslaw151/4177/policy61/1554 andlint0/0; independent316checks no findings. Retain originaltimeout andwrongguessedlintpaths withoutqualification. Native currenthead reviews precede protectedadoption; no collector deployment, transportactivation, new spore or promotion.
+- ts: 2026-10-12T01:51:05.075460298Z
+  session: /home/err/.local/share/openhax-codex/20261010/pr-flow-native-context
+  task: Bind paginated native context and unavailable history boundaries
+  p-efficiency: 0.8
+  p-friction: 0.45
+  p-skill-candidate: 0.4
+  spore: none
+  receipt-refs: 129da2635939fe904ecdbb45f58664425ffcad50a13c452464b457905e7aec1d
+  note: A pagination snapshot check must bind each page before accumulation. Boundary instrumentation can prove an unwanted invocation without proving a physical write; preserve that distinction in receipts and PR prose. Pair exact predecessor/candidate source copies with one focused control per concrete contract, preserve original helper guards, and record complete output/cleanup custody before ordinary protected publication. No native/model/adoption/deployment credit; no spore or promotion.
