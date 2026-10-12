@@ -74,10 +74,20 @@ $P request owner/repo N planning|code [--note TEXT] [--reviewer coderabbit|codex
 $P wait    owner/repo N [--timeout 1800 --interval 30]   # 0 done, 3 rate-limited, 4 timeout
 $P threads owner/repo N [--all]
 $P settle  owner/repo N THREAD_ID "Fixed in <sha>: …"    # reply, then resolve; refuses other openings
+$P resolve-informational owner/repo N THREAD_ID "$EXPECTED_EDN" [--apply] # candidate after protected review/adoption; exact native qualified binding
 $P gate    owner/repo N [--apply] [--method merge]   # merge commits by default, never squash unless the repo requires it
 ```
 
 Laws live in `scripts/pr_flow/law.cljc` (severity, settlement, merge gate, review convergence), `scripts/pr_flow/actionability.cljc` (bounded native informational disposition) and `scripts/pr_flow/flow.cljc` (FSM well-formedness). They are pure `.cljc`, and the CLI is the only effectful layer. Tests from the repository root: `nbb -cp skills/pr-flow/scripts skills/pr-flow/scripts/test_law.cljs`, `test_policy.cljs` and `test_cli.cljs`. The law suite includes the native informational fixtures. The `PR flow laws and CLI` hosted job runs all three on the actual PR head. Local results are preparation, not hosted qualification.
+
+The candidate `resolve-informational` route is limited to the separate
+[actionability boundary](actionability.md#candidate-resolve-only-cli-boundary).
+It recomputes canonical native eligibility and authenticates a writer User in
+one fixed token-stripped/keyring `gh` environment, without the ordinary auth
+fallback. Preview performs no append/effect. `--apply` attempts one resolution
+POST, retains actual outcome/readback and revocation observations, and requires
+a new resolved-scope assessment. Source preparation must be protected and
+adopted before use; no settlement, approval or round credit is supplied.
 
 ## Hard-won rules
 

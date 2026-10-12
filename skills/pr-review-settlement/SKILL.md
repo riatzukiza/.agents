@@ -169,8 +169,14 @@ unresolved nonempty scope requires fresh independent whole-context judgment;
 qualified informational context remains unsettled and all-thread merge-blocking.
 Its pure resolution eligibility requires canonical classification/withdrawal
 custody and recomputes disposition, without native effect or actor permission.
-A separately reviewed/adopted resolver and real assessor route remain required;
-after resolution, obtain a new proposal/assessment for the changed manifest.
+A separately protected, reviewed and adopted resolver and real assessor route
+remain required. The candidate `pr.cljs resolve-informational` boundary uses
+complete fresh canonical classification, exact native expected coordinates and
+a separately authenticated User writer under one fixed gh environment; it
+attempts only resolution, without a reply or settlement credit. Uncertain POST
+or readback is retained without retry. After actual resolution, obtain a new
+proposal/assessment for the changed manifest. See the
+[resolve-only candidate contract](../pr-flow/actionability.md#candidate-resolve-only-cli-boundary).
 Every actual finding retains settle-before-resolve and opener exclusion.
 Same-author `Handled`, author identity, a
 walkthrough prefix, unknown severity and GitHub resolution do not qualify.

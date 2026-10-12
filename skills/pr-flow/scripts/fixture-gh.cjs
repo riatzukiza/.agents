@@ -6,7 +6,7 @@ const statePath = `${process.env.PR_FLOW_TEST_DATA}.state`;
 let state = fs.existsSync(statePath) ? JSON.parse(fs.readFileSync(statePath, 'utf8')) : {heads: 0};
 const args = process.argv.slice(2);
 const input = fs.readFileSync(0, 'utf8');
-fs.appendFileSync(`${process.env.PR_FLOW_TEST_DATA}.calls`, `${JSON.stringify({args, input, hasToken: !!process.env.GH_TOKEN})}\n`);
+fs.appendFileSync(`${process.env.PR_FLOW_TEST_DATA}.calls`, `${JSON.stringify({args, input, hasToken: !!process.env.GH_TOKEN, hasGithubToken: !!process.env.GITHUB_TOKEN, hasEnterpriseToken: Object.hasOwn(process.env, 'GH_ENTERPRISE_TOKEN'), hasGithubEnterpriseToken: Object.hasOwn(process.env, 'GITHUB_ENTERPRISE_TOKEN'), ghHost: process.env.GH_HOST ?? null})}\n`);
 const out = x => process.stdout.write(typeof x === 'string' ? x : JSON.stringify(x));
 const persist = () => fs.writeFileSync(statePath, JSON.stringify(state));
 if (args[0] === 'api' && Object.hasOwn(config.apiResponses || {}, args[1])) {
@@ -20,7 +20,8 @@ if (args[0] === 'api' && Object.hasOwn(config.apiResponses || {}, args[1])) {
     if (query.includes('addPullRequestReviewThreadReply')) {
       out({data: {addPullRequestReviewThreadReply: {comment: {url: 'https://example.invalid/review#reply'}}}});
     } else if (query.includes('resolveReviewThread')) {
-      out({data: {resolveReviewThread: {thread: {isResolved: true}}}});
+      out(config.resolveResponse || {data: {resolveReviewThread: {thread: {isResolved: true}}}});
+      if (config.resolveExitCode) process.exit(config.resolveExitCode);
     } else process.exit(77);
     process.exit(0);
   }
@@ -54,6 +55,17 @@ if (args[0] === 'api' && Object.hasOwn(config.apiResponses || {}, args[1])) {
   const response = config.threadPageResponses
     ? config.threadPageResponses[Math.min(threadPageIndex, config.threadPageResponses.length - 1)]
     : {data: {repository: {pullRequest: {author: {login: config.prAuthor || 'original-author'}, headRefOid: config.head, isDraft: !!config.draft && !state.ready, reviewThreads: {pageInfo: {hasNextPage: false}, nodes}}}}};
+  if (config.historyChangeAtThreadRead === threadPageIndex) {
+    // Owned mock ledger only. Never accesses the installed canonical ledger.
+    const ledger = require('node:path').join(require('node:path').dirname(process.env.PR_FLOW_TEST_DATA), '.ημ', 'receipts.edn');
+    if (config.historyFirstReceiptReplacementBase64) {
+      const current = fs.readFileSync(ledger);
+      const end = current.indexOf(10) + 1;
+      if (!end) process.exit(79);
+      fs.writeFileSync(ledger, Buffer.concat([Buffer.from(config.historyFirstReceiptReplacementBase64, 'base64'), current.subarray(end)]));
+    } else if (config.historyReplacementBase64) fs.writeFileSync(ledger, Buffer.from(config.historyReplacementBase64, 'base64'));
+    else fs.appendFileSync(ledger, config.historyChangeText || '{:origin "other"}\n');
+  }
   out(response);
   if (config.threadPageExitCode) {
     process.stderr.write('fixture GraphQL error reported by gh'); process.exit(config.threadPageExitCode);
@@ -88,8 +100,15 @@ else if (args[0] === 'api' && args[1].includes('/commits/')) {
   const ref = args[1].split('/').at(-1);
   out({sha: config.commitResponses?.[ref] || (/^[0-9a-f]{40}$/.test(ref) ? ref : (config.resolvedCommit || config.head))});
 }
-else if (args[0] === 'api' && args[1].includes('/collaborators/')) out({permission: config.authorized === false ? 'read' : 'admin'});
-else if (args[0] === 'api' && args[1] === 'user') out(args.includes('-q') || args.includes('--jq') ? (config.viewer || 'riatzukiza') : {login: config.viewer || 'riatzukiza'});
+else if (args[0] === 'api' && args[1].includes('/collaborators/')) {
+  out({permission: config.writerRoleAfterThreadReads != null && (state.threads || 0) >= 2
+    ? config.writerRoleAfterThreadReads : config.authorized === false ? 'read' : 'admin'});
+}
+else if (args[0] === 'api' && args[1] === 'user') {
+  const index = state.users || 0; state.users = index + 1; persist();
+  const user = config.viewerUsers?.[Math.min(index, config.viewerUsers.length - 1)] || config.viewerUser || {login: config.viewer || 'riatzukiza'};
+  out(args.includes('-q') || args.includes('--jq') ? user.login : user);
+}
 else if (args[0] === 'pr' && args[1] === 'view') {
   if (args.includes('author')) { out(config.prAuthor || 'original-author'); process.exit(0); }
   const heads = config.heads || [config.head];

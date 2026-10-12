@@ -8,6 +8,7 @@
             [test-opener-withdrawal :as withdrawal]
             [test-native-context]
             [pr-flow.actionability :as actionability]
+            [pr-flow.law :as law]
             [nbb.core :refer [*file*]]))
 (def here (path/dirname *file*))
 (def the-flow (edn/read-string (fs/readFileSync (path/join here ".." "flow.edn") "utf8")))
@@ -62,9 +63,11 @@
         (fs/writeFileSync (path/join scripts ".." "flow.edn") (pr-str flow-data))
         (fs/mkdirSync (path/join tmp ".ημ") #js {:recursive true})
         (fs/writeFileSync (path/join tmp ".ημ" "receipts.edn")
-                          (or (:receipt-text config)
-                              (if (seq (:receipt-history config))
-                                (str (str/join "\n" (map pr-str (:receipt-history config))) "\n") "")))
+                          (if (:receipt-binary-base64 config)
+                            (js/Buffer.from (:receipt-binary-base64 config) "base64")
+                            (or (:receipt-text config)
+                                (if (seq (:receipt-history config))
+                                  (str (str/join "\n" (map pr-str (:receipt-history config))) "\n") ""))))
         (when (:observation-append-spy config)
           ;; Instrument only the copied CLI's existing append boundary. This
           ;; records invocations, including empty observations, before its
@@ -90,6 +93,10 @@
               (when-not (= 0 (.-status source)) (throw (ex-info "Immutable baseline unavailable" {})))
               (fs/writeFileSync (path/join scripts relative) (.-stdout source))))))
       (when (:testToken config) (aset env "GH_TOKEN" "fixture-token") (aset env "GITHUB_TOKEN" "fixture-token"))
+      ;; Only inert fixture values enter these real owned child environments.
+      (when (contains? config :testEnterpriseToken) (aset env "GH_ENTERPRISE_TOKEN" (:testEnterpriseToken config)))
+      (when (contains? config :testGithubEnterpriseToken) (aset env "GITHUB_ENTERPRISE_TOKEN" (:testGithubEnterpriseToken config)))
+      (when (contains? config :testGhHost) (aset env "GH_HOST" (:testGhHost config)))
       (fs/writeFileSync data (js/JSON.stringify (clj->js (dissoc config :flow-data))))
       (fs/copyFileSync (path/join here "fixture-gh.cjs") gh) (fs/chmodSync gh 493)
       (let [r (cp/spawnSync "nbb" (clj->js (into ["-cp" scripts (path/join scripts "pr.cljs")] args)) #js {:env env :encoding "utf8" :timeout 5000})
@@ -1907,5 +1914,216 @@
         (is (str/includes? (:out r) "gate: BLOCKED") (str label " " (:out r)))
         (is (empty? (writes r "merge")) label)
         (is (empty? (mutations r)) label)))))
+
+;; Resolver boundary controls use inert mock issue records around the complete
+;; captured Knoxx author context. They never authenticate or publish real P/A.
+(def resolution-fixture-user {:login "riatzukiza" :id 1 :node_id "U_fixture_operator" :type "User"})
+(defn resolution-fixture [s]
+  (let [t (informational/knoxx-pre-resolution-input s)
+        a (actionability/resolution-authorization (law/classify-thread t))
+        resolved (assoc-in s [:thread :isResolved] true)]
+    {:repo (get-in s [:repository :nameWithOwner]) :n (str (get-in s [:pr :number]))
+     :thread (:id t)
+     :expected (merge (select-keys a [:head :context-binding :proposal-id :assessment-id :channel])
+                      {:repo (get-in s [:repository :nameWithOwner])
+                       :repository-database-id (get-in s [:repository :databaseId])
+                       :pr-number (get-in s [:pr :number]) :thread-id (:id t)
+                       :root-comment-id (:root-comment-id t)})
+     :config (assoc base :flow-data the-flow :head (:head t) :comments (:issue-comments t)
+                         :viewerUser resolution-fixture-user :allowMutations true :testToken "fixture-token"
+                         :observation-append-spy true
+                         :resolveResponse {:data {:resolveReviewThread {:thread {:id (:id t) :isResolved true}}}}
+                         :threadPageResponses (mapv informational-response [s s resolved]))}))
+(defn resolution-execute [fixture config expected & flags]
+  (apply execute config "resolve-informational" (:repo fixture) (:n fixture) (:thread fixture) (pr-str expected) flags))
+(defn only-resolve? [r]
+  (let [m (mutations r)]
+    (and (= 1 (count m))
+         (str/includes? (str (:args (first m))) "resolveReviewThread")
+         (not (str/includes? (str (:args (first m))) "addPullRequestReviewThreadReply")))))
+
+(deftest resolve-only-preview-and-native-delta-custody
+  (doseq [s informational/knoxx-author-contexts]
+    (let [{:keys [config expected] :as f} (resolution-fixture s)
+          preview (resolution-execute f config expected)
+          applied (resolution-execute f config expected "--apply")
+          result (edn/read-string (:out applied))]
+      (is (= 0 (:exit preview)) (:err preview))
+      (is (= :eligible-preview (:status (edn/read-string (:out preview)))))
+      (is (empty? (mutations preview)))
+      (is (= "" (:receipts preview)))
+      (is (empty? (:observation-append-calls preview)))
+      (is (= 0 (:exit applied)) (:err applied))
+      (is (only-resolve? applied))
+      (is (not-any? :hasToken (:calls applied)))
+      (is (not-any? :hasGithubToken (:calls applied)))
+      (is (= :resolved-needs-fresh-assessment (:status result)))
+      (is (= resolution-fixture-user (dissoc (:actor result) :permission)))
+      (is (= :revoked (get-in result [:readback :disposition :status])))
+      (is (not= (:context-binding expected) (get-in result [:readback :context-binding])))
+      (is (true? (:requires-fresh-assessment? result)))
+      (is (= [false false false] (mapv result [:settlement-credit? :approval-credit? :round-credit?])))
+      (is (= [:qualified :revoked]
+             (mapv #(get-in % [:decisions 0 :status]) (observation-receipts applied))))
+      (is (empty? (writes applied "comment")))
+      (is (empty? (writes applied "merge"))))))
+
+(deftest resolve-only-strips-enterprise-auth-and-pins-github-host
+  (let [{:keys [config expected] :as f} (resolution-fixture (first informational/knoxx-author-contexts))]
+    (doseq [change [{:testEnterpriseToken "fixture-enterprise-token" :testGhHost "ghe.fixture.invalid"}
+                   {:testGithubEnterpriseToken "fixture-github-enterprise-token" :testGhHost "ghe.fixture.invalid"}
+                   {:testEnterpriseToken "fixture-enterprise-token"
+                    :testGithubEnterpriseToken "fixture-github-enterprise-token" :testGhHost "ghe.fixture.invalid"}
+                   {:testEnterpriseToken "" :testGithubEnterpriseToken "" :testGhHost "ghe.fixture.invalid"}
+                   {:testGhHost "ghe.fixture.invalid"}
+                   {:testGhHost "github.com"}]
+            flags [[] ["--apply"]]]
+      (let [r (apply resolution-execute f (merge config change) expected flags)
+            applied? (seq flags)]
+        (is (= 0 (:exit r)) (str change " " flags " " (:err r)))
+        (is (seq (:calls r)))
+        (is (not-any? :hasToken (:calls r)))
+        (is (not-any? :hasGithubToken (:calls r)))
+        (is (not-any? :hasEnterpriseToken (:calls r)))
+        (is (not-any? :hasGithubEnterpriseToken (:calls r)))
+        (is (every? #(= "github.com" (:ghHost %)) (:calls r)))
+        (is (some #(= ["api" "user"] (vec (take 2 (:args %)))) (:calls r)))
+        (is (some #(str/includes? (str (:args %)) "/collaborators/") (:calls r)))
+        (is (some #(= ["api" "graphql"] (vec (take 2 (:args %)))) (:calls r)))
+        (is (some #(str/includes? (str (:args %)) "/comments") (:calls r)))
+        (is (if applied? (only-resolve? r) (empty? (mutations r))))
+        (is (= (if applied? :resolved-needs-fresh-assessment :eligible-preview)
+               (:status (edn/read-string (:out r)))))
+        (is (empty? (writes r "comment")))
+        (is (empty? (writes r "merge")))))))
+
+(deftest ordinary-cli-retains-its-existing-enterprise-environment-and-auth-fallback
+  (let [r (execute (assoc base :testToken true :rejectCommentToken true
+                         :testEnterpriseToken "fixture-enterprise-token"
+                         :testGithubEnterpriseToken "fixture-github-enterprise-token"
+                         :testGhHost "ghe.fixture.invalid"
+                         :checks [{:name "laws" :state "SUCCESS" :required true}])
+                   "request" "riatzukiza/.agents" "8" "code" "--note" "inert Enterprise environment")
+        attempts (vec (writes r "comment"))]
+    (is (= 0 (:exit r)) (:err r))
+    (is (= 2 (count attempts)))
+    (is (= [true false] (mapv :hasToken attempts)))
+    (is (= [true false] (mapv :hasGithubToken attempts)))
+    (is (every? :hasEnterpriseToken (:calls r)))
+    (is (every? :hasGithubEnterpriseToken (:calls r)))
+    (is (every? #(= "ghe.fixture.invalid" (:ghHost %)) (:calls r)))
+    (is (= 1 (count (set (map :input attempts)))))))
+
+(deftest resolve-only-requires-exact-coordinates-and-no-extra-authority-fields
+  (let [{:keys [config expected] :as f} (resolution-fixture (first informational/knoxx-author-contexts))]
+    (doseq [[k value] [[:repo "other/repo"] [:repository-database-id 1] [:pr-number 1]
+                      [:head other] [:thread-id "PRRT_other"] [:root-comment-id 1]
+                      [:context-binding ["caller-forged"]] [:proposal-id 1] [:assessment-id 1]
+                      [:channel :pull-request-review] [:allowed? true]]]
+      (let [r (resolution-execute f config (assoc expected k value) "--apply")]
+        (is (= 1 (:exit r)) (str k " " (:err r)))
+        (is (empty? (mutations r)) (str k))))
+    (doseq [flags [["--apply" "--apply"] ["--force"]]]
+      (let [r (apply resolution-execute f config expected flags)]
+        (is (= 1 (:exit r)))
+        (is (empty? (mutations r)))))
+    (let [r (execute config "resolve-informational" (:repo f) (:n f) (:thread f)
+                     (str (pr-str expected) " nil") "--apply")]
+      (is (= 1 (:exit r)))
+      (is (empty? (mutations r))))))
+
+(deftest resolve-only-native-user-permission-and-complete-history
+  (let [{:keys [config expected] :as f} (resolution-fixture (first informational/knoxx-author-contexts))]
+    (doseq [change [{:authorized false} {:no-receipt-ledger true} {:receipt-directory true}
+                   {:receipt-text "{broken\n"} {:receipt-text "nil\n"}
+                   {:receipt-text "{:origin \"other\"}"}
+                   {:viewerUser (assoc resolution-fixture-user :type "Bot")}
+                   {:viewerUser (dissoc resolution-fixture-user :id)}
+                   {:viewerUser (dissoc resolution-fixture-user :node_id)}
+                   {:viewerUsers [resolution-fixture-user (assoc resolution-fixture-user :id 2)]}
+                   {:writerRoleAfterThreadReads "read"}
+                   {:historyChangeAtThreadRead 1}]]
+      (let [r (resolution-execute f (merge config change) expected "--apply")]
+        (is (= 1 (:exit r)) (str change " " (:err r)))
+        (is (empty? (mutations r)) (str change))))))
+
+(deftest resolve-only-fresh-context-and-canonical-assessor-refusal
+  (let [s (first informational/knoxx-author-contexts)
+        {:keys [config expected] :as f} (resolution-fixture s)]
+    (doseq [changed [(assoc-in s [:pr :headRefOid] other)
+                     (assoc-in s [:pr :state] "CLOSED")
+                     (assoc-in s [:pr :isDraft] true)
+                     (assoc-in s [:thread :isResolved] true)
+                     (assoc-in s [:thread :comments :pageInfo :hasNextPage] true)
+                     (assoc-in s [:thread :comments :nodes 0 :body] "Please fix this actual defect.")]]
+      (let [r (resolution-execute f (assoc config :threadPageResponses
+                                         (mapv informational-response [s changed])) expected "--apply")]
+        (is (= 1 (:exit r)) (:err r))
+        (is (empty? (mutations r)))))
+    (doseq [change [(assoc-in config [:comments 1 :user :type] "User")
+                   (assoc-in config [:comments 1 :user :id] 1)
+                   (assoc-in config [:comments 1 :user :node_id] "BOT_unconfigured")
+                   (assoc config :comments [])
+                   (assoc config :commentPageResponses [(:comments config) []])]]
+      (let [r (resolution-execute f change expected "--apply")]
+        (is (= 1 (:exit r)) (:err r))
+        (is (empty? (mutations r)))))))
+
+(deftest resolve-only-uncertain-post-readback-is-never-retried
+  (let [s (first informational/knoxx-author-contexts)
+        {:keys [config expected] :as f} (resolution-fixture s)]
+    (doseq [change [{:resolveExitCode 1}
+                   {:resolveResponse {:errors [{:message "fixture refusal"}]}}
+                   {:resolveResponse {:data {:resolveReviewThread {:thread {:id "PRRT_other" :isResolved true}}}}}
+                   {:threadPageResponses (mapv informational-response [s s s])}
+                   {:threadPageResponses [(informational-response s) (informational-response s) {:errors [{:message "fixture unavailable"}]}]}
+                   {:threadPageResponses (mapv informational-response
+                                              [s s (-> s (assoc-in [:thread :isResolved] true)
+                                                         (assoc-in [:thread :comments :nodes 0 :body] "Concurrent native change"))])}]]
+      (let [r (resolution-execute f (merge config change) expected "--apply")
+            result (edn/read-string (:out r))]
+        (is (= 3 (:exit r)) (str change " " (:err r)))
+        (is (only-resolve? r))
+        (is (= :uncertain-native-outcome (:status result)))
+        (is (true? (:requires-fresh-assessment? result)))
+        (is (not-any? :hasToken (:calls r)))
+        (is (not-any? :hasGithubToken (:calls r)))
+        (is (map? (get-in result [:post :command-result])))
+        (is (contains? (get-in result [:post :command-result]) :exit))
+        (is (empty? (writes r "comment")))
+        (is (empty? (writes r "merge")))))))
+
+(deftest resolve-only-edits-conflicts-and-source-withdrawal-remain-canonical
+  (let [s (first informational/knoxx-author-contexts)
+        {:keys [config expected] :as f} (resolution-fixture s)
+        t (informational/knoxx-pre-resolution-input s)
+        a (second (:issue-comments t))
+        withdrawn (informational/native-comment 7003 (:user a) "2026-10-11T01:02:00Z"
+                    (str "Actionability withdrawal v1 for " (:head t) ":\n"
+                         (pr-str (into (actionability/context-binding t)
+                                      [(:id a) (:body-sha256 a) "Withdraw this exact synthetic source."]))))]
+    (doseq [comments [(assoc (:comments config) 1 (assoc a :updated_at "2026-10-11T01:02:00Z"))
+                     (assoc (:comments config) 1 (informational/hash-body
+                        (assoc a :body (str "Actionability assessment v1 for " (:head t) ":\ninvalid"))))
+                     (conj (:comments config) withdrawn)]]
+      (let [r (resolution-execute f (assoc config :comments comments) expected "--apply")]
+        (is (= 1 (:exit r)) (:err r))
+        (is (empty? (mutations r)))))))
+
+(deftest resolve-only-full-history-byte-custody
+  (let [{:keys [config expected] :as f} (resolution-fixture (first informational/knoxx-author-contexts))
+        ;; Two actual byte vectors decode to the same UTF-8 replacement character.
+        ;; The unchanged complete decoder sees the same unrelated receipt, but
+        ;; resolver CAS must still detect a byte change before the POST.
+        prefix (js/Buffer.from "{:origin \"other\" :note \"" "utf8")
+        suffix (js/Buffer.from "\"}\n" "utf8")
+        receipt (fn [byte] (js/Buffer.concat #js [prefix (js/Buffer.from #js [byte]) suffix]))
+        a (receipt 255) b (receipt 254)
+        r (resolution-execute f (assoc config :receipt-binary-base64 (.toString a "base64")
+                                             :historyChangeAtThreadRead 1
+                                             :historyFirstReceiptReplacementBase64 (.toString b "base64")) expected "--apply")]
+    (is (= (.toString a "utf8") (.toString b "utf8")))
+    (is (= 1 (:exit r)) (:err r))
+    (is (empty? (mutations r)))))
 
 (run-tests 'test-cli 'test-native-context)
