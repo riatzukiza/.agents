@@ -19,6 +19,8 @@ Select, validate, or update model/provider configurations with authoritative pro
 - Target provider(s) and model(s).
 - Current provider configuration behavior in OpenCode.
 
+For OpenCode's anonymous free MiMo route, recover [the recorded no-key/tool-registration guidance](../../docs/notes/opencode-anonymous-mimo-routing.md) before investigating credentials. Discover the current eligible model from the installed client's refreshed catalog; do not treat a dated slug or upstream error as authority to change providers.
+
 ## Steps
 1. Confirm supported providers/models in OpenCode docs.
 2. Validate provider-specific constraints with upstream docs.

@@ -1,0 +1,18 @@
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+# Anonymous MiMo through OpenCode
+
+Recovered on 2026-10-12 from session `01a0fe9a-76ba-7db1-9538-fd709ddbc3b1` and the user's explicit correction. Consult this record before investigating provider credentials for OpenCode's free MiMo route.
+
+Use the current free fast MiMo model **through OpenCode's anonymous public provider**. This route needs no user-supplied provider credential. Do not infer that an upstream error requires an OpenRouter key, account change or paid route. The user reports IP-based free limits; current quota accounting and reset behavior must be observed separately.
+
+Model slugs change. Inspect the actual installed client and refresh its catalog with `opencode models opencode --refresh --verbose`. Select the current active, tool-capable, zero-cost MiMo Flash model for a fast text-review task. Preserve the exact native model ID, client version, effective profile, catalog and result. The observed October 12 ID was `opencode/mimo-v2.6-flash-free`; it is a dated observation, not a permanent default. Catalog eligibility and successful inference are separate facts. Respect any explicit role/model binding and existing retry contract.
+
+The October 2 session recorded a tool-registration failure: blanket `bash: deny` removed Bash from the reviewer request and triggered `free tier can only be used from within OpenCode`. Denying every command except the exact no-op `true` kept Bash registered. The patched reviewer succeeded twice in three tiny probes, with one generic upstream error; an attempted `touch PWNED` remained blocked and created no file. Preserve this restriction where the reviewed profile requires it; do not broaden shell authority. The backend's exact recognition logic was not established, and the complete effective tool set must be checked against the current runtime. On October 12, a profile exposing only Bash `true` still failed, while read/glob/grep/list plus `true` succeeded without supplied credentials.
+
+Keep failures distinct: tool-recognition `403 FreeTierError`, an actual quota response, and upstream `401 Invalid credential` are different observations. The prior session retracted its earlier CI-network explanation. An upstream credential error does not identify a user's key. Retain the real failure and repair only the established cause; a tiny answer supplies no full-review, native-approval or deployment credit.
+
+Historical source: [Muse PR17](https://github.com/octave-commons/muse/pull/17), `.ημ/config/opencode/agents/github-reviewer.md`, commit `05b4f1c5e5bf2297bccf113a56c17e246d769d47`; eta-mu consumer commit `cbe1b986`. Retained [run36979654351](https://github.com/open-hax/eta-mu/actions/runs/36979654351) completed the MiMo job and recorded `review_submit` returning `ok` on 2026-10-02 at 08:03:33 UTC, but its final deterministic gate failed.
+
+Local recovery: `/home/err/.codex/sessions/2026/10/02/rollout-2026-10-02T16-52-10-01a0fe9a-76ba-7db1-9538-fd709ddbc3b1.jsonl`, selected records272–316; sealed selection SHA256 `651f559c6f45cd5ab61015bff722236d5df15328f65f4a1c645c872843e82ae6`. Imported transcript timestamps are import times, not original probe times. The fuller dated observations are in `/home/err/spaces/foresight/docs/notes/opencode-free-mimo-routing.md`.
+
+This is a source-backed correction to provider documentation, not a new skill, promoted spore or automatic-memory database entry. Future harnesses discover it through the existing provider and model-routing skills.

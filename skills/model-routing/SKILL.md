@@ -36,6 +36,7 @@ Pick the agent whose role fits the task, respecting explicit model bindings and 
 
 ## Provider Availability and Failure Handling
 
+- For anonymous free MiMo through OpenCode, consult [the recovered routing memory](../../docs/notes/opencode-anonymous-mimo-routing.md). Use the refreshed catalog for the current fast model and preserve the effective tool-registration restrictions; an upstream failure alone does not establish a need for a provider key. This does not replace explicit role/model bindings above.
 - Availability is session-specific; verify the configured provider/model with a bounded live invocation rather than relying on dated auth or billing reports.
 - Wright, Architect, and Triage are bound to `openai/gpt-6.1-sol`. Their distinct roles are prompt contracts, not model performance or price tiers.
 - On failure, report the agent, configured provider/model, observed error, and any evidence-backed recovery step, then stop. Never substitute another provider/model automatically.
