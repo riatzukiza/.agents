@@ -604,3 +604,12 @@
   spore: none
   receipt-refs: e61a60e5-af66-4c3f-b250-daa9b50d4ca7
   note: Actual whole mocked CLI77/2000 and registered law145/3911, policy61/1554, focused7/178, portable1/16, inert1/7 and zero-warning lint on normal protected391 integration. Bare namespace zero-test invocation remains invalid. All protected events plus exact feature event preserved. Review source before adopter or native effects; no spore or promotion.
+- ts: 2026-10-12T00:34:34.331072466Z
+  session: /home/err/.local/share/openhax-codex/20261010/pr-flow-native-context
+  task: Compose native collector with protected prospective API and whole history decoder
+  p-efficiency: 0.82
+  p-friction: 0.48
+  p-skill-candidate: 0.51
+  spore: none
+  receipt-refs: 61339bcd98f72bf8842c00aa27f6688c98358f06ee24da85cc97069ef12645b9
+  note: Normal merge composes both extraction seams and both hosted law registrations. Preserve protectedledger prefixes plus exactowned appendtails through conflicts. ActualfullCLI77/2000 pluslaw151/4177/policy61/1554 andlint0/0; independent316checks no findings. Retain originaltimeout andwrongguessedlintpaths withoutqualification. Native currenthead reviews precede protectedadoption; no collector deployment, transportactivation, new spore or promotion.
