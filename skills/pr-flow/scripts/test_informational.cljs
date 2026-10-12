@@ -1110,3 +1110,125 @@
     (is (true? (:allowed? (decide (assoc c :actionability {:kind :finding})))))
     (is (false? (:allowed? (decide (assoc c :issue-comments [] :actionability {:kind :informational :status :qualified})))))
     (is (false? (:allowed? (decide (assoc c :actionability-source-withdrawals #{7002})))))))
+
+;; Publication fixtures use synthetic comments only. Prospective results carry
+;; no ID/time/URL/hash for an unposted assessment; actual readback remains separate.
+(defn publication-cases []
+  [(evidence (input (first captures)))
+   (knoxx-resolved-input (first knoxx-author-contexts))
+   (knoxx-pre-resolution-input (first knoxx-author-contexts))])
+(defn publication-input [t]
+  (law/classify-thread (assoc t :issue-comments [(first (:issue-comments t))])))
+(defn publish-body [t] (:body (second (:issue-comments t))))
+(defn publish-user [t] (:user (second (:issue-comments t))))
+(defn publish [t summary user]
+  (actionability/assessment-publication t summary user))
+
+(deftest prospective-body-is-bound-without-native-assessment-or-credit
+  (doseq [t (publication-cases)]
+    (let [c (publication-input t) p (first (:issue-comments t))
+          result (publish c (publish-body t) (publish-user t))]
+      (is (= {:eligible? true :body (publish-body t) :head (:head t)
+              :context-digest (:context-digest t) :context-binding (actionability/context-binding t)
+              :proposal-id (:id p) :proposal-body-sha256 (:body-sha256 p)
+              :expected-user (publish-user t) :created-after (:updated_at p)} result))
+      (is (= :finding (:kind (actionability/disposition c))))
+      (is (empty? (:observations (actionability/disposition c))))
+      (is (false? (:allowed? (actionability/resolution-authorization c))))
+      (is (not (:pass? (gate c))))
+      (is (not-any? #(contains? result %) [:assessment-id :created_at :updated_at :node_id
+                                          :html_url :body-sha256 :observations :status :qualified?]))
+      ;; Only a separately modeled actual native record can qualify disposition.
+      (let [posted (assoc c :issue-comments (:issue-comments t))]
+        (is (= :informational (:kind (actionability/disposition posted))))
+        (doseq [changed [(-> posted
+                             (assoc-in [:issue-comments 1 :created_at] (:updated_at p))
+                             (assoc-in [:issue-comments 1 :updated_at] (:updated_at p)))
+                         (assoc-in posted [:issue-comments 1 :updated_at] "2026-10-12T00:00:00Z")
+                         (assoc-in posted [:native-context :thread :isResolved] (not (:resolved? t)))]]
+          (is (= :finding (:kind (actionability/disposition changed)))))))))
+
+(deftest prospective-publication-denies-raw-malformed-and-partial-context
+  (doseq [t (publication-cases)]
+    (let [c (publication-input t) body (publish-body t) user (publish-user t)]
+      (doseq [bad [(assoc t :issue-comments [(first (:issue-comments t))])
+                   (dissoc c :actionability-source-withdrawals)
+                   (assoc c :actionability-source-withdrawals [])
+                   (assoc c :actionability-source-withdrawals #{nil})
+                   (assoc c :actionability-source-withdrawals #{0})
+                   (assoc c :actionability-source-withdrawals #{"7002"})
+                   (assoc c :actionability-observations nil)
+                   (assoc c :actionability-observations {})
+                   (assoc c :actionability-policy nil)
+                   (assoc c :actionability-policy 42)
+                   (dissoc c :native-context)
+                   (assoc c :head (apply str (repeat 40 "a")))
+                   (assoc c :resolved? (not (:resolved? c)))
+                   (assoc-in c [:native-context :thread :comments :pageInfo :hasNextPage] true)
+                   (assoc-in c [:native-context :thread :comments :totalCount] 0)
+                   (assoc-in c [:native-context :repository :id] "R_changed")
+                   (assoc-in c [:native-context :pr :id] "PR_changed")
+                   (assoc c :context-digest (apply str (repeat 64 "0")))]]
+        (is (false? (:eligible? (publish bad body user))))))
+    (let [c (publication-input t)]
+      ;; Forged disposition flags cannot manufacture the absent native proposal.
+      (is (false? (:eligible? (publish (assoc c :issue-comments [] :actionability {:kind :informational})
+                                      (publish-body t) (publish-user t))))))))
+
+(deftest prospective-summary-and-principal-use-existing-strict-protocol
+  (doseq [t (publication-cases)]
+    (let [c (publication-input t) body (publish-body t) user (publish-user t)
+          a (second (:issue-comments t))]
+      (doseq [bad [nil 42 "" (str body "\n") (str "> " body) (str "```\n" body "\n```")
+                   (str body "\n\n[github run](/open-hax/knoxx/actions/runs/1)")
+                   (str/replace body "assessment v1" "proposal v1")
+                   (str/replace body "\n[" "\n[ ")]]
+        (is (false? (:eligible? (publish c bad user)))))
+      (doseq [index (range 13)]
+        (let [bad (change-payload a #(assoc % index (if (= index 4) 999 "incorrect-bound-value")))]
+          (is (false? (:eligible? (publish c (:body bad) user))))))
+      (doseq [bad [nil {} (dissoc user :id) (dissoc user :node_id)
+                   (assoc user :type "User") (assoc user :id 1) (assoc user :node_id "BOT_other")
+                   (assoc user :login "lookalike[bot]") (assoc user :authorized? true)
+                   (assoc user :created_at "2026-10-12T00:00:00Z")]]
+        (is (false? (:eligible? (publish c body bad)))))
+      (let [author (get-in c [:native-context :pr :author])
+            proposer (first (:issue-comments c))]
+        (doseq [same [(assoc user :id (get-in proposer [:user :id]))
+                      (assoc user :node_id (:id author))]]
+          (let [tuple {:login (:login same) :id (:id same) :node-id (:node_id same)}
+                changed (assoc c :actionability-policy {:version 1 :status :provisional :identities #{tuple}})]
+            (is (false? (:eligible? (publish changed body same))))))))))
+
+(deftest prospective-publication-retains-latest-proposal-and-existing-conflicts
+  (doseq [t (publication-cases)]
+    (let [c (publication-input t) body (publish-body t) user (publish-user t)
+          p (first (:issue-comments c)) a (second (:issue-comments t))
+          late (assoc p :id 7010 :node_id "IC_synthetic_later" :created_at "2026-10-12T00:00:00Z"
+                        :updated_at "2026-10-12T00:00:00Z")]
+      (doseq [bad [(change-issue c 0 #(assoc % :updated_at "2026-10-12T00:00:00Z"))
+                   (change-issue c 0 #(assoc % :created_at "2026-10-01T00:00:00Z"
+                                                :updated_at "2026-10-01T00:00:00Z"))
+                   (assoc c :issue-comments [p (hash-body (update late :body str " malformed"))])
+                   (assoc c :issue-comments [p late])
+                   (assoc c :issue-comments [p p])
+                   (assoc c :issue-comments [p (hash-body (change-payload a #(assoc % 9 "finding")))])
+                   (assoc c :issue-comments [p (hash-body (update a :body str " malformed"))])
+                   (assoc c :issue-comments
+                          [p (hash-body (assoc a :body
+                                    (str "Actionability assessment v1 for " (:head t)
+                                         ":\n[\"actionability/v1\" \"R_other\"] malformed")))])
+                   (assoc c :issue-comments [p a] :actionability-source-withdrawals #{(:id a)})
+                   (assoc c :issue-comments [p a] :actionability-observations [{:status :revoked :assessment-id (:id a)}])]]
+        (is (false? (:eligible? (publish bad body user)))))
+      (let [qualified (first (:observations (actionability/disposition t)))
+            old-history (assoc c :actionability-observations [qualified])]
+        (is (:eligible? (publish old-history body user)))
+        (is (= [:revoked] (mapv :status (:observations (actionability/disposition old-history)))))
+        ;; A new prospective body never restores the withdrawn native source ID.
+        (let [revoked-history (assoc c :actionability-observations [(assoc qualified :status :revoked)])]
+          (is (:eligible? (publish revoked-history body user)))
+          (is (= :finding (:kind (actionability/disposition (assoc revoked-history :issue-comments [p a])))))
+          (let [fresh (assoc a :id 7011 :node_id "IC_synthetic_fresh")]
+            (is (= :informational (:kind (actionability/disposition
+                                          (assoc revoked-history :issue-comments [p fresh])))))))))))

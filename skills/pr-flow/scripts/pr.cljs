@@ -27,7 +27,7 @@
             ["fs" :as fs]
             ["path" :as path]
             [clojure.edn :as edn]
-            [edamame.core :as edamame]
+            [pr-flow.actionability-history :as actionability-history]
             [nbb.core :refer [*file*]]
             [clojure.string :as str]
             [pr-flow.flow :as flow]
@@ -79,28 +79,13 @@
 
 (defn- actionability-ledger [] (path/resolve here ".." ".." ".." ".ημ" "receipts.edn"))
 (defn- actionability-observations [repo-id]
-  ;; nil is unavailable, distinct from an existing valid empty ledger ([]).
-  ;; Read every complete record before using any history; never skip bad lines.
+  ;; Preserve the module-relative complete read and unavailable/empty boundary.
   (try
     (when-not (and (string? repo-id) (not (str/blank? repo-id)))
       (throw (ex-info "Native repository identity unavailable" {})))
     (let [file (actionability-ledger)]
-      (when (fs/existsSync file)
-        (vec (mapcat (fn [line]
-                       (let [forms (edamame/parse-string-all line)
-                             receipt (first forms)]
-                         (when-not (and (= 1 (count forms)) (map? receipt))
-                           (throw (ex-info "Invalid receipt record" {})))
-                         (when (= "pr-flow-actionability-observation" (:origin receipt))
-                           (when-not (and (or (nil? (:repo receipt)) (string? (:repo receipt)))
-                                          (vector? (:decisions receipt))
-                                          (every? #(and (map? %) (= :thread-actionability (:purpose %))
-                                                        (string? (:repo-id %)) (not (str/blank? (:repo-id %))))
-                                                  (:decisions receipt))
-                                          (<= (count (set (map :repo-id (:decisions receipt)))) 1))
-                             (throw (ex-info "Invalid actionability observation record" {})))
-                           (filterv #(= repo-id (:repo-id %)) (:decisions receipt)))))
-                     (remove str/blank? (str/split-lines (fs/readFileSync file "utf8")))))))
+      (actionability-history/observations
+        (when (fs/existsSync file) (fs/readFileSync file "utf8")) repo-id))
     (catch :default _ nil)))
 (defn- append-actionability-observations! [repo observations]
   (when (seq observations)

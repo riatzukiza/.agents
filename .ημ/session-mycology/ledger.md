@@ -586,6 +586,15 @@
   spore: none
   receipt-refs: native4240140866; qualification bb056ef5e24b0164c82086da54af632e93e31d984d6cd8e4237579d895bc6a69
   note: A negative gate assertion needs successful unrelated gates and exact reason checks. Old wrong key/rounds0 wiring produced3 meaningful failures with stronger controls; corrected actual settlement count/minimum rounds passes125/3305, while trusted test approval passes and removed writer blocks34items. Runtime law/doc/other9packinputs unchanged. Initial parser/path preparation errors retained separately; all historical ledgers preserved. No native successor approval, installed adoption, merge or deployment credit; no spore or promotion.
+- ts: 2026-10-11T23:35:12.769127855Z
+  session: /home/err/.local/share/openhax-codex/20261010/pr-flow-assessment-publication
+  task: Share canonical prospective assessment validation and complete-text history
+  p-efficiency: 0.74
+  p-friction: 0.61
+  p-skill-candidate: 0.64
+  spore: none
+  receipt-refs: 3711c786-bedd-4582-91da-c0c18b72b029
+  note: Factor the existing evaluator and validation-before-selection decoder; prospective output never invents actual native assessment identity or chronology. Preserve nil versus healthy empty history. Register new history controls in the real CI law runner and verify actual144/3999pluspolicy61/1554, with root wholemockCLI70/1822normal. Semantic input hashes remain stable while mechanical registration is separately qualified. Complete current history acquisition and principal/native publication are caller obligations. No spore or promotion.
 - ts: 2026-10-11T23:46:01.193229773Z
   session: /home/err/.local/share/openhax-codex/20261010/pr-flow-native-context
   task: Qualify native collector on reviewed pre-resolution main and register CI reachability
