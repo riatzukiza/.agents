@@ -93,6 +93,10 @@
               (when-not (= 0 (.-status source)) (throw (ex-info "Immutable baseline unavailable" {})))
               (fs/writeFileSync (path/join scripts relative) (.-stdout source))))))
       (when (:testToken config) (aset env "GH_TOKEN" "fixture-token") (aset env "GITHUB_TOKEN" "fixture-token"))
+      ;; Only inert fixture values enter these real owned child environments.
+      (when (contains? config :testEnterpriseToken) (aset env "GH_ENTERPRISE_TOKEN" (:testEnterpriseToken config)))
+      (when (contains? config :testGithubEnterpriseToken) (aset env "GITHUB_ENTERPRISE_TOKEN" (:testGithubEnterpriseToken config)))
+      (when (contains? config :testGhHost) (aset env "GH_HOST" (:testGhHost config)))
       (fs/writeFileSync data (js/JSON.stringify (clj->js (dissoc config :flow-data))))
       (fs/copyFileSync (path/join here "fixture-gh.cjs") gh) (fs/chmodSync gh 493)
       (let [r (cp/spawnSync "nbb" (clj->js (into ["-cp" scripts (path/join scripts "pr.cljs")] args)) #js {:env env :encoding "utf8" :timeout 5000})
@@ -1963,6 +1967,52 @@
              (mapv #(get-in % [:decisions 0 :status]) (observation-receipts applied))))
       (is (empty? (writes applied "comment")))
       (is (empty? (writes applied "merge"))))))
+
+(deftest resolve-only-strips-enterprise-auth-and-pins-github-host
+  (let [{:keys [config expected] :as f} (resolution-fixture (first informational/knoxx-author-contexts))]
+    (doseq [change [{:testEnterpriseToken "fixture-enterprise-token" :testGhHost "ghe.fixture.invalid"}
+                   {:testGithubEnterpriseToken "fixture-github-enterprise-token" :testGhHost "ghe.fixture.invalid"}
+                   {:testEnterpriseToken "fixture-enterprise-token"
+                    :testGithubEnterpriseToken "fixture-github-enterprise-token" :testGhHost "ghe.fixture.invalid"}
+                   {:testEnterpriseToken "" :testGithubEnterpriseToken "" :testGhHost "ghe.fixture.invalid"}
+                   {:testGhHost "ghe.fixture.invalid"}
+                   {:testGhHost "github.com"}]
+            flags [[] ["--apply"]]]
+      (let [r (apply resolution-execute f (merge config change) expected flags)
+            applied? (seq flags)]
+        (is (= 0 (:exit r)) (str change " " flags " " (:err r)))
+        (is (seq (:calls r)))
+        (is (not-any? :hasToken (:calls r)))
+        (is (not-any? :hasGithubToken (:calls r)))
+        (is (not-any? :hasEnterpriseToken (:calls r)))
+        (is (not-any? :hasGithubEnterpriseToken (:calls r)))
+        (is (every? #(= "github.com" (:ghHost %)) (:calls r)))
+        (is (some #(= ["api" "user"] (vec (take 2 (:args %)))) (:calls r)))
+        (is (some #(str/includes? (str (:args %)) "/collaborators/") (:calls r)))
+        (is (some #(= ["api" "graphql"] (vec (take 2 (:args %)))) (:calls r)))
+        (is (some #(str/includes? (str (:args %)) "/comments") (:calls r)))
+        (is (if applied? (only-resolve? r) (empty? (mutations r))))
+        (is (= (if applied? :resolved-needs-fresh-assessment :eligible-preview)
+               (:status (edn/read-string (:out r)))))
+        (is (empty? (writes r "comment")))
+        (is (empty? (writes r "merge")))))))
+
+(deftest ordinary-cli-retains-its-existing-enterprise-environment-and-auth-fallback
+  (let [r (execute (assoc base :testToken true :rejectCommentToken true
+                         :testEnterpriseToken "fixture-enterprise-token"
+                         :testGithubEnterpriseToken "fixture-github-enterprise-token"
+                         :testGhHost "ghe.fixture.invalid"
+                         :checks [{:name "laws" :state "SUCCESS" :required true}])
+                   "request" "riatzukiza/.agents" "8" "code" "--note" "inert Enterprise environment")
+        attempts (vec (writes r "comment"))]
+    (is (= 0 (:exit r)) (:err r))
+    (is (= 2 (count attempts)))
+    (is (= [true false] (mapv :hasToken attempts)))
+    (is (= [true false] (mapv :hasGithubToken attempts)))
+    (is (every? :hasEnterpriseToken (:calls r)))
+    (is (every? :hasGithubEnterpriseToken (:calls r)))
+    (is (every? #(= "ghe.fixture.invalid" (:ghHost %)) (:calls r)))
+    (is (= 1 (count (set (map :input attempts)))))))
 
 (deftest resolve-only-requires-exact-coordinates-and-no-extra-authority-fields
   (let [{:keys [config expected] :as f} (resolution-fixture (first informational/knoxx-author-contexts))]

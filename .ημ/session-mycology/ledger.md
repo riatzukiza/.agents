@@ -631,3 +631,12 @@
   spore: none
   receipt-refs: 051c80304233750f11a64e94f6f20095c8127e242277d5ab875ed9edbf0ad6d9
   note: Fresh protected source, complete fixture transports and raw byte history custody qualified separately from native assessment, protected adoption and operational permission; retain setup refusals and oversized readback correction. No spore promoted.
+- ts: 2026-10-12T08:18:13.956199345Z
+  session: /home/err/.local/share/openhax-codex/20261010/pr-flow-resolver-enterprise-qualification-25d-v1
+  task: Qualify canonical31 resolver fixed GitHub.com environment
+  p-efficiency: 0.72
+  p-friction: 0.40
+  p-skill-candidate: 0.20
+  spore: none
+  receipt-refs: 5acee5a2-b8af-495a-8473-09f1f3c38d41,6311d61ac26b9c391b132df603e3aa12e0f791aaae71d0a979b2547178c322ea
+  note: Focused inherited Enterprise token and host leakage reproduced22environment assertions and became green2tests188assertions; ordinary fallback remains healthy. Actual fullCLI90tests2472assertions law154/4251 policy61/1554 and lint syntax diff docs passed. All9 complete captures and14210 Node audits with0attempts preserve current25d source/index and global W X Y Z A. Exact4source repair and canonical event prepared for ordinary6path persistence. Native current-head reviews protected adoption and operational resolution remain pending. No spore or promotion.

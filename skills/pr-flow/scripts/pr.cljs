@@ -608,8 +608,15 @@
 
 ;; --- independently qualified informational resolution ---------------------
 ;; This route never changes the pure law or accepts supplied eligibility. One
-;; token-stripped/keyring gh environment is used for every read and the single
-;; possible POST. It has no auth fallback, reply, merge, or mutation retry.
+;; GitHub.com token-stripped/keyring gh environment is used for every read
+;; and the single possible POST. It has no auth fallback, reply, merge, or retry.
+
+(defn- resolution-environment []
+  (let [env (env-without-tokens)]
+    (js-delete env "GH_ENTERPRISE_TOKEN")
+    (js-delete env "GITHUB_ENTERPRISE_TOKEN")
+    (aset env "GH_HOST" "github.com")
+    env))
 
 (defn- resolution-value [r]
   (when-not (= 0 (:exit r))
@@ -735,7 +742,7 @@
                    (vector? (:context-binding expected)) (= 7 (count (:context-binding expected)))
                    (= :github-issue-comment (:channel expected)))
       (throw (ex-info "Resolve-only requires one exact native target/binding map and optional --apply" {})))
-    (let [env (env-without-tokens)
+    (let [env (resolution-environment)
           actor (resolution-writer env repo)
           initial (collect-resolution env repo n expected)
           _ (require-resolution-binding! initial expected)

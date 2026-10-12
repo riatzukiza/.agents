@@ -6,7 +6,7 @@ const statePath = `${process.env.PR_FLOW_TEST_DATA}.state`;
 let state = fs.existsSync(statePath) ? JSON.parse(fs.readFileSync(statePath, 'utf8')) : {heads: 0};
 const args = process.argv.slice(2);
 const input = fs.readFileSync(0, 'utf8');
-fs.appendFileSync(`${process.env.PR_FLOW_TEST_DATA}.calls`, `${JSON.stringify({args, input, hasToken: !!process.env.GH_TOKEN, hasGithubToken: !!process.env.GITHUB_TOKEN})}\n`);
+fs.appendFileSync(`${process.env.PR_FLOW_TEST_DATA}.calls`, `${JSON.stringify({args, input, hasToken: !!process.env.GH_TOKEN, hasGithubToken: !!process.env.GITHUB_TOKEN, hasEnterpriseToken: Object.hasOwn(process.env, 'GH_ENTERPRISE_TOKEN'), hasGithubEnterpriseToken: Object.hasOwn(process.env, 'GITHUB_ENTERPRISE_TOKEN'), ghHost: process.env.GH_HOST ?? null})}\n`);
 const out = x => process.stdout.write(typeof x === 'string' ? x : JSON.stringify(x));
 const persist = () => fs.writeFileSync(statePath, JSON.stringify(state));
 if (args[0] === 'api' && Object.hasOwn(config.apiResponses || {}, args[1])) {

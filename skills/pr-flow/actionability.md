@@ -280,10 +280,14 @@ is one canonical `pr-str` EDN map (or `-` for stdin) containing exactly
 `:channel`. These are comparison coordinates from actual qualified native
 evidence; supplied booleans, withdrawal sets or classifications are refused.
 
-The route creates one token-stripped/keyring `gh` environment and uses it for
+The route creates one GitHub.com keyring `gh` environment and uses it for
 identity, repository permissions, complete collector reads, the one optional
-resolution POST and readback. A native REST `User` with exact login, numeric ID,
-node ID and writer role operates the adapter. That User is not an assessor.
+resolution POST and readback. This resolver removes `GH_TOKEN`, `GITHUB_TOKEN`,
+`GH_ENTERPRISE_TOKEN` and `GITHUB_ENTERPRISE_TOKEN`, and fixes `GH_HOST` to
+`github.com`; inherited Enterprise credentials or a host override cannot
+redirect its native evidence or mutation. The ordinary CLI authentication and
+fallback path retain their existing environment behavior. A native REST `User`
+with exact login, numeric ID, node ID and writer role operates the adapter. That User is not an assessor.
 The unchanged classifier and actionability law independently verify the
 configured native Bot assessor and its current whole-context issue assessment.
 The existing structural selector requires a complete, open, nondraft, exact
