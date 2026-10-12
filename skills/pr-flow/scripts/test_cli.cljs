@@ -6,6 +6,7 @@
             [test-issue-agreement :as native]
             [test-informational :as informational]
             [test-opener-withdrawal :as withdrawal]
+            [test-native-context]
             [pr-flow.actionability :as actionability]
             [nbb.core :refer [*file*]]))
 (def here (path/dirname *file*))
@@ -64,6 +65,19 @@
                           (or (:receipt-text config)
                               (if (seq (:receipt-history config))
                                 (str (str/join "\n" (map pr-str (:receipt-history config))) "\n") "")))
+        (when (:observation-append-spy config)
+          ;; Instrument only the copied CLI's existing append boundary. This
+          ;; records invocations, including empty observations, before its
+          ;; unchanged seq guard; no operational checkout is imported or edited.
+          (let [file (path/join scripts "pr.cljs") source (fs/readFileSync file "utf8")
+                needle "(defn- append-actionability-observations! [repo observations]\n"
+                at (str/index-of source needle)]
+            (when-not (and (some? at) (= at (str/last-index-of source needle)))
+              (throw (ex-info "Copied CLI append boundary is not unique" {})))
+            (fs/writeFileSync file
+              (str/replace source needle
+                (str needle "  (fs/appendFileSync (str (aget js/process.env \"PR_FLOW_TEST_DATA\") \".observation-calls\")\n"
+                            "    (str (pr-str {:repo repo :observations observations}) \"\\n\"))\n")))))
         (when (:no-receipt-ledger config) (fs/unlinkSync (path/join tmp ".ημ" "receipts.edn")))
         (when (:receipt-directory config)
           (fs/unlinkSync (path/join tmp ".ημ" "receipts.edn"))
@@ -79,11 +93,13 @@
       (fs/writeFileSync data (js/JSON.stringify (clj->js (dissoc config :flow-data))))
       (fs/copyFileSync (path/join here "fixture-gh.cjs") gh) (fs/chmodSync gh 493)
       (let [r (cp/spawnSync "nbb" (clj->js (into ["-cp" scripts (path/join scripts "pr.cljs")] args)) #js {:env env :encoding "utf8" :timeout 5000})
-            calls-path (str data ".calls")
+            calls-path (str data ".calls") observation-calls-path (str data ".observation-calls")
             calls (if (fs/existsSync calls-path)
                     (mapv #(js->clj (js/JSON.parse %) :keywordize-keys true)
                           (remove str/blank? (str/split-lines (fs/readFileSync calls-path "utf8")))) [])]
         {:exit (.-status r) :out (str (.-stdout r)) :err (str (.-stderr r)) :calls calls
+         :observation-append-calls (if (fs/existsSync observation-calls-path)
+                                     (mapv edn/read-string (remove str/blank? (str/split-lines (fs/readFileSync observation-calls-path "utf8")))) [])
          :receipts (when (and (fs/existsSync (path/join tmp ".ημ" "receipts.edn"))
                              (.isFile (fs/statSync (path/join tmp ".ημ" "receipts.edn"))))
                      (fs/readFileSync (path/join tmp ".ημ" "receipts.edn") "utf8"))})
@@ -1037,6 +1053,28 @@
                                (observation-receipts r)))))
         (when (seq text) (is (= text (:receipts r)) "Existing healthy observation is not duplicated"))))))
 
+(deftest unavailable-history-never-invokes-the-cli-append-boundary
+  (let [s (first informational/captures)
+        repo (get-in s [:repository :nameWithOwner]) n (str (get-in s [:pr :number]))
+        config (assoc (informational-config s) :observation-append-spy true)
+        broken "{broken\n"
+        unavailable (execute (assoc config :receipt-text broken) "threads" repo n "--all")
+        empty-history (execute (assoc config :receipt-text "") "threads" repo n "--all")]
+    (is (= 0 (:exit unavailable)) (:err unavailable))
+    (is (str/includes? (:out unavailable) "actionability: finding unavailable"))
+    (is (= [] (:observation-append-calls unavailable))
+        "Unavailable history must not invoke the actual append boundary, even with empty derived observations")
+    (is (= broken (:receipts unavailable)))
+    (is (empty? (mutations unavailable)))
+    (is (empty? (writes unavailable "comment")))
+    (is (= 0 (:exit empty-history)) (:err empty-history))
+    (is (= 1 (count (:observation-append-calls empty-history))))
+    (is (= repo (:repo (first (:observation-append-calls empty-history)))))
+    (is (seq (:observations (first (:observation-append-calls empty-history)))))
+    (is (= 1 (count (observation-receipts empty-history))))
+    (is (empty? (mutations empty-history)))
+    (is (empty? (writes empty-history "comment")))))
+
 (deftest default-flow-cli-runs-own-a-temporary-observation-ledger
   (let [s (first informational/captures)
         t (informational/evidence (informational/input s))
@@ -1870,4 +1908,4 @@
         (is (empty? (writes r "merge")) label)
         (is (empty? (mutations r)) label)))))
 
-(run-tests)
+(run-tests 'test-cli 'test-native-context)

@@ -26,13 +26,13 @@
   (:require ["child_process" :as cp]
             ["fs" :as fs]
             ["path" :as path]
-            ["crypto" :as crypto]
             [clojure.edn :as edn]
             [pr-flow.actionability-history :as actionability-history]
             [nbb.core :refer [*file*]]
             [clojure.string :as str]
             [pr-flow.flow :as flow]
-            [pr-flow.actionability :as actionability]
+            [pr-flow.native-context :as native-context]
+            [pr-flow.permissions :as permissions]
             [pr-flow.kimi-native :as kimi-native]
             [pr-flow.law :as law]))
 
@@ -75,32 +75,7 @@
 (defn gh-pages [endpoint]
   (mapcat identity (gh-json "api" endpoint "--paginate" "--slurp")))
 
-(defn- split-repo [repo]
-  (let [[owner name] (str/split repo #"/")]
-    (when-not (and owner name) (throw (ex-info "REPO must be owner/name" {:repo repo})))
-    [owner name]))
-
 ;; --- reads ----------------------------------------------------------------
-
-(def ^:private threads-query
-  "query($owner:String!,$name:String!,$n:Int!,$after:String){repository(owner:$owner,name:$name){id databaseId nameWithOwner pullRequest(number:$n){
-     id number state isDraft headRefOid author{login __typename ... on User{id databaseId}}
-     reviewThreads(first:100,after:$after){pageInfo{hasNextPage endCursor}
-       nodes{id isResolved isOutdated path line
-         comments(first:100){totalCount pageInfo{hasNextPage} nodes{id databaseId author{login __typename ... on User{id databaseId}}
-           body diffHunk url createdAt updatedAt commit{oid} originalCommit{oid}
-           pullRequestReview{id databaseId state body updatedAt commit{oid} author{login __typename ... on User{id databaseId}}}}}}}}}}")
-
-(defn- sha256 [s]
-  (when (string? s) (.digest (.update (crypto/createHash "sha256") s "utf8") "hex")))
-(defn- hash-body [c] (assoc c :body-sha256 (sha256 (:body c))))
-(defn hydrate-actionability-context [repository pr thread]
-  (let [context {:repository repository :pr (dissoc pr :reviewThreads :native-repository)
-                 :thread (update-in thread [:comments :nodes]
-                                    #(mapv (fn [c] (-> (hash-body c) (assoc :diff-sha256 (sha256 (:diffHunk c)))
-                                                       (update :pullRequestReview hash-body))) %))}
-        manifest (actionability/context-manifest context)]
-    {:native-context context :context-manifest manifest :context-digest (sha256 (pr-str manifest))}))
 
 (defn- actionability-ledger [] (path/resolve here ".." ".." ".." ".ημ" "receipts.edn"))
 (defn- actionability-observations [repo-id]
@@ -127,84 +102,35 @@
                         :decisions [o] :note "Observed disposition is not settlement, approval, coverage, or round credit."}) "\n"))))))
 
 (defn- fetch-issue-comments [repo n]
-  (let [pages (gh-json "api" (str "repos/" repo "/issues/" n "/comments") "--paginate" "--slurp")]
-    (when-not (and (vector? pages) (seq pages) (every? vector? pages)
-                   (every? #(and (map? %) (string? (:body %))) (mapcat identity pages)))
-      (throw (ex-info "Invalid PR issue-comment page; cannot establish complete native evidence" {:repo repo :pr n})))
-    (vec (mapcat identity pages))))
-
-(defn- thread-connection? [conn cursor-required?]
-  (let [page (:pageInfo conn)]
-    (and (map? conn) (vector? (:nodes conn)) (map? page)
-         (boolean? (:hasNextPage page))
-         (or (not cursor-required?) (not (:hasNextPage page))
-             (and (string? (:endCursor page)) (not (str/blank? (:endCursor page))))))))
-
-(defn- threads-page [owner name n after]
-  (let [args (cond-> ["api" "graphql" "-f" (str "query=" threads-query)
-                      "-f" (str "owner=" owner) "-f" (str "name=" name) "-F" (str "n=" n)]
-               after (into ["-f" (str "after=" after)]))
-        response (apply gh-json args)
-        pr (get-in response [:data :repository :pullRequest])
-        conn (:reviewThreads pr)]
-    ;; gh normally exits nonzero on GraphQL errors, including HTTP 200. Also
-    ;; validate decoded successes: null/partial data is never zero threads.
-    (when-not (and (not (seq (:errors response)))
-                   (map? pr) (boolean? (:isDraft pr))
-                   (thread-connection? conn true)
-                   (not (and (:hasNextPage (:pageInfo conn)) (= after (:endCursor (:pageInfo conn)))))
-                   (every? #(thread-connection? (:comments %) false) (:nodes conn)))
-      (throw (ex-info "Invalid GraphQL review-thread page; cannot establish complete thread evidence"
-                      {:owner owner :repo name :pr n :after after})))
-    (assoc pr :native-repository (dissoc (get-in response [:data :repository]) :pullRequest))))
+  (native-context/fetch-issue-comments gh-json repo n))
 
 (declare authorized-author? reviewer-identities load-flow)
 
 (defn fetch-threads
-  "All review threads, following reviewThreads pagination. A thread whose
-   comments exceed one page marks the result :incomplete? so the gate fails
-   closed instead of judging a partial conversation. Native PR issue-comment
-   context is collected completely or supplied by the same approval snapshot."
+  "Collect native inputs, then retain canonical classification and observations.
+   Incomplete nested comment pages still fail the gate closed. Native issue
+   records may be supplied by the same approval snapshot."
   ([repo n] (fetch-threads repo n (fetch-issue-comments repo n)))
   ([repo n issue-comments]
-  (let [[owner name] (split-repo repo)
-        authorized? (memoize (partial authorized-author? repo))
-        issue-comments (mapv #(cond-> (assoc (hash-body %) :source-channel :github-issue-comment)
-                               (= "User" (get-in % [:user :type]))
-                               (assoc :authorized? (boolean (authorized? (get-in % [:user :login]))))) issue-comments)
-        policy (get-in (load-flow) [:flow/defaults :review/actionability])]
-    (loop [after nil acc [] draft? nil]
-      (let [pr (threads-page owner name n after)
-            conn (:reviewThreads pr)
-            acc (into acc (:nodes conn))]
-        (if (get-in conn [:pageInfo :hasNextPage])
-          (recur (get-in conn [:pageInfo :endCursor]) acc (:isDraft pr))
-          (let [history (actionability-observations (get-in pr [:native-repository :id]))
-                threads (mapv (fn [t]
-                               (law/classify-thread
-                                (merge (hydrate-actionability-context (:native-repository pr) pr t)
-                                 {:id (:id t) :resolved? (:isResolved t) :outdated? (:isOutdated t)
-                                  :path (:path t) :line (:line t)
-                                  :head (:headRefOid pr) :pr-author (get-in pr [:author :login])
-                                  :actionability-policy policy :actionability-observations history
-                                  :identities (reviewer-identities)
-                                  :root-comment-id (get-in t [:comments :nodes 0 :databaseId])
-                                  :issue-comments issue-comments
-                                  :comments (mapv (fn [c] {:id (:databaseId c) :author (get-in c [:author :login]) :body (:body c)
-                                                           :user {:login (get-in c [:author :login]) :type (get-in c [:author :__typename])}
-                                                           :authorized? (boolean (authorized? (get-in c [:author :login])))
-                                                           :url (:url c) :created-at (:createdAt c) :updated-at (:updatedAt c)})
-                                                  (get-in t [:comments :nodes]))}))) acc)
-                observations (vec (distinct (mapcat #(get-in % [:actionability :observations]) threads)))
-                _ (append-actionability-observations! repo observations)
-                history (when (some? history) (into history observations))]
-           {:draft? (if (nil? draft?) (:isDraft pr) draft?)
-           :head (:headRefOid pr) :pr-author (get-in pr [:author :login])
-           :actionability-history-available? (some? history)
-           :incomplete? (boolean (some #(get-in % [:comments :pageInfo :hasNextPage]) acc))
-           ;; Normalize our own append before snapshot comparison. Native raw
-           ;; records remain unchanged; a subsequent actual mutation still blocks.
-           :threads (mapv #(law/classify-thread (assoc % :actionability-observations history)) threads)})))))))
+   (let [collected (native-context/collect-context
+                    {:read-json gh-json :authorized-author? authorized-author?
+                     :read-history actionability-observations} repo n issue-comments)
+         history (:history collected)
+         policy (get-in (load-flow) [:flow/defaults :review/actionability])
+         identities (reviewer-identities)
+         threads (mapv #(law/classify-thread
+                          (assoc % :actionability-policy policy
+                                   :actionability-observations history :identities identities))
+                       (:threads collected))
+         observations (vec (distinct (mapcat #(get-in % [:actionability :observations]) threads)))
+         _ (when (some? history)
+             (append-actionability-observations! repo observations))
+         history (when (some? history) (into history observations))]
+     (assoc (select-keys collected [:draft? :head :pr-author :incomplete?])
+            :actionability-history-available? (some? history)
+            ;; Normalize our own append before snapshot comparison. Native raw
+            ;; records remain unchanged; a subsequent actual mutation still blocks.
+            :threads (mapv #(law/classify-thread (assoc % :actionability-observations history)) threads)))))
 
 (declare load-flow)
 
@@ -357,7 +283,7 @@
 (defn- authorized-author? [repo login]
   (when (and login (not (law/bot? login)))
     (try
-      (#{"admin" "maintain" "write"} (:permission (gh-json "api" (str "repos/" repo "/collaborators/" login "/permission"))))
+      (permissions/writer-role? (:permission (gh-json "api" (str "repos/" repo "/collaborators/" login "/permission"))))
       (catch :default e
         (if (re-find #"HTTP 404|Not Found" (ex-message e)) false (throw e))))))
 

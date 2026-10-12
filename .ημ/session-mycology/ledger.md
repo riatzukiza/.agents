@@ -595,3 +595,30 @@
   spore: none
   receipt-refs: 3711c786-bedd-4582-91da-c0c18b72b029
   note: Factor the existing evaluator and validation-before-selection decoder; prospective output never invents actual native assessment identity or chronology. Preserve nil versus healthy empty history. Register new history controls in the real CI law runner and verify actual144/3999pluspolicy61/1554, with root wholemockCLI70/1822normal. Semantic input hashes remain stable while mechanical registration is separately qualified. Complete current history acquisition and principal/native publication are caller obligations. No spore or promotion.
+- ts: 2026-10-11T23:46:01.193229773Z
+  session: /home/err/.local/share/openhax-codex/20261010/pr-flow-native-context
+  task: Qualify native collector on reviewed pre-resolution main and register CI reachability
+  p-efficiency: 0.72
+  p-friction: 0.62
+  p-skill-candidate: 0.65
+  spore: none
+  receipt-refs: e61a60e5-af66-4c3f-b250-daa9b50d4ca7
+  note: Actual whole mocked CLI77/2000 and registered law145/3911, policy61/1554, focused7/178, portable1/16, inert1/7 and zero-warning lint on normal protected391 integration. Bare namespace zero-test invocation remains invalid. All protected events plus exact feature event preserved. Review source before adopter or native effects; no spore or promotion.
+- ts: 2026-10-12T00:34:34.331072466Z
+  session: /home/err/.local/share/openhax-codex/20261010/pr-flow-native-context
+  task: Compose native collector with protected prospective API and whole history decoder
+  p-efficiency: 0.82
+  p-friction: 0.48
+  p-skill-candidate: 0.51
+  spore: none
+  receipt-refs: 61339bcd98f72bf8842c00aa27f6688c98358f06ee24da85cc97069ef12645b9
+  note: Normal merge composes both extraction seams and both hosted law registrations. Preserve protectedledger prefixes plus exactowned appendtails through conflicts. ActualfullCLI77/2000 pluslaw151/4177/policy61/1554 andlint0/0; independent316checks no findings. Retain originaltimeout andwrongguessedlintpaths withoutqualification. Native currenthead reviews precede protectedadoption; no collector deployment, transportactivation, new spore or promotion.
+- ts: 2026-10-12T01:51:05.075460298Z
+  session: /home/err/.local/share/openhax-codex/20261010/pr-flow-native-context
+  task: Bind paginated native context and unavailable history boundaries
+  p-efficiency: 0.8
+  p-friction: 0.45
+  p-skill-candidate: 0.4
+  spore: none
+  receipt-refs: 129da2635939fe904ecdbb45f58664425ffcad50a13c452464b457905e7aec1d
+  note: A pagination snapshot check must bind each page before accumulation. Boundary instrumentation can prove an unwanted invocation without proving a physical write; preserve that distinction in receipts and PR prose. Pair exact predecessor/candidate source copies with one focused control per concrete contract, preserve original helper guards, and record complete output/cleanup custody before ordinary protected publication. No native/model/adoption/deployment credit; no spore or promotion.
