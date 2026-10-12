@@ -150,13 +150,13 @@
   (and (string? reason) (<= 40 (count (str/trim reason)))
        (string? evidence) (boolean (re-find #"https?://\S+|[a-zA-Z0-9_.-]+\.(?:cljc?|cljs|[cm]?js|md|edn|json|ya?ml|tsx?|py|sh)" evidence))))
 
-(defn disposition
-  "Default finding. Only the separate provisional policy and complete native
-   binding qualify informational status; supplied classification flags do not.
-   Observations are immutable facts for Receipt River, not GitHub settlements."
+(defn- assessment-payload? [v ps]
+  (and (= 13 (count v)) (= [(:id ps) (:body-sha256 ps)] (subvec v 7 9))
+       (= ["informational" "complete-context/no-defect/no-request/no-question"] (subvec v 9 11))
+       (details? (nth v 11) (nth v 12))))
+
+(defn- evaluation
   [{:keys [issue-comments actionability-policy actionability-observations actionability-source-withdrawals] :as t}]
-  (if-not (vector? actionability-observations)
-    {:kind :finding :status :unavailable :context-digest (:context-digest t) :observations []}
   (let [actionability-policy (assessor-policy actionability-policy (get-in t [:native-context :repository]))
         records (keep protocol issue-comments)
         scoped (filter #(scoped? % t) records)
@@ -186,9 +186,7 @@
                                                (pos? (compare (get-in r [:source :updated_at]) (:created_at source))))) scoped))))
         valid (filter (fn [r]
                         (let [v (:payload r) c (:source r)]
-                          (and proposal-ok? (native? c) (= 13 (count v)) (= [(:id ps) (:body-sha256 ps)] (subvec v 7 9))
-                               (= ["informational" "complete-context/no-defect/no-request/no-question"] (subvec v 9 11))
-                               (details? (nth v 11) (nth v 12))
+                          (and proposal-ok? (native? c) (assessment-payload? v ps)
                                (pos? (compare (:created_at c) (:updated_at ps)))
                                (not= (get-in c [:user :id]) (get-in ps [:user :id]))
                                (not= (get-in c [:user :node_id]) (get-in t [:native-context :pr :author :id]))
@@ -207,7 +205,19 @@
                                  (and ps (not (neg? (compare (get-in % [:source :created_at]) (:created_at ps))))
                                       (not (some #{%} valid)))) assessments))
         withdrawn? (some source-withdrawn? assessments)
-        qualified? (and (context-valid? t) proposal-ok? a (not conflict?))
+        qualified? (and (context-valid? t) proposal-ok? a (not conflict?))]
+    {:policy actionability-policy :p p :ps ps :proposal-ok? proposal-ok?
+     :scoped scoped :assessments assessments :revoked revoked :valid valid
+     :a a :as as :conflict? conflict? :withdrawn? withdrawn? :qualified? qualified?}))
+
+(defn disposition
+  "Default finding. Only the separate provisional policy and complete native
+   binding qualify informational status; supplied classification flags do not.
+   Observations are immutable facts for Receipt River, not GitHub settlements."
+  [{:keys [actionability-observations] :as t}]
+  (if-not (vector? actionability-observations)
+    {:kind :finding :status :unavailable :context-digest (:context-digest t) :observations []}
+  (let [{:keys [ps scoped revoked valid a as conflict? withdrawn? qualified?]} (evaluation t)
         observation (fn [r]
                       (let [source (:source r)]
                         {:purpose :thread-actionability :repo-id (get-in t [:native-context :repository :id])
@@ -257,3 +267,50 @@
           {:allowed? true :head (:head t) :context-binding (context-binding t)
            :proposal-id (:proposal-id d) :assessment-id (:assessment-id d) :channel (:channel d)}
           denied)))))
+
+(defn assessment-publication
+  "Prospective two-line body eligibility, never native evidence or actor permission.
+   Require fresh canonical classification/withdrawals and complete history. The
+   host must authenticate its App, POST only this body, then recollect actual
+   metadata and use unchanged disposition before any later resolution."
+  [t accepted-summary prospective-user]
+  (let [denied (fn [reason] {:eligible? false :reason reason})]
+    (cond
+      (not (and (map? t) (set? (:actionability-source-withdrawals t))
+                (every? positive-id? (:actionability-source-withdrawals t))))
+      (denied :unclassified-context)
+
+      (not (vector? (:actionability-observations t)))
+      (denied :unavailable-history)
+
+      (not (map? (:actionability-policy t)))
+      (denied :ineligible-principal)
+
+      :else
+      (let [{:keys [policy ps proposal-ok? conflict?]} (evaluation t)
+            parsed (when (string? accepted-summary) (protocol {:body accepted-summary}))
+            v (:payload parsed)
+            principal {:user prospective-user}
+            body (when (and (= :assessment (:kind parsed)) (= (:head t) (:head parsed))
+                            (= (context-binding t) (vec (take 7 v)))
+                            (assessment-payload? v ps))
+                   (str "Actionability assessment v1 for " (:head t) ":\n"
+                        (pr-str (into (context-binding t)
+                                      [(:id ps) (:body-sha256 ps) "informational"
+                                       "complete-context/no-defect/no-request/no-question"
+                                       (nth v 11) (nth v 12)]))))]
+        (cond
+          (not (context-valid? t)) (denied :invalid-context)
+          (not proposal-ok?) (denied :invalid-latest-proposal)
+          conflict? (denied :conflicting-native-evidence)
+          (not (and (map? prospective-user)
+                    (= #{:login :id :node_id :type} (set (keys prospective-user)))
+                    (assessor-identity? principal policy)
+                    (not= (:id prospective-user) (get-in ps [:user :id]))
+                    (not= (:node_id prospective-user) (get-in t [:native-context :pr :author :id]))))
+          (denied :ineligible-principal)
+          (or (nil? body) (not= accepted-summary body)) (denied :invalid-summary)
+          :else {:eligible? true :body body :head (:head t) :context-digest (:context-digest t)
+                 :context-binding (context-binding t) :proposal-id (:id ps)
+                 :proposal-body-sha256 (:body-sha256 ps) :expected-user prospective-user
+                 :created-after (:updated_at ps)})))))
