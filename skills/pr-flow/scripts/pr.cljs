@@ -14,6 +14,9 @@
 ;;   settle  REPO PR THREAD-ID BODY
 ;;                              reply to a thread, then resolve it; BODY must open with
 ;;                              Fixed|Deferred|Rejected|Handled (or "-" to read stdin)
+;;   resolve-informational REPO PR THREAD EXPECTED [--apply]
+;;                              fixed-auth native User + canonical independent Bot evidence;
+;;                              one resolve POST, no reply, fresh readback/assessment required
 ;;   flow [STATE]               validate flow.edn; print the states, or one state's skill, exit and next states
 ;;   gate    REPO PR [--apply] [--method merge|squash|rebase] [--reviewers coderabbit,codex]   (default merge: the user wants merge commits)
 ;;                              evaluate the merge gate; with --apply and a pass, mark ready + enable auto-merge
@@ -28,10 +31,12 @@
             ["path" :as path]
             [clojure.edn :as edn]
             [pr-flow.actionability-history :as actionability-history]
+            [pr-flow.actionability :as actionability]
             [nbb.core :refer [*file*]]
             [clojure.string :as str]
             [pr-flow.flow :as flow]
             [pr-flow.native-context :as native-context]
+            [pr-flow.native-context-law :as native-context-law]
             [pr-flow.permissions :as permissions]
             [pr-flow.kimi-native :as kimi-native]
             [pr-flow.law :as law]))
@@ -601,6 +606,185 @@
                         reviewers)))]
     (law/required-reviewers-for (:flow/defaults (load-flow)) repo requested)))
 
+;; --- independently qualified informational resolution ---------------------
+;; This route never changes the pure law or accepts supplied eligibility. One
+;; token-stripped/keyring gh environment is used for every read and the single
+;; possible POST. It has no auth fallback, reply, merge, or mutation retry.
+
+(defn- resolution-value [r]
+  (when-not (= 0 (:exit r))
+    (throw (ex-info "Resolve-only native command failed" {:command-result r})))
+  (let [value (try (js->clj (js/JSON.parse (:out r)) :keywordize-keys true)
+                   (catch :default _
+                     (throw (ex-info "Resolve-only native JSON unavailable" {:command-result r}))))]
+    (when (seq (:errors value))
+      (throw (ex-info "Resolve-only native GraphQL errors" {:command-result r})))
+    value))
+
+(defn- resolution-json [env & args]
+  (resolution-value (run-gh args env)))
+
+(defn- resolution-writer-role [env repo login]
+  (when (and (string? login) (not (str/blank? login)) (not (law/bot? login)))
+    ;; Unavailable permissions are refused, including 404; never converted to
+    ;; a healthy collection or a second authenticated identity.
+    (permissions/writer-role?
+      (:permission (resolution-json env "api" (str "repos/" repo "/collaborators/" login "/permission"))))))
+
+(defn- resolution-writer [env repo]
+  (let [user (resolution-json env "api" "user")
+        actor (select-keys user [:login :id :node_id :type])
+        role (resolution-writer-role env repo (:login actor))]
+    (when-not (and (= "User" (:type actor))
+                   (string? (:login actor)) (not (str/blank? (:login actor)))
+                   (not (law/bot? (:login actor)))
+                   (js/Number.isSafeInteger (:id actor)) (pos? (:id actor))
+                   (string? (:node_id actor)) (not (str/blank? (:node_id actor))) role)
+      (throw (ex-info "Resolve-only requires an authenticated native User writer" {})))
+    (assoc actor :permission role)))
+
+(defn- resolution-history-source []
+  ;; Hold exact bytes independently of the existing complete text decoder.
+  ;; Unavailable source is nil, never synthesized empty history.
+  (try (when (fs/existsSync (actionability-ledger))
+         (let [bytes (fs/readFileSync (actionability-ledger))]
+           {:text (.toString bytes "utf8") :base64 (.toString bytes "base64")}))
+       (catch :default _ nil)))
+
+(defn- resolution-history-prefix? [before after]
+  (let [a (js/Buffer.from (:base64 before) "base64")
+        b (js/Buffer.from (:base64 after) "base64")]
+    (and (<= (.-length a) (.-length b)) (.equals a (.subarray b 0 (.-length a))))))
+
+(defn- collect-resolution [env repo n expected]
+  (let [source (resolution-history-source) text (:text source)
+        collected (native-context/collect-context
+                    {:read-json (partial resolution-json env)
+                     :authorized-author? (partial resolution-writer-role env)
+                     :read-history #(actionability-history/observations text %)} repo n)
+        selection (native-context-law/select-fresh-context collected expected)]
+    (when-let [reason (:refusal selection)]
+      (throw (ex-info "Resolve-only fresh context refused" {:reason reason})))
+    (let [thread (law/classify-thread
+                   (assoc (:selected selection)
+                          :actionability-policy (get-in (load-flow) [:flow/defaults :review/actionability])
+                          :actionability-observations (:history collected)
+                          :identities (reviewer-identities)))]
+      {:collected collected :history-text text :history-source source :thread thread
+       :authorization (actionability/resolution-authorization thread)})))
+
+(defn- require-resolution-binding! [input expected]
+  (let [a (:authorization input)]
+    (when-not (and (true? (:allowed? a))
+                   (= (select-keys expected [:head :context-binding :proposal-id :assessment-id :channel])
+                      (select-keys a [:head :context-binding :proposal-id :assessment-id :channel]))
+                   (= (:root-comment-id expected) (get-in input [:thread :root-comment-id])))
+      (throw (ex-info "Resolve-only lacks the exact independently qualified unresolved binding" {})))))
+
+(defn- retain-resolution-observations! [repo input]
+  (let [before (:history-text input) source (:history-source input)
+        history (get-in input [:collected :history])
+        observations (vec (get-in input [:thread :actionability :observations]))
+        repo-id (get-in input [:collected :repository :id])]
+    (when-not (and (string? before) (vector? history)
+                   (or (str/blank? before) (str/ends-with? before "\n"))
+                   (= source (resolution-history-source)))
+      (throw (ex-info "Resolve-only complete history changed before observation append" {})))
+    ;; Reuse the existing canonical append boundary and decoder, never a
+    ;; resolver-specific ledger schema. A concurrent append is detected by the
+    ;; complete result comparison, not overwritten or relabeled as ours.
+    (append-actionability-observations! repo observations)
+    (let [after-source (resolution-history-source) after (:text after-source)
+          decoded (actionability-history/observations after repo-id)]
+      (when-not (and (string? after) (resolution-history-prefix? source after-source)
+                     (= (+ (count (remove str/blank? (str/split-lines before))) (count observations))
+                        (count (remove str/blank? (str/split-lines after))))
+                     (= (into history observations) decoded))
+        (throw (ex-info "Resolve-only observation append custody unavailable" {})))
+      {:text after :source after-source :history decoded})))
+
+(defn- resolution-native-facts [input]
+  (select-keys (:collected input)
+               [:repository :pr :raw-threads :raw-issue-comments :draft? :head :pr-author :incomplete?]))
+
+(defn- expected-resolved-facts [input thread-id]
+  ;; Only a comparison of the permitted native delta. This is never fed into
+  ;; hydration/classification/authorization or called an observed snapshot.
+  (update (resolution-native-facts input) :raw-threads
+          #(mapv (fn [t] (if (= thread-id (:id t)) (assoc t :isResolved true) t)) %)))
+
+(defn resolve-informational [repo n thread-id expected-text flags]
+  (let [expected-source (str/trim (if (= "-" expected-text) (fs/readFileSync 0 "utf8") expected-text))
+        expected (edn/read-string expected-source)
+        keys-required #{:repo :repository-database-id :pr-number :head :thread-id
+                        :root-comment-id :context-binding :proposal-id :assessment-id :channel}
+        number (js/Number n)
+        apply? (= ["--apply"] (vec flags))]
+    (when-not (and (or (empty? flags) apply?)
+                   (string? repo) (re-matches #"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+" repo)
+                   (string? n) (re-matches #"[1-9][0-9]*" n)
+                   (js/Number.isSafeInteger number) (<= number 2147483647)
+                   (map? expected) (= expected-source (pr-str expected))
+                   (= keys-required (set (keys expected)))
+                   (= repo (:repo expected)) (= number (:pr-number expected))
+                   (= thread-id (:thread-id expected))
+                   (string? thread-id) (not (str/blank? thread-id))
+                   (string? (:head expected)) (re-matches #"[0-9a-f]{40}" (:head expected))
+                   (every? #(and (js/Number.isSafeInteger %) (pos? %))
+                           (map expected [:repository-database-id :root-comment-id :proposal-id :assessment-id]))
+                   (vector? (:context-binding expected)) (= 7 (count (:context-binding expected)))
+                   (= :github-issue-comment (:channel expected)))
+      (throw (ex-info "Resolve-only requires one exact native target/binding map and optional --apply" {})))
+    (let [env (env-without-tokens)
+          actor (resolution-writer env repo)
+          initial (collect-resolution env repo n expected)
+          _ (require-resolution-binding! initial expected)
+          result {:repo repo :pr-number number :thread-id thread-id :actor actor
+                  :authorization (:authorization initial) :mutation-attempt-count 0}]
+      (if-not apply?
+        (assoc result :status :eligible-preview :observations-appended? false)
+        (let [retained (retain-resolution-observations! repo initial)
+              fresh (collect-resolution env repo n expected)
+              _ (require-resolution-binding! fresh expected)
+              _ (when-not (and (= (dissoc (:collected initial) :history)
+                                  (dissoc (:collected fresh) :history))
+                               (= (:source retained) (:history-source fresh) (resolution-history-source))
+                               (= (:history retained) (get-in fresh [:collected :history]))
+                               (= actor (resolution-writer env repo)))
+                  (throw (ex-info "Resolve-only source, complete history, actor or permission changed before POST" {})))
+              _ (when-not (= (:source retained) (resolution-history-source))
+                  (throw (ex-info "Resolve-only complete history changed during final permission refresh" {})))
+              ;; There is no GitHub head/context CAS for this mutation. Recollect
+              ;; afterwards and preserve uncertainty; never retry an uncertain POST.
+              post-command (run-gh ["api" "graphql" "-f"
+                              "query=mutation($t:ID!){resolveReviewThread(input:{threadId:$t}){thread{id isResolved}}}"
+                              "-f" (str "t=" thread-id)] env)
+              posted (try
+                       (let [r (resolution-value post-command)]
+                         {:command-result post-command
+                          :confirmed? (= {:id thread-id :isResolved true}
+                                         (get-in r [:data :resolveReviewThread :thread]))})
+                       (catch :default _ {:confirmed? false :error :post-outcome-unavailable
+                                          :command-result post-command}))
+              observed (try
+                         (let [post (collect-resolution env repo n expected)
+                               only-resolution? (= (expected-resolved-facts fresh thread-id)
+                                                   (resolution-native-facts post))
+                               resolved? (true? (get-in post [:thread :resolved?]))
+                               _ (retain-resolution-observations! repo post)]
+                           {:readback? true :resolved? resolved? :only-resolution? only-resolution?
+                            :context-binding (actionability/context-binding (:thread post))
+                            :disposition (select-keys (get-in post [:thread :actionability]) [:kind :status])})
+                         (catch :default e {:readback? false :error :readback-or-observation-custody-unavailable
+                                            :cause (ex-message e) :refusal (:reason (ex-data e))
+                                            :exit (get-in (ex-data e) [:command-result :exit])}))
+              confirmed? (and (:confirmed? posted) (:readback? observed)
+                              (:resolved? observed) (:only-resolution? observed))]
+          (assoc result :status (if confirmed? :resolved-needs-fresh-assessment :uncertain-native-outcome)
+                 :mutation-attempt-count 1 :post posted :readback observed
+                 :requires-fresh-assessment? true :settlement-credit? false
+                 :approval-credit? false :round-credit? false))))))
+
 (defn -main [& args]
   (let [[cmd repo n & more] args]
     (try
@@ -612,8 +796,11 @@
         "wait" (wait repo n (timing-flag more "--timeout" "1800") (timing-flag more "--interval" "30"))
         "request" (request repo n (first more) (flag more "--note" nil) (flag more "--reviewer" "coderabbit"))
         "settle" (settle repo n (first more) (second more))
+        "resolve-informational" (let [r (resolve-informational repo n (first more) (second more) (drop 2 more))]
+                                  (prn r)
+                                  (when (= :uncertain-native-outcome (:status r)) (js/process.exit 3)))
         "gate" (gate repo n (some #{"--apply"} more) (flag more "--method" "merge") (reviewers-flag repo more))
-        (do (println "usage: pr.cljs flow [STATE] | status|threads|wait|request|settle|gate REPO PR ...") (js/process.exit 1)))
+        (do (println "usage: pr.cljs flow [STATE] | status|threads|wait|request|settle|resolve-informational|gate REPO PR ...") (js/process.exit 1)))
       (catch :default e
         (binding [*print-fn* *print-err-fn*] (println (ex-message e)))
         (js/process.exit 1)))))

@@ -622,3 +622,12 @@
   spore: none
   receipt-refs: 129da2635939fe904ecdbb45f58664425ffcad50a13c452464b457905e7aec1d
   note: A pagination snapshot check must bind each page before accumulation. Boundary instrumentation can prove an unwanted invocation without proving a physical write; preserve that distinction in receipts and PR prose. Pair exact predecessor/candidate source copies with one focused control per concrete contract, preserve original helper guards, and record complete output/cleanup custody before ordinary protected publication. No native/model/adoption/deployment credit; no spore or promotion.
+- ts: 2026-10-12T06:27:47.444882956Z
+  session: /home/err/.local/share/openhax-codex/20261010/pr-flow-resolve-only-qualification-80-v1
+  task: Qualify canonical resolve-only native conversation adapter
+  p-efficiency: 0.63
+  p-friction: 0.71
+  p-skill-candidate: 0.42
+  spore: none
+  receipt-refs: 051c80304233750f11a64e94f6f20095c8127e242277d5ab875ed9edbf0ad6d9
+  note: Fresh protected source, complete fixture transports and raw byte history custody qualified separately from native assessment, protected adoption and operational permission; retain setup refusals and oversized readback correction. No spore promoted.

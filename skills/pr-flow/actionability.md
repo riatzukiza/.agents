@@ -43,12 +43,13 @@ which derives existing same-Bot source withdrawals, then pass that complete
 thread. The function requires its derived withdrawal set of positive native
 IDs and recomputes disposition; raw input, malformed sets and supplied
 informational/authorization booleans cannot supply eligibility. This data shape
-alone does not prove native provenance: a future effectful adapter must freshly
+alone does not prove native provenance: an effectful adapter must freshly
 collect and classify the context itself, never accept caller-provided flags or
 derived sets as authority. Its positive result binds the head, context vector,
 proposal and assessment IDs and channel; it grants no actor permission, GitHub
-effect, settlement or merge credit. No resolver/collector/transport exists in
-this pure slice. Every actual finding still needs settlement before resolution,
+effect, settlement or merge credit. The pure function itself adds no resolver, collector or transport.
+The separate candidate CLI effect boundary is described below; it requires
+protected source review and adoption before operation. Every actual finding still needs settlement before resolution,
 and the opener cannot settle their own pushback.
 
 A later guarded resolution changes the manifest's resolved flag and digest.
@@ -266,3 +267,53 @@ authority and has no read or append effect.
 This is stacked source preparation on PR28, not protected merge, installation,
 native assessment, resolver operation or deployment qualification. It adds no
 identity roster and no approval, coverage, settlement or round credit.
+
+## Candidate resolve-only CLI boundary
+
+`pr.cljs resolve-informational REPO PR THREAD EXPECTED [--apply]` is a separate
+source proposal for native administration after independently qualified
+unresolved informational disposition. Until this successor is protected,
+reviewed and adopted, the route supplies no operational authority. `EXPECTED`
+is one canonical `pr-str` EDN map (or `-` for stdin) containing exactly
+`:repo`, `:repository-database-id`, `:pr-number`, `:head`, `:thread-id`,
+`:root-comment-id`, `:context-binding`, `:proposal-id`, `:assessment-id` and
+`:channel`. These are comparison coordinates from actual qualified native
+evidence; supplied booleans, withdrawal sets or classifications are refused.
+
+The route creates one token-stripped/keyring `gh` environment and uses it for
+identity, repository permissions, complete collector reads, the one optional
+resolution POST and readback. A native REST `User` with exact login, numeric ID,
+node ID and writer role operates the adapter. That User is not an assessor.
+The unchanged classifier and actionability law independently verify the
+configured native Bot assessor and its current whole-context issue assessment.
+The existing structural selector requires a complete, open, nondraft, exact
+repository/PR/head/thread snapshot with available full history. Preview reads
+and reports eligibility only; it performs no native mutation or ledger append.
+
+With `--apply`, the existing canonical observation writer retains admission.
+The adapter compares complete raw ledger bytes and decoded text around that append, recollects all
+native input, reclassifies, recomputes authorization and refreshes the same User
+and writer permission before the single `resolveReviewThread` attempt. It
+posts no reply, review request, assessment, settlement or merge operation.
+Unavailable/changed history, target, body, proposal, assessment, withdrawal,
+identity or permission refuses before POST. No GitHub head/context CAS exists
+for this API; the remaining read-to-POST race is checked by subsequent actual
+readback rather than represented as atomic.
+
+After the attempt, recollection must observe the exact target resolved with no
+other native change. The existing law computes lost pre-resolution binding;
+the existing writer retains its actual revocation observation. The result
+reports `:resolved-needs-fresh-assessment` only when mutation response, complete
+readback and append custody agree. POST errors, GraphQL errors, malformed or
+wrong-target results, unexpected native changes and readback/append failure
+produce `:uncertain-native-outcome` and exit 3. Actual command exit/stdout/stderr
+are retained; the adapter never repeats an uncertain POST or undoes resolution.
+A mutation-attempt count is not a claim that GitHub applied the change.
+
+Resolution changes the real manifest and digest. A new resolved-scope writer
+proposal and independent assessment are still required, followed by the normal
+all-thread/approval/check gate. This route grants no settlement, rejection,
+approval, coverage or round credit, and every actual finding retains the normal
+reply-before-resolve policy. The three author walkthrough controls use inert
+synthetic P/A issue records around captured context; they authenticate no real
+assessment or native resolution.
