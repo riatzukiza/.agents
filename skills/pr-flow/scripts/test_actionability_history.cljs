@@ -41,3 +41,11 @@
   (is (nil? (history/observations
               (str (pr-str (receipt [admitted])) "\n"
                    (pr-str (receipt [(assoc admitted :repo-id "R_other" :purpose :wrong)]))) repo-id))))
+
+(deftest distinct-preservation-purpose-shares-complete-history-without-relabeling
+  (let [positive (assoc admitted :purpose :positive-bot-thread-preservation)
+        positive-revoked (assoc positive :status :revoked)
+        source (str (pr-str (receipt [admitted positive])) "\n"
+                    (pr-str (receipt [positive-revoked revoked])) "\n")]
+    (is (= [admitted positive positive-revoked revoked] (history/observations source repo-id)))
+    (is (nil? (history/observations (str source (pr-str (receipt [(assoc positive :purpose :different)]))) repo-id)))))

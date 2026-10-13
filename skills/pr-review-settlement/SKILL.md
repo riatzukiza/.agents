@@ -63,6 +63,29 @@ backdate request5978541505 or reinterpret older heads as current approvals.
 fix or duplicate and its verification. It must not disguise a rejected request
 or a verified issue that remains unfixed.
 
+## Independently assessed affirmative preservation
+
+A native Bot asking to retain already-correct behavior is separate from an
+incorrect corrective request. Preserve its original priority/root/body/history;
+P1 in a refutation title is not downgraded. The separately adopted
+[positive Bot-thread preservation](../pr-flow/positive-bot-thread.md) purpose
+requires full current corpus/source/history custody, an actual distinct
+configured independent preservation judgment, then a later actual authorized
+User Handled reply and actual resolution. Mixed defects/corrective requests or
+unresolved questions, missing/uncertain judgment, self-corroboration and stale
+or revoked source fail closed. Do not reject a classifier label in place of
+the root's actual recommendation or copy the no-request informational judgment.
+
+The guarded `Handled: preservation v2` body names current head, exact Finding
+pair and actual native assessment URL. The specialized path checks complete
+input/permission before reply, verifies the actual reply before resolution,
+and retains uncertain effects without fallback/retry. Pure prospective APIs
+create no native IDs/times/proof. Only the exact verified append plus native
+resolution clears that root's severity blocker; all other finding and review
+gates remain. No approval, coverage, full-PR review, round, CI, installation or
+deployment credit is granted. Source preparation/fixtures alone do not adopt
+the rule or supply accepted independent model/runtime evidence.
+
 ## Native opener withdrawal
 
 An authenticated configured Bot withdrawing its own finding is distinct from

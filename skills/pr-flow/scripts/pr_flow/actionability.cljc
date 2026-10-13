@@ -169,7 +169,7 @@
                           (every? #(pos? (compare (:created_at ps) %)) context-times))
         assessments (filter #(and (= :assessment (:kind %)) (assessor-identity? (:source %) actionability-policy)
                                    (= (context-binding t) (vec (take 7 (:payload %))))) scoped)
-        revoked (set (map :assessment-id (filter #(= :revoked (:status %)) actionability-observations)))
+        revoked (set (map :assessment-id (filter #(and (not= :positive-bot-thread-preservation (:purpose %)) (= :revoked (:status %))) actionability-observations)))
         source-withdrawn? (fn [assessment]
                             (let [source (:source assessment)]
                               (or (contains? (set actionability-source-withdrawals) (:id source))
@@ -235,7 +235,8 @@
         old (filter #(and (= (:id t) (:thread-id %))
                            (= (get-in t [:native-context :repository :id]) (:repo-id %))
                            (= (get-in t [:native-context :pr :id]) (:pr-id %))
-                           (= :qualified (:status %))) actionability-observations)
+                           (= :qualified (:status %))
+                           (not= :positive-bot-thread-preservation (:purpose %))) actionability-observations)
         lost (for [o old :when (and (not (revoked (:assessment-id o)))
                                     (not (and qualified? (contains? live o))))]
                (assoc o :status :revoked :reason :native-context-or-assessment-changed))

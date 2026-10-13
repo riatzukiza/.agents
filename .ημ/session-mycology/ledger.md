@@ -658,3 +658,12 @@
   spore: none
   receipt-refs: 1c8a0b3b-0925-46a5-9aae-12ebe439e207,113f6d7cae735e22135436953c8264f48f1b45a5eee591c71f0fc9432114ac27
   note: Actual reviewer4247045213 identified a documentation gap. Two exact text changes state login/id/node_id/type matching; executable forms unchanged. Touched lint and whitespace pass; old behavioral suite belongs to75d. No new spore, merge, adoption or deployment credit.
+- ts: 2026-10-13T06:19:37.360965821Z
+  session: 01a12257-fc69-7720-888c-dd2595ff7dc7
+  task: Qualify independently assessed native affirmative bot preservation cohort policy
+  p-efficiency: 0.66
+  p-friction: 0.82
+  p-skill-candidate: 0.10
+  spore: none
+  receipt-refs: a2a6bf46c2e05e3814138e05e70371c29cbb6f69d9b695aa223c304dd5e85484
+  note: Actual failed reader-order and synthetic native fixture controls corrected without weakening production or test assertions; full owningCLI96/2565 now passes. Limited capturedNodeaudit scope retained; protected adoption and separately reviewed assessor remain pending. No new spore.

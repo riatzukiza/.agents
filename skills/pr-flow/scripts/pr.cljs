@@ -32,6 +32,7 @@
             [clojure.edn :as edn]
             [pr-flow.actionability-history :as actionability-history]
             [pr-flow.actionability :as actionability]
+            [pr-flow.positive-thread :as positive-thread]
             [nbb.core :refer [*file*]]
             [clojure.string :as str]
             [pr-flow.flow :as flow]
@@ -119,7 +120,8 @@
   ([repo n issue-comments]
    (let [collected (native-context/collect-context
                     {:read-json gh-json :authorized-author? authorized-author?
-                     :read-history actionability-observations} repo n issue-comments)
+                     :read-history actionability-observations
+                     :preservation-policy (get-in (load-flow) [:flow/defaults :review/positive-bot-thread])} repo n issue-comments)
          history (:history collected)
          policy (get-in (load-flow) [:flow/defaults :review/actionability])
          identities (reviewer-identities)
@@ -127,7 +129,7 @@
                           (assoc % :actionability-policy policy
                                    :actionability-observations history :identities identities))
                        (:threads collected))
-         observations (vec (distinct (mapcat #(get-in % [:actionability :observations]) threads)))
+         observations (vec (distinct (mapcat #(concat (get-in % [:actionability :observations]) (get-in % [:preservation :observations])) threads)))
          _ (when (some? history)
              (append-actionability-observations! repo observations))
          history (when (some? history) (into history observations))]
@@ -338,7 +340,7 @@
 
 (defn print-threads [threads]
   (doseq [{:keys [id path line severity resolved? resolution reviewer comments
-                 rejection-channel rejection-source-id rejection-url actionability opener-withdrawal]} threads]
+                 rejection-channel rejection-source-id rejection-url actionability opener-withdrawal preservation]} threads]
     (println (str (name severity) "  " (if resolved? "resolved  " "OPEN      ")
                   (if resolution (name resolution) "-unsettled-") "  " reviewer "  " path ":" line))
     (println (str "    id=" id))
@@ -348,6 +350,10 @@
       (println (str "    rejection evidence: " (name rejection-channel) " id=" rejection-source-id " " rejection-url)))
     (when opener-withdrawal
       (println (str "    native opener withdrawal: id=" (:source-id opener-withdrawal) " " (:url opener-withdrawal))))
+    (when (#{:qualified :revoked} (:status preservation))
+      (println (str "    preservation: " (name (:status preservation))
+                    " assessment=" (:assessment-id preservation) " " (:assessment-url preservation)
+                    " writer=" (:writer-id preservation) " settled=" (:settled? preservation))))
     (when (not= :absent (:status actionability))
       (println (str "    actionability: " (name (:kind actionability)) " " (name (:status actionability))
                     " native-source=" (:assessment-id actionability) " " (:url actionability))))))
@@ -455,7 +461,7 @@
         (when (#{:invalid :rate-limited} (:status verdict))
           (throw (ex-info "Review request needs operator attention; no retry scheduled" verdict)))))))
 
-(defn settle [repo n thread-id body]
+(defn- settle-generic [repo n thread-id body]
   (let [body (if (= body "-") (str (fs/readFileSync 0 "utf8")) body)]
     (when-not (law/resolution-of body)
       (throw (ex-info "BODY must open with Fixed|Deferred|Rejected|Handled" {:body (subs body 0 (min 60 (count body)))})))
@@ -688,10 +694,11 @@
                    (= (:root-comment-id expected) (get-in input [:thread :root-comment-id])))
       (throw (ex-info "Resolve-only lacks the exact independently qualified unresolved binding" {})))))
 
-(defn- retain-resolution-observations! [repo input]
+(defn- retain-resolution-observations!
+  ([repo input] (retain-resolution-observations! repo input (vec (get-in input [:thread :actionability :observations]))))
+  ([repo input observations]
   (let [before (:history-text input) source (:history-source input)
         history (get-in input [:collected :history])
-        observations (vec (get-in input [:thread :actionability :observations]))
         repo-id (get-in input [:collected :repository :id])]
     (when-not (and (string? before) (vector? history)
                    (or (str/blank? before) (str/ends-with? before "\n"))
@@ -708,7 +715,7 @@
                         (count (remove str/blank? (str/split-lines after))))
                      (= (into history observations) decoded))
         (throw (ex-info "Resolve-only observation append custody unavailable" {})))
-      {:text after :source after-source :history decoded})))
+      {:text after :source after-source :history decoded}))))
 
 (defn- resolution-native-facts [input]
   (select-keys (:collected input)
@@ -791,6 +798,135 @@
                  :mutation-attempt-count 1 :post posted :readback observed
                  :requires-fresh-assessment? true :settlement-credit? false
                  :approval-credit? false :round-credit? false))))))
+
+;; --- independently assessed positive Bot-thread preservation ---------------
+
+(defn- collect-preservation [env repo n thread-id head]
+  (let [source (resolution-history-source) text (:text source)
+        profile (get-in (load-flow) [:flow/defaults :review/positive-bot-thread])
+        collected (native-context/collect-context
+                    {:read-json (partial resolution-json env)
+                     :authorized-author? (partial resolution-writer-role env)
+                     :read-history #(actionability-history/observations text %)
+                     :preservation-policy profile} repo n)
+        expected {:repo repo :repository-database-id (second (:repository profile))
+                  :pr-number (js/Number n) :head head :thread-id thread-id}
+        selection (native-context-law/select-fresh-context collected expected)]
+    (when-let [reason (:refusal selection)]
+      (throw (ex-info "Preservation fresh context refused" {:reason reason})))
+    (let [thread (law/classify-thread (assoc (:selected selection)
+                                           :actionability-policy (get-in (load-flow) [:flow/defaults :review/actionability])
+                                           :actionability-observations (:history collected) :identities (reviewer-identities)))]
+      {:collected collected :history-text text :history-source source :thread thread})))
+
+(defn- preservation-authorization! [input body actor]
+  (let [a (positive-thread/settlement-authorization (:thread input) body (assoc actor :authorized? true))]
+    (when-not (:allowed? a)
+      (throw (ex-info "Preservation lacks exact independent assessment, body or writer binding; no native write" a)))
+    a))
+
+(defn- append-preservation-observations! [repo input]
+  (retain-resolution-observations! repo input (vec (:observations (positive-thread/proof (:thread input))))))
+
+(defn- actual-reply [input response actor body]
+  (let [c (get-in response [:data :addPullRequestReviewThreadReply :comment])
+        observed (last (get-in input [:thread :native-context :thread :comments :nodes]))
+        raw-thread (some #(when (= (get-in input [:thread :id]) (:id %)) %) (get-in input [:collected :raw-threads]))
+        raw-writer (last (get-in raw-thread [:comments :nodes]))
+        selected [:id :databaseId :url :body :author :createdAt :updatedAt]]
+    (when (and (map? c) (= (select-keys c selected) (select-keys observed selected) (select-keys raw-writer selected))
+               (= body (:body c))
+               (= [(:login actor) (:id actor) (:node_id actor) "User"] (positive-thread/native-author (:author c)))
+               (= (:databaseId c) (:writer-id (positive-thread/proof (:thread input)))))
+      raw-writer)))
+
+(defn- expected-reply-facts [before thread-id actual-native-comment]
+  ;; Compare only an actual verified native append. No hypothetical comment or
+  ;; generated native ID/time is ever classified or admitted as a settlement.
+  (update (resolution-native-facts before) :raw-threads
+          #(mapv (fn [t] (if (= thread-id (:id t))
+                           (-> t (update-in [:comments :nodes] conj actual-native-comment)
+                               (update-in [:comments :totalCount] inc)) t)) %)))
+
+(defn- settle-preservation [repo n thread-id body]
+  (let [details (positive-thread/settlement-details body)
+        _ (when-not (and details (string? repo) (re-matches #"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+" repo)
+                         (string? n) (re-matches #"[1-9][0-9]*" n)
+                         (js/Number.isSafeInteger (js/Number n)) (<= (js/Number n) 2147483647))
+            (throw (ex-info "Malformed preservation settlement; no native write" {})))
+        env (resolution-environment) actor (resolution-writer env repo)
+        initial (collect-preservation env repo n thread-id (:head details))
+        ;; Retain actual qualified/revoked observations even if the prospective
+        ;; body later refuses. No new native publication is invented.
+        retained (append-preservation-observations! repo initial)
+        authorization (preservation-authorization! initial body actor)
+        fresh (collect-preservation env repo n thread-id (:head details))
+        _ (when-not (and (= authorization (preservation-authorization! fresh body actor))
+                         (= (dissoc (:collected initial) :history) (dissoc (:collected fresh) :history))
+                         (= (:source retained) (:history-source fresh) (resolution-history-source))
+                         (= (:history retained) (get-in fresh [:collected :history]))
+                         (= actor (resolution-writer env repo))
+                         (= (:source retained) (resolution-history-source)))
+            (throw (ex-info "Preservation context, complete history, actor or permission changed before reply; no native write" {})))
+        result {:repo repo :pr-number (js/Number n) :thread-id thread-id :authorization authorization :actor actor
+                :approval-credit? false :coverage-credit? false :round-credit? false}
+        reply-command (run-gh ["api" "graphql" "-f"
+                        "query=mutation($t:ID!,$b:String!){addPullRequestReviewThreadReply(input:{pullRequestReviewThreadId:$t,body:$b}){comment{id databaseId url body author{login __typename ... on User{id databaseId}} createdAt updatedAt}}}"
+                        "-f" (str "t=" thread-id) "-f" (str "b=" body)] env)
+        reply-response (try (resolution-value reply-command) (catch :default _ nil))
+        written (try
+                  (let [input (collect-preservation env repo n thread-id (:head details))
+                        c (actual-reply input reply-response actor body)
+                        proof (positive-thread/proof (:thread input))
+                        retained (append-preservation-observations! repo input)]
+                    (when-not (and c (:qualified? proof) (false? (get-in input [:thread :resolved?]))
+                                   (= (expected-reply-facts fresh thread-id c) (resolution-native-facts input)))
+                      (throw (ex-info "Preservation reply append/readback is not exact; no resolution attempted" {})))
+                    {:input input :comment c :retained retained})
+                  (catch :default e {:error (ex-message e)}))]
+    (if (:error written)
+      (assoc result :status :uncertain-native-outcome :mutation-attempt-count 1
+             :reply-command reply-command :readback written :settlement-credit? false)
+      (let [ready (try
+                    (let [input (collect-preservation env repo n thread-id (:head details))
+                          source (get-in written [:retained :source])]
+                      (when-not (and (= (dissoc (get-in written [:input :collected]) :history)
+                                        (dissoc (:collected input) :history))
+                                     (= source (:history-source input) (resolution-history-source))
+                                     (= (get-in written [:retained :history]) (get-in input [:collected :history]))
+                                     (= actor (resolution-writer env repo)) (= source (resolution-history-source)))
+                        (throw (ex-info "Preservation changed before resolution; no resolution attempted" {})))
+                      {:input input})
+                    (catch :default e {:error (ex-message e)}))]
+        (if (:error ready)
+          (assoc result :status :uncertain-native-outcome :mutation-attempt-count 1
+                 :reply-command reply-command :readback ready :settlement-credit? false)
+          (let [resolve-command (run-gh ["api" "graphql" "-f"
+                                  "query=mutation($t:ID!){resolveReviewThread(input:{threadId:$t}){thread{id isResolved}}}"
+                                  "-f" (str "t=" thread-id)] env)
+                response (try (resolution-value resolve-command) (catch :default _ nil))
+                readback (try
+                           (let [input (collect-preservation env repo n thread-id (:head details))
+                                 proof (positive-thread/proof (:thread input))
+                                 retained (append-preservation-observations! repo input)]
+                             {:exact-transition? (= (expected-resolved-facts (:input ready) thread-id)
+                                                    (resolution-native-facts input))
+                              :proof (dissoc proof :observations) :history-source (:source retained)})
+                           (catch :default e {:error (ex-message e)}))
+                confirmed? (and (= {:id thread-id :isResolved true} (get-in response [:data :resolveReviewThread :thread]))
+                                (:exact-transition? readback) (get-in readback [:proof :settled?])
+                                (= (get-in written [:comment :databaseId]) (get-in readback [:proof :writer-id])))]
+            (assoc result :status (if confirmed? :handled-preservation :uncertain-native-outcome)
+                   :mutation-attempt-count 2 :reply-command reply-command :resolve-command resolve-command
+                   :readback readback :settlement-credit? (boolean confirmed?))))))))
+
+(defn settle [repo n thread-id body]
+  (let [body (if (= "-" body) (str (fs/readFileSync 0 "utf8")) body)]
+    (if (positive-thread/settlement-attempt? body)
+      (let [r (settle-preservation repo n thread-id body)]
+        (prn r)
+        (when (= :uncertain-native-outcome (:status r)) (set! (.-exitCode js/process) 3)))
+      (settle-generic repo n thread-id body))))
 
 (defn -main [& args]
   (let [[cmd repo n & more] args]

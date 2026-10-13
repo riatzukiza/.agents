@@ -18,7 +18,8 @@ if (args[0] === 'api' && Object.hasOwn(config.apiResponses || {}, args[1])) {
   if (query.includes('mutation')) {
     if (!config.allowMutations) process.exit(77);
     if (query.includes('addPullRequestReviewThreadReply')) {
-      out({data: {addPullRequestReviewThreadReply: {comment: {url: 'https://example.invalid/review#reply'}}}});
+      out(config.replyResponse || {data: {addPullRequestReviewThreadReply: {comment: {url: 'https://example.invalid/review#reply'}}}});
+      if (config.replyExitCode) process.exit(config.replyExitCode);
     } else if (query.includes('resolveReviewThread')) {
       out(config.resolveResponse || {data: {resolveReviewThread: {thread: {isResolved: true}}}});
       if (config.resolveExitCode) process.exit(config.resolveExitCode);
@@ -32,6 +33,11 @@ if (args[0] === 'api' && Object.hasOwn(config.apiResponses || {}, args[1])) {
     }
     const id = args.find(x => x.startsWith('id='))?.slice(3);
     out({data: {node: config.reviewUpdateResponses?.[id] ?? null}});
+    process.exit(0);
+  }
+  if (query.includes('object(expression:$expression)')) {
+    const expression = args.find(x => x.startsWith('expression='))?.slice('expression='.length);
+    out({data: {repository: {...config.nativeRepository, object: config.preservationBlobs?.[expression] ?? null}}});
     process.exit(0);
   }
   // Match gh api -F scalar inference before GraphQL String/Int validation.
@@ -101,7 +107,7 @@ else if (args[0] === 'api' && args[1].includes('/commits/')) {
   out({sha: config.commitResponses?.[ref] || (/^[0-9a-f]{40}$/.test(ref) ? ref : (config.resolvedCommit || config.head))});
 }
 else if (args[0] === 'api' && args[1].includes('/collaborators/')) {
-  out({permission: config.writerRoleAfterThreadReads != null && (state.threads || 0) >= 2
+  out({permission: config.writerRoleAfterThreadReads != null && (state.threads || 0) >= (config.writerRoleChangeAtThreadRead ?? 2)
     ? config.writerRoleAfterThreadReads : config.authorized === false ? 'read' : 'admin'});
 }
 else if (args[0] === 'api' && args[1] === 'user') {

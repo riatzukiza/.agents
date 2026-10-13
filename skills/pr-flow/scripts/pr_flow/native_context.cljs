@@ -3,6 +3,7 @@
   (:require ["crypto" :as crypto]
             [clojure.string :as str]
             [pr-flow.actionability :as actionability]
+            [pr-flow.positive-thread :as positive-thread]
             [pr-flow.native-context-law :as native-context-law]))
 
 ;; Native reads are supplied by the caller. Importing this namespace performs
@@ -15,12 +16,12 @@
 
 (def ^:private threads-query
   "query($owner:String!,$name:String!,$n:Int!,$after:String){repository(owner:$owner,name:$name){id databaseId nameWithOwner pullRequest(number:$n){
-     id number state isDraft headRefOid author{login __typename ... on User{id databaseId}}
+     id number state isDraft headRefOid author{login __typename ... on User{id databaseId} ... on Bot{id databaseId}}
      reviewThreads(first:100,after:$after){pageInfo{hasNextPage endCursor}
        nodes{id isResolved isOutdated path line
-         comments(first:100){totalCount pageInfo{hasNextPage} nodes{id databaseId author{login __typename ... on User{id databaseId}}
+         comments(first:100){totalCount pageInfo{hasNextPage} nodes{id databaseId author{login __typename ... on User{id databaseId} ... on Bot{id databaseId}}
            body diffHunk url createdAt updatedAt commit{oid} originalCommit{oid}
-           pullRequestReview{id databaseId state body updatedAt commit{oid} author{login __typename ... on User{id databaseId}}}}}}}}}}")
+           pullRequestReview{id databaseId state body updatedAt commit{oid} author{login __typename ... on User{id databaseId} ... on Bot{id databaseId}}}}}}}}}}")
 
 (defn- sha256 [s]
   (when (string? s) (.digest (.update (crypto/createHash "sha256") s "utf8") "hex")))
@@ -69,14 +70,14 @@
   (when-not (every? fn? [read-json authorized-author? read-history])
     (throw (ex-info "Native context requires injected JSON, permission and history readers" {}))))
 
-(defn collect-context
+(defn- collect-context-base
   "Collect native conversation inputs through synchronous injected readers.
    The optional issue records must come from the same complete native snapshot.
    History remains separate: nil means unavailable and [] means healthy empty.
    This result carries no disposition, settlement or native mutation authority."
   ([deps repo n]
    (require-readers deps)
-   (collect-context deps repo n (fetch-issue-comments (:read-json deps) repo n)))
+   (collect-context-base deps repo n (fetch-issue-comments (:read-json deps) repo n)))
   ([{:keys [read-json authorized-author? read-history] :as deps} repo n raw-issue-comments]
    (require-readers deps)
    (let [[owner name] (split-repo repo)
@@ -113,6 +114,91 @@
                                        :comments (mapv (fn [c]
                                                          {:id (:databaseId c) :author (get-in c [:author :login]) :body (:body c)
                                                           :user {:login (get-in c [:author :login]) :type (get-in c [:author :__typename])}
-                                                          :authorized? (boolean (authorized? (get-in c [:author :login])))
+                                                          :authorized? (boolean (and (not= "Bot" (get-in c [:author :__typename]))
+                                                                                     (authorized? (get-in c [:author :login]))))
                                                           :url (:url c) :created-at (:createdAt c) :updated-at (:updatedAt c)})
                                                        (get-in t [:comments :nodes]))})) acc)})))))))
+
+(defn- preservation-source [read-json repository-binding head file]
+  (let [repo (:nameWithOwner repository-binding)]
+    (when-not (and (positive-thread/source-path? file) (re-matches #"[0-9a-f]{40}" (or head "")))
+      (throw (ex-info "Invalid preservation source coordinate" {})))
+    (let [[owner name] (split-repo repo)
+          response (read-json "api" "graphql" "-f"
+                     "query=query($owner:String!,$name:String!,$expression:String!){repository(owner:$owner,name:$name){id databaseId nameWithOwner object(expression:$expression){... on Blob{oid byteSize isTruncated text}}}}"
+                     "-f" (str "owner=" owner) "-f" (str "name=" name) "-f" (str "expression=" head ":" file))
+          repository (get-in response [:data :repository]) b (:object repository) text (:text b)
+          size (when (string? text) (js/Buffer.byteLength text "utf8"))
+          oid (when size (.digest (-> (crypto/createHash "sha1")
+                                      (.update (str "blob " size "\u0000") "utf8") (.update text "utf8")) "hex"))]
+      (when-not (and (not (seq (:errors response)))
+                     (= (select-keys repository-binding [:id :databaseId :nameWithOwner])
+                        (select-keys repository [:id :databaseId :nameWithOwner]))
+                     (false? (:isTruncated b)) (string? text) (= size (:byteSize b)) (= oid (:oid b)))
+        (throw (ex-info "Complete immutable preservation source unavailable" {:path file :head head})))
+      {:path file :head head :blob-oid oid :body-sha256 (sha256 text) :body text
+       :repository (select-keys repository [:id :databaseId :nameWithOwner])})))
+
+(defn hydrate-preservation-context
+  "Acquire one complete source/corpus carrier for an explicit sorted cohort.
+   Candidate member cuts manufacture no eligibility: pure law validates EVERY
+   actual member append before any normalization can qualify. No code executes."
+  ([deps snapshot t paths] (hydrate-preservation-context deps snapshot t paths nil))
+  ([{:keys [read-json preservation-policy]} snapshot t paths requested-targets]
+   (let [paths (or paths (positive-thread/proposal-source-paths t))
+         targets (or requested-targets (positive-thread/proposal-cohort-targets t) [(positive-thread/member-target t)])
+         members (mapv (fn [pair]
+                         (let [matches (filterv #(= pair (positive-thread/member-target %)) (:threads snapshot))]
+                           (when (= 1 (count matches)) (first matches)))) targets)
+         cuts (set (keep (fn [member]
+                          (let [nodes (get-in member [:native-context :thread :comments :nodes])]
+                            (when (and (> (count nodes) 1) (positive-thread/settlement-attempt? (:body (last nodes))))
+                              (positive-thread/member-target member)))) members))
+         selected (fn [raw]
+                    (if (contains? cuts [(:id raw) (get-in raw [:comments :nodes 0 :databaseId])])
+                      (-> raw (assoc :isResolved false) (update-in [:comments :nodes] pop) (update-in [:comments :totalCount] dec)) raw))
+         raw (mapv selected (:raw-threads snapshot))
+         contexts (mapv #(hydrate-actionability-context (:repository snapshot) (:pr snapshot) %) raw)
+         manifests (mapv :context-manifest contexts)
+         corpus [2 [(get-in snapshot [:repository :id]) (get-in snapshot [:repository :databaseId]) (get-in snapshot [:repository :nameWithOwner])]
+                 [(get-in snapshot [:pr :id]) (get-in snapshot [:pr :number]) (get-in snapshot [:pr :state])
+                  (get-in snapshot [:pr :isDraft]) (get-in snapshot [:pr :headRefOid]) (actionability/author-row (get-in snapshot [:pr :author]))]
+                 targets manifests]
+         proposal (positive-thread/latest-proposal t) prefix-count (nth (:payload proposal) 5 nil)
+         issues (:issue-comments snapshot)
+         counts (set (filter #(and (integer? %) (<= 0 % (count issues))) [0 prefix-count (count issues)]))
+         prefixes (into {} (map (fn [n] [n (sha256 (pr-str (mapv positive-thread/issue-row (subvec issues 0 n))))]) counts))
+         inputs (mapv #(preservation-source read-json (:repository snapshot) (:head snapshot) %) paths)
+         complete? (and (false? (:incomplete? snapshot)) (false? (:draft? snapshot))
+                        (positive-thread/cohort-targets? targets) (every? map? members)
+                        (= targets (mapv positive-thread/member-target members))
+                        (= (count raw) (count (set (map :id raw))))
+                        (= (count (mapcat #(get-in % [:comments :nodes]) raw))
+                           (count (set (map :id (mapcat #(get-in % [:comments :nodes]) raw))))
+                           (count (set (map :databaseId (mapcat #(get-in % [:comments :nodes]) raw)))))
+                        (every? #(and (false? (get-in % [:comments :pageInfo :hasNextPage]))
+                                      (= (count (get-in % [:comments :nodes])) (get-in % [:comments :totalCount]))) raw)
+                        (every? #(= (:repository %) (:repository snapshot)) inputs))]
+     (assoc t :preservation-policy preservation-policy :preservation-source-inputs (mapv #(dissoc % :repository) inputs)
+            :preservation-custody {:version 2 :complete? (boolean complete?) :cohort-targets targets
+                                   :cohort-members members :writer-cut-targets (vec (sort-by first cuts))
+                                   :native-corpus (:raw-threads snapshot) :corpus-manifest corpus
+                                   :conversation-digest (sha256 (pr-str corpus)) :issue-prefix-digests prefixes
+                                   :source-updated-at (vec (mapcat (fn [c] [(:updatedAt c) (get-in c [:pullRequestReview :updatedAt])])
+                                                                  (mapcat #(get-in % [:native-context :thread :comments :nodes]) contexts)))}))))
+
+(defn collect-context
+  "Existing native collection plus optional separately scoped preservation
+   custody. Adding Bot IDs alone grants no eligibility. Unsupported repositories
+   retain byte-for-byte normalized collection and perform no source reads."
+  ([deps repo n]
+   (require-readers deps)
+   (collect-context deps repo n (fetch-issue-comments (:read-json deps) repo n)))
+  ([deps repo n issue-comments]
+   (let [snapshot (collect-context-base deps repo n issue-comments)
+         profile (:preservation-policy deps) r (:repository snapshot)]
+     (if (and (= 2 (:version profile)) (= :provisional (:status profile))
+              (= [(:nameWithOwner r) (:databaseId r) (:id r)] (:repository profile)))
+       (update snapshot :threads
+               #(mapv (fn [t] (hydrate-preservation-context deps snapshot t nil)) %))
+       snapshot))))

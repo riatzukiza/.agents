@@ -2,7 +2,7 @@
   "Pure laws for the PR flow: severity, thread classification, review state,
    and the merge gate. No I/O; the CLI in ../pr.cljs feeds it GitHub data
    already decoded into Clojure maps."
-  (:require [clojure.string :as str] [pr-flow.actionability :as actionability]
+  (:require [clojure.string :as str] [pr-flow.actionability :as actionability] [pr-flow.positive-thread :as positive-thread]
             [pr-flow.kimi-publication :as publication]))
 
 (def default-min-review-rounds 5)
@@ -528,6 +528,7 @@
                      (opener-withdrawal thread (inc settle-idx)))]
     (assoc thread
            :actionability (actionability/disposition thread)
+           :preservation (positive-thread/proof thread)
            :reviewer (:author opener)
            :severity (severity (:body opener))
            :resolution settlement
@@ -1408,13 +1409,15 @@
 
 (defn unsettled-blockers
   "P0/P1 require a fix or a detailed independently corroborated rejection.
-   Handled qualifies only for the native opener-withdrawal disposition;
+   Handled qualifies only for native opener-withdrawal or separately qualified
+   positive Bot-thread preservation;
    deferral and generic Handled remain blockers."
   [threads]
-  (filter (fn [{:keys [severity resolution rejection-approved? settled? opener-withdrawal resolved?]}]
+  (filter (fn [{:keys [severity resolution rejection-approved? settled? opener-withdrawal resolved?] :as thread}]
             (and (blocking? severity) (not= :fixed resolution)
                  (not (and (= :rejected resolution) rejection-approved? settled?))
-                 (not (and (= :handled resolution) opener-withdrawal settled? resolved?))))
+                 (not (and (= :handled resolution) settled? resolved?
+                           (or opener-withdrawal (:settled? (positive-thread/proof thread)))))))
           (filter finding-obligation? threads)))
 
 ;; --- review state ---------------------------------------------------------
