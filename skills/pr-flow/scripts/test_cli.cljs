@@ -2244,4 +2244,75 @@
         r (execute (assoc (:config cfg) :threadPageResponses [page]) "settle" "open-hax/knoxx" "388" (:thread cfg) (:body cfg))]
     (is (= 1 (:exit r))) (is (empty? (mutations r)))))
 
+
+(deftest preservation-cli-truncated-and-near-family-bodies-have-zero-native-effects
+  (let [s (first preservation/seeds) {:keys [config thread]} (preservation-cli-fixture s)]
+    (doseq [body (concat (map #(str "Handled: " (subs "preservation" 0 %)) (range 1 (count "preservation")))
+                        ["Handled: preservationv2" "Handled: preservation_v2"
+                         "Handled: preservations" "Handled: pre-servation" "Handled: pres ervation"
+                         "HANDLED:\tPRESERVATIO" "**Handled:** preservatio\nbad" " handled:\n\tpreservatio"])]
+      (let [r (execute config "settle" "open-hax/knoxx" "388" thread body)]
+        (is (= 1 (:exit r)) (pr-str body))
+        (is (str/includes? (:err r) "Malformed preservation settlement; no native write"))
+        (is (empty? (mutations r)) (pr-str body))
+        (is (empty? (:calls r)) "Malformed family is rejected before native reads or authentication")))))
+
+(deftest preservation-cli-reservation-keeps-ordinary-handled-dispatch
+  (is (false? (positive-thread/settlement-attempt? withdrawal/handled-body)))
+  (is (withdrawal/cleared? (withdrawal/input withdrawal/prospective))
+      "The existing native opener-withdrawal qualification retains its exact writer binding")
+  (let [s (first preservation/seeds) {:keys [config thread]} (preservation-cli-fixture s)]
+    (doseq [body ["Handled: preserve existing behavior after the verified tests."
+                 "Handled: previously verified behavior already addresses this concern."
+                 "Handled: project policy and its tests already cover this case."
+                 "Handled: P2 concern already covered by the existing source."
+                 withdrawal/handled-body
+                 "Handled cr-comment:v1:abcdef: the native positive body item is already addressed."]]
+      (let [r (execute config "settle" "open-hax/knoxx" "388" thread body)]
+        ;; This controls unchanged route dispatch and effects, not P1 admission.
+        ;; Existing native opener-withdrawal/positive-body laws test qualification.
+        (is (= 0 (:exit r)) (:err r))
+        (is (= 2 (count (mutations r))))
+        (is (str/includes? (:out r) "as handled"))))))
+
+(defn preservation-unavailable-proposal-cli-fixture []
+  (let [s (first preservation/seeds) {:keys [config body thread]} (preservation-cli-fixture s)
+        proposal (first (:comments config)) parsed (positive-thread/protocol proposal)
+        missing ".github/workflows/fixture-unavailable-preservation-source.yml"
+        malformed (assoc proposal :body (str "Preservation proposal v2 for " (:head config) ":\n"
+                                             (pr-str (assoc-in (:payload parsed) [7 0 0] missing))))
+        raws (mapv preservation/root-thread preservation/seeds)
+        page (preservation/page s raws)]
+    {:config (merge base config {:comments [malformed] :threadPageResponses [page]
+                                :reviews [(assoc approval :commit_id (:head config))]})
+     :body body :thread thread :other-thread (:id (second raws)) :missing missing}))
+
+(deftest preservation-cli-failed-source-keeps-diagnostics-and-unrelated-settlement
+  (let [{:keys [config body thread other-thread missing]} (preservation-unavailable-proposal-cli-fixture)
+        status (execute config "status" "open-hax/knoxx" "388")
+        threads (execute config "threads" "open-hax/knoxx" "388" "--all")
+        gate (execute config "gate" "open-hax/knoxx" "388" "--apply")
+        generic (execute config "settle" "open-hax/knoxx" "388" other-thread "Fixed in fixture: unrelated corrective source and its regression test are verified.")
+        reserved (execute config "settle" "open-hax/knoxx" "388" thread body)]
+    (is (= 0 (:exit status)) (:err status))
+    (is (str/includes? (:out status) "threads: 2 total, 2 unresolved"))
+    (is (str/includes? (:out status) "gate: BLOCKED"))
+    (is (empty? (mutations status)))
+    (is (= 0 (:exit threads)) (:err threads))
+    (is (str/includes? (:out threads) (str "id=" thread)))
+    (is (str/includes? (:out threads) (str "id=" other-thread)))
+    (is (str/includes? (:out threads) "preservation custody: INCOMPLETE cause=immutable-source-unavailable"))
+    (is (str/includes? (:out threads) missing))
+    (is (empty? (mutations threads)))
+    (is (= 2 (:exit gate)) (:err gate))
+    (is (str/includes? (:out gate) "gate: BLOCKED"))
+    (is (empty? (writes gate "merge")))
+    (is (empty? (mutations gate)))
+    (is (= 0 (:exit generic)) (:err generic))
+    (is (= 2 (count (mutations generic))))
+    (is (every? #(some #{(str "t=" other-thread)} (:args %)) (mutations generic)))
+    (is (= 1 (:exit reserved)) (:err reserved))
+    (is (empty? (mutations reserved)))
+    (is (not (str/includes? (:receipts reserved) ":status :qualified")))))
+
 (run-tests 'test-cli 'test-native-context)

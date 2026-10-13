@@ -34,7 +34,7 @@ exit condition, CLI and next states.
 
 Executable `:flow/defaults` are `:review/min-rounds`, `:review/approval-quorum`,
 `:review/required`, `:review/by-repo-name`, `:review/identities`, the Proxx-only
-`:review/kimi-publication` profile and the separate
+`:review/kimi-publication` profile, the separate
 provisional `:review/actionability` admission profile and the separately scoped
 `:review/positive-bot-thread` preservation profile. Review
 settlement rules live in `law/classify-thread` and `law/unsettled-blockers`; the default merge-commit method lives in

@@ -340,7 +340,7 @@
 
 (defn print-threads [threads]
   (doseq [{:keys [id path line severity resolved? resolution reviewer comments
-                 rejection-channel rejection-source-id rejection-url actionability opener-withdrawal preservation]} threads]
+                 rejection-channel rejection-source-id rejection-url actionability opener-withdrawal preservation preservation-custody]} threads]
     (println (str (name severity) "  " (if resolved? "resolved  " "OPEN      ")
                   (if resolution (name resolution) "-unsettled-") "  " reviewer "  " path ":" line))
     (println (str "    id=" id))
@@ -350,6 +350,11 @@
       (println (str "    rejection evidence: " (name rejection-channel) " id=" rejection-source-id " " rejection-url)))
     (when opener-withdrawal
       (println (str "    native opener withdrawal: id=" (:source-id opener-withdrawal) " " (:url opener-withdrawal))))
+    (when (false? (:complete? preservation-custody))
+      (println (str "    preservation custody: INCOMPLETE"
+                    (when-let [cause (:error preservation-custody)] (str " cause=" (name cause)))
+                    (when-let [file (get-in preservation-custody [:source-error :path])] (str " path=" (pr-str file)))
+                    (when-let [head (get-in preservation-custody [:source-error :head])] (str " head=" head)))))
     (when (#{:qualified :revoked} (:status preservation))
       (println (str "    preservation: " (name (:status preservation))
                     " assessment=" (:assessment-id preservation) " " (:assessment-url preservation)

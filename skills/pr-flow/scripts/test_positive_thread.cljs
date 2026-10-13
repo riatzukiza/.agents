@@ -345,3 +345,69 @@
     (is (false? (:eligible? result)))
     (is (every? #(false? (:qualified? (positive-thread/proof %))) inputs))
     (is (every? #(empty? (:observations (positive-thread/proof %))) inputs))))
+
+
+(deftest reserved-preservation-family-includes-literal-prefixes-and-near-forms
+  (doseq [n (range 1 (inc (count "preservation")))
+          opening ["Handled: " "Handled " "**Handled:** " " handled:\n\t"]]
+    (let [body (str opening (subs "preservation" 0 n))]
+      (is (positive-thread/settlement-attempt? body) (pr-str body))
+      (is (nil? (positive-thread/settlement-details body)))))
+  (doseq [body ["Handled: preservationv2" "Handled: preservation_v2"
+               "Handled: preservations" "Handled: pre-servation" "Handled: pres ervation"
+               "HANDLED:\tPRESERVATIO" "**Handled:** preservatio\nbad"]]
+    (is (positive-thread/settlement-attempt? body) (pr-str body))
+    (is (nil? (positive-thread/settlement-details body))))
+  (doseq [body ["Handled: preserve existing behavior after the verified tests."
+               "Handled: previously verified behavior already addresses this concern."
+               "Handled: project policy and its tests already cover this case."
+               "Handled: P2 concern already covered by the existing source."
+               "Handled: The finding opener withdrew this finding on the current head."
+               "Handled cr-comment:v1:abcdef: the native positive body item is already addressed."]]
+    (is (false? (positive-thread/settlement-attempt? body)) (pr-str body)))
+  (doseq [s seeds]
+    (is (positive-thread/settlement-attempt? (:body (fixture s))))
+    (is (some? (positive-thread/settlement-details (:body (fixture s)))))))
+
+(deftest preservation-collector-contains-failed-source-custody-per-member
+  (let [s (first seeds) raws (mapv root-thread seeds)
+        {:keys [proposal]} (fixture s)
+        calls (atom [])
+        deps {:preservation-policy profile :authorized-author? (fn [& _] true) :read-history (fn [_] [])
+              :read-json (fn [& args]
+                           (if (str/includes? (str (nth args 3 nil)) "object(expression:")
+                             (blob-response s) (page s raws)))}
+        healthy (native-context/collect-context deps "open-hax/knoxx" "388" [proposal])
+        affected (first (:threads healthy)) untouched (second (:threads healthy))
+        source-path (get-in s [:source :path])]
+    (doseq [bad [(assoc-in (blob-response s) [:data :repository :object] nil)
+                 (assoc-in (blob-response s) [:data :repository :object :text] nil)
+                 (assoc-in (blob-response s) [:data :repository :object :isTruncated] true)
+                 (assoc-in (blob-response s) [:data :repository :object :byteSize] 1)
+                 (assoc-in (blob-response s) [:data :repository :object :oid] (apply str (repeat 40 "f")))]]
+      (let [broken (assoc deps :read-json (fn [& args]
+                                          (swap! calls conj args)
+                                          (if (str/includes? (str (nth args 3 nil)) "object(expression:") bad (page s raws))))
+            collected (native-context/collect-context broken "open-hax/knoxx" "388" [proposal])
+            ts (mapv #(assoc % :actionability-observations []) (:threads collected))
+            failed (first ts)]
+        (is (= raws (:raw-threads collected)))
+        (is (= 2 (count ts)))
+        (is (= untouched (second (:threads collected))) "An unrelated member keeps its complete native carrier")
+        (is (= [] (:preservation-source-inputs failed)))
+        (is (false? (get-in failed [:preservation-custody :complete?])))
+        (is (= :immutable-source-unavailable (get-in failed [:preservation-custody :error])))
+        (is (= {:path source-path :head (:head affected)} (get-in failed [:preservation-custody :source-error])))
+        (is (every? #(false? (:qualified? (positive-thread/proof %))) ts))
+        (is (every? #(empty? (:observations (positive-thread/proof %))) ts))
+        (is (= [:p1 :p1] (mapv :severity (mapv law/classify-thread ts))))
+        (is (= 2 (count (law/unsettled-blockers (mapv law/classify-thread ts)))))
+        (is (thrown? js/Error (native-context/hydrate-preservation-context broken healthy affected [source-path])))))
+    (let [provider-error (assoc deps :read-json (fn [& args]
+                                                (if (str/includes? (str (nth args 3 nil)) "object(expression:")
+                                                  (throw (ex-info "Untrusted provider error with private details" {:private-data "never retain" :head 123 :path 42}))
+                                                  (page s raws))))
+          collected (native-context/collect-context provider-error "open-hax/knoxx" "388" [proposal])
+          custody (get-in collected [:threads 0 :preservation-custody])]
+      (is (= {:version 2 :complete? false :error :preservation-hydration-unavailable :source-error {}} custody))
+      (is (not (str/includes? (pr-str custody) "private"))))))

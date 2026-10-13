@@ -667,3 +667,12 @@
   spore: none
   receipt-refs: a2a6bf46c2e05e3814138e05e70371c29cbb6f69d9b695aa223c304dd5e85484
   note: Actual failed reader-order and synthetic native fixture controls corrected without weakening production or test assertions; full owningCLI96/2565 now passes. Limited capturedNodeaudit scope retained; protected adoption and separately reviewed assessor remain pending. No new spore.
+- ts: 2026-10-13T17:22:59.446459649Z
+  session: 01a12257-fc69-7720-888c-dd2595ff7dc7
+  task: Qualify five native PR-flow repairs with complete registered99 and additive receipt correction
+  p-efficiency: 0.34
+  p-friction: 0.87
+  p-skill-candidate: 0.61
+  spore: none
+  receipt-refs: 331ea19ef07e3b67830856be86c03d4ffa48fa92012dec54625b34afd344b0d8
+  note: Keep exact native input and raw spawn outcomes. Positive pidfd readiness plus absent/different identity permits safe bookkeeping pruning; all original cleanup/refusal controls retained. Complete99 passes with unchanged assertions/timeouts. Preserve original failed suites and raw attribution history; no retrospective cause or protected adoption credit.

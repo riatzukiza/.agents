@@ -51,7 +51,10 @@
            (catch #?(:clj Exception :cljs :default) _ nil)))))
 
 (defn settlement-attempt? [body]
-  (boolean (re-find #"(?i)^\s*\**\s*handled\b[^A-Za-z0-9_]*preservation\b" (if (string? body) body ""))))
+  (let [token (some-> (re-find #"(?i)^\s*\**\s*handled\b[^A-Za-z0-9_]*([A-Za-z][A-Za-z0-9_]*)" (if (string? body) body ""))
+                      second str/lower-case)]
+    (boolean (and token (or (str/starts-with? "preservation" token)
+                            (str/starts-with? token "preservation"))))))
 (defn settlement-details [body]
   (let [[header finding assessment reason evidence :as lines] (str/split (if (string? body) body "") #"\n" -1)]
     (when-let [[_ head] (and (= 5 (count lines))

@@ -200,5 +200,20 @@
      (if (and (= 2 (:version profile)) (= :provisional (:status profile))
               (= [(:nameWithOwner r) (:databaseId r) (:id r)] (:repository profile)))
        (update snapshot :threads
-               #(mapv (fn [t] (hydrate-preservation-context deps snapshot t nil)) %))
+               #(mapv (fn [t]
+                        (try (hydrate-preservation-context deps snapshot t nil)
+                             (catch :default e
+                               ;; Incomplete member custody never grants admission. Retain
+                               ;; only controlled causes and validated source coordinates.
+                               (let [data (ex-data e)
+                                     cause (case (ex-message e)
+                                             "Invalid preservation source coordinate" :invalid-source-coordinate
+                                             "Complete immutable preservation source unavailable" :immutable-source-unavailable
+                                             :preservation-hydration-unavailable)
+                                     coordinate (cond-> {}
+                                                  (positive-thread/source-path? (:path data)) (assoc :path (:path data))
+                                                  (and (string? (:head data)) (re-matches #"[0-9a-f]{40}" (:head data))) (assoc :head (:head data)))]
+                                 (assoc t :preservation-policy profile :preservation-source-inputs []
+                                          :preservation-custody {:version 2 :complete? false :error cause
+                                                                 :source-error coordinate}))))) %))
        snapshot))))

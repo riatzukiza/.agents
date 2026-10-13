@@ -129,7 +129,10 @@ Evidence: <scoped source/test/document evidence>
 
 Reserved-family detection precedes generic writes, including truncated,
 case/spacing, missing-colon, tab/newline or bold forms; malformed family bodies
-refuse rather than falling through. Unrelated ordinary Handled remains subject
+refuse rather than falling through. The first identifier token after Handled
+is reserved when it is a nonempty literal prefix of `preservation` or starts
+with the complete word; no fuzzy matching is used. Ordinary `Handled: preserve
+existing behavior` remains generic. Unrelated ordinary Handled remains subject
 to existing law. The specialized path uses one fixed GitHub.com token-stripped
 keyring environment, no credential fallback/retry, fresh full User/write-role
 readback and complete corpus/source/history comparison before one reply attempt.
@@ -146,7 +149,7 @@ fresh readback must differ only by that target's resolution flag. Known verified
 member1 phases can advance while member2 is settled, leaving both qualified in
 one final snapshot. A member's own writer and resolution are necessary for its
 settlement; pending members still block merging. Unknown/partial outcomes retain
-actual attempts/readbacks, exit3 and never retry automatically.
+actual attempts/readbacks, exit with code 3 and never retry automatically.
 
 The pure blocker law recomputes proof; supplied preservation/settled flags
 cannot clear P1. Purpose-isolated records share the existing complete history
