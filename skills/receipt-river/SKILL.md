@@ -19,6 +19,30 @@ The canonical receipt file is `receipts.edn` in the project root. If the project
 - You are doing multi-step work (refactor, PR, migration, Π).
 - You need traceability of decisions/tests/builds.
 
+## Standard: segmented, merge-validated ledgers
+Receipt ledgers (and every other event ledger) are stored as **immutable
+segments**, not one shared append file. This is what lets forks, branches and
+parallel agents diverge and merge without ledger conflicts.
+
+- New records go in their own segment file under `.ημ/receipts/`, named
+  `<UTC timestamp>-<id>.edn` (e.g. `2026-10-13T164500123Z-3f9a1c2b7d4e.edn`),
+  one EDN record per line, newline-terminated.
+- An existing `receipts.edn` is the **frozen legacy first segment**: keep it,
+  never rewrite it, and do not append new records to it once `.ημ/receipts/`
+  exists.
+- Never edit, rename or delete a committed segment. Corrections are new records.
+- Validity is judged on the **merged ledger**: load the legacy file plus every
+  segment, merge in a stable order (`:ts`, then record id), and validate the
+  union as one event ledger — no base segment changed or removed, no base
+  record dropped, no record duplicated, every new record valid.
+- Clio (`open-hax/clio`) owns this mechanism: physical partitioning has no
+  semantic authority, and `clio canonicalize` validates a union of files.
+  Reference implementation for receipts: `riatzukiza/foresight`
+  `scripts/evidence.clj verify-receipts`.
+
+The bb scripts below still append to the single file; until they write
+segments, create segment files directly in repos that have `.ημ/receipts/`.
+
 ## Rules
 - If `receipts.edn` exists: **never edit past lines**.
 - If missing: create it at the start of non-trivial work.
