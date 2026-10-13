@@ -22,7 +22,7 @@
                        (when (= "pr-flow-actionability-observation" (:origin receipt))
                          (when-not (and (or (nil? (:repo receipt)) (string? (:repo receipt)))
                                         (vector? (:decisions receipt))
-                                        (every? #(and (map? %) (= :thread-actionability (:purpose %))
+                                        (every? #(and (map? %) (contains? #{:thread-actionability :positive-bot-thread-preservation} (:purpose %))
                                                       (string? (:repo-id %)) (not (str/blank? (:repo-id %))))
                                                 (:decisions receipt))
                                         (<= (count (set (map :repo-id (:decisions receipt)))) 1))

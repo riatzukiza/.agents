@@ -59,6 +59,15 @@
                                          ["open-hax/knoxx" 1199983316]
                                          #{{:login "eta-mu-ai[bot]" :id 270021952
                                             :node-id "BOT_kgDOEBg1QA"}}}}
+                 ;; Separate preservation purpose: source preparation requires
+                 ;; protected adoption and accepted independent native input.
+                 ;; The root publisher gains no reviewer/withdrawal authority.
+                 :review/positive-bot-thread
+                 {:version 2 :status :provisional
+                  :repository ["open-hax/knoxx" 1199983316 "R_kgDOR4ZK1A"]
+                  :root-identities #{["github-actions" 41898282 "MDM6Qm90NDE4OTgyODI=" "Bot"]}
+                  :assessor-identities #{["opencode-agent[bot]" 219766164 "BOT_kgDODRldlA" "Bot"]
+                                         ["eta-mu-ai[bot]" 270021952 "BOT_kgDOEBg1QA" "Bot"]}}
                  :review/identities {"coderabbit" #{"coderabbitai[bot]"}
                                      "codex" #{"chatgpt-codex-connector[bot]"}
                                      "mimo" #{"eta-mu-ai[bot]"}

@@ -7,7 +7,10 @@
             [test-informational :as informational]
             [test-opener-withdrawal :as withdrawal]
             [test-native-context]
+            [test-positive-thread :as preservation]
             [pr-flow.actionability :as actionability]
+            [pr-flow.actionability-history :as preservation-history]
+            [pr-flow.positive-thread :as positive-thread]
             [pr-flow.law :as law]
             [nbb.core :refer [*file*]]))
 (def here (path/dirname *file*))
@@ -2125,5 +2128,191 @@
     (is (= (.toString a "utf8") (.toString b "utf8")))
     (is (= 1 (:exit r)) (:err r))
     (is (empty? (mutations r)))))
+
+(defn preservation-cli-fixture [s]
+  (let [{:keys [raw proposal assessment body reply written]} (preservation/fixture s)
+        cfg {:head (get-in s [:root :commit_id]) :comments [proposal assessment]
+             :viewerUser preservation/actor :allowMutations true :testToken "fixture-token"
+             :testEnterpriseToken "fixture-enterprise" :testGithubEnterpriseToken "fixture-enterprise-two"
+             :testGhHost "ghe.fixture.invalid" :nativeRepository preservation/repository
+             :preservationBlobs {(str (get-in s [:source :head]) ":" (get-in s [:source :path]))
+                                 (get-in (preservation/blob-response s) [:data :repository :object])}
+             :replyResponse {:data {:addPullRequestReviewThreadReply {:comment (select-keys reply [:id :databaseId :url :body :author :createdAt :updatedAt])}}}
+             :resolveResponse {:data {:resolveReviewThread {:thread {:id (:id raw) :isResolved true}}}}
+             :threadPageResponses (mapv #(preservation/page s [%]) [raw raw written written (assoc written :isResolved true)])}]
+    {:config cfg :body body :thread (:id raw)}))
+
+(deftest preservation-cli-reply-before-resolve-with-exact-native-delta
+  (doseq [s preservation/seeds]
+    (let [{:keys [config body thread]} (preservation-cli-fixture s)
+          r (execute config "settle" "open-hax/knoxx" "388" thread body)
+          result (when (= 0 (:exit r)) (edn/read-string (:out r)))
+          effects (vec (mutations r))]
+      (is (= 0 (:exit r)) (:err r))
+      (is (= :handled-preservation (:status result)))
+      (is (= 2 (count effects)))
+      (is (str/includes? (str (:args (first effects))) "addPullRequestReviewThreadReply"))
+      (is (str/includes? (str (:args (second effects))) "resolveReviewThread"))
+      (is (true? (:settlement-credit? result)))
+      (is (= [false false false] (mapv result [:approval-credit? :coverage-credit? :round-credit?])))
+      (is (every? #(and (not (:hasToken %)) (not (:hasGithubToken %))
+                       (not (:hasEnterpriseToken %)) (not (:hasGithubEnterpriseToken %))
+                       (= "github.com" (:ghHost %))) (:calls r)))
+      (is (empty? (writes r "merge")))
+      (is (empty? (writes r "comment")))
+      (is (str/includes? (:receipts r) ":positive-bot-thread-preservation")))))
+
+(deftest preservation-cli-adverse-inputs-have-zero-native-effects
+  ;; Existing 5cea generic Handled writes despite these invalid new-purpose
+  ;; bodies/evidence, so these controls are behavioral RED rather than API absence.
+  (let [s (first preservation/seeds) {:keys [config body thread]} (preservation-cli-fixture s)]
+    (doseq [change [{:comments (subvec (:comments config) 0 1)}
+                   {:comments [(first (:comments config)) (update (second (:comments config)) :body #(str/replace % "\"preservation\"" "\"finding\""))]}
+                   {:viewerUser (assoc preservation/actor :type "Bot")}
+                   {:authorized false}
+                   {:no-receipt-ledger true}
+                   {:threadPageResponses (assoc (:threadPageResponses config) 1 (assoc-in (preservation/page s [(preservation/root-thread s)]) [:data :repository :pullRequest :headRefOid] other))}
+                   {:preservationBlobs {}}]]
+      (let [r (execute (merge config change) "settle" "open-hax/knoxx" "388" thread body)]
+        (is (= 1 (:exit r)) (:err r))
+        (is (empty? (mutations r)))))
+    (doseq [bad ["Handled: preservation" "Handled preservation" "Handled: preservation\tbad"
+                 "Handled: preservation\nbad" "**Handled:** preservation bad" " handled: PRESERVATION bad"
+                 (str/replace body "preservation v2" "preservation v1")
+                 (str/replace body "Finding: " "Finding: foreign-")
+                 (str body "\nA trailing claim cannot broaden this scope.")]]
+      (let [r (execute config "settle" "open-hax/knoxx" "388" thread bad)]
+        (is (= 1 (:exit r))) (is (empty? (mutations r)))))))
+
+(deftest preservation-cli-uncertain-reply-never-resolves-or-retries
+  (let [s (first preservation/seeds) {:keys [config body thread]} (preservation-cli-fixture s)]
+    (doseq [change [{:replyExitCode 1}
+                   {:replyResponse {:data {:addPullRequestReviewThreadReply {:comment {:url "https://example.invalid/missing-custody"}}}}}
+                   {:threadPageResponses (assoc (:threadPageResponses config) 2 (preservation/page s [(preservation/root-thread s)]))}
+                   {:threadPageResponses (assoc (:threadPageResponses config) 3 (assoc-in (nth (:threadPageResponses config) 3) [:data :repository :pullRequest :isDraft] true))}
+                   {:writerRoleAfterThreadReads "read" :writerRoleChangeAtThreadRead 4}]]
+      (let [r (execute (merge config change) "settle" "open-hax/knoxx" "388" thread body)]
+        (is (= 3 (:exit r)) (:err r))
+        (is (= 1 (count (mutations r))))
+        (is (not-any? #(str/includes? (str (:args %)) "resolveReviewThread") (mutations r)))))))
+
+(deftest preservation-cli-uncertain-resolution-retains-actual-outcome
+  (let [s (second preservation/seeds) {:keys [config body thread]} (preservation-cli-fixture s)]
+    (doseq [change [{:resolveExitCode 1}
+                   {:resolveResponse {:data {:resolveReviewThread {:thread {:id thread :isResolved false}}}}}
+                   {:threadPageResponses (assoc (:threadPageResponses config) 4 (nth (:threadPageResponses config) 3))}]]
+      (let [r (execute (merge config change) "settle" "open-hax/knoxx" "388" thread body)]
+        (is (= 3 (:exit r)) (:err r))
+        (is (= 2 (count (mutations r))))
+        (is (false? (:settlement-credit? (edn/read-string (:out r)))))
+        (is (empty? (writes r "merge")))))))
+
+(defn preservation-cohort-cli-fixture [f index receipt-text]
+  (let [before (if (zero? index) (:raws f) (:first-resolved f))
+        reply (nth (:replies f) index) body (nth (:bodies f) index)
+        written (if (zero? index) [(first (:written f)) (second (:raws f))] (:both-written f))
+        resolved (if (zero? index) (:first-resolved f) (:final f))
+        cfg {:head (get-in (first preservation/seeds) [:root :commit_id]) :comments (:issues f)
+             :viewerUser preservation/actor :allowMutations true :testToken "fixture-token"
+             :nativeRepository preservation/repository :receipt-text receipt-text
+             :preservationBlobs (into {} (map (fn [seed] [(str (get-in seed [:source :head]) ":" (get-in seed [:source :path]))
+                                                        (get-in (preservation/blob-response seed) [:data :repository :object])]) preservation/seeds))
+             :replyResponse {:data {:addPullRequestReviewThreadReply {:comment (select-keys reply [:id :databaseId :url :body :author :createdAt :updatedAt])}}}
+             :resolveResponse {:data {:resolveReviewThread {:thread {:id (first (nth (:targets f) index)) :isResolved true}}}}
+             :threadPageResponses (mapv #(preservation/page (first preservation/seeds) %) [before before written written resolved])}]
+    {:config cfg :thread (first (nth (:targets f) index)) :body body}))
+
+(deftest preservation-cohort-cli-sequential-writers-preserve-both-current-proofs
+  (let [f (preservation/cohort-fixture) first-call (preservation-cohort-cli-fixture f 0 "")
+        a (execute (:config first-call) "settle" "open-hax/knoxx" "388" (:thread first-call) (:body first-call))
+        second-call (preservation-cohort-cli-fixture f 1 (:receipts a))
+        b (execute (:config second-call) "settle" "open-hax/knoxx" "388" (:thread second-call) (:body second-call))]
+    (is (= 0 (:exit a)) (:err a)) (is (= 0 (:exit b)) (:err b))
+    (doseq [r [a b]]
+      (is (= 2 (count (mutations r))))
+      (is (= :handled-preservation (:status (edn/read-string (:out r)))))
+      (is (empty? (writes r "merge"))))
+    (let [history (preservation-history/observations (:receipts b) (:id preservation/repository))
+          inputs (:threads (preservation/cohort-collected (:issues f) (:final f) history))]
+      (is (every? :settled? (map positive-thread/proof inputs)))
+      (is (empty? (law/unsettled-blockers (mapv law/classify-thread inputs)))))))
+
+(deftest preservation-cohort-cli-invalid-other-member-refuses-before-target-write
+  (let [f (preservation/cohort-fixture) cfg (preservation-cohort-cli-fixture f 1 "")
+        bad (assoc-in (first (:first-resolved f)) [:comments :nodes 1 :body] "Handled: preservation")
+        page (preservation/page (first preservation/seeds) [bad (second (:raws f))])
+        r (execute (assoc (:config cfg) :threadPageResponses [page]) "settle" "open-hax/knoxx" "388" (:thread cfg) (:body cfg))]
+    (is (= 1 (:exit r))) (is (empty? (mutations r)))))
+
+
+(deftest preservation-cli-truncated-and-near-family-bodies-have-zero-native-effects
+  (let [s (first preservation/seeds) {:keys [config thread]} (preservation-cli-fixture s)]
+    (doseq [body (concat (map #(str "Handled: " (subs "preservation" 0 %)) (range 1 (count "preservation")))
+                        ["Handled: preservationv2" "Handled: preservation_v2"
+                         "Handled: preservations" "Handled: pre-servation" "Handled: pres ervation"
+                         "HANDLED:\tPRESERVATIO" "**Handled:** preservatio\nbad" " handled:\n\tpreservatio"])]
+      (let [r (execute config "settle" "open-hax/knoxx" "388" thread body)]
+        (is (= 1 (:exit r)) (pr-str body))
+        (is (str/includes? (:err r) "Malformed preservation settlement; no native write"))
+        (is (empty? (mutations r)) (pr-str body))
+        (is (empty? (:calls r)) "Malformed family is rejected before native reads or authentication")))))
+
+(deftest preservation-cli-reservation-keeps-ordinary-handled-dispatch
+  (is (false? (positive-thread/settlement-attempt? withdrawal/handled-body)))
+  (is (withdrawal/cleared? (withdrawal/input withdrawal/prospective))
+      "The existing native opener-withdrawal qualification retains its exact writer binding")
+  (let [s (first preservation/seeds) {:keys [config thread]} (preservation-cli-fixture s)]
+    (doseq [body ["Handled: preserve existing behavior after the verified tests."
+                 "Handled: previously verified behavior already addresses this concern."
+                 "Handled: project policy and its tests already cover this case."
+                 "Handled: P2 concern already covered by the existing source."
+                 withdrawal/handled-body
+                 "Handled cr-comment:v1:abcdef: the native positive body item is already addressed."]]
+      (let [r (execute config "settle" "open-hax/knoxx" "388" thread body)]
+        ;; This controls unchanged route dispatch and effects, not P1 admission.
+        ;; Existing native opener-withdrawal/positive-body laws test qualification.
+        (is (= 0 (:exit r)) (:err r))
+        (is (= 2 (count (mutations r))))
+        (is (str/includes? (:out r) "as handled"))))))
+
+(defn preservation-unavailable-proposal-cli-fixture []
+  (let [s (first preservation/seeds) {:keys [config body thread]} (preservation-cli-fixture s)
+        proposal (first (:comments config)) parsed (positive-thread/protocol proposal)
+        missing ".github/workflows/fixture-unavailable-preservation-source.yml"
+        malformed (assoc proposal :body (str "Preservation proposal v2 for " (:head config) ":\n"
+                                             (pr-str (assoc-in (:payload parsed) [7 0 0] missing))))
+        raws (mapv preservation/root-thread preservation/seeds)
+        page (preservation/page s raws)]
+    {:config (merge base config {:comments [malformed] :threadPageResponses [page]
+                                :reviews [(assoc approval :commit_id (:head config))]})
+     :body body :thread thread :other-thread (:id (second raws)) :missing missing}))
+
+(deftest preservation-cli-failed-source-keeps-diagnostics-and-unrelated-settlement
+  (let [{:keys [config body thread other-thread missing]} (preservation-unavailable-proposal-cli-fixture)
+        status (execute config "status" "open-hax/knoxx" "388")
+        threads (execute config "threads" "open-hax/knoxx" "388" "--all")
+        gate (execute config "gate" "open-hax/knoxx" "388" "--apply")
+        generic (execute config "settle" "open-hax/knoxx" "388" other-thread "Fixed in fixture: unrelated corrective source and its regression test are verified.")
+        reserved (execute config "settle" "open-hax/knoxx" "388" thread body)]
+    (is (= 0 (:exit status)) (:err status))
+    (is (str/includes? (:out status) "threads: 2 total, 2 unresolved"))
+    (is (str/includes? (:out status) "gate: BLOCKED"))
+    (is (empty? (mutations status)))
+    (is (= 0 (:exit threads)) (:err threads))
+    (is (str/includes? (:out threads) (str "id=" thread)))
+    (is (str/includes? (:out threads) (str "id=" other-thread)))
+    (is (str/includes? (:out threads) "preservation custody: INCOMPLETE cause=immutable-source-unavailable"))
+    (is (str/includes? (:out threads) missing))
+    (is (empty? (mutations threads)))
+    (is (= 2 (:exit gate)) (:err gate))
+    (is (str/includes? (:out gate) "gate: BLOCKED"))
+    (is (empty? (writes gate "merge")))
+    (is (empty? (mutations gate)))
+    (is (= 0 (:exit generic)) (:err generic))
+    (is (= 2 (count (mutations generic))))
+    (is (every? #(some #{(str "t=" other-thread)} (:args %)) (mutations generic)))
+    (is (= 1 (:exit reserved)) (:err reserved))
+    (is (empty? (mutations reserved)))
+    (is (not (str/includes? (:receipts reserved) ":status :qualified")))))
 
 (run-tests 'test-cli 'test-native-context)
