@@ -3,7 +3,7 @@
   (v "ημ.skill/receipt-river@0.2.2")
 
   (intent
-    "Use an append-only receipts.edn ledger (Receipt River). Tail it regularly and append receipts at phase boundaries, verification, and commits. Ships bb scripts for harness-agnostic file interaction.")
+    "Use an append-only Receipt River ledger: receipts.edn in legacy mode; in segmented mode (.ημ/receipts/ exists, the standard) the legacy file is frozen and each receipt is its own immutable segment. Read a bounded newest window of the active ledger regularly and record receipts at phase boundaries, verification, and commits. Ships bb scripts (legacy mode only) for harness-agnostic file interaction.")
 
   (activation
     (priority 62)

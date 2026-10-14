@@ -1,6 +1,6 @@
 ---
 name: receipt-river
-description: Use an append-only receipts.edn (Receipt River) to externalize execution state; tail it regularly during work.
+description: Use an append-only Receipt River ledger to externalize execution state — receipts.edn in legacy mode, one immutable .ημ/receipts/ segment per receipt in segmented mode (the standard); read a bounded newest window of the active ledger regularly during work.
 ---
 
 # Skill: Receipt River (append-only receipts.edn)
@@ -9,7 +9,10 @@ description: Use an append-only receipts.edn (Receipt River) to externalize exec
 Make long agent runs smarter and more recoverable by maintaining an **append-only** `receipts.edn` ledger.
 
 ## Canonical file
-The canonical receipt file is `receipts.edn` in the project root. If the project keeps meta-state under `.ημ/`, the bb scripts will prefer `.ημ/receipts.edn` when it already exists, but the default bootstrap location remains the project root for backward compatibility.
+Mode first: when `.ημ/receipts/` exists the repository is in **segmented mode**
+— `.ημ/receipts.edn` is frozen, each new receipt is its own segment, and
+readers use the active-union window (see "Standard: segmented, merge-validated ledgers" below). Otherwise
+(legacy mode): the canonical receipt file is `receipts.edn` in the project root. If the project keeps meta-state under `.ημ/`, the bb scripts will prefer `.ημ/receipts.edn` when it already exists, but the default bootstrap location remains the project root for backward compatibility.
 
 ## Canonical line format
 - required keys: `ts kind origin owner dod pi host manifest refs`

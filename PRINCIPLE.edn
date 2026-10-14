@@ -65,7 +65,7 @@
     (repository-instructions "AGENTS.md")
     (skills "skills/<skill-name>/SKILL.md")
     (contracts "skills/<skill-name>/CONTRACT.edn")
-    (project-receipts ".ημ/receipts.edn or receipts.edn")
+    (project-receipts ".ημ/receipts.edn or receipts.edn (legacy mode); .ημ/receipts/ segments with a frozen .ημ/receipts.edn (segmented mode, see skills/receipt-river/SKILL.md)")
     (project-spores ".ημ/session-mycology/spores/"))
 
   (discovery
