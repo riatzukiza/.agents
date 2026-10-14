@@ -72,17 +72,20 @@ segment directories); do not split a ledger whose consumers read one file.
     is corruption, matching Clio's laws). Content hashing must not override ID.
   - Legacy ID-less `:ts` receipts: SHA-256 of the record's canonical EDN form
     (map entries and set members sorted).
-- Order: until receipts are Clio events, there is no canonical order; the
-  repository verifiers sort only to make validation deterministic, and that
-  sort is not a recency order. For display and context recovery ("the last
-  ~20 records"), order by the record's **effective time**: `:ts` when present,
-  otherwise `:event/recorded-at` (mixed ledgers hold `#:event` records that have
-  no top-level `:ts`), then record identity as the tie-break. Records with
-  neither field sort first and must not displace timestamped records from the
-  newest window. Once wrapped as Clio events, canonical order is Clio's
-  causal/stream order (`:event/causes`, then
-  `[:event/stream :event/seq :event/id]`); timestamps never carry ordering
-  authority.
+- Order: one authoritative order governs every merged ledger that still holds
+  any non-Clio record — a legacy-only ledger, or the migration state where frozen
+  legacy records and Clio event segments coexist. In that state there is no
+  cross-kind precedence: interleave all records, legacy and `#:event` alike, by
+  the record's **effective time** — `:ts` when present, otherwise
+  `:event/recorded-at` (`#:event` records have no top-level `:ts`) — then record
+  identity (above) as the tie-break. Records with neither field sort first and
+  must not displace timestamped records from the newest window. This same order
+  is used for display and context recovery ("the newest ~20 records"). The
+  repository verifiers sort only to make validation deterministic; that sort is
+  not a recency order. Clio's causal/stream order (`:event/causes`, then
+  `[:event/stream :event/seq :event/id]`) becomes canonical only once **every**
+  record in the merged ledger, including the frozen legacy records, is a Clio
+  event; from then on timestamps never carry ordering authority.
 - **Clio today** (`open-hax/clio` main): the shipped CLI is `clio append` and
   `clio canonicalize` over ledger files. Segment helpers
   (`append-segment` / `canonicalize-dir`) are proposed on `riatzukiza/clio#5`
