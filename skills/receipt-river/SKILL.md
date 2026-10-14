@@ -67,32 +67,54 @@ segment directories); do not split a ledger whose consumers read one file.
   predate today's required keys (this repository's `.ημ/receipts.edn` lines 8–9
   lack `:dod` and `:pi`) and freezing forbids repairing them in place; correct
   such a record with a new `:adjudication` record instead.
-- Record shape (what "every new record valid" checks; it applies to every
-  record in `.ημ/receipts/` segments except cutover wraps of legacy records):
+- Record shape (what "every new record valid" checks on **active** `.ημ/receipts/`
+  segments; cutover wraps of legacy/plain/envelope sources stay grandfathered for
+  payload keys, but must still be well-formed full Clio envelopes):
   - Plain receipts: a flat map holding the required keys above.
-  - Event-wrapped receipts (`#:event` records with `:event/type
-    :receipt-river/receipt-recorded`): the envelope needs `:event/id`,
-    `:event/type`, `:event/recorded-at` and `:event/payload`, and the receipt
-    required keys are validated on `:event/payload` (the payload *is* the
-    receipt). Any other `:event/type` is invalid in a receipt ledger.
-  - `CONTRACT.edn` `event-envelope` states the same rule for machines.
+  - Lightweight Receipt River envelopes (`#:event` with `:event/type
+    :receipt-river/receipt-recorded` and `:event/recorded-at` / `:event/payload`):
+    the envelope needs `:event/id`, `:event/type`, `:event/recorded-at` and
+    `:event/payload`, and the receipt required keys are validated on
+    `:event/payload`. Valid **before cutover** (and as pre-cutover sources).
+  - Full Clio events (required **during/after cutover** for new writes and for
+    verbatim-promoted or cutover-wrapped records): `:event/id`, `:event/schema`,
+    `:event/type :receipt-river/receipt-recorded`, `:event/stream`, `:event/seq`,
+    `:event/causes`, `:event/actor`, `:event/subject`, `:event/at`, and
+    `:event/data` (receipt under `:receipt-river/receipt`). Do **not** require the
+    lightweight `:event/recorded-at` / `:event/payload` keys on full Clio events.
+  - Any other `:event/type` is invalid in a receipt ledger.
+  - `CONTRACT.edn` `event-envelope` (pre-cutover) and `full-clio-event` /
+    `clio-cutover` (cutover/post-cutover) state the same rules for machines.
 - Record identity:
   - `#:event` / Clio records: use `:event/id` (a reused ID with different data
     is corruption, matching Clio's laws). Content hashing must not override ID.
-  - ID-less plain receipts (legacy file **or** a plain segment written under
-    lines 70–72): SHA-256 of the record's canonical EDN form (map entries and
-    set members sorted). The same rule applies to every ID-less plain receipt
-    so duplicate detection, mixed-ledger tie-breaking, and cutover UUID
-    derivation stay consistent across sources.
+  - ID-less plain receipts (legacy file **or** a plain segment): SHA-256 of the
+    record's **canonical EDN bytes**, defined as:
+    1. Parse the record to EDN data.
+    2. Walk the value: every map becomes an array-map (or equivalent) with keys
+       sorted by `pr-str` of the key; every set becomes a vector of members
+       sorted by `pr-str` of the member; lists/vectors keep order; tagged
+       literals stay `#tag <canonical-value>`; numbers use Clojure/`pr-str`
+       defaults (no custom exponent forms); strings/chars/keywords/symbols/
+       booleans/nil use standard `pr-str`.
+    3. Emit with Clojure/`pr-str` (single spaces between tokens, no pretty-print
+       newlines, no comma separators).
+    4. UTF-8 encode that string; SHA-256 the bytes; hex-digest in lowercase with
+       no separators.
+    Independent verifiers must match these bytes. The same rule applies to every
+    ID-less plain receipt so duplicate detection, mixed-ledger tie-breaking, and
+    cutover UUID derivation stay consistent across sources.
 - Order: one authoritative order governs every merged ledger that still holds
   any non-Clio record — a legacy-only ledger, or the migration state where frozen
   legacy records and Clio event segments coexist. In that state there is no
   cross-kind precedence: interleave all records, legacy and `#:event` alike, by
-  the record's **effective time** — `:ts` when present, otherwise
-  `:event/recorded-at` (`#:event` records have no top-level `:ts`) — then record
-  identity (above) as the tie-break. Records with neither field sort first and
-  must not displace timestamped records from the newest window. This same order
-  is used for display and context recovery ("the newest ~20 records"). The
+  the record's **effective time** — first present of `:ts`, then
+  `:event/recorded-at` (lightweight envelopes), then `:event/at` (full Clio
+  events; they have neither `:ts` nor `:event/recorded-at`) — then record
+  identity (above) as the tie-break. Records with no effective-time field sort
+  first and must not displace timestamped records from the newest window. This
+  same order is used for display and context recovery ("the newest ~20 records")
+  **while any non-Clio record remains in the active union**. The
   repository verifiers sort only to make validation deterministic; that sort is
   not a recency order. Clio order becomes canonical only once **every** record
   in the active merged ledger is a Clio event, i.e. after the cutover below;
@@ -103,9 +125,10 @@ segment directories); do not split a ledger whose consumers read one file.
   sort with `:event/causes` as a key.
 - Cutover to all-Clio order (the reachable transition), in one dedicated PR:
   - Convert **every active non-Clio record** — frozen legacy lines **and** any
-    plain (or Receipt-River-envelope) segments already under `.ημ/receipts/` —
-    into a canonical Clio event in its own segment. Leaving plain segments in
-    the active union would keep `every active record is a Clio event` false.
+    plain **or** lightweight Receipt-River-envelope segments already under
+    `.ημ/receipts/` — into a canonical Clio event in its own segment. Leaving
+    those sources in the active union would keep `every active record is a Clio
+    event` false.
   - Each wrap is a **full Clio envelope** (not the lighter Receipt River
     `:event/recorded-at` / `:event/payload` shape used during mixed-ledger
     migration). Required fields match [Clio's event shape](https://github.com/open-hax/clio#event-shape):
@@ -114,9 +137,10 @@ segment directories); do not split a ledger whose consumers read one file.
     :receipt-river/receipt-recorded`, `:event/stream`, `:event/seq`,
     `:event/causes`, `:event/actor` (cutover actor, e.g. `receipt-river/cutover`),
     `:event/subject` (stable receipt subject, e.g. `receipt:<record-identity>`),
-    `:event/at` (source `:ts` when present, else the cutover time), and
-    `:event/data` holding the source receipt map verbatim under
-    `:receipt-river/receipt`.
+    `:event/at` (source `:ts` when present, else `:event/recorded-at` for
+    lightweight envelopes, else the cutover time), and `:event/data` holding the
+    source receipt map verbatim under `:receipt-river/receipt` (for a lightweight
+    envelope source, the payload map; for a plain receipt, the receipt itself).
   - `:event/id` rules:
     - A source that is **already** a Clio event (has `:event/id` and the full
       Clio envelope) is **promoted verbatim** — keep its `:event/id` and do not
@@ -124,23 +148,36 @@ segment directories); do not split a ledger whose consumers read one file.
     - Every other source gets a deterministic **UUID version 5** (RFC 9562
       §6.5 / RFC 4122 name-based SHA-1) whose namespace UUID is the Receipt
       River cutover namespace `6ba7b810-9dad-11d1-80b4-00c04fd430c8` (DNS
-      namespace) and whose name bytes are the UTF-8 encoding of the hex SHA-256
-      record identity (above) in lowercase with no separators. Implementations
-      must reproduce this exact ID; "name-based UUID" alone is not enough.
+      namespace). Name bytes depend on the source identity kind:
+      - **ID-less plain receipt**: UTF-8 encoding of the lowercase hex SHA-256
+        canonical-EDN identity (above), no separators.
+      - **Lightweight Receipt River envelope** (record identity is `:event/id`,
+        normally a UUID string): UTF-8 encoding of that `:event/id` in its
+        canonical lowercase hyphenated UUID spelling (no braces). Do **not**
+        re-hash the envelope into SHA-256 for the name input.
+      Implementations must reproduce this exact ID; "name-based UUID" alone is
+      not enough.
   - All new wraps go in one cutover-only stream `<repo>/legacy` with
     `:event/seq` following the pre-cutover active-union order, each naming the
     previous wrap in `:event/causes`; it is written once, serially, so no
     stream slot conflicts. Verbatim-promoted Clio events keep their original
     stream/seq and are not rewritten into `<repo>/legacy`.
-  - Declare the cutover in `.ημ/receipts/README.md`: the legacy file becomes an
-    **archived source**, kept in place byte-for-byte (never rewritten, renamed
-    or deleted) but **excluded from the active union**. Post-cutover readers
-    load only `.ημ/receipts/` segments (plus any README marker); they must not
-    re-merge the archived legacy file.
+  - Declare the cutover in `.ημ/receipts/README.md` and write an exclusion
+    manifest `.ημ/receipts/.cutover-excluded.edn` (EDN vector of relative
+    segment filenames that were converted). The frozen legacy file **and** every
+    converted plain/envelope source segment become **archived sources**: kept in
+    place byte-for-byte (never rewritten, renamed, or deleted) but **excluded
+    from the active union**. Post-cutover readers load only active `.ημ/receipts/`
+    segments that are **not** listed in `.cutover-excluded.edn` (plus README /
+    manifest markers); they must not re-merge the archived legacy file or the
+    excluded source segments. This is how `every active record is a Clio event`
+    becomes true without violating the committed-segment immutability rule.
   - The merged-ledger check then verifies a bijection: every archived legacy
-    record and every converted plain segment has exactly one active Clio event
-    whose `:event/data` / identity matches, and every cutover wrap has a
-    source. Wrap payloads stay grandfathered exactly like their source records.
+    record **and every pre-cutover non-Clio source segment** (plain **and**
+    lightweight Receipt River envelopes listed in `.cutover-excluded.edn`) has
+    exactly one active Clio event whose `:event/data` / identity matches, and
+    every cutover wrap has a source. An omitted envelope source must fail the
+    check. Wrap payloads stay grandfathered exactly like their source records.
   - Once that PR merges, the active union holds only Clio events and Clio order
     applies.
 - **Clio today** (`open-hax/clio` main): the shipped CLI is `clio append` and
@@ -161,16 +198,22 @@ segment directories); do not split a ledger whose consumers read one file.
 ## Rules (both modes)
 These rules and the minimal workflow below apply in both modes. In segmented
 mode (`.ημ/receipts/` exists) the section above takes precedence for the
-mechanics: every "append" means "write a new segment file", "tail" means "read
-the newest ~20 records of the merged ledger by effective time", and none of
-`rr-init.bb` / `rr-append.bb` / `rr-tail.bb` / `rr-last.bb` nor the `receipt_river` runtime
-tool may be used until they are union-aware.
+mechanics: every "append" means "write a new segment file"; "tail" / context
+recovery means a **bounded** read of the newest ~20 records of the **active**
+merged ledger — by effective time **before** cutover, and by the tail of
+canonical Clio topological order **after** cutover (timestamps must not drive
+the post-cutover window); and none of `rr-init.bb` / `rr-append.bb` /
+`rr-tail.bb` / `rr-last.bb` nor the `receipt_river` runtime tool may be used
+until they are union-aware. Do not inspect every immutable segment on each
+decision; use the bounded union-aware window.
 
 - Legacy mode: if `receipts.edn` exists, **never edit past lines**; if missing,
   create it at the start of non-trivial work.
 - Segmented mode: never edit, rename or delete a committed segment or the
   frozen legacy file.
-- Check it regularly: regain the newest ~20 records before major decisions.
+- Check it regularly: regain the newest ~20 records of the active union before
+  major decisions (effective-time order pre-cutover; Clio topological tail
+  post-cutover). Do not re-read every historical segment.
 - Never log secrets (tokens, Authorization headers, private keys).
 
 ## Minimal workflow
