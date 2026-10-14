@@ -32,13 +32,20 @@ parallel agents diverge and merge without ledger conflicts.
   exists.
 - Never edit, rename or delete a committed segment. Corrections are new records.
 - Validity is judged on the **merged ledger**: load the legacy file plus every
-  segment, merge in a stable order (`:ts`, then record id), and validate the
-  union as one event ledger — no base segment changed or removed, no base
-  record dropped, no record duplicated, every new record valid.
-- Clio (`open-hax/clio`) owns this mechanism: physical partitioning has no
-  semantic authority, and `clio canonicalize` validates a union of files.
-  Reference implementation for receipts: `riatzukiza/foresight`
-  `scripts/evidence.clj verify-receipts`.
+  segment and validate the union as one event ledger — no base segment changed
+  or removed, no base record dropped, no record duplicated, every new record
+  valid.
+- Canonical order is Clio's causal/stream order (`:event/causes`, then
+  `[:event/stream :event/seq :event/id]`). Timestamps are for display only and
+  carry no ordering authority.
+- Clio (`open-hax/clio`) owns storage and union validation (`clio
+  append-segment`, `clio canonicalize-dir`; partitioning has no semantic
+  authority). Clio has no git dependency: the check that committed segments
+  were never edited or removed belongs to eta-mu's receipt/ledger commands.
+- Legacy receipts are wrapped as Clio events, one stream per repository, when
+  receipt-river moves onto Clio. Until then, repos that already verify
+  segments (e.g. `riatzukiza/foresight` `scripts/evidence.clj
+  verify-receipts`) are the reference implementation.
 
 The bb scripts below still append to the single file; until they write
 segments, create segment files directly in repos that have `.ημ/receipts/`.
