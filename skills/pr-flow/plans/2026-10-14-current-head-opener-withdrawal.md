@@ -9,7 +9,7 @@ Primary path: `docs/agile/kanban/repair-canonical-opener-withdrawal-across-immut
 character coordination checkout. Owner source: `riatzukiza/.agents`.
 Estimate: **2 points**. Native state at capture: **Incoming**.
 
-Current primary card SHA256: `b96686b415ba534824e7a212f6c3c3b723b0094ceca8a00a2b1115a9ec138fcd`.
+Current primary card SHA256: `ae3418b92a1021bc7df2783e90ebddd56c497ee08863c354413e0cf4735ea2c6`.
 
 ## Context
 
@@ -63,6 +63,14 @@ or change character runtime, clock, gateway, grants or publication.
    current-head planning/code review and protected history-preserving MERGE.
    Only then adopt the reviewed source and obtain fresh native withdrawal/writer
    evidence on ETA PR15; historical752 evidence cannot qualify current564.
+
+6. Before this prerequisite is admitted Ready, reconcile its parent epic through
+   qualified Rheos: add this child UUID/two-point scope to the native inventory,
+   and apply the independently reviewed enumerated total of 39 points
+   (the existing proposed37 plus this included2). Read back the actual epic
+   UUID/type, points and scope comment. Preserve prior34/37 source and events;
+   the arithmetic is a proposal until planning review qualifies it. No readiness
+   may rely only on the old Incoming34 readback or a duplicated source snapshot.
 
 ## Verification
 
