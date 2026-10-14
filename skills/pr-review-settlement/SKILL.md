@@ -97,10 +97,12 @@ source links. Analysis/learning blocks, fenced or quoted examples and generated
 shares cannot supply that evidence. Unsupported or ambiguous wording remains
 blocking; never publish a transcript or relabel assent as withdrawal.
 
-The native root and withdrawal must both be on the current head and in the
-same complete ordered conversation, by the same configured Bot, with no later
-pushback or conflicting edit. Different openers, author claims, quota replies,
-cross-root scope and old heads do not qualify. The conversation must be resolved
+The native root retains its known original review ID, published state, opener
+and full commit SHA as immutable provenance; that commit may precede the current
+head. The withdrawal must bind the current head in the same complete ordered
+conversation, by the same configured Bot, with no later pushback or conflicting
+edit. Unknown original review bindings, different openers, author claims, quota
+replies, cross-root scope and stale withdrawals do not qualify. The conversation must be resolved
 and an authorized User writer must post a settlement naming the current head,
 exact root pair and actual native withdrawal URL, for example:
 

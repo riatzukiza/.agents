@@ -676,6 +676,66 @@
   spore: none
   receipt-refs: 331ea19ef07e3b67830856be86c03d4ffa48fa92012dec54625b34afd344b0d8
   note: Keep exact native input and raw spawn outcomes. Positive pidfd readiness plus absent/different identity permits safe bookkeeping pruning; all original cleanup/refusal controls retained. Complete99 passes with unchanged assertions/timeouts. Preserve original failed suites and raw attribution history; no retrospective cause or protected adoption credit.
+
+- ts: 2026-10-14T14:51:16.838Z
+  task: Cephalon finite B1/B2/B3 prerequisite
+  p-efficiency: 0.8
+  p-friction: 0.2
+  p-skill-candidate: 0.1
+  spore: none
+  receipt-refs: canonical-old-review-withdrawal-planning-20261014
+  note: New prerequisite is explicitly included by human; earlier scope-pending records remain immutable and are superseded for inclusion only. Owning source plan preserves old root/review/head and requires actual fresh current opener/writer/native ordered context, all negatives and independent review/MERGE before adoption. Actual current ETA stale752 withdrawal is retained as stale, not relabeled current564. Full original GraphQL bytes and selected native fixture separate from future prospective test-only transformations. No law/test implementation before planning readiness; no new identity/approval/round/CI waiver, source-history rewrite, runtime/credential/model/paid/social/deployment/newagent/spore action.
+
+- ts: 2026-10-14T15:09:48.312837+00:00
+  session: 01a0fa39-15d0-7ab3-93a4-b4f4ce3c51e3
+  task: canonical-old-review-withdrawal-planning-20261014
+  p-efficiency: 0.8
+  p-friction: 0.3
+  p-skill-candidate: 0.1
+  spore: none
+  receipt-refs: canonical-old-review-withdrawal-planning-20261014
+  note: Attribution correction for the preceding reflection: session is 01a0fa39-15d0-7ab3-93a4-b4f4ce3c51e3, working directory /home/err/spaces/cephalon-pr-withdrawal/.agents. Original missing-field entry is immutable and remains unchanged. This replacement attribution is a new complete reflection, not a historical rewrite.
+
+- ts: 2026-10-14T15:12:01.485Z
+  session: /home/err/spaces/cephalon-pr-withdrawal/.agents
+  task: Canonical issue25 two-point plan
+  p-efficiency: 0.8
+  p-friction: 0.2
+  p-skill-candidate: 0.1
+  spore: none
+  receipt-refs: canonical-withdrawal-three-planning-findings-corrected-20261014
+  note: Pure predicate repair excludes collector/acquisition/pagination/identity-custody scope; insufficiency requires a separately scoped/estimated prerequisite before collector change. Actual existing native collector already supplies complete original/current enclosing reviews. Added full native parent and newer primary readback; initial broader-scope raw creation snapshot remains immutable and explicitly historical. Appended complete session-attribution correction referencing the missing-field reflection; private owned receipt/reflection helper now emits future session/CWD so the omission does not recur. Initial API observation lacked formal Codex data while summary completed; later native COMMENTED review and three findings arrived, so completion alone was never counted as approval. Real current old review/MiMo/CI handles remain owned, no fabricated failure/approval/timeouts. No law/test implementation before readiness, policywaiver/sourcehistory/runtime/paid/credential/grant/newagent/spore change.
+
+- ts: 2026-10-14T15:21:49.862Z
+  session: /home/err/spaces/cephalon-pr-withdrawal/.agents
+  task: Included pure-law two-point issue25 plan
+  p-efficiency: 0.8
+  p-friction: 0.2
+  p-skill-candidate: 0.1
+  spore: none
+  receipt-refs: canonical-withdrawal-parent-pre-readiness-and-temporal-correction-20261014
+  note: AC6 explicitly requires qualified native parent scope/child inventory and independently reviewed39 enumerated total/readback before primaryReady. Original34/37 history remains; no parent estimate changed before review. Receipt175 frontmatter-equality wording applied to manual Scope edit BEFORE native comment, not afterward: the canonical comment lawfully advanced write-id, as actual newer readback records. UUID/parent/epic/statusIncoming/points2 retained. Earlier quota did not erase a newer actual Codex f260 review; current obligation restored and its newP2 addressed. CodeRabbit actual current-head request6171665220 got authenticated quota6171668026 at15:15:36UTC with37minute included retry, no spending-cap/paid change. Actual f260 CI/MiMo handles retained; old599 approvals/checks transfer no current credit. No code implementation before planning/readiness, newcollector/policywaiver/runtime/credential/model/grant/paid/social/deployment/newagent/spore change.
+
+- ts: 2026-10-14T16:06:25.925Z
+  session: /home/err/spaces/cephalon-pr-withdrawal/.agents
+  task: Pure canonical withdrawal repair
+  p-efficiency: 0.8
+  p-friction: 0.2
+  p-skill-candidate: 0.1
+  spore: none
+  receipt-refs: canonical-old-review-current-withdrawal-red-20261014
+  note: RED proves the actual predicate wrongly denies a known old original review even with prospective current opener and later authorized writer. Missing proof original-head/original-review/current-head assertions fail alongside false cleared result. Changed old-root-negative scenario to unknown original root binding because accepting a known old original is the explicitly reviewed requirement; no other existing assertion removed. Full raw stdout/stderr in byte-equivalent JSON custody, original whitespace/hashes preserved. Plan merged with actual one completed availableMiMo cohort/fivechecks/foursettledthreads and authentic Codex/CodeRabbit quota observations, no quota approval or credit. Primary legally traversed Incoming/Accepted/Breakdown/Ready/Todo/InProgress and parent point39/readback satisfiedAC6; no taskDone or source adoption yet.0of3behavioralproofs/heartbeatPAUSED; no collector/runtime/credential/model/paid/grant/social/deployment/newagent/spore change.
+
+- ts: 2026-10-14T16:24:37.309Z
+  session: /home/err/spaces/cephalon-pr-withdrawal/.agents
+  task: Two-point canonical withdrawal repair
+  p-efficiency: 0.8
+  p-friction: 0.2
+  p-skill-candidate: 0.1
+  spore: none
+  receipt-refs: canonical-old-review-current-withdrawal-green-20261014
+  note: The original published review retains its native ID/node ID/opener and known full original commit, which may be older than current head. Derived proof separates original-head/original-review-id from current head. Current native withdrawal and later authorized writer still require exact head/root/URL/identity/context/chronology and actual resolved conversation; unknown original metadata and stale current custody deny. New gate invariance tests refuse missing/stale approval, insufficient cohort, required reviewer/check gaps and other unsettled findings. Original captured17comments remain exact; synthetic prospective successors are test-only. Pure predicate/tests and canonical skill/contract0.3.3 only; collector/adapters unchanged. Full outputs/hashes retained in GREEN evidence. Current-head native code review, required hosted checks, exact MERGE, protected adoption and fresh ETA15 native settlement remain required. Local tests supply no review/approval/round credit. B1 B2 B3 remain0of3; heartbeatPAUSED; no runtime/credentials/model/paid/grant/publication/deployment/newagent/spore change.
+
 - ts: 2026-10-14T14:55:10.000000000Z
   session: e1-11-shepherd-2026-10-14
   task: Document segmented Receipt River as the standard (.agents#34)

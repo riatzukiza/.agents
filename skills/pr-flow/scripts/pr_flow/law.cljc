@@ -424,6 +424,8 @@
   [{:keys [id head root-comment-id comments native-context identities resolved? outdated?] :as input} settlement-index]
   (let [{:keys [repository pr thread]} native-context
         nodes (get-in thread [:comments :nodes]) root (first nodes)
+        original-review (:pullRequestReview root)
+        original-head (get-in original-review [:commit :oid])
         writer (when settlement-index (nth comments settlement-index))
         writer-prose (rejection-prose (:body writer))
         native-writer (when settlement-index (nth nodes settlement-index nil))
@@ -454,7 +456,15 @@
                (every? #(and (timestamp (:updatedAt %))
                              (not (pos? (compare (:createdAt %) (:updatedAt %))))) nodes)
                (some? evidence-comments)
-               (= head (get-in root [:pullRequestReview :commit :oid]))
+               ;; The original review's commit is immutable provenance. Only
+               ;; the new withdrawal and writer must bind the current head.
+               (valid-head? original-head)
+               (integer? (:databaseId original-review)) (pos? (:databaseId original-review))
+               (string? (:id original-review)) (not (str/blank? (:id original-review)))
+               (contains? #{"COMMENTED" "CHANGES_REQUESTED" "APPROVED" "DISMISSED"}
+                          (:state original-review))
+               (= (select-keys (:author root) [:login :__typename])
+                  (select-keys (:author original-review) [:login :__typename]))
                (= (:url root) (url root)) (reviewer root) (not= login (get-in pr [:author :login]))
                (= :handled (resolution-of (:body writer))) (true? (:authorized? writer))
                (str/starts-with? (or (rejection-prose (:body writer)) "") "Handled:")
@@ -487,6 +497,7 @@
                                                            (timestamp (:createdAt c)))))
                                        (confirmed? (:body other)))) evidence-comments))
                 (merge details {:source-id (:databaseId c) :url (:url c) :head head
+                                :original-head original-head :original-review-id (:databaseId original-review)
                                 :thread-id id :root-comment-id root-comment-id
                                 :reviewer (reviewer c)}))))) nodes)))))
 

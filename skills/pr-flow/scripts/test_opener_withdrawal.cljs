@@ -71,7 +71,7 @@
                        ["native User, not Bot" (assoc-in prospective [:comments :nodes 2 :author :__typename] "User")]
                        ["missing review binding" (update-in prospective [:comments :nodes 2] dissoc :pullRequestReview)]
                        ["old review head" (assoc-in prospective [:comments :nodes 2 :pullRequestReview :commit :oid] (apply str (repeat 40 "b")))]
-                       ["old root head" (assoc-in prospective [:comments :nodes 0 :pullRequestReview :commit :oid] (apply str (repeat 40 "b")))]
+                       ["unknown original root head" (assoc-in prospective [:comments :nodes 0 :pullRequestReview :commit :oid] nil)]
                        ["cross-root URL" (assoc-in prospective [:comments :nodes 2 :url] "https://github.com/riatzukiza/sol/pull/4#discussion_r4176945609")]
                        ["partial conversation" (assoc-in prospective [:comments :pageInfo :hasNextPage] true)]
                        ["wrong total" (assoc-in prospective [:comments :totalCount] 3)]
@@ -137,3 +137,115 @@
     (doseq [raw [(update-in prospective [:comments :nodes] #(vec (concat (take 2 %) (drop 3 %))))
                 (assoc-in prospective [:comments :nodes 2 :body] "✅ Review thread resolved.")]]
       (is (not (cleared? (input raw)))))))
+
+(def eta-fixture
+  (js->clj (js/JSON.parse (fs/readFileSync
+                          (path/join (path/dirname *file*) "fixtures/native-eta15-old-head-opener-withdrawal.json") "utf8"))
+           :keywordize-keys true))
+(def eta-head (get-in eta-fixture [:pr :headRefOid]))
+(def eta-root (get-in eta-fixture [:thread :comments :nodes 0]))
+(def eta-thread-id (get-in eta-fixture [:thread :id]))
+(def eta-withdrawal-url "https://github.com/riatzukiza/eta-mu/pull/15#discussion_r990010001")
+
+;; The captured seventeen-comment conversation is never altered. These two
+;; clearly synthetic successors model a fresh current-head recheck and writer;
+;; neither exists on GitHub and neither supplies native disposition or approval.
+(def eta-fresh-withdrawal
+  {:id "PRRC_local_current_withdrawal_only" :databaseId 990010001
+   :author (:author eta-root) :url eta-withdrawal-url
+   :createdAt "2026-10-14T10:00:00Z" :updatedAt "2026-10-14T10:00:00Z"
+   :body (str "I withdraw this finding.\n\n"
+              "My finding incorrectly required a repository field despite the actual containing-repository validation contract.\n"
+              "Evidence: https://github.com/riatzukiza/eta-mu/blob/" eta-head "/receipts.edn")
+   :pullRequestReview {:id "PRR_local_current_withdrawal_only" :databaseId 990010002
+                       :state "COMMENTED" :author (:author eta-root) :commit {:oid eta-head}}})
+(def eta-fresh-writer
+  {:id "PRRC_local_current_writer_only" :databaseId 990010003
+   :author (get-in eta-fixture [:pr :author])
+   :url "https://github.com/riatzukiza/eta-mu/pull/15#discussion_r990010003"
+   :createdAt "2026-10-14T10:01:00Z" :updatedAt "2026-10-14T10:01:00Z"
+   :body (str "Handled: The finding opener withdrew this finding on " eta-head ".\n"
+              "Finding: " eta-thread-id " comment" (:databaseId eta-root) "\n"
+              "Withdrawal: " eta-withdrawal-url "\n"
+              "Reason: Preserve the immutable original review and historical rows; actual containing-repository validation supplies context.")
+   :pullRequestReview {:id "PRR_local_current_writer_only" :databaseId 990010004
+                       :state "COMMENTED" :commit {:oid eta-head}}})
+(def eta-prospective
+  (-> (:thread eta-fixture)
+      (update-in [:comments :nodes] into [eta-fresh-withdrawal eta-fresh-writer])
+      (update-in [:comments :totalCount] + 2)))
+(defn eta-input [raw]
+  {:id (:id raw) :resolved? (:isResolved raw) :outdated? (:isOutdated raw)
+   :head eta-head :pr-author (get-in eta-fixture [:pr :author :login])
+   :root-comment-id (get-in raw [:comments :nodes 0 :databaseId])
+   :native-context {:repository (:repository eta-fixture) :pr (:pr eta-fixture) :thread raw}
+   :identities law/default-reviewer-identities :comments (mapv normalize (get-in raw [:comments :nodes]))})
+
+(deftest immutable-old-review-can-be-withdrawn-on-a-fresh-current-head
+  (let [input (eta-input eta-prospective) result (law/classify-thread input)
+        original-head (get-in eta-root [:pullRequestReview :commit :oid])]
+    (is (not= original-head eta-head))
+    (is (= eta-root (get-in eta-prospective [:comments :nodes 0])))
+    (is (= (get-in eta-fixture [:thread :comments :nodes])
+           (vec (take 17 (get-in eta-prospective [:comments :nodes])))))
+    (is (cleared? input))
+    (is (= :p1 (:severity result)))
+    (is (law/finding-obligation? result))
+    (is (not (:rejection-approved? result)))
+    (is (= original-head (get-in result [:opener-withdrawal :original-head])))
+    (is (= 5511615370 (get-in result [:opener-withdrawal :original-review-id])))
+    (is (= eta-head (get-in result [:opener-withdrawal :head])))))
+
+(deftest old-provenance-never-replaces-current-withdrawal-or-writer-custody
+  (let [wi 17 si 18 old-head (get-in eta-root [:pullRequestReview :commit :oid])]
+    (doseq [[label raw]
+            [["raw stale752 statements" (:thread eta-fixture)]
+             ["no writer" (-> eta-prospective (update-in [:comments :nodes] pop)
+                               (update-in [:comments :totalCount] dec))]
+             ["stale withdrawal" (assoc-in eta-prospective [:comments :nodes wi :pullRequestReview :commit :oid] old-head)]
+             ["stale writer" (assoc-in eta-prospective [:comments :nodes si :pullRequestReview :commit :oid] old-head)]
+             ["unknown original commit" (assoc-in eta-prospective [:comments :nodes 0 :pullRequestReview :commit :oid] nil)]
+             ["malformed original commit" (assoc-in eta-prospective [:comments :nodes 0 :pullRequestReview :commit :oid] "unknown")]
+             ["missing original review id" (update-in eta-prospective [:comments :nodes 0 :pullRequestReview] dissoc :databaseId)]
+             ["invalid original review id" (assoc-in eta-prospective [:comments :nodes 0 :pullRequestReview :databaseId] 0)]
+             ["missing original review node id" (update-in eta-prospective [:comments :nodes 0 :pullRequestReview] dissoc :id)]
+             ["blank original review node id" (assoc-in eta-prospective [:comments :nodes 0 :pullRequestReview :id] " ")]
+             ["unknown original review state" (assoc-in eta-prospective [:comments :nodes 0 :pullRequestReview :state] "UNKNOWN")]
+             ["unpublished original review" (assoc-in eta-prospective [:comments :nodes 0 :pullRequestReview :state] "PENDING")]
+             ["wrong original reviewer" (assoc-in eta-prospective [:comments :nodes 0 :pullRequestReview :author :login] "different")]
+             ["wrong original reviewer type" (assoc-in eta-prospective [:comments :nodes 0 :pullRequestReview :author :__typename] "User")]
+             ["different withdrawing opener" (assoc-in eta-prospective [:comments :nodes wi :author :login] "eta-mu-ai")]
+             ["writer is Bot" (assoc-in eta-prospective [:comments :nodes si :author :__typename] "Bot")]
+             ["wrong root binding" (assoc-in eta-prospective [:comments :nodes si :body]
+                                            (str/replace (:body eta-fresh-writer) "comment4265471027" "comment4265471028"))]
+             ["wrong withdrawal URL" (assoc-in eta-prospective [:comments :nodes wi :url]
+                                               "https://github.com/riatzukiza/eta-mu/pull/16#discussion_r990010001")]
+             ["partial pagination" (assoc-in eta-prospective [:comments :pageInfo :hasNextPage] true)]
+             ["wrong total" (update-in eta-prospective [:comments :totalCount] dec)]
+             ["unresolved" (assoc eta-prospective :isResolved false)]
+             ["outdated" (assoc eta-prospective :isOutdated true)]
+             ["later original edit" (assoc-in eta-prospective [:comments :nodes 0 :updatedAt] "2026-10-14T10:02:00Z")]
+             ["late withdrawal edit" (assoc-in eta-prospective [:comments :nodes wi :updatedAt] "2026-10-14T10:02:00Z")]
+             ["unknown chronology" (assoc-in eta-prospective [:comments :nodes wi :createdAt] "invalid")]]]
+      (is (not (cleared? (eta-input raw))) label))
+    (is (not (cleared? (assoc-in (eta-input eta-prospective) [:comments si :authorized?] false))))
+    (doseq [[field value] [[:number 16] [:headRefOid old-head]]]
+      (is (not (cleared? (assoc-in (eta-input eta-prospective) [:native-context :pr field] value)))))
+    (is (not (cleared? (assoc-in (eta-input eta-prospective) [:native-context :repository :nameWithOwner] "other/eta-mu"))))))
+
+(deftest old-review-withdrawal-supplies-no-other-merge-credit
+  (let [t (law/classify-thread (eta-input eta-prospective))
+        g {:head eta-head :threads [t]
+           :checks [{:name "laws" :state "SUCCESS" :required? true}]
+           :approved-heads {"mimo" #{eta-head}} :rounds 5 :review-participants #{"mimo"}}]
+    (is (:pass? (law/merge-gate g)))
+    (doseq [bad [(assoc g :approved-heads {})
+                 (assoc g :approved-heads {"mimo" #{(get-in eta-root [:pullRequestReview :commit :oid])}})
+                 (assoc g :rounds 0 :review-participants #{"mimo" "coderabbit"})
+                 (assoc g :required-reviewers #{"codex"})
+                 (assoc g :checks [{:name "laws" :state "FAILURE" :required? true}])
+                 (assoc g :checks [{:name "laws" :state "SKIPPED" :required? true}])
+                 (update g :threads conj (law/classify-thread
+                                          {:id "other-finding" :resolved? false
+                                           :comments [{:author "coderabbitai" :body "P1: independent defect"}]}))]]
+      (is (not (:pass? (law/merge-gate bad)))))))
