@@ -54,12 +54,21 @@ segment directories); do not split a ledger whose consumers read one file.
 
 ### Rules in segmented mode
 - The frozen legacy file (whichever path was canonical at migration) is the
-  **first segment**: keep it, never rewrite it, never append to it.
+  **first segment**: keep it, never rewrite it, never append to it. After the
+  all-Clio cutover (below) it becomes an archived source outside the active
+  union, still byte-for-byte unchanged.
 - Never edit, rename or delete a committed segment. Corrections are new records.
 - Validity is judged on the **merged ledger**: load the legacy file plus every
   segment and validate the union — no base segment changed or removed, no base
   record dropped, no record duplicated, every new record valid.
-- Record shape (what "every record valid" checks):
+- Grandfathered legacy records: records in the frozen legacy file are checked
+  only for EDN parsing, record identity (no duplicates) and byte-for-byte
+  immutability, **not** for the record shape below. Historical receipts may
+  predate today's required keys (this repository's `.ημ/receipts.edn` lines 8–9
+  lack `:dod` and `:pi`) and freezing forbids repairing them in place; correct
+  such a record with a new `:adjudication` record instead.
+- Record shape (what "every new record valid" checks; it applies to every
+  record in `.ημ/receipts/` segments except cutover wraps of legacy records):
   - Plain receipts: a flat map holding the required keys above.
   - Event-wrapped receipts (`#:event` records with `:event/type
     :receipt-river/receipt-recorded`): the envelope needs `:event/id`,
@@ -82,10 +91,30 @@ segment directories); do not split a ledger whose consumers read one file.
   must not displace timestamped records from the newest window. This same order
   is used for display and context recovery ("the newest ~20 records"). The
   repository verifiers sort only to make validation deterministic; that sort is
-  not a recency order. Clio's causal/stream order (`:event/causes`, then
-  `[:event/stream :event/seq :event/id]`) becomes canonical only once **every**
-  record in the merged ledger, including the frozen legacy records, is a Clio
-  event; from then on timestamps never carry ordering authority.
+  not a recency order. Clio order becomes canonical only once **every** record
+  in the active merged ledger is a Clio event, i.e. after the cutover below;
+  from then on timestamps never carry ordering authority. Clio order is a
+  deterministic **topological** order of the causal DAG (every event in
+  `:event/causes` precedes its effects); `[:event/stream :event/seq :event/id]`
+  only breaks ties between causally incomparable events. It is not a lexical
+  sort with `:event/causes` as a key.
+- Cutover to all-Clio order (the reachable transition), in one dedicated PR:
+  - Wrap every frozen legacy record as a Clio event in its own segment:
+    `:event/type :receipt-river/receipt-recorded`, `:event/payload` equal to the
+    legacy record verbatim, `:event/id` a deterministic name-based UUID derived
+    from the record identity (above), `:event/recorded-at` its `:ts` (else the
+    cutover time). All wraps go in one cutover-only stream `<repo>/legacy` with
+    `:event/seq` following legacy line order, each naming the previous wrap in
+    `:event/causes`; it is written once, serially, so no stream slot conflicts.
+  - Declare the cutover in `.ημ/receipts/README.md`: the legacy file becomes an
+    **archived source**, kept in place byte-for-byte (never rewritten, renamed
+    or deleted) but no longer loaded into the active union.
+  - The merged-ledger check then verifies a bijection: every archived legacy
+    record has exactly one wrap whose payload equals it and whose `:event/id`
+    matches its identity, and every wrap has a source record. Wrap payloads stay
+    grandfathered exactly like their source records.
+  - Once that PR merges, the active union holds only Clio events and Clio order
+    applies.
 - **Clio today** (`open-hax/clio` main): the shipped CLI is `clio append` and
   `clio canonicalize` over ledger files. Segment helpers
   (`append-segment` / `canonicalize-dir`) are proposed on `riatzukiza/clio#5`
@@ -94,10 +123,12 @@ segment directories); do not split a ledger whose consumers read one file.
   (foresight `verify-receipts` or rheos `bb test:receipts`). Clio has no git
   dependency: the check that committed segments were never edited or removed
   belongs to eta-mu's receipt/ledger commands once those exist.
-- When receipt-river moves onto Clio, wrap legacy receipts as Clio events with
-  **writer/branch-specific streams** (not one stream per repository). A single
-  shared stream recreates concurrent-write conflicts on `[:event/stream
-  :event/seq]`; partition by writer or branch, or document a serial allocator.
+- When receipt-river moves onto Clio, legacy receipts are wrapped once by the
+  serial cutover above (one `<repo>/legacy` stream); every **new** receipt event
+  uses a **writer/branch-specific stream** (not one shared stream per
+  repository). A shared stream for ongoing writes recreates concurrent-write
+  conflicts on `[:event/stream :event/seq]`; partition by writer or branch, or
+  document a serial allocator.
 
 ## Rules (both modes)
 These rules and the minimal workflow below apply in both modes. In segmented

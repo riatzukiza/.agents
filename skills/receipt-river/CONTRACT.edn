@@ -53,7 +53,7 @@
        "Legacy mode: if receipts.edn exists, treat it as append-only; never edit past lines."
        "Legacy mode: if receipts.edn is absent and work is non-trivial, create it (rr-init.bb; --eta-mu for .ημ/receipts.edn)."
        "Record a receipt (legacy mode: append a line; segmented mode: write a new segment) at: (1) start, (2) after each phase, (3) after tests/build, (4) after commits/pushes."
-       "Before major decisions, regain context from the newest ~20 records: in legacy mode, tail receipts.edn; in segmented mode, read the merged ledger (legacy + .ημ/receipts/) via the repository verifier or a union-aware reader — not rr-tail.bb. Order by effective time (:ts, else :event/recorded-at), then record identity, interleaving frozen legacy records and #:event segments with no cross-kind precedence; records with neither field sort first. Do not use the verifier's validation sort. Clio causal/stream order applies only once every record in the merged ledger is a Clio event."
+       "Before major decisions, regain context from the newest ~20 records: in legacy mode, tail receipts.edn; in segmented mode, read the merged ledger (legacy + .ημ/receipts/) via the repository verifier or a union-aware reader — not rr-tail.bb. Order by effective time (:ts, else :event/recorded-at), then record identity, interleaving frozen legacy records and #:event segments with no cross-kind precedence; records with neither field sort first. Do not use the verifier's validation sort. Clio order (a topological order of :event/causes, with [:event/stream :event/seq :event/id] only as the tie-break between causally incomparable events) applies only once every record in the active merged ledger is a Clio event, i.e. after the dedicated cutover PR wraps each frozen legacy record and archives the legacy file outside the active union."
        "Legacy mode: when runtime exposes the receipt_river tool, prefer it over ad-hoc shell writes so receipt format can be validated and audited."
        "Segmented mode: do not use the receipt_river runtime tool until it accepts segment targets (it operates on the per-repo receipts.edn, so its append/tail would write the frozen legacy file or omit segments); write segments by hand or via Clio, and never direct it at the frozen legacy file."
        "Legacy mode: prefer the shipped bb scripts (rr-init.bb, rr-append.bb, rr-tail.bb, rr-last.bb) for direct file interaction."
@@ -80,9 +80,35 @@
     (cross-kind-precedence :none)
     (missing-effective-time :sorts-first)
     (governs [:display :context-recovery-newest-20]))
+  ;; Frozen legacy records are grandfathered: no record-shape validation.
+  (legacy-records
+    (checks [:edn-parse :record-identity :byte-immutable])
+    (shape-validation :grandfathered)
+    (corrections :new-adjudication-record))
+  ;; Shape validation (required-keys / event-envelope) covers segment records,
+  ;; except cutover wraps of legacy records, which stay grandfathered.
+  (shape-validation-scope :segment-records-except-cutover-wraps)
   (clio-order
-    (applies-when :every-record-is-clio-event)
-    (sort-keys [event/causes event/stream event/seq event/id]))
+    (applies-when :every-active-record-is-clio-event)
+    (algorithm :topological-sort)
+    (edges event/causes)
+    (tie-break [event/stream event/seq event/id])
+    (tie-break-scope :causally-incomparable-events-only))
+  ;; The reachable transition from mixed-ledger-order to clio-order.
+  (clio-cutover
+    (pr :dedicated)
+    (wrap-each-legacy-record
+      (segment :one-per-record)
+      (event-type :receipt-river/receipt-recorded)
+      (payload :legacy-record-verbatim)
+      (event-id :name-based-uuid-from-record-identity)
+      (recorded-at [ts :cutover-time])
+      (stream "<repo>/legacy")
+      (seq :legacy-line-order)
+      (causes :previous-wrap))
+    (legacy-file :archived-source-byte-identical-outside-active-union)
+    (declared-in ".ημ/receipts/README.md")
+    (verify :bijection-legacy-record-to-wrap))
   (required-keys [ts kind origin owner dod pi host manifest refs])
   (optional-keys [note tests decisions drift])
   ;; Event-wrapped receipts (#:event records) carry the receipt under :event/payload.
