@@ -113,26 +113,37 @@
       (event-type :receipt-river/receipt-recorded)
       (required-keys [event/id event/schema event/type event/stream event/seq
                       event/causes event/actor event/subject event/at event/data])
-      (event/data {:receipt-river/receipt :source-record-verbatim})
+      (event/data {:receipt-river/receipt
+                   {:plain-receipt :source-record-verbatim
+                    :receipt-river-envelope :source-event-payload-verbatim}})
       (event/actor "receipt-river/cutover")
       (event/subject "receipt:<record-identity>")
       (event/at [ts event/recorded-at :cutover-time])
+      (schema
+        (catalog-published-before-wraps :repository-clio-schema-history)
+        (event-schema :names-persisted-revision-root-and-hash)
+        (wrap-receipt-schema [:map])
+        (new-write-receipt-schema :nine-required-keys-separate-revision)
+        (recorded-in ".ημ/receipts/README.md"))
       (event-id
-        (receipt-river-envelope-uuid-id :keep-canonical-lowercase-hyphenated)
+        (receipt-river-envelope-canonical-uuid-string-id :keep-exact-string)
         (algorithm :uuid-v5)
         (namespace-uuid "6ba7b810-9dad-11d1-80b4-00c04fd430c8")
         (name-bytes
           (id-less-plain :utf8-lowercase-hex-sha256-canonical-edn-identity)
-          (receipt-river-envelope-non-uuid-id
+          (receipt-river-envelope-non-canonical-id
             {:utf8-prefix "receipt-river/event-id:" :then :canonical-edn-text-of-event-id})))
       (promoted-event-causes :verbatim-fail-closed-if-unresolvable-or-remapped)
       (stream "<repo>/legacy")
+      (stream-reserved :fail-closed-if-pre-cutover-union-uses-it)
       (seq :one-based-ordinal-among-wraps-in-pre-cutover-active-union-order)
       (promoted-clio-events :keep-original-stream-and-seq)
       (causes :previous-wrap))
     (legacy-file :archived-source-byte-identical-outside-active-union)
     (converted-source-segments :archived-in-place-via-cutover-excluded-manifest)
     (exclusion-manifest ".ημ/receipts/.cutover-excluded.edn")
+    (frozen-after-cutover [".ημ/receipts/.cutover-excluded.edn" :cutover-declaration-in-readme])
+    (verify-frozen :byte-identical-to-cutover-commit)
     (post-cutover-active-union :segments-not-listed-in-cutover-excluded)
     (declared-in ".ημ/receipts/README.md")
     (verify :bijection-every-archived-legacy-record-and-pre-cutover-non-clio-source-to-active-clio-event)

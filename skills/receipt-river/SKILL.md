@@ -150,22 +150,38 @@ segment directories); do not split a ledger whose consumers read one file.
     lightweight envelopes, else the cutover time), and `:event/data` holding the
     source receipt map verbatim under `:receipt-river/receipt` (for a lightweight
     envelope source, the payload map; for a plain receipt, the receipt itself).
+  - Schema revision: Clio validates `:event/schema` against a **persisted**
+    schema-history revision before canonicalizing, so the cutover PR first
+    publishes the Receipt River catalog into the repository's Clio schema
+    history (e.g. `.ημ/receipts/schemas/`, written with Clio's schema store) and
+    every wrap and later write names that revision's `:schema/root` /
+    `:schema/hash`. The catalog defines `:receipt-river/receipt-recorded` with
+    `:event/data` `[:map [:receipt-river/receipt [:map]]]` for cutover wraps
+    (grandfathered payloads: any map) and the nine required receipt keys for new
+    writes (a separate revision or event-type version, never an edit of a
+    published one). The cutover PR records the resulting root/hash in
+    `.ημ/receipts/README.md`; wrappers that name an unpublished revision are
+    invalid.
   - `:event/id` rules:
     - A source that is **already** a Clio event (has `:event/id` and the full
       Clio envelope) is **promoted verbatim** — keep its `:event/id` and do not
       re-wrap, so `:event/causes` edges that name it stay resolvable.
-    - A **lightweight Receipt River envelope** whose `:event/id` is a UUID
-      (string or `#uuid`, any letter case) keeps that ID, written in canonical
-      lowercase hyphenated spelling, so `:event/causes` edges from promoted Clio
-      events that name it stay resolvable. The archived source is outside the
-      active union, so the shared ID is not a reuse.
+    - A **lightweight Receipt River envelope** whose `:event/id` is already a
+      string in canonical lowercase hyphenated UUID spelling keeps that exact
+      string, so `:event/causes` edges from promoted Clio events that name it
+      stay resolvable. The archived source is outside the active union, so the
+      shared ID is not a reuse. IDs are never re-spelled: an uppercase or
+      braced UUID string, a `#uuid` value, or any other ID is a **non-canonical
+      ID** and follows the UUIDv5 rule below (Clio segment filenames use the
+      canonical lowercase spelling).
     - Every other source gets a deterministic **UUID version 5** (RFC 9562
       §6.5 / RFC 4122 name-based SHA-1) whose namespace UUID is the Receipt
       River cutover namespace `6ba7b810-9dad-11d1-80b4-00c04fd430c8` (DNS
       namespace). Name bytes depend on the source identity kind:
       - **ID-less plain receipt**: UTF-8 encoding of the lowercase hex SHA-256
         canonical-EDN identity (above), no separators.
-      - **Lightweight envelope with a non-UUID `:event/id`** (e.g. `"evt-1"`):
+      - **Lightweight envelope with a non-canonical `:event/id`** (e.g.
+        `"evt-1"`, `"AB12…"` uppercase, `#uuid "…"`):
         UTF-8 encoding of `receipt-river/event-id:` followed by the canonical
         EDN text (above) of the `:event/id` value. The prefix keeps these names
         disjoint from 64-hex plain identities. Do **not** re-hash the envelope
@@ -173,11 +189,15 @@ segment directories); do not split a ledger whose consumers read one file.
       Implementations must reproduce this exact ID; "name-based UUID" alone is
       not enough.
     - Causal edges: a verbatim-promoted Clio event keeps its `:event/causes`
-      byte-for-byte. If any of those causes names a non-UUID envelope ID (whose
-      wrap gets a new UUIDv5) or no active event at all, the cutover **fails
-      closed**: verbatim promotion and remapping cannot both hold, so stop and
+      byte-for-byte. If any of those causes names a non-canonical envelope ID
+      (whose wrap gets a new UUIDv5) or no active event at all, the cutover
+      **fails closed**: verbatim promotion and remapping cannot both hold, so stop and
       record the conflict for an explicit decision instead of rewriting.
-  - All new wraps go in one cutover-only stream `<repo>/legacy`. `:event/seq`
+  - All new wraps go in one cutover-only stream `<repo>/legacy`, which is
+    **reserved**: no pre-cutover or post-cutover write may use it, and the
+    cutover **fails closed** if the pre-cutover union already holds any event in
+    `<repo>/legacy` (Clio treats a reused `[:event/stream :event/seq]` slot as a
+    conflict). `:event/seq`
     is the wrap's **one-based ordinal among the wraps only** (1, 2, 3, …),
     ranked by the pre-cutover active-union order; promoted Clio events are not
     counted. Each wrap after the first names the previous wrap in
@@ -194,6 +214,11 @@ segment directories); do not split a ledger whose consumers read one file.
     manifest markers); they must not re-merge the archived legacy file or the
     excluded source segments. This is how `every active record is a Clio event`
     becomes true without violating the committed-segment immutability rule.
+  - After the cutover PR merges, `.cutover-excluded.edn` and the cutover
+    declaration in `.ημ/receipts/README.md` are **frozen** like committed
+    segments: never edited, renamed or deleted. The merged-ledger check verifies
+    both byte-for-byte against the cutover commit, so active-union membership
+    cannot change by editing the manifest.
   - The merged-ledger check then verifies a bijection: **every** archived
     legacy record (plain, envelope **or already-full-Clio**) **and every
     pre-cutover non-Clio source segment** (plain **and** lightweight Receipt

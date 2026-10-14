@@ -123,7 +123,12 @@ Examples:
    - `p-friction`: confidence the work was harder than it should have been.
    - `p-skill-candidate`: confidence a reusable skill/protocol would shrink future effort.
 3. **Read receipts**.
-   - Tail the workspace `receipts.edn`.
+   - Read a bounded newest ~20 receipts of the **active** ledger, by the mode in
+     `skills/receipt-river/SKILL.md`: the workspace `receipts.edn` in legacy
+     mode; once `.ημ/receipts/` exists, the union-aware window over the frozen
+     file plus segments (effective time before cutover, Clio order after,
+     excluding `.cutover-excluded.edn` sources). Do not tail only the frozen
+     monolith.
    - Note observations, decisions, tests, or drift entries related to the friction.
 4. **Spore** the pattern.
    - If `p-skill-candidate >= 0.7` and the pattern generalizes, create a candidate spore file.
