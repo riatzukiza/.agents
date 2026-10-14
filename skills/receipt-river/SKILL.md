@@ -58,9 +58,12 @@ segment directories); do not split a ledger whose consumers read one file.
   all-Clio cutover (below) it becomes an archived source outside the active
   union, still byte-for-byte unchanged.
 - Never edit, rename or delete a committed segment. Corrections are new records.
-- Validity is judged on the **merged ledger**: load the legacy file plus every
-  segment and validate the union — no base segment changed or removed, no base
-  record dropped, no record duplicated, every new record valid.
+- Validity is judged on the **merged ledger**. Before cutover: load the legacy
+  file plus every segment and validate the union — no base segment changed or
+  removed, no base record dropped, no record duplicated, every new record
+  valid. After cutover: validate only the **active** union (segments not listed
+  in `.cutover-excluded.edn`); archived sources are not re-merged and are
+  checked separately by the cutover bijection and byte-immutability rules below.
 - Grandfathered legacy records: records in the frozen legacy file are checked
   only for EDN parsing, record identity (no duplicates) and byte-for-byte
   immutability, **not** for the record shape below. Historical receipts may
@@ -120,7 +123,11 @@ segment directories); do not split a ledger whose consumers read one file.
   the record's **effective time** — first present of `:ts`, then
   `:event/recorded-at` (lightweight envelopes), then `:event/at` (full Clio
   events; they have neither `:ts` nor `:event/recorded-at`) — then record
-  identity (above) as the tie-break. Records with no effective-time field sort
+  identity (above) as the tie-break, compared through one **identity key**
+  string: `event-id:` + the canonical EDN text of `:event/id` (so a string
+  and a `#uuid` stay distinct) for records with an ID, `sha256:` + the
+  lowercase hex identity for ID-less plain receipts; keys compare as Unicode
+  code-point strings. Never compare raw heterogeneous ID values. Records with no effective-time field sort
   first and must not displace timestamped records from the newest window. This
   same order is used for display and context recovery ("the newest ~20 records")
   **while any non-Clio record remains in the active union**. The
@@ -201,8 +208,11 @@ segment directories); do not split a ledger whose consumers read one file.
     is the wrap's **one-based ordinal among the wraps only** (1, 2, 3, …),
     ranked by the pre-cutover active-union order; promoted Clio events are not
     counted. Each wrap after the first names the previous wrap in
-    `:event/causes`; the stream is written once, serially, so no stream slot
-    conflicts. Verbatim-promoted Clio events keep their original
+    `:event/causes`, and also every parent its source named (a lightweight
+    envelope's top-level `:caused-by`, or a plain receipt's), each mapped to that
+    parent's active cutover ID by the `:event/id` rules; if any named parent
+    has no active event the cutover **fails closed**. The stream is written
+    once, serially, so no stream slot conflicts. Verbatim-promoted Clio events keep their original
     stream/seq and are not rewritten into `<repo>/legacy`.
   - Declare the cutover in `.ημ/receipts/README.md` and write an exclusion
     manifest `.ημ/receipts/.cutover-excluded.edn` (EDN vector of relative

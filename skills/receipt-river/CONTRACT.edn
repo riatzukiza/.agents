@@ -77,12 +77,19 @@
   ;; event/at covers full Clio events that lack :ts and :event/recorded-at.
   (mixed-ledger-order
     (sort-keys [effective-time record-identity])
+    (record-identity-compare
+      {:event-id "event-id:<canonical EDN text of :event/id>"
+       :id-less-plain "sha256:<lowercase hex identity>"
+       :order :unicode-code-point})
     (effective-time [ts event/recorded-at event/at])
     (cross-kind-precedence :none)
     (missing-effective-time :sorts-first)
     (governs [:display :context-recovery-newest-20])
     (applies-when :active-union-still-has-non-clio-record))
   ;; Frozen legacy records are grandfathered: no record-shape validation.
+  (merged-ledger-validation
+    (pre-cutover :legacy-file-plus-every-segment)
+    (post-cutover :active-union-only-archives-checked-by-bijection-and-immutability))
   (legacy-records
     (checks [:edn-parse :record-identity :byte-immutable])
     (shape-validation :grandfathered)
@@ -138,7 +145,8 @@
       (stream-reserved :fail-closed-if-pre-cutover-union-uses-it)
       (seq :one-based-ordinal-among-wraps-in-pre-cutover-active-union-order)
       (promoted-clio-events :keep-original-stream-and-seq)
-      (causes :previous-wrap))
+      (causes [:previous-wrap :source-caused-by-mapped-to-cutover-ids])
+      (unresolvable-source-parent :fail-closed))
     (legacy-file :archived-source-byte-identical-outside-active-union)
     (converted-source-segments :archived-in-place-via-cutover-excluded-manifest)
     (exclusion-manifest ".ημ/receipts/.cutover-excluded.edn")
