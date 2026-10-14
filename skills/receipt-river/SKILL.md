@@ -79,8 +79,11 @@ segment directories); do not split a ledger whose consumers read one file.
 - Record identity:
   - `#:event` / Clio records: use `:event/id` (a reused ID with different data
     is corruption, matching Clio's laws). Content hashing must not override ID.
-  - Legacy ID-less `:ts` receipts: SHA-256 of the record's canonical EDN form
-    (map entries and set members sorted).
+  - ID-less plain receipts (legacy file **or** a plain segment written under
+    lines 70–72): SHA-256 of the record's canonical EDN form (map entries and
+    set members sorted). The same rule applies to every ID-less plain receipt
+    so duplicate detection, mixed-ledger tie-breaking, and cutover UUID
+    derivation stay consistent across sources.
 - Order: one authoritative order governs every merged ledger that still holds
   any non-Clio record — a legacy-only ledger, or the migration state where frozen
   legacy records and Clio event segments coexist. In that state there is no
@@ -99,20 +102,45 @@ segment directories); do not split a ledger whose consumers read one file.
   only breaks ties between causally incomparable events. It is not a lexical
   sort with `:event/causes` as a key.
 - Cutover to all-Clio order (the reachable transition), in one dedicated PR:
-  - Wrap every frozen legacy record as a Clio event in its own segment:
-    `:event/type :receipt-river/receipt-recorded`, `:event/payload` equal to the
-    legacy record verbatim, `:event/id` a deterministic name-based UUID derived
-    from the record identity (above), `:event/recorded-at` its `:ts` (else the
-    cutover time). All wraps go in one cutover-only stream `<repo>/legacy` with
-    `:event/seq` following legacy line order, each naming the previous wrap in
-    `:event/causes`; it is written once, serially, so no stream slot conflicts.
+  - Convert **every active non-Clio record** — frozen legacy lines **and** any
+    plain (or Receipt-River-envelope) segments already under `.ημ/receipts/` —
+    into a canonical Clio event in its own segment. Leaving plain segments in
+    the active union would keep `every active record is a Clio event` false.
+  - Each wrap is a **full Clio envelope** (not the lighter Receipt River
+    `:event/recorded-at` / `:event/payload` shape used during mixed-ledger
+    migration). Required fields match [Clio's event shape](https://github.com/open-hax/clio#event-shape):
+    `:event/id`, `:event/schema` (`:schema/root`, `:schema/id`, `:schema/hash`
+    for `:receipt-river/receipt-recorded`), `:event/type
+    :receipt-river/receipt-recorded`, `:event/stream`, `:event/seq`,
+    `:event/causes`, `:event/actor` (cutover actor, e.g. `receipt-river/cutover`),
+    `:event/subject` (stable receipt subject, e.g. `receipt:<record-identity>`),
+    `:event/at` (source `:ts` when present, else the cutover time), and
+    `:event/data` holding the source receipt map verbatim under
+    `:receipt-river/receipt`.
+  - `:event/id` rules:
+    - A source that is **already** a Clio event (has `:event/id` and the full
+      Clio envelope) is **promoted verbatim** — keep its `:event/id` and do not
+      re-wrap, so `:event/causes` edges that name it stay resolvable.
+    - Every other source gets a deterministic **UUID version 5** (RFC 9562
+      §6.5 / RFC 4122 name-based SHA-1) whose namespace UUID is the Receipt
+      River cutover namespace `6ba7b810-9dad-11d1-80b4-00c04fd430c8` (DNS
+      namespace) and whose name bytes are the UTF-8 encoding of the hex SHA-256
+      record identity (above) in lowercase with no separators. Implementations
+      must reproduce this exact ID; "name-based UUID" alone is not enough.
+  - All new wraps go in one cutover-only stream `<repo>/legacy` with
+    `:event/seq` following the pre-cutover active-union order, each naming the
+    previous wrap in `:event/causes`; it is written once, serially, so no
+    stream slot conflicts. Verbatim-promoted Clio events keep their original
+    stream/seq and are not rewritten into `<repo>/legacy`.
   - Declare the cutover in `.ημ/receipts/README.md`: the legacy file becomes an
     **archived source**, kept in place byte-for-byte (never rewritten, renamed
-    or deleted) but no longer loaded into the active union.
+    or deleted) but **excluded from the active union**. Post-cutover readers
+    load only `.ημ/receipts/` segments (plus any README marker); they must not
+    re-merge the archived legacy file.
   - The merged-ledger check then verifies a bijection: every archived legacy
-    record has exactly one wrap whose payload equals it and whose `:event/id`
-    matches its identity, and every wrap has a source record. Wrap payloads stay
-    grandfathered exactly like their source records.
+    record and every converted plain segment has exactly one active Clio event
+    whose `:event/data` / identity matches, and every cutover wrap has a
+    source. Wrap payloads stay grandfathered exactly like their source records.
   - Once that PR merges, the active union holds only Clio events and Clio order
     applies.
 - **Clio today** (`open-hax/clio` main): the shipped CLI is `clio append` and
