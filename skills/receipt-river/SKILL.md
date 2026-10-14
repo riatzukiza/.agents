@@ -43,9 +43,10 @@ segment directories); do not split a ledger whose consumers read one file.
   segment file `.ημ/receipts/<UTC timestamp>-<id>.edn` (e.g.
   `2026-10-13T164500123Z-3f9a1c2b7d4e.edn`) holding exactly one EDN record,
   newline-terminated. **Do not append to the frozen legacy file and do not use
-  any of `rr-append.bb`, `rr-tail.bb`, or `rr-last.bb`** until those scripts
+  any of `rr-init.bb`, `rr-append.bb`, `rr-tail.bb`, or `rr-last.bb`** until those scripts
   gain a union-aware reader (they still resolve only the monolith and would
-  silently omit segment history). The same holds for the `receipt_river`
+  silently omit segment history; `rr-init.bb --eta-mu` would create an empty
+  `.ημ/receipts.edn` that they then prefer over a frozen project-root ledger). The same holds for the `receipt_river`
   runtime tool, which operates on the per-repo `receipts.edn`: do not use it in
   segmented mode until it accepts segment targets, and never point it at the
   frozen legacy file. Write new segments by hand or via Clio once
@@ -58,6 +59,14 @@ segment directories); do not split a ledger whose consumers read one file.
 - Validity is judged on the **merged ledger**: load the legacy file plus every
   segment and validate the union — no base segment changed or removed, no base
   record dropped, no record duplicated, every new record valid.
+- Record shape (what "every record valid" checks):
+  - Plain receipts: a flat map holding the required keys above.
+  - Event-wrapped receipts (`#:event` records with `:event/type
+    :receipt-river/receipt-recorded`): the envelope needs `:event/id`,
+    `:event/type`, `:event/recorded-at` and `:event/payload`, and the receipt
+    required keys are validated on `:event/payload` (the payload *is* the
+    receipt). Any other `:event/type` is invalid in a receipt ledger.
+  - `CONTRACT.edn` `event-envelope` states the same rule for machines.
 - Record identity:
   - `#:event` / Clio records: use `:event/id` (a reused ID with different data
     is corruption, matching Clio's laws). Content hashing must not override ID.
@@ -92,7 +101,7 @@ These rules and the minimal workflow below apply in both modes. In segmented
 mode (`.ημ/receipts/` exists) the section above takes precedence for the
 mechanics: every "append" means "write a new segment file", "tail" means "read
 the newest ~20 records of the merged ledger by effective time", and none of
-`rr-append.bb` / `rr-tail.bb` / `rr-last.bb` nor the `receipt_river` runtime
+`rr-init.bb` / `rr-append.bb` / `rr-tail.bb` / `rr-last.bb` nor the `receipt_river` runtime
 tool may be used until they are union-aware.
 
 - Legacy mode: if `receipts.edn` exists, **never edit past lines**; if missing,
@@ -133,7 +142,7 @@ The skill ships with Babashka scripts in `scripts/` for harness-agnostic interac
 - `rr-append.bb` — append one EDN receipt line to the monolith (**legacy mode only**).
 - `rr-tail.bb` / `rr-last.bb` — read the monolith (**legacy mode only** until a union-aware reader exists).
 
-In **segmented mode**, do not use `rr-append.bb`, `rr-tail.bb`, or `rr-last.bb`;
+In **segmented mode**, do not use `rr-init.bb`, `rr-append.bb`, `rr-tail.bb`, or `rr-last.bb`;
 they omit `.ημ/receipts/` history. Prefer the repository verifier / Clio once
 segment commands ship.
 

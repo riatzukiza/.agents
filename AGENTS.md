@@ -9,7 +9,7 @@ These instructions apply to the entire repository.
 1. Obey the active harness and user instructions.
 2. Read [`PRINCIPLE.edn`](PRINCIPLE.edn) before substantive work in this repository.
 3. Read this file completely.
-4. Inspect `.ημ/receipts.edn` before major decisions when it exists.
+4. Inspect the receipt ledger before major decisions when it exists: `.ημ/receipts.edn`, plus every `.ημ/receipts/` segment in segmented mode (see Receipt River below).
 5. Discover the smallest relevant set of skills under `skills/` and read their `SKILL.md` files before acting.
 6. Read a skill's `CONTRACT.edn` when changing its activation, governance, scoring, or non-override behavior.
 
@@ -74,9 +74,19 @@ When adding or materially revising a skill:
 
 ## Receipt River
 
-For non-trivial work, maintain `.ημ/receipts.edn` as an append-only ledger.
+For non-trivial work, maintain the Receipt River ledger. Which file you write
+depends on the mode defined in [`skills/receipt-river/SKILL.md`](skills/receipt-river/SKILL.md):
 
-- Never modify or delete prior receipt lines.
+- **Legacy mode** (`.ημ/receipts/` absent — this repository today):
+  `.ημ/receipts.edn` is the append-only ledger.
+- **Segmented mode** (`.ημ/receipts/` exists): `.ημ/receipts.edn` is frozen.
+  Write each new receipt as its own `.ημ/receipts/` segment, read the merged
+  ledger (legacy file plus segments) for context, and do not use the
+  monolith-only `rr-*.bb` scripts or `receipt_river` tool.
+
+In either mode:
+
+- Never modify or delete prior receipt lines or committed segments.
 - Append an observation near the start.
 - Append decisions when choosing among meaningful alternatives.
 - Append verification results after checks.
