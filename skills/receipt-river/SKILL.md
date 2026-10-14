@@ -20,35 +20,50 @@ The canonical receipt file is `receipts.edn` in the project root. If the project
 - You need traceability of decisions/tests/builds.
 
 ## Standard: segmented, merge-validated ledgers
-Receipt ledgers (and every other event ledger) are stored as **immutable
-segments**, not one shared append file. This is what lets forks, branches and
-parallel agents diverge and merge without ledger conflicts.
+Receipt River ledgers are stored as **immutable segments**, not one shared
+append file. This lets forks, branches and parallel agents diverge and merge
+without ledger conflicts.
 
-- New records go in their own segment file under `.ημ/receipts/`, named
-  `<UTC timestamp>-<id>.edn` (e.g. `2026-10-13T164500123Z-3f9a1c2b7d4e.edn`),
-  one EDN record per line, newline-terminated.
-- An existing `receipts.edn` is the **frozen legacy first segment**: keep it,
-  never rewrite it, and do not append new records to it once `.ημ/receipts/`
-  exists.
+Scope: this applies to Receipt River receipts now. Other event ledgers adopt it
+only once every reader and writer of that ledger is partition-aware (Clio
+segment directories); do not split a ledger whose consumers read one file.
+
+### Modes
+- **Legacy mode** (`.ημ/receipts/` absent): the single `receipts.edn` is the
+  ledger; the bb scripts below and the append-only rules apply unchanged.
+- **Entering segmented mode**: in its own PR, create `.ημ/receipts/` with a
+  `README.md` describing the convention, freeze `.ημ/receipts.edn`, and add the
+  repository's merged-ledger check (see `riatzukiza/rheos` or
+  `riatzukiza/foresight`).
+- **Segmented mode** (`.ημ/receipts/` exists): every new record goes in its own
+  segment file `.ημ/receipts/<UTC timestamp>-<id>.edn` (e.g.
+  `2026-10-13T164500123Z-3f9a1c2b7d4e.edn`) holding exactly one EDN record,
+  newline-terminated. **Do not append to `receipts.edn` and do not use
+  `rr-append.bb`** (it still targets the single file) in this mode.
+
+### Rules in segmented mode
+- `receipts.edn` is the **frozen legacy first segment**: keep it, never rewrite
+  it, never append to it.
 - Never edit, rename or delete a committed segment. Corrections are new records.
 - Validity is judged on the **merged ledger**: load the legacy file plus every
-  segment and validate the union as one event ledger — no base segment changed
-  or removed, no base record dropped, no record duplicated, every new record
-  valid.
-- Canonical order is Clio's causal/stream order (`:event/causes`, then
-  `[:event/stream :event/seq :event/id]`). Timestamps are for display only and
-  carry no ordering authority.
+  segment and validate the union — no base segment changed or removed, no base
+  record dropped, no record duplicated, every new record valid.
+- Record identity is the SHA-256 of the record's canonical EDN form (map
+  entries and set members sorted), so legacy lines without an id (plain `:ts`
+  receipts) and `#:event` lines (with `:event/id`, `:event/recorded-at`) both
+  have a defined identity and duplicate check.
+- Order: until receipts are Clio events, current verifiers merge by `:ts`
+  (records without one sort first) then record identity — a deterministic
+  display order only. Once wrapped as Clio events, canonical order is Clio's
+  causal/stream order (`:event/causes`, then
+  `[:event/stream :event/seq :event/id]`); timestamps never carry ordering
+  authority.
 - Clio (`open-hax/clio`) owns storage and union validation (`clio
-  append-segment`, `clio canonicalize-dir`; partitioning has no semantic
-  authority). Clio has no git dependency: the check that committed segments
-  were never edited or removed belongs to eta-mu's receipt/ledger commands.
+  append-segment`, `clio canonicalize-dir`). Clio has no git dependency: the
+  check that committed segments were never edited or removed belongs to
+  eta-mu's receipt/ledger commands.
 - Legacy receipts are wrapped as Clio events, one stream per repository, when
-  receipt-river moves onto Clio. Until then, repos that already verify
-  segments (e.g. `riatzukiza/foresight` `scripts/evidence.clj
-  verify-receipts`) are the reference implementation.
-
-The bb scripts below still append to the single file; until they write
-segments, create segment files directly in repos that have `.ημ/receipts/`.
+  receipt-river moves onto Clio.
 
 ## Rules
 - If `receipts.edn` exists: **never edit past lines**.
@@ -78,7 +93,7 @@ Each line is EDN with these keys:
 - `:decisions` — decision records
 - `:drift` — observed deviation from plan
 
-Append the EDN line directly to `receipts.edn`.
+In legacy mode, append the EDN line directly to `receipts.edn`; in segmented mode, write a new segment file instead.
 
 ## bb scripts
 The skill ships with Babashka scripts in `scripts/` for harness-agnostic interaction.
