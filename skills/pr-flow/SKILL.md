@@ -169,7 +169,9 @@ activated by author prose, an identity list shared with rejection, or these
 local tests. Parent retains source review, publication and fresh native assessment.
 An authenticated finding opener's explicit withdrawal is a separate bounded
 disposition, described in [review settlement](../pr-review-settlement/SKILL.md).
-Original severity and native history remain finding evidence. A resolved thread
+Original severity and native history remain finding evidence. The original
+review's known immutable commit may be older than the current head; the new
+withdrawal and writer reviews must bind the current head. A resolved thread
 still needs an authorized writer's current-head, root-bound `Handled:` reply
 referencing that native withdrawal; this supplies no independent rejection,
 approval, coverage or completed round. Author objections and CodeRabbit assent
