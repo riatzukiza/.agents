@@ -1,0 +1,77 @@
+{
+  "tier": "observed",
+  "kind": "actual-local-command-output-custody",
+  "baseline": "4f55fcc08f08e8abc5cdb89df7966a5e08bf1b13",
+  "red_commit": "8a756d1400cfdb1efa87550b2fc6cbe1188d4cfe",
+  "checks": [
+    {
+      "name": "laws",
+      "command": "nbb -cp skills/pr-flow/scripts skills/pr-flow/scripts/test_law.cljs",
+      "exit": 0,
+      "stdout_bytes": 289,
+      "stdout_sha256": "74f54ccb8f033bdd978576d55c13e7f5658ab4b613071cf35931392f3818457a",
+      "stdout_utf8": "\nTesting test-law\n\nTesting test-legacy\n\nTesting test-issue-agreement\n\nTesting test-informational\n\nTesting test-actionability-history\n\nTesting test-native-context\n\nTesting test-opener-withdrawal\n\nTesting test-positive-thread\n\nRan 178 tests containing 4701 assertions.\n0 failures, 0 errors.\n",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_utf8": ""
+    },
+    {
+      "name": "policy",
+      "command": "nbb -cp skills/pr-flow/scripts skills/pr-flow/scripts/test_policy.cljs",
+      "exit": 0,
+      "stdout_bytes": 85,
+      "stdout_sha256": "16d4299ba390e4cc1ddc448f4b8544f90bd11400443f871afa867580808f2f8f",
+      "stdout_utf8": "\nTesting test-policy\n\nRan 61 tests containing 1554 assertions.\n0 failures, 0 errors.\n",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_utf8": ""
+    },
+    {
+      "name": "cli",
+      "command": "nbb -cp skills/pr-flow/scripts skills/pr-flow/scripts/test_cli.cljs",
+      "exit": 0,
+      "stdout_bytes": 111,
+      "stdout_sha256": "baa12639b6a1727b3e1d46ac6d782e6b964ac37e447832b1d9fb30889db77491",
+      "stdout_utf8": "\nTesting test-cli\n\nTesting test-native-context\n\nRan 99 tests containing 2681 assertions.\n0 failures, 0 errors.\n",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_utf8": ""
+    },
+    {
+      "name": "portable",
+      "command": "bb --classpath skills/pr-flow/scripts skills/pr-flow/scripts/test_babashka.clj",
+      "exit": 0,
+      "stdout_bytes": 83,
+      "stdout_sha256": "1b8148723568b1e5b649f4c2fc4727a746915293e08a13e01a7e8aeb8509b741",
+      "stdout_utf8": "\nTesting test-babashka\n\nRan 2 tests containing 7 assertions.\n0 failures, 0 errors.\n",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_utf8": ""
+    },
+    {
+      "name": "lint",
+      "command": "clj-kondo --lint skills/pr-flow/scripts",
+      "exit": 0,
+      "stdout_bytes": 44,
+      "stdout_sha256": "f3e30a78a2e89bcc26520b7c4197165a2f87d4f90d48235066871bcd8dbd5617",
+      "stdout_utf8": "linting took 1140ms, errors: 0, warnings: 0\n",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_utf8": ""
+    }
+  ],
+  "additional_checks": [
+    "Contract EDN parse PASS",
+    "Native fixture/full review snapshot unchanged",
+    "Committed receipt/reflection prefixes byte-identical",
+    "Skill frontmatter matches folder",
+    "Git diff hygiene PASS",
+    "pr.cljs flow exit0"
+  ],
+  "limits": [
+    "Local deterministic results are not hosted review or approval.",
+    "Prospective current-head fixture successors are synthetic and never published.",
+    "No source adoption or fresh ETA15 native settlement is claimed.",
+    "B1/B2/B3 behavioral proofs remain zero of three."
+  ]
+}

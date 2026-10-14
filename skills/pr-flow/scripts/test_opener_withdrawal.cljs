@@ -208,8 +208,12 @@
              ["malformed original commit" (assoc-in eta-prospective [:comments :nodes 0 :pullRequestReview :commit :oid] "unknown")]
              ["missing original review id" (update-in eta-prospective [:comments :nodes 0 :pullRequestReview] dissoc :databaseId)]
              ["invalid original review id" (assoc-in eta-prospective [:comments :nodes 0 :pullRequestReview :databaseId] 0)]
+             ["missing original review node id" (update-in eta-prospective [:comments :nodes 0 :pullRequestReview] dissoc :id)]
+             ["blank original review node id" (assoc-in eta-prospective [:comments :nodes 0 :pullRequestReview :id] " ")]
              ["unknown original review state" (assoc-in eta-prospective [:comments :nodes 0 :pullRequestReview :state] "UNKNOWN")]
+             ["unpublished original review" (assoc-in eta-prospective [:comments :nodes 0 :pullRequestReview :state] "PENDING")]
              ["wrong original reviewer" (assoc-in eta-prospective [:comments :nodes 0 :pullRequestReview :author :login] "different")]
+             ["wrong original reviewer type" (assoc-in eta-prospective [:comments :nodes 0 :pullRequestReview :author :__typename] "User")]
              ["different withdrawing opener" (assoc-in eta-prospective [:comments :nodes wi :author :login] "eta-mu-ai")]
              ["writer is Bot" (assoc-in eta-prospective [:comments :nodes si :author :__typename] "Bot")]
              ["wrong root binding" (assoc-in eta-prospective [:comments :nodes si :body]
@@ -228,3 +232,20 @@
     (doseq [[field value] [[:number 16] [:headRefOid old-head]]]
       (is (not (cleared? (assoc-in (eta-input eta-prospective) [:native-context :pr field] value)))))
     (is (not (cleared? (assoc-in (eta-input eta-prospective) [:native-context :repository :nameWithOwner] "other/eta-mu"))))))
+
+(deftest old-review-withdrawal-supplies-no-other-merge-credit
+  (let [t (law/classify-thread (eta-input eta-prospective))
+        g {:head eta-head :threads [t]
+           :checks [{:name "laws" :state "SUCCESS" :required? true}]
+           :approved-heads {"mimo" #{eta-head}} :rounds 5 :review-participants #{"mimo"}}]
+    (is (:pass? (law/merge-gate g)))
+    (doseq [bad [(assoc g :approved-heads {})
+                 (assoc g :approved-heads {"mimo" #{(get-in eta-root [:pullRequestReview :commit :oid])}})
+                 (assoc g :rounds 0 :review-participants #{"mimo" "coderabbit"})
+                 (assoc g :required-reviewers #{"codex"})
+                 (assoc g :checks [{:name "laws" :state "FAILURE" :required? true}])
+                 (assoc g :checks [{:name "laws" :state "SKIPPED" :required? true}])
+                 (update g :threads conj (law/classify-thread
+                                          {:id "other-finding" :resolved? false
+                                           :comments [{:author "coderabbitai" :body "P1: independent defect"}]}))]]
+      (is (not (:pass? (law/merge-gate bad)))))))
