@@ -54,7 +54,8 @@
        "Legacy mode: if receipts.edn is absent and work is non-trivial, create it (rr-init.bb; --eta-mu for .ημ/receipts.edn)."
        "Record a receipt (legacy mode: append a line; segmented mode: write a new segment) at: (1) start, (2) after each phase, (3) after tests/build, (4) after commits/pushes."
        "Before major decisions, regain context from the newest ~20 records: in legacy mode, tail receipts.edn; in segmented mode, read the merged ledger (legacy + .ημ/receipts/) via the repository verifier or a union-aware reader — not rr-tail.bb. Order by effective time (:ts, else :event/recorded-at), not by the verifier's validation sort."
-       "When runtime exposes the receipt_river tool, prefer it over ad-hoc shell writes so receipt format can be validated and audited."
+       "Legacy mode: when runtime exposes the receipt_river tool, prefer it over ad-hoc shell writes so receipt format can be validated and audited."
+       "Segmented mode: do not use the receipt_river runtime tool until it accepts segment targets (it operates on the per-repo receipts.edn, so its append/tail would write the frozen legacy file or omit segments); write segments by hand or via Clio, and never direct it at the frozen legacy file."
        "Legacy mode: prefer the shipped bb scripts (rr-init.bb, rr-append.bb, rr-tail.bb, rr-last.bb) for direct file interaction."
        "Do not log secrets; keep notes bounded."]))
 )
@@ -69,6 +70,7 @@
   (eta-mu-file ".ημ/receipts.edn")
   (scripts ["scripts/rr-init.bb" "scripts/rr-append.bb" "scripts/rr-tail.bb" "scripts/rr-last.bb"])
   (segmented-mode-scripts-forbidden ["scripts/rr-append.bb" "scripts/rr-tail.bb" "scripts/rr-last.bb"])
+  (segmented-mode-tools-forbidden ["receipt_river"])
   (segment-dir ".ημ/receipts")
   (required-keys [ts kind origin owner dod pi host manifest refs])
   (optional-keys [note tests decisions drift])

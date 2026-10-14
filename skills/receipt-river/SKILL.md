@@ -45,7 +45,10 @@ segment directories); do not split a ledger whose consumers read one file.
   newline-terminated. **Do not append to the frozen legacy file and do not use
   any of `rr-append.bb`, `rr-tail.bb`, or `rr-last.bb`** until those scripts
   gain a union-aware reader (they still resolve only the monolith and would
-  silently omit segment history). Write new segments by hand or via Clio once
+  silently omit segment history). The same holds for the `receipt_river`
+  runtime tool, which operates on the per-repo `receipts.edn`: do not use it in
+  segmented mode until it accepts segment targets, and never point it at the
+  frozen legacy file. Write new segments by hand or via Clio once
   `append-segment` / directory canonicalize ship (see Clio note below).
 
 ### Rules in segmented mode
@@ -89,8 +92,8 @@ These rules and the minimal workflow below apply in both modes. In segmented
 mode (`.ημ/receipts/` exists) the section above takes precedence for the
 mechanics: every "append" means "write a new segment file", "tail" means "read
 the newest ~20 records of the merged ledger by effective time", and none of
-`rr-append.bb` / `rr-tail.bb` / `rr-last.bb` may be used until they are
-union-aware.
+`rr-append.bb` / `rr-tail.bb` / `rr-last.bb` nor the `receipt_river` runtime
+tool may be used until they are union-aware.
 
 - Legacy mode: if `receipts.edn` exists, **never edit past lines**; if missing,
   create it at the start of non-trivial work.
