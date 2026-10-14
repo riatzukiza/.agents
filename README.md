@@ -17,7 +17,9 @@ The repository is not a bag of prompts. It is an operating substrate:
 - [`AGENTS.md`](AGENTS.md) — repository-specific instructions for maintaining this corpus.
 - [`skills/`](skills/) — the canonical skill catalog.
 - [`skills/.skill-lock.json`](skills/.skill-lock.json) — provenance and version metadata for imported skills.
-- `.ημ/receipts.edn` — append-only evidence for substantive changes to this repository.
+- `.ημ/receipts.edn` — append-only evidence for substantive changes to this repository
+  (legacy mode; it becomes the frozen archive once `.ημ/receipts/` segments are
+  introduced, see [`skills/receipt-river/SKILL.md`](skills/receipt-river/SKILL.md)).
 - `.ημ/session-mycology/` — project-local learning records and incubating skill spores.
 
 ## Core operating stack
@@ -120,7 +122,12 @@ Before changing a skill:
 
 1. read [`PRINCIPLE.edn`](PRINCIPLE.edn) and [`AGENTS.md`](AGENTS.md),
 2. inspect the relevant skill and contract,
-3. tail `.ημ/receipts.edn` when present,
+3. read a bounded newest ~20 receipts of the active ledger when present, by
+   the mode in [`skills/receipt-river/SKILL.md`](skills/receipt-river/SKILL.md):
+   `.ημ/receipts.edn` in legacy mode (effective-time order); once
+   `.ημ/receipts/` exists, the union-aware window over the frozen file plus
+   segments (Clio order after cutover, excluding `.cutover-excluded.edn`
+   sources),
 4. search for overlap before creating a new skill,
 5. make the smallest compatible change,
 6. verify the touched files using capabilities the active harness actually has,

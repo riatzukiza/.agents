@@ -87,13 +87,15 @@
     (checks [:edn-parse :record-identity :byte-immutable])
     (shape-validation :grandfathered)
     (corrections :new-adjudication-record))
-  ;; Pre-cutover shape validation covers active segment records under the
-  ;; lightweight event-envelope. Cutover wraps and post-cutover writes use
-  ;; full-clio-event; wrap payloads stay grandfathered like their sources.
+  ;; Pre-cutover shape validation covers active segment records: plain, the
+  ;; lightweight event-envelope, or full-clio-event. Cutover wraps and
+  ;; post-cutover writes use full-clio-event; new full-Clio writes need the
+  ;; receipt keys, wrap payloads stay grandfathered like their sources.
   (shape-validation-scope
-    (pre-cutover :segment-records-via-event-envelope-or-plain)
+    (pre-cutover :segment-records-via-plain-or-event-envelope-or-full-clio-event)
     (cutover-and-after :full-clio-event)
-    (cutover-wrap-payloads :grandfathered))
+    (cutover-wrap-payloads :grandfathered)
+    (new-full-clio-writes :receipt-required-keys-on-event-data))
   (clio-order
     (applies-when :every-active-record-is-clio-event)
     (algorithm :topological-sort)
@@ -116,27 +118,36 @@
       (event/subject "receipt:<record-identity>")
       (event/at [ts event/recorded-at :cutover-time])
       (event-id
+        (receipt-river-envelope-uuid-id :keep-canonical-lowercase-hyphenated)
         (algorithm :uuid-v5)
         (namespace-uuid "6ba7b810-9dad-11d1-80b4-00c04fd430c8")
         (name-bytes
           (id-less-plain :utf8-lowercase-hex-sha256-canonical-edn-identity)
-          (receipt-river-envelope :utf8-canonical-lowercase-hyphenated-event-id)))
+          (receipt-river-envelope-non-uuid-id
+            {:utf8-prefix "receipt-river/event-id:" :then :canonical-edn-text-of-event-id})))
+      (promoted-event-causes :verbatim-fail-closed-if-unresolvable-or-remapped)
       (stream "<repo>/legacy")
-      (seq :pre-cutover-active-union-order)
+      (seq :one-based-ordinal-among-wraps-in-pre-cutover-active-union-order)
+      (promoted-clio-events :keep-original-stream-and-seq)
       (causes :previous-wrap))
     (legacy-file :archived-source-byte-identical-outside-active-union)
     (converted-source-segments :archived-in-place-via-cutover-excluded-manifest)
     (exclusion-manifest ".ημ/receipts/.cutover-excluded.edn")
     (post-cutover-active-union :segments-not-listed-in-cutover-excluded)
     (declared-in ".ημ/receipts/README.md")
-    (verify :bijection-every-pre-cutover-non-clio-source-to-active-clio-event))
+    (verify :bijection-every-archived-legacy-record-and-pre-cutover-non-clio-source-to-active-clio-event)
+    (verify-archived-full-clio :verbatim-active-copy-same-event-id-and-data))
   (record-identity
     (clio-or-event :event/id)
     (id-less-plain-receipt :sha256-canonical-edn-bytes)
     (canonical-edn-bytes
-      (map-keys-sorted-by-pr-str true)
-      (set-members-sorted-by-pr-str true)
-      (emit :clojure-pr-str)
+      (canonicalize-children-before-sorting true)
+      (map-entries-sorted-by-canonical-key-text true)
+      (sets-stay-sets-members-sorted-by-canonical-text true)
+      (vectors-and-lists-keep-order-and-bracket true)
+      (sort-compare :unicode-code-point)
+      (scalars :clojure-pr-str)
+      (separator :single-space)
       (hash :sha256-utf8-lowercase-hex-no-separators))
     (id-less-plain-applies-to [:frozen-legacy :plain-segments]))
   (required-keys [ts kind origin owner dod pi host manifest refs])
@@ -150,11 +161,14 @@
     (other-event-types :invalid))
   ;; Cutover wraps and post-cutover writes: full Clio shape (not recorded-at/payload).
   (full-clio-event
-    (applies-when [:cutover :post-cutover])
+    (applies-when [:pre-cutover :cutover :post-cutover])
     (type :receipt-river/receipt-recorded)
     (required-keys [event/id event/schema event/type event/stream event/seq
                     event/causes event/actor event/subject event/at event/data])
     (event/data {:receipt-river/receipt :receipt-map})
+    (new-write-receipt-required-keys [ts kind origin owner dod pi host manifest refs])
+    (cutover-wrap-receipt :grandfathered)
+    (new-write-stream :writer-and-branch-or-per-run-unless-serial-allocator)
     (other-event-types :invalid))
   (kinds
     [:push-truth :artifact-hash :test-run :build :decision :drift :catalog
