@@ -685,3 +685,23 @@
   spore: none
   receipt-refs: canonical-old-review-withdrawal-planning-20261014
   note: New prerequisite is explicitly included by human; earlier scope-pending records remain immutable and are superseded for inclusion only. Owning source plan preserves old root/review/head and requires actual fresh current opener/writer/native ordered context, all negatives and independent review/MERGE before adoption. Actual current ETA stale752 withdrawal is retained as stale, not relabeled current564. Full original GraphQL bytes and selected native fixture separate from future prospective test-only transformations. No law/test implementation before planning readiness; no new identity/approval/round/CI waiver, source-history rewrite, runtime/credential/model/paid/social/deployment/newagent/spore action.
+
+- ts: 2026-10-14T15:09:48.312837+00:00
+  session: 01a0fa39-15d0-7ab3-93a4-b4f4ce3c51e3
+  task: canonical-old-review-withdrawal-planning-20261014
+  p-efficiency: 0.8
+  p-friction: 0.3
+  p-skill-candidate: 0.1
+  spore: none
+  receipt-refs: canonical-old-review-withdrawal-planning-20261014
+  note: Attribution correction for the preceding reflection: session is 01a0fa39-15d0-7ab3-93a4-b4f4ce3c51e3, working directory /home/err/spaces/cephalon-pr-withdrawal/.agents. Original missing-field entry is immutable and remains unchanged. This replacement attribution is a new complete reflection, not a historical rewrite.
+
+- ts: 2026-10-14T15:12:01.485Z
+  session: /home/err/spaces/cephalon-pr-withdrawal/.agents
+  task: Canonical issue25 two-point plan
+  p-efficiency: 0.8
+  p-friction: 0.2
+  p-skill-candidate: 0.1
+  spore: none
+  receipt-refs: canonical-withdrawal-three-planning-findings-corrected-20261014
+  note: Pure predicate repair excludes collector/acquisition/pagination/identity-custody scope; insufficiency requires a separately scoped/estimated prerequisite before collector change. Actual existing native collector already supplies complete original/current enclosing reviews. Added full native parent and newer primary readback; initial broader-scope raw creation snapshot remains immutable and explicitly historical. Appended complete session-attribution correction referencing the missing-field reflection; private owned receipt/reflection helper now emits future session/CWD so the omission does not recur. Initial API observation lacked formal Codex data while summary completed; later native COMMENTED review and three findings arrived, so completion alone was never counted as approval. Real current old review/MiMo/CI handles remain owned, no fabricated failure/approval/timeouts. No law/test implementation before readiness, policywaiver/sourcehistory/runtime/paid/credential/grant/newagent/spore change.

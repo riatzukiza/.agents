@@ -9,7 +9,7 @@ Primary path: `docs/agile/kanban/repair-canonical-opener-withdrawal-across-immut
 character coordination checkout. Owner source: `riatzukiza/.agents`.
 Estimate: **2 points**. Native state at capture: **Incoming**.
 
-Canonical card SHA256: `e20a8edc734b434c2090d6d299871b5d3bb95d4e0cd341d541e8551e294e352e`.
+Current primary card SHA256: `b96686b415ba534824e7a212f6c3c3b723b0094ceca8a00a2b1115a9ec138fcd`.
 
 ## Context
 
@@ -30,8 +30,7 @@ review identity and source commit remain preserved.
 
 ## Scope
 
-Owning `.agents` pure PR-flow withdrawal law and, only if necessary, its native
-collector; regression fixtures, skill/contract wording and protected adoption.
+Owning `.agents` pure PR-flow withdrawal predicate, regression fixtures, skill/contract wording and protected adoption. Collector/acquisition/pagination/identity-custody changes are excluded: the actual existing collector already captures original and current enclosing reviews and complete native conversation. If this pure repair proves insufficient, stop and report the owning gap for a separately scoped and estimated prerequisite before changing collector code.
 The Foresight card is the primary board artifact. The owning source PR carries
 an explicitly attributed planning snapshot, not another board implementation.
 Keep the existing two-point estimate for this included prerequisite.
