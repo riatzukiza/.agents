@@ -65,7 +65,11 @@ segment directories); do not split a ledger whose consumers read one file.
 - Legacy receipts are wrapped as Clio events, one stream per repository, when
   receipt-river moves onto Clio.
 
-## Rules
+## Rules (legacy mode)
+In segmented mode (`.ημ/receipts/` exists) the section above takes precedence:
+every "append" below means "write a new segment file", and `rr-append.bb` must
+not be used.
+
 - If `receipts.edn` exists: **never edit past lines**.
 - If missing: create it at the start of non-trivial work.
 - Check it regularly: tail last ~20 lines before major decisions.

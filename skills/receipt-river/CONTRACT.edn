@@ -48,6 +48,7 @@
   (protocol
     (workflow
       ["Discover the project root by walking up from cwd looking for .ημ/ or .git/."
+       "Segmented mode: if .ημ/receipts/ exists, receipts.edn is frozen; write each new receipt as its own .ημ/receipts/<UTC timestamp>-<id>.edn segment and do not use rr-append.bb. The rules below apply to legacy mode only."
        "If receipts.edn exists: treat as append-only; never edit past lines."
        "If receipts.edn is absent and work is non-trivial: create it."
        "Append a receipt at: (1) start, (2) after each phase, (3) after tests/build, (4) after commits/pushes."
