@@ -676,3 +676,12 @@
   spore: none
   receipt-refs: 331ea19ef07e3b67830856be86c03d4ffa48fa92012dec54625b34afd344b0d8
   note: Keep exact native input and raw spawn outcomes. Positive pidfd readiness plus absent/different identity permits safe bookkeeping pruning; all original cleanup/refusal controls retained. Complete99 passes with unchanged assertions/timeouts. Preserve original failed suites and raw attribution history; no retrospective cause or protected adoption credit.
+
+- ts: 2026-10-14T14:51:16.838Z
+  task: Cephalon finite B1/B2/B3 prerequisite
+  p-efficiency: 0.8
+  p-friction: 0.2
+  p-skill-candidate: 0.1
+  spore: none
+  receipt-refs: canonical-old-review-withdrawal-planning-20261014
+  note: New prerequisite is explicitly included by human; earlier scope-pending records remain immutable and are superseded for inclusion only. Owning source plan preserves old root/review/head and requires actual fresh current opener/writer/native ordered context, all negatives and independent review/MERGE before adoption. Actual current ETA stale752 withdrawal is retained as stale, not relabeled current564. Full original GraphQL bytes and selected native fixture separate from future prospective test-only transformations. No law/test implementation before planning readiness; no new identity/approval/round/CI waiver, source-history rewrite, runtime/credential/model/paid/social/deployment/newagent/spore action.
