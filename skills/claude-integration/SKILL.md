@@ -145,6 +145,12 @@ Hooks can call MCP tools via the `mcp_tool` type:
 
 This lets deterministic hooks compose with DSL-defined tool logic.
 
+**Segmented mode:** do **not** wire `receipt_river` append hooks while
+`.ημ/receipts/` exists. That tool still targets the monolith and would append
+to the frozen legacy ledger. Keep the PostToolUse receipt hook **legacy-mode
+only**, or replace it with a segment-aware writer (hand-written segment or
+Clio `append-segment`) before enabling it in a segmented repository.
+
 ## Reference: Build Output
 
 | Artifact | Purpose |

@@ -52,7 +52,14 @@ segment directories); do not split a ledger whose consumers read one file.
   `.ημ/receipts.edn` that they then prefer over a frozen project-root ledger). The same holds for the `receipt_river`
   runtime tool, which operates on the per-repo `receipts.edn`: do not use it in
   segmented mode until it accepts segment targets, and never point it at the
-  frozen legacy file. Write new segments by hand or via Clio once
+  frozen legacy file. The same prohibition applies to **`pr-flow`'s `pr.cljs`**
+  (`skills/pr-flow/scripts/pr.cljs`): its actionability path still reads and
+  `appendFileSync`s only `.ημ/receipts.edn`. In a segmented repository, refuse
+  any `pr.cljs` status/settle/gate/request path that would append to or treat
+  the frozen monolith as the live ledger — do not run those writes until a
+  follow-up PR teaches pr-flow segment read/write (union-aware history and
+  append). Routine PR review comments and non-ledger GitHub mechanics remain
+  fine. Write new segments by hand or via Clio once
   `append-segment` / directory canonicalize ship (see Clio note below).
 
 ### Rules in segmented mode
@@ -85,8 +92,10 @@ segment directories); do not split a ledger whose consumers read one file.
   - Full Clio events: valid **before cutover** too (the mixed ledger may already
     hold them; cutover promotes them verbatim), and **required during/after
     cutover** for new writes and for verbatim-promoted or cutover-wrapped
-    records: `:event/id`, `:event/schema`, `:event/type
-    :receipt-river/receipt-recorded`, `:event/stream`, `:event/seq`,
+    records: `:event/id`, `:event/schema` (**must** be a map with `:schema/root`,
+    `:schema/id`, and `:schema/hash`, naming a revision already published in the
+    repository schema history — an empty `{}` or missing nested keys is invalid),
+    `:event/type :receipt-river/receipt-recorded`, `:event/stream`, `:event/seq`,
     `:event/causes`, `:event/actor`, `:event/subject`, `:event/at`, and
     `:event/data` (receipt under `:receipt-river/receipt`). Do **not** require the
     lightweight `:event/recorded-at` / `:event/payload` keys on full Clio events.
@@ -130,18 +139,27 @@ segment directories); do not split a ledger whose consumers read one file.
   string: `event-id:` + the canonical EDN text of `:event/id` (so a string
   and a `#uuid` stay distinct) for records with an ID, `sha256:` + the
   lowercase hex identity for ID-less plain receipts; keys compare as Unicode
-  code-point strings. Never compare raw heterogeneous ID values. Records with no effective-time field sort
-  first and must not displace timestamped records from the newest window. This
-  same order is used for display and context recovery ("the newest ~20 records")
-  **while any non-Clio record remains in the active union**. The
-  repository verifiers sort only to make validation deterministic; that sort is
-  not a recency order. Clio order becomes canonical only once **every** record
-  in the active merged ledger is a Clio event, i.e. after the cutover below;
-  from then on timestamps never carry ordering authority. Clio order is a
-  deterministic **topological** order of the causal DAG (every event in
-  `:event/causes` precedes its effects); `[:event/stream :event/seq :event/id]`
-  only breaks ties between causally incomparable events. It is not a lexical
-  sort with `:event/causes` as a key.
+  code-point strings. Never compare raw heterogeneous ID values. **Effective-time
+  comparison:** accept only an ISO-8601 string (with offset or `Z`) or an EDN
+  `#inst`; parse each to a UTC instant (milliseconds since epoch). Invalid or
+  unparseable values are treated as missing effective time (sort first) and must
+  not displace timestamped records. Never compare raw strings lexicographically
+  across mixed offsets, and never compare heterogeneous Clojure types directly.
+  Records with no effective-time field sort first and must not displace
+  timestamped records from the newest window. This same order is used for
+  display and context recovery ("the newest ~20 records") **while any non-Clio
+  record remains in the active union** — including **legacy-only** mode (do not
+  use physical `rr-tail.bb` order for authoritative recovery). The repository
+  verifiers sort only to make validation deterministic; that sort is not a
+  recency order. Clio order becomes canonical only once **every** record in the
+  active merged ledger is a Clio event, i.e. after the cutover below; from then
+  on timestamps never carry ordering authority. Clio order is a deterministic
+  **topological** order of the causal DAG (every event in `:event/causes`
+  precedes its effects); the post-cutover tie-break among causally incomparable
+  events is `[:event/stream :event/seq :event/id]` where `:event/id` is compared
+  through the same **identity-key** string (`event-id:` + canonical EDN text),
+  never as a raw heterogeneous ID. It is not a lexical sort with `:event/causes`
+  as a key.
 - Cutover to all-Clio order (the reachable transition), in one dedicated PR:
   - Convert **every active non-Clio record** — frozen legacy lines **and** any
     plain **or** lightweight Receipt-River-envelope segments already under
@@ -208,10 +226,15 @@ segment directories); do not split a ledger whose consumers read one file.
     cutover **fails closed** if the pre-cutover union already holds any event in
     `<repo>/legacy` (Clio treats a reused `[:event/stream :event/seq]` slot as a
     conflict). `:event/seq`
-    is the wrap's **one-based ordinal among the wraps only** (1, 2, 3, …),
-    ranked by the pre-cutover active-union order; promoted Clio events are not
-    counted. Each wrap after the first names the previous wrap in
-    `:event/causes`, and also every parent its source named (a lightweight
+    is the wrap's **one-based ordinal among the wraps only** (1, 2, 3, …).
+    Rank wraps in a **causal topological** order of the mapped source parents
+    (every mapped `:caused-by` / parent edge precedes its effect), using the
+    pre-cutover effective-time + identity-key order only as a tie-break among
+    causally incomparable wraps; promoted Clio events are not counted. If a
+    source parent edge would create a cycle with the serial wrap chain (a
+    forward causal edge relative to that ranking), the cutover **fails closed**
+    before emitting segments. Each wrap after the first names the previous wrap
+    in `:event/causes`, and also every parent its source named (a lightweight
     envelope's top-level `:caused-by`, or a plain receipt's), each mapped to that
     parent's active cutover ID by the `:event/id` rules; if any named parent
     has no active event the cutover **fails closed**. The stream is written
@@ -237,11 +260,21 @@ segment directories); do not split a ledger whose consumers read one file.
     pre-cutover non-Clio source segment** (plain **and** lightweight Receipt
     River envelopes listed in `.cutover-excluded.edn`) has exactly one active
     Clio event that corresponds to it, and every cutover wrap has a source. A
-    wrap corresponds when its `:event/data` and derived `:event/id` match; an
-    already-full-Clio archived record corresponds only to an active event that
-    is byte-for-byte the same event (same `:event/id` and data). An omitted
-    envelope source, or an archived full Clio record with no verbatim active
-    copy, must fail the check. Wrap payloads stay grandfathered exactly like their source records.
+    wrap corresponds when its `:event/data`, derived `:event/id`, **and**
+    `:event/causes` match the expected set (serial previous-wrap edge when
+    applicable, plus every mapped source parent ID); an already-full-Clio
+    archived record corresponds only to an active event that is byte-for-byte
+    the same event (same `:event/id` and data). An omitted envelope source, a
+    wrap whose causes omit or remiss a mapped parent, or an archived full Clio
+    record with no verbatim active copy, must fail the check. Wrap payloads stay
+    grandfathered exactly like their source records.
+  - **Exclusion-manifest exactness:** `.cutover-excluded.edn` membership must be
+    **exactly** the set of converted plain/envelope source segment filenames
+    (plus nothing else). Extra entries — including an existing full-Clio segment
+    that was never a cutover source — **fail** the check so the frozen manifest
+    cannot silently drop unrelated Clio history from the active union. The
+    frozen legacy file is archived by the cutover declaration, not by listing it
+    in the manifest.
   - Once that PR merges, the active union holds only Clio events and Clio order
     applies.
 - **Clio today** (`open-hax/clio` main): the shipped CLI is `clio append` and

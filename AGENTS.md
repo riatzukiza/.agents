@@ -79,11 +79,14 @@ depends on the mode defined in [`skills/receipt-river/SKILL.md`](skills/receipt-
 
 - **Legacy mode** (`.ημ/receipts/` absent — this repository today):
   `.ημ/receipts.edn` is the append-only ledger.
-- **Segmented mode** (`.ημ/receipts/` exists): `.ημ/receipts.edn` is frozen.
-  Write each new receipt as its own `.ημ/receipts/` segment, read a bounded
-  newest ~20 of the **active** merged ledger for context (exclude
-  `.cutover-excluded.edn` sources after cutover), and do not use the
-  monolith-only `rr-*.bb` scripts or `receipt_river` tool.
+- **Segmented mode** (`.ημ/receipts/` exists): the legacy file that was
+  canonical at migration (project-root `receipts.edn` or `.ημ/receipts.edn`)
+  is frozen. Write each new receipt as its own `.ημ/receipts/` segment, read a
+  bounded newest ~20 of the **active** merged ledger for context (exclude
+  `.cutover-excluded.edn` sources after cutover; after cutover do not re-merge
+  the frozen legacy file), and do not use the monolith-only `rr-*.bb` scripts,
+  `receipt_river` tool, or `pr-flow` `pr.cljs` paths that append to
+  `.ημ/receipts.edn` until those gain segment awareness.
 
 In either mode:
 

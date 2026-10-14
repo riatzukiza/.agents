@@ -125,10 +125,11 @@ Examples:
 3. **Read receipts**.
    - Read a bounded newest ~20 receipts of the **active** ledger, by the mode in
      `skills/receipt-river/SKILL.md`: the workspace `receipts.edn` in legacy
-     mode; once `.ημ/receipts/` exists, the union-aware window over the frozen
-     file plus segments (effective time before cutover, Clio order after,
-     excluding `.cutover-excluded.edn` sources). Do not tail only the frozen
-     monolith.
+     mode (effective-time newest-20, not physical tail); once `.ημ/receipts/`
+     exists **before cutover**, the union-aware window over the frozen legacy
+     file plus segments (effective time); **after cutover**, active segments
+     alone (Clio topological tail), never re-merging the frozen legacy file or
+     `.cutover-excluded.edn` sources. Do not tail only the frozen monolith.
    - Note observations, decisions, tests, or drift entries related to the friction.
 4. **Spore** the pattern.
    - If `p-skill-candidate >= 0.7` and the pattern generalizes, create a candidate spore file.
