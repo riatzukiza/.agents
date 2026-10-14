@@ -48,13 +48,14 @@
   (protocol
     (workflow
       ["Discover the project root by walking up from cwd looking for .ημ/ or .git/."
-       "Segmented mode: if .ημ/receipts/ exists, the frozen legacy ledger (project-root receipts.edn or .ημ/receipts.edn — whichever was canonical at migration) must not be appended to; write each new receipt as its own .ημ/receipts/<UTC timestamp>-<id>.edn segment. Do not use rr-append.bb, rr-tail.bb, or rr-last.bb in segmented mode (they are monolith-only until union-aware). The remaining workflow lines apply to legacy mode only."
-       "If receipts.edn exists: treat as append-only; never edit past lines."
-       "If receipts.edn is absent and work is non-trivial: create it (rr-init.bb; --eta-mu for .ημ/receipts.edn)."
-       "Append a receipt at: (1) start, (2) after each phase, (3) after tests/build, (4) after commits/pushes."
-       "Before major decisions: in legacy mode, tail the last ~20 lines; in segmented mode, read the merged ledger (legacy + .ημ/receipts/) via the repository verifier or a union-aware reader — not rr-tail.bb."
-       "When runtime exposes the receipt_river tool, prefer it over ad-hoc shell appends so receipt format can be validated and audited."
-       "Prefer the shipped bb scripts only in legacy mode (rr-init.bb, rr-append.bb, rr-tail.bb, rr-last.bb)."
+       "Determine the mode: legacy mode when .ημ/receipts/ is absent (the single receipts.edn is the ledger); segmented mode when .ημ/receipts/ exists. A line prefixed 'Legacy mode:' or 'Segmented mode:' applies only to that mode; every other line applies to both modes."
+       "Segmented mode: the frozen legacy ledger (project-root receipts.edn or .ημ/receipts.edn — whichever was canonical at migration) must not be appended to, edited or removed; write each new receipt as its own .ημ/receipts/<UTC timestamp>-<id>.edn segment holding exactly one EDN record; never edit, rename or delete a committed segment (corrections are new records). Do not use rr-append.bb, rr-tail.bb, or rr-last.bb (monolith-only until union-aware)."
+       "Legacy mode: if receipts.edn exists, treat it as append-only; never edit past lines."
+       "Legacy mode: if receipts.edn is absent and work is non-trivial, create it (rr-init.bb; --eta-mu for .ημ/receipts.edn)."
+       "Record a receipt (legacy mode: append a line; segmented mode: write a new segment) at: (1) start, (2) after each phase, (3) after tests/build, (4) after commits/pushes."
+       "Before major decisions, regain context from the newest ~20 records: in legacy mode, tail receipts.edn; in segmented mode, read the merged ledger (legacy + .ημ/receipts/) via the repository verifier or a union-aware reader — not rr-tail.bb. Order by effective time (:ts, else :event/recorded-at), not by the verifier's validation sort."
+       "When runtime exposes the receipt_river tool, prefer it over ad-hoc shell writes so receipt format can be validated and audited."
+       "Legacy mode: prefer the shipped bb scripts (rr-init.bb, rr-append.bb, rr-tail.bb, rr-last.bb) for direct file interaction."
        "Do not log secrets; keep notes bounded."]))
 )
 

@@ -60,9 +60,14 @@ segment directories); do not split a ledger whose consumers read one file.
     is corruption, matching Clio's laws). Content hashing must not override ID.
   - Legacy ID-less `:ts` receipts: SHA-256 of the record's canonical EDN form
     (map entries and set members sorted).
-- Order: until receipts are Clio events, current verifiers merge by `:ts`
-  (records without one sort first) then record identity — a deterministic
-  display order only. Once wrapped as Clio events, canonical order is Clio's
+- Order: until receipts are Clio events, there is no canonical order; the
+  repository verifiers sort only to make validation deterministic, and that
+  sort is not a recency order. For display and context recovery ("the last
+  ~20 records"), order by the record's **effective time**: `:ts` when present,
+  otherwise `:event/recorded-at` (mixed ledgers hold `#:event` records that have
+  no top-level `:ts`), then record identity as the tie-break. Records with
+  neither field sort first and must not displace timestamped records from the
+  newest window. Once wrapped as Clio events, canonical order is Clio's
   causal/stream order (`:event/causes`, then
   `[:event/stream :event/seq :event/id]`); timestamps never carry ordering
   authority.
@@ -79,15 +84,19 @@ segment directories); do not split a ledger whose consumers read one file.
   shared stream recreates concurrent-write conflicts on `[:event/stream
   :event/seq]`; partition by writer or branch, or document a serial allocator.
 
-## Rules (legacy mode)
-In segmented mode (`.ημ/receipts/` exists) the section above takes precedence:
-every "append" below means "write a new segment file", and none of
+## Rules (both modes)
+These rules and the minimal workflow below apply in both modes. In segmented
+mode (`.ημ/receipts/` exists) the section above takes precedence for the
+mechanics: every "append" means "write a new segment file", "tail" means "read
+the newest ~20 records of the merged ledger by effective time", and none of
 `rr-append.bb` / `rr-tail.bb` / `rr-last.bb` may be used until they are
 union-aware.
 
-- If `receipts.edn` exists: **never edit past lines**.
-- If missing: create it at the start of non-trivial work.
-- Check it regularly: tail last ~20 lines before major decisions.
+- Legacy mode: if `receipts.edn` exists, **never edit past lines**; if missing,
+  create it at the start of non-trivial work.
+- Segmented mode: never edit, rename or delete a committed segment or the
+  frozen legacy file.
+- Check it regularly: regain the newest ~20 records before major decisions.
 - Never log secrets (tokens, Authorization headers, private keys).
 
 ## Minimal workflow
