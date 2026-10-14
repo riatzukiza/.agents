@@ -676,3 +676,12 @@
   spore: none
   receipt-refs: 331ea19ef07e3b67830856be86c03d4ffa48fa92012dec54625b34afd344b0d8
   note: Keep exact native input and raw spawn outcomes. Positive pidfd readiness plus absent/different identity permits safe bookkeeping pruning; all original cleanup/refusal controls retained. Complete99 passes with unchanged assertions/timeouts. Preserve original failed suites and raw attribution history; no retrospective cause or protected adoption credit.
+- ts: 2026-10-14T14:55:10.000000000Z
+  session: e1-11-shepherd-2026-10-14
+  task: Document segmented Receipt River as the standard (.agents#34)
+  p-efficiency: 0.72
+  p-friction: 0.35
+  p-skill-candidate: 0.55
+  spore: none
+  receipt-refs: riatzukiza/.agents#34
+  note: Codified segmented, merge-validated ledgers in receipt-river SKILL + CONTRACT; forbade monolith bb scripts in segmented mode until union-aware; clarified Clio CLI availability (append/canonicalize today; append-segment pending clio#5); event IDs for #:event records; writer/branch streams for future Clio migration; freeze the actual legacy path at migration. No spore.

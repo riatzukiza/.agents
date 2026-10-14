@@ -31,44 +31,59 @@ segment directories); do not split a ledger whose consumers read one file.
 ### Modes
 - **Legacy mode** (`.ημ/receipts/` absent): the single `receipts.edn` is the
   ledger; the bb scripts below and the append-only rules apply unchanged.
-- **Entering segmented mode**: in its own PR, create `.ημ/receipts/` with a
-  `README.md` describing the convention, freeze `.ημ/receipts.edn`, and add the
-  repository's merged-ledger check (see `riatzukiza/rheos` or
-  `riatzukiza/foresight`).
+- **Entering segmented mode**: in its own PR, identify the **actual** canonical
+  legacy file first (`rr-init.bb` defaults to `<project>/receipts.edn`; prefer
+  `.ημ/receipts.edn` only when it already exists), freeze that file in place
+  (do not invent `.ημ/receipts.edn` if the ledger lives at the project root),
+  create `.ημ/receipts/` with a `README.md` describing the convention and naming
+  the frozen legacy path, and add the repository's merged-ledger check (see
+  `riatzukiza/rheos` or `riatzukiza/foresight`). The merged check must bind that
+  same legacy path.
 - **Segmented mode** (`.ημ/receipts/` exists): every new record goes in its own
   segment file `.ημ/receipts/<UTC timestamp>-<id>.edn` (e.g.
   `2026-10-13T164500123Z-3f9a1c2b7d4e.edn`) holding exactly one EDN record,
-  newline-terminated. **Do not append to `receipts.edn` and do not use
-  `rr-append.bb`** (it still targets the single file) in this mode.
+  newline-terminated. **Do not append to the frozen legacy file and do not use
+  any of `rr-append.bb`, `rr-tail.bb`, or `rr-last.bb`** until those scripts
+  gain a union-aware reader (they still resolve only the monolith and would
+  silently omit segment history). Write new segments by hand or via Clio once
+  `append-segment` / directory canonicalize ship (see Clio note below).
 
 ### Rules in segmented mode
-- `receipts.edn` is the **frozen legacy first segment**: keep it, never rewrite
-  it, never append to it.
+- The frozen legacy file (whichever path was canonical at migration) is the
+  **first segment**: keep it, never rewrite it, never append to it.
 - Never edit, rename or delete a committed segment. Corrections are new records.
 - Validity is judged on the **merged ledger**: load the legacy file plus every
   segment and validate the union — no base segment changed or removed, no base
   record dropped, no record duplicated, every new record valid.
-- Record identity is the SHA-256 of the record's canonical EDN form (map
-  entries and set members sorted), so legacy lines without an id (plain `:ts`
-  receipts) and `#:event` lines (with `:event/id`, `:event/recorded-at`) both
-  have a defined identity and duplicate check.
+- Record identity:
+  - `#:event` / Clio records: use `:event/id` (a reused ID with different data
+    is corruption, matching Clio's laws). Content hashing must not override ID.
+  - Legacy ID-less `:ts` receipts: SHA-256 of the record's canonical EDN form
+    (map entries and set members sorted).
 - Order: until receipts are Clio events, current verifiers merge by `:ts`
   (records without one sort first) then record identity — a deterministic
   display order only. Once wrapped as Clio events, canonical order is Clio's
   causal/stream order (`:event/causes`, then
   `[:event/stream :event/seq :event/id]`); timestamps never carry ordering
   authority.
-- Clio (`open-hax/clio`) owns storage and union validation (`clio
-  append-segment`, `clio canonicalize-dir`). Clio has no git dependency: the
-  check that committed segments were never edited or removed belongs to
-  eta-mu's receipt/ledger commands.
-- Legacy receipts are wrapped as Clio events, one stream per repository, when
-  receipt-river moves onto Clio.
+- **Clio today** (`open-hax/clio` main): the shipped CLI is `clio append` and
+  `clio canonicalize` over ledger files. Segment helpers
+  (`append-segment` / `canonicalize-dir`) are proposed on `riatzukiza/clio#5`
+  and are **not** available until that lands and is promoted. Until then, write
+  segment files directly and run the repository's merged-ledger verifier
+  (foresight `verify-receipts` or rheos `bb test:receipts`). Clio has no git
+  dependency: the check that committed segments were never edited or removed
+  belongs to eta-mu's receipt/ledger commands once those exist.
+- When receipt-river moves onto Clio, wrap legacy receipts as Clio events with
+  **writer/branch-specific streams** (not one stream per repository). A single
+  shared stream recreates concurrent-write conflicts on `[:event/stream
+  :event/seq]`; partition by writer or branch, or document a serial allocator.
 
 ## Rules (legacy mode)
 In segmented mode (`.ημ/receipts/` exists) the section above takes precedence:
-every "append" below means "write a new segment file", and `rr-append.bb` must
-not be used.
+every "append" below means "write a new segment file", and none of
+`rr-append.bb` / `rr-tail.bb` / `rr-last.bb` may be used until they are
+union-aware.
 
 - If `receipts.edn` exists: **never edit past lines**.
 - If missing: create it at the start of non-trivial work.
@@ -102,10 +117,13 @@ In legacy mode, append the EDN line directly to `receipts.edn`; in segmented mod
 ## bb scripts
 The skill ships with Babashka scripts in `scripts/` for harness-agnostic interaction.
 
-- `rr-init.bb` — create an empty `receipts.edn`. Use `--eta-mu` to place it under `.ημ/receipts.edn`.
-- `rr-append.bb` — append one EDN receipt line.
-- `rr-tail.bb` — print the last N receipt lines.
-- `rr-last.bb` — print the last receipt(s), optionally filtered by `--kind`.
+- `rr-init.bb` — create an empty `receipts.edn` (project root by default). Use `--eta-mu` to place it under `.ημ/receipts.edn`.
+- `rr-append.bb` — append one EDN receipt line to the monolith (**legacy mode only**).
+- `rr-tail.bb` / `rr-last.bb` — read the monolith (**legacy mode only** until a union-aware reader exists).
+
+In **segmented mode**, do not use `rr-append.bb`, `rr-tail.bb`, or `rr-last.bb`;
+they omit `.ημ/receipts/` history. Prefer the repository verifier / Clio once
+segment commands ship.
 
 Examples:
 
