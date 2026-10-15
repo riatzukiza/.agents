@@ -124,10 +124,12 @@ Before changing a skill:
 2. inspect the relevant skill and contract,
 3. read a bounded newest ~20 receipts of the active ledger when present, by
    the mode in [`skills/receipt-river/SKILL.md`](skills/receipt-river/SKILL.md):
-   `.ημ/receipts.edn` in legacy mode (effective-time order); once
-   `.ημ/receipts/` exists, the union-aware window over the frozen file plus
-   segments (Clio order after cutover, excluding `.cutover-excluded.edn`
-   sources),
+   the existing canonical legacy ledger in legacy mode (project-root
+   `receipts.edn` or `.ημ/receipts.edn`, effective-time order); once
+   `.ημ/receipts/` exists **before cutover**, the union-aware window over the
+   frozen legacy file plus segments (effective time); **after cutover**, active
+   segments alone in Clio order (never re-merge the frozen legacy file;
+   exclude `.cutover-excluded.edn` sources),
 4. search for overlap before creating a new skill,
 5. make the smallest compatible change,
 6. verify the touched files using capabilities the active harness actually has,

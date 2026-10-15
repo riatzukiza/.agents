@@ -745,3 +745,9 @@
   spore: none
   receipt-refs: riatzukiza/.agents#34
   note: Codified segmented, merge-validated ledgers in receipt-river SKILL + CONTRACT; forbade monolith bb scripts in segmented mode until union-aware; clarified Clio CLI availability (append/canonicalize today; append-segment pending clio#5); event IDs for #:event records; writer/branch streams for future Clio migration; freeze the actual legacy path at migration. No spore.
+
+## 2026-10-14T00:18:38Z — .agents#34 segmented receipt-river (second wave)
+- p-efficiency: 0.55
+- p-friction: 0.7
+- p-skill-candidate: 0.4
+- note: Review rounds kept surfacing dependent-skill and cutover-correspondence gaps (pr-flow/ultra-code/Claude hooks, causal ranking vs seq, verbatim promote, causes dedupe, ISO :event/at). Docs-only PR; implementation follow-ups remain for pr-flow segment I/O and Clio segment helpers.

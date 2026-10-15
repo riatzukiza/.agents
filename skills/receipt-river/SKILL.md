@@ -10,9 +10,14 @@ Make long agent runs smarter and more recoverable by maintaining an **append-onl
 
 ## Canonical file
 Mode first: when `.ημ/receipts/` exists the repository is in **segmented mode**
-— `.ημ/receipts.edn` is frozen, each new receipt is its own segment, and
-readers use the active-union window (see "Standard: segmented, merge-validated ledgers" below). Otherwise
-(legacy mode): the canonical receipt file is `receipts.edn` in the project root. If the project keeps meta-state under `.ημ/`, the bb scripts will prefer `.ημ/receipts.edn` when it already exists, but the default bootstrap location remains the project root for backward compatibility.
+— the legacy file that was canonical at migration (project-root `receipts.edn`
+or `.ημ/receipts.edn`, whichever applied; never invent `.ημ/receipts.edn` if the
+ledger lived at the project root) is frozen, each new receipt is its own
+segment, and readers use the active-union window (see "Standard: segmented,
+merge-validated ledgers" below). Otherwise (legacy mode): the canonical receipt
+file is `receipts.edn` in the project root, or `.ημ/receipts.edn` when that file
+already exists (bb scripts prefer it). The default bootstrap location remains
+the project root for backward compatibility.
 
 ## Canonical line format
 - required keys: `ts kind origin owner dod pi host manifest refs`
@@ -59,7 +64,9 @@ segment directories); do not split a ledger whose consumers read one file.
   the frozen monolith as the live ledger — do not run those writes until a
   follow-up PR teaches pr-flow segment read/write (union-aware history and
   append). Routine PR review comments and non-ledger GitHub mechanics remain
-  fine. Write new segments by hand or via Clio once
+  fine. The same refusal applies to **ultra-code** wave receipt appends
+  (`skills/ultra-code/SKILL.md`): in segmented mode write a segment (or skip
+  the receipt write) rather than appending `receipts.edn`. Write new segments by hand or via Clio once
   `append-segment` / directory canonicalize ship (see Clio note below).
 
 ### Rules in segmented mode
@@ -174,8 +181,9 @@ segment directories); do not split a ledger whose consumers read one file.
     :receipt-river/receipt-recorded`, `:event/stream`, `:event/seq`,
     `:event/causes`, `:event/actor` (cutover actor, e.g. `receipt-river/cutover`),
     `:event/subject` (stable receipt subject, e.g. `receipt:<record-identity>`),
-    `:event/at` (source `:ts` when present, else `:event/recorded-at` for
-    lightweight envelopes, else the cutover time), and `:event/data` holding the
+    `:event/at` as a nonempty ISO-8601 UTC string (serialize an EDN `#inst` or
+    offset timestamp to UTC; if the source time is missing/invalid use the
+    cutover time), and `:event/data` holding the
     source receipt map verbatim under `:receipt-river/receipt` (for a lightweight
     envelope source, the payload map; for a plain receipt, the receipt itself).
   - Schema revision: Clio validates `:event/schema` against a **persisted**
@@ -230,16 +238,21 @@ segment directories); do not split a ledger whose consumers read one file.
     Rank wraps in a **causal topological** order of the mapped source parents
     (every mapped `:caused-by` / parent edge precedes its effect), using the
     pre-cutover effective-time + identity-key order only as a tie-break among
-    causally incomparable wraps; promoted Clio events are not counted. If a
+    causally incomparable wraps; `:event/seq` is the one-based ordinal in that
+    ranking (not a separate effective-time-only sort). Promoted Clio events are
+    not counted. If a
     source parent edge would create a cycle with the serial wrap chain (a
     forward causal edge relative to that ranking), the cutover **fails closed**
     before emitting segments. Each wrap after the first names the previous wrap
     in `:event/causes`, and also every parent its source named (a lightweight
     envelope's top-level `:caused-by`, or a plain receipt's), each mapped to that
     parent's active cutover ID by the `:event/id` rules; if any named parent
-    has no active event the cutover **fails closed**. The stream is written
-    once, serially, so no stream slot conflicts. Verbatim-promoted Clio events keep their original
-    stream/seq and are not rewritten into `<repo>/legacy`.
+    has no active event the cutover **fails closed**. Deduplicate the combined
+    cause IDs in deterministic order (serial previous-wrap first, then mapped
+    source parents in source order, unique) — Clio rejects duplicate cause IDs.
+    The stream is written once, serially, so no stream slot conflicts.
+    Verbatim-promoted Clio events keep their original stream/seq and are not
+    rewritten into `<repo>/legacy`.
   - Declare the cutover in `.ημ/receipts/README.md` and write an exclusion
     manifest `.ημ/receipts/.cutover-excluded.edn` (EDN vector of relative
     segment filenames that were converted). The frozen legacy file **and** every
@@ -262,12 +275,14 @@ segment directories); do not split a ledger whose consumers read one file.
     Clio event that corresponds to it, and every cutover wrap has a source. A
     wrap corresponds when its `:event/data`, derived `:event/id`, **and**
     `:event/causes` match the expected set (serial previous-wrap edge when
-    applicable, plus every mapped source parent ID); an already-full-Clio
-    archived record corresponds only to an active event that is byte-for-byte
-    the same event (same `:event/id` and data). An omitted envelope source, a
-    wrap whose causes omit or remiss a mapped parent, or an archived full Clio
-    record with no verbatim active copy, must fail the check. Wrap payloads stay
-    grandfathered exactly like their source records.
+    applicable, plus every mapped source parent ID, deduplicated); an
+    already-full-Clio archived record corresponds only to an active event that
+    is **byte-for-byte identical** to the archived event (complete map: id,
+    schema, type, stream, seq, causes, actor, subject, at, data — not merely
+    id+data). An omitted envelope source, a wrap whose causes omit or remiss a
+    mapped parent, or an archived full Clio record with no verbatim active copy,
+    must fail the check. Wrap payloads stay grandfathered exactly like their
+    source records.
   - **Exclusion-manifest exactness:** `.cutover-excluded.edn` membership must be
     **exactly** the set of converted plain/envelope source segment filenames
     (plus nothing else). Extra entries — including an existing full-Clio segment

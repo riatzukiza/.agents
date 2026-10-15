@@ -134,6 +134,9 @@
       (event/actor "receipt-river/cutover")
       (event/subject "receipt:<record-identity>")
       (event/at [ts event/recorded-at :cutover-time])
+      (event/at-type :iso-8601-string)
+      (event/at-from-edn-inst :serialize-to-utc-iso-8601)
+      (event/at-invalid-source :use-cutover-time)
       (schema
         (catalog-published-before-wraps :repository-clio-schema-history)
         (event-schema :names-persisted-revision-root-and-hash)
@@ -151,7 +154,7 @@
       (promoted-event-causes :verbatim-fail-closed-if-unresolvable-or-remapped)
       (stream "<repo>/legacy")
       (stream-reserved :fail-closed-if-pre-cutover-union-uses-it)
-      (seq :one-based-ordinal-among-wraps-in-pre-cutover-active-union-order)
+      (seq :one-based-ordinal-among-wraps-in-causal-topo-order-effective-time-tie-break)
       (promoted-clio-events :keep-original-stream-and-seq)
       (causes [:previous-wrap :source-caused-by-mapped-to-cutover-ids])
       (unresolvable-source-parent :fail-closed))
@@ -165,7 +168,8 @@
     (post-cutover-active-union :segments-not-listed-in-cutover-excluded)
     (declared-in ".ημ/receipts/README.md")
     (verify :bijection-every-archived-legacy-record-and-pre-cutover-non-clio-source-to-active-clio-event)
-    (verify-archived-full-clio :verbatim-active-copy-same-event-id-and-data))
+    (verify-archived-full-clio :verbatim-active-copy-complete-event-byte-identical)
+    (causes-dedupe :deterministic-unique-ids-serial-then-mapped-parents))
   (record-identity
     (clio-or-event :event/id)
     (id-less-plain-receipt :sha256-canonical-edn-bytes)
@@ -200,6 +204,8 @@
     (new-write-receipt-required-keys [ts kind origin owner dod pi host manifest refs])
     (cutover-wrap-receipt :grandfathered)
     (new-write-stream :writer-and-branch-or-per-run-unless-serial-allocator)
+    (pre-cutover-new-writes-must-satisfy-clio-history-laws
+      [:stream-seq-continuity :no-slot-reuse :causes-resolve :acyclic-dag])
     (other-event-types :invalid))
   (kinds
     [:push-truth :artifact-hash :test-run :build :decision :drift :catalog

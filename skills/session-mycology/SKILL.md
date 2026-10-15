@@ -124,8 +124,9 @@ Examples:
    - `p-skill-candidate`: confidence a reusable skill/protocol would shrink future effort.
 3. **Read receipts**.
    - Read a bounded newest ~20 receipts of the **active** ledger, by the mode in
-     `skills/receipt-river/SKILL.md`: the workspace `receipts.edn` in legacy
-     mode (effective-time newest-20, not physical tail); once `.ημ/receipts/`
+     `skills/receipt-river/SKILL.md`: in legacy mode the existing canonical
+     ledger (project-root `receipts.edn` or `.ημ/receipts.edn` — whichever is
+     present; effective-time newest-20, not physical tail); once `.ημ/receipts/`
      exists **before cutover**, the union-aware window over the frozen legacy
      file plus segments (effective time); **after cutover**, active segments
      alone (Clio topological tail), never re-merging the frozen legacy file or
