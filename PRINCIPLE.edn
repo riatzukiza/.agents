@@ -65,7 +65,7 @@
     (repository-instructions "AGENTS.md")
     (skills "skills/<skill-name>/SKILL.md")
     (contracts "skills/<skill-name>/CONTRACT.edn")
-    (project-receipts ".ημ/receipts.edn or receipts.edn")
+    (project-receipts ".ημ/receipts.edn or receipts.edn (legacy mode); .ημ/receipts/ segments with the frozen legacy file that was canonical at migration — project-root receipts.edn or .ημ/receipts.edn, whichever applied — never invent .ημ/receipts.edn if the ledger lived at the project root (segmented mode, see skills/receipt-river/SKILL.md)")
     (project-spores ".ημ/session-mycology/spores/"))
 
   (discovery

@@ -744,3 +744,28 @@
   spore: none
   receipt-refs: initial receipts.edn#d5680635-a4ef-4fe1-b629-c11f5a9f0e2a; sourceGREENc8e76afd31c440ecddce1d5df456f63142d29c74
   note: Preserve exact source hashes while resolving execution-budget uncertainty with the actual full owning CLI terminal result. The120s/600s timeouts were limits, not algorithm defects or pass credit; the unchanged99-test CLI completed in808.84s under pinnedNode22/NBB. Commit testRED, three-file policyGREEN, and append-only provenance separately. Exact repository enrollment cannot supply a transport grant, native assessment, rejection agreement or adoption. Keep live canonical checkout untouched; publish reviewable source only. Candidate0, no spore.
+
+- ts: 2026-10-14T14:55:10.000000000Z
+  session: e1-11-shepherd-2026-10-14
+  task: Document segmented Receipt River as the standard (.agents#34)
+  p-efficiency: 0.72
+  p-friction: 0.35
+  p-skill-candidate: 0.55
+  spore: none
+  receipt-refs: riatzukiza/.agents#34
+  note: Codified segmented, merge-validated ledgers in receipt-river SKILL + CONTRACT; forbade monolith bb scripts in segmented mode until union-aware; clarified Clio CLI availability (append/canonicalize today; append-segment pending clio#5); event IDs for #:event records; writer/branch streams for future Clio migration; freeze the actual legacy path at migration. No spore.
+
+## 2026-10-14T00:18:38Z — .agents#34 segmented receipt-river (second wave)
+- p-efficiency: 0.55
+- p-friction: 0.7
+- p-skill-candidate: 0.4
+- note: Review rounds kept surfacing dependent-skill and cutover-correspondence gaps (pr-flow/ultra-code/Claude hooks, causal ranking vs seq, verbatim promote, causes dedupe, ISO :event/at). Docs-only PR; implementation follow-ups remain for pr-flow segment I/O and Clio segment helpers.
+- ts: 2026-10-15T14:43:45.028077304Z
+  session: /workspace/led/agents-wt
+  task: Final reflection for .agents#34 second-wave segmented receipt-river docs (2026-10-15T00:18:38Z round; supersedes the malformed '## 2026-10-14T00:18:38Z' block above)
+  p-efficiency: 0.55
+  p-friction: 0.7
+  p-skill-candidate: 0.4
+  spore: none
+  receipt-refs: 2026-10-15T00:18:38.000Z,2026-10-15T00:18:39.000Z,2026-10-15T00:18:40.000Z
+  note: Review rounds kept surfacing dependent-skill and cutover-correspondence gaps (pr-flow/ultra-code/Claude hooks, causal ranking vs seq, verbatim promote, causes dedupe, ISO :event/at); docs-only; pr.cljs segment awareness is a follow-up.
