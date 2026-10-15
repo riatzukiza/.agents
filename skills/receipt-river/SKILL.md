@@ -189,10 +189,20 @@ segment directories); do not split a ledger whose consumers read one file.
     for `:receipt-river/receipt-recorded`), `:event/type
     :receipt-river/receipt-recorded`, `:event/stream`, `:event/seq`,
     `:event/causes`, `:event/actor` (cutover actor, e.g. `receipt-river/cutover`),
-    `:event/subject` (stable receipt subject, e.g. `receipt:<record-identity>`),
-    `:event/at` as a nonempty ISO-8601 UTC string (serialize an EDN `#inst` or
-    offset timestamp to UTC; if the source time is missing/invalid use the
-    cutover time), and `:event/data` holding the
+    `:event/subject` (stable receipt subject: the literal prefix `receipt:`
+    followed by the source record's **identity key** string defined under
+    Order below — `event-id:` + canonical EDN text of its `:event/id`, or
+    `sha256:` + lowercase hex identity for an ID-less plain receipt. So
+    `#uuid "0f…"` gives `receipt:event-id:#uuid "0f…"`, the string id `"evt-1"`
+    gives `receipt:event-id:"evt-1"`, and a plain receipt gives
+    `receipt:sha256:<64 hex>`. Never a bare UUID or other converter-local
+    rendering; the bijection checks this exact string),
+    `:event/at` as a nonempty ISO-8601 UTC string with **exactly three
+    fractional digits and a `Z` suffix** (e.g. `2026-10-15T14:43:45.000Z`):
+    serialize an EDN `#inst` or offset timestamp to that UTC millisecond form
+    (floor to ms); if the source time is missing/invalid use the **pinned
+    cutover instant** declared in `.ημ/receipts/README.md` (same spelling),
+    and `:event/data` holding the
     source receipt map verbatim under `:receipt-river/receipt` (for a lightweight
     envelope source, the payload map; for a plain receipt, the receipt itself).
   - Schema revision: Clio validates `:event/schema` against a **persisted**
@@ -262,15 +272,24 @@ segment directories); do not split a ledger whose consumers read one file.
     receipt's parents are its unqualified `:caused-by`. Converters and the
     verifier must use these exact keys, and a source holding any other
     caused-by spelling (or both) fails closed rather than yielding an empty
-    edge set. Deduplicate the combined
+    edge set. The source caused-by value **must be an ordered vector** (or a
+    list that preserves written order) of parent identities; a set, map, or
+    other unordered collection **fails closed** — there is no canonical
+    ordering of unordered inputs before dedupe. Deduplicate the combined
     cause IDs in deterministic order (serial previous-wrap first, then mapped
-    source parents in source order, unique) — Clio rejects duplicate cause IDs.
+    source parents in that vector's source order, unique) — Clio rejects
+    duplicate cause IDs.
     The stream is written once, serially, so no stream slot conflicts.
     Verbatim-promoted Clio events keep their original stream/seq and are not
     rewritten into `<repo>/legacy`.
   - Declare the cutover in `.ημ/receipts/README.md` and write an exclusion
     manifest `.ημ/receipts/.cutover-excluded.edn` (EDN vector of relative
-    segment filenames that were converted). The frozen legacy file **and** every
+    segment filenames that were converted). The README declaration **must pin
+    one cutover instant** as a UTC ISO-8601 string with exactly three
+    fractional digits and `Z` (e.g. `cutover-at: 2026-10-15T14:43:45.000Z`).
+    That exact string is the substitute `:event/at` for every wrap whose source
+    time is missing/invalid, and every normalized source `:event/at` uses the
+    same precision so independent converters and the bijection agree. The frozen legacy file **and** every
     converted plain/envelope source segment become **archived sources**: kept in
     place byte-for-byte (never rewritten, renamed, or deleted) but **excluded
     from the active union**. Post-cutover readers load only active `.ημ/receipts/`
@@ -294,8 +313,10 @@ segment directories); do not split a ledger whose consumers read one file.
     (`<repo>/legacy`), `:event/seq` (its causal-topo ordinal), `:event/causes`
     (serial previous-wrap edge when applicable, plus every mapped source parent
     ID, deduplicated, in the prescribed order), `:event/actor`
-    (`receipt-river/cutover`), `:event/subject`, `:event/at` (the normalized
-    UTC ISO-8601 instant) and `:event/data`, and the wrap has no other keys.
+    (`receipt-river/cutover`), `:event/subject` (`receipt:` + identity-key
+    string), `:event/at` (UTC ISO-8601 with exactly three fractional digits and
+    `Z`, using the pinned cutover instant when the source time is missing or
+    invalid) and `:event/data`, and the wrap has no other keys.
     Clio validity alone cannot catch a wrong stream, seq, actor or timestamp;
     any mismatch fails the check. An
     already-full-Clio archived record corresponds only to an active event that
@@ -342,7 +363,16 @@ mechanics: every "append" means "write a new segment file"; "tail" / context
 recovery means a **bounded** read of the newest ~20 records of the **active**
 merged ledger — by effective time **before** cutover, and by the tail of
 canonical Clio topological order **after** cutover (timestamps must not drive
-the post-cutover window); and none of `rr-init.bb` / `rr-append.bb` /
+the post-cutover window). That tail is "newest" only because every post-cutover
+write is **frontier-linked**: the **first** event of each new per-run stream
+names in `:event/causes` **every current frontier tip** of the active union it
+read (each active event that no other active event names as a cause — right
+after cutover, the last `<repo>/legacy` wrap plus any promoted Clio tips), and
+each later event of that run names the run's previous event. A new run is then
+causally after everything it observed, so the topological tie-break can only
+interleave it with genuinely concurrent runs (other branches/sessions written
+since that read), never place it before older history. A write that omits a
+frontier tip it observed is invalid and the merged-ledger check fails it. None of `rr-init.bb` / `rr-append.bb` /
 `rr-tail.bb` / `rr-last.bb` nor the `receipt_river` runtime tool may be used
 until they are union-aware. Do not inspect every immutable segment on each
 decision; use the bounded union-aware window.
@@ -354,7 +384,8 @@ decision; use the bounded union-aware window.
 - Check it regularly: regain the newest ~20 records of the active union before
   major decisions (effective-time order pre-cutover, including legacy-only
   mode, where `rr-tail.bb`'s physical tail is only an approximation; Clio
-  topological tail post-cutover). Do not re-read every historical segment.
+  topological tail post-cutover, which is recent because writes are
+  frontier-linked as above). Do not re-read every historical segment.
 - Never log secrets (tokens, Authorization headers, private keys).
 
 ## Minimal workflow
@@ -388,11 +419,14 @@ The skill ships with Babashka scripts in `scripts/` for harness-agnostic interac
 - `rr-append.bb` — append one EDN receipt line to the monolith (**legacy mode only**).
 - `rr-tail.bb` / `rr-last.bb` — read the monolith (**legacy mode only** until a union-aware reader exists).
   They print **physical file order**, which is not the authoritative
-  effective-time order: after branch merges an older-timestamped line can sit
-  after newer ones. Use them for a quick look, but recover decision context in
-  legacy mode by reading the newest ~20 records by effective time (parse the
-  file, sort by `:ts` then record identity, take the last ~20). Making them
-  effective-time aware is part of the later union-aware `rr-*` update.
+  **effective-time window**: after branch merges an older-timestamped line can
+  sit after newer ones. Use them for a quick look only. Authoritative legacy-mode
+  context recovery is the newest ~20 records of the **effective-time window**
+  over `receipts.edn` (parse each `:ts` as ISO-8601 / `#inst` to a UTC instant;
+  missing/invalid sort first; then the record-identity key; take the last ~20) —
+  the same rule as CONTRACT `mixed-ledger-order`, never physical `rr-tail.bb`
+  order. Making the scripts themselves emit that window is part of the later
+  union-aware `rr-*` update.
 
 In **segmented mode**, do not use `rr-init.bb`, `rr-append.bb`, `rr-tail.bb`, or `rr-last.bb`;
 they omit `.ημ/receipts/` history. Prefer the repository verifier / Clio once

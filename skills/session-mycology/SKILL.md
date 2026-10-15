@@ -129,8 +129,10 @@ Examples:
      present; effective-time newest-20, not physical tail); once `.ημ/receipts/`
      exists **before cutover**, the union-aware window over the frozen legacy
      file plus segments (effective time); **after cutover**, active segments
-     alone (Clio topological tail), never re-merging the frozen legacy file or
-     `.cutover-excluded.edn` sources. Do not tail only the frozen monolith.
+     alone (Clio topological tail; post-cutover writes are frontier-linked so
+     that tail stays recent — see receipt-river), never re-merging the frozen
+     legacy file or `.cutover-excluded.edn` sources. Do not tail only the frozen
+     monolith.
    - Note observations, decisions, tests, or drift entries related to the friction.
 4. **Spore** the pattern.
    - If `p-skill-candidate >= 0.7` and the pattern generalizes, create a candidate spore file.
