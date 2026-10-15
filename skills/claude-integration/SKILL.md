@@ -148,8 +148,12 @@ This lets deterministic hooks compose with DSL-defined tool logic.
 **Segmented mode:** do **not** wire `receipt_river` append hooks while
 `.ημ/receipts/` exists. That tool still targets the monolith and would append
 to the frozen legacy ledger. Keep the PostToolUse receipt hook **legacy-mode
-only**, or replace it with a segment-aware writer (hand-written segment or
-Clio `append-segment`) before enabling it in a segmented repository.
+only**, or replace it with a segment-aware writer before enabling it in a
+segmented repository. Today the only executable segment writer is a
+hand-written segment file (`.ημ/receipts/<UTC timestamp>-<id>.edn`, see
+`receipt-river`) checked by the repository's merged-ledger verifier. Clio's
+`append-segment` is only proposed (`riatzukiza/clio#5`) and is **not**
+available until it lands and is promoted; treat it as a future option.
 
 ## Reference: Build Output
 

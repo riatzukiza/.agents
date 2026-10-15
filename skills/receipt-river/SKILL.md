@@ -57,7 +57,9 @@ segment directories); do not split a ledger whose consumers read one file.
   `.ημ/receipts.edn` that they then prefer over a frozen project-root ledger). The same holds for the `receipt_river`
   runtime tool, which operates on the per-repo `receipts.edn`: do not use it in
   segmented mode until it accepts segment targets, and never point it at the
-  frozen legacy file. The same prohibition applies to **`pr-flow`'s `pr.cljs`**
+  frozen legacy file. This includes the globally published copy that
+  `skills/muse-ecosystem/SKILL.md` recommends to consumer repos (eta-mu-actors
+  `receipt_river` append/tail): it is legacy-mode only. The same prohibition applies to **`pr-flow`'s `pr.cljs`**
   (`skills/pr-flow/scripts/pr.cljs`): its actionability path still reads and
   `appendFileSync`s only `.ημ/receipts.edn`. In a segmented repository, refuse
   any `pr.cljs` status/settle/gate/request path that would append to or treat
@@ -116,6 +118,13 @@ segment directories); do not split a ledger whose consumers read one file.
 - Record identity:
   - `#:event` / Clio records: use `:event/id` (a reused ID with different data
     is corruption, matching Clio's laws). Content hashing must not override ID.
+  - A **plain receipt** is classified by shape (a map with no `:event/type`),
+    not by key presence. A plain receipt that also carries `:event/id` (any
+    value) is still a plain receipt: that key is ordinary data, and the record
+    is treated as **ID-less** for identity, the `sha256:` identity key,
+    duplicate detection and the cutover UUIDv5 name (the hash covers the whole
+    record, `:event/id` included). Only `#:event` envelopes and full Clio events
+    use `:event/id` as identity.
   - ID-less plain receipts (legacy file **or** a plain segment): SHA-256 of the
     record's **canonical EDN bytes**, defined as:
     1. Parse the record to EDN data.
@@ -236,7 +245,7 @@ segment directories); do not split a ledger whose consumers read one file.
     conflict). `:event/seq`
     is the wrap's **one-based ordinal among the wraps only** (1, 2, 3, …).
     Rank wraps in a **causal topological** order of the mapped source parents
-    (every mapped `:caused-by` / parent edge precedes its effect), using the
+    (every mapped `:event/caused-by` / `:caused-by` parent edge precedes its effect), using the
     pre-cutover effective-time + identity-key order only as a tie-break among
     causally incomparable wraps; `:event/seq` is the one-based ordinal in that
     ranking (not a separate effective-time-only sort). Promoted Clio events are
@@ -244,10 +253,16 @@ segment directories); do not split a ledger whose consumers read one file.
     source parent edge would create a cycle with the serial wrap chain (a
     forward causal edge relative to that ranking), the cutover **fails closed**
     before emitting segments. Each wrap after the first names the previous wrap
-    in `:event/causes`, and also every parent its source named (a lightweight
-    envelope's top-level `:caused-by`, or a plain receipt's), each mapped to that
+    in `:event/causes`, and also every parent its source named, each mapped to that
     parent's active cutover ID by the `:event/id` rules; if any named parent
-    has no active event the cutover **fails closed**. Deduplicate the combined
+    has no active event the cutover **fails closed**. Read parents from the
+    key **as parsed**: a lightweight envelope written as `#:event{... :caused-by
+    [...]}` expands to the qualified key **`:event/caused-by`** (see this
+    repository's `.ημ/receipts.edn`), never the bare `:caused-by`; a plain
+    receipt's parents are its unqualified `:caused-by`. Converters and the
+    verifier must use these exact keys, and a source holding any other
+    caused-by spelling (or both) fails closed rather than yielding an empty
+    edge set. Deduplicate the combined
     cause IDs in deterministic order (serial previous-wrap first, then mapped
     source parents in source order, unique) — Clio rejects duplicate cause IDs.
     The stream is written once, serially, so no stream slot conflicts.
@@ -273,9 +288,16 @@ segment directories); do not split a ledger whose consumers read one file.
     pre-cutover non-Clio source segment** (plain **and** lightweight Receipt
     River envelopes listed in `.cutover-excluded.edn`) has exactly one active
     Clio event that corresponds to it, and every cutover wrap has a source. A
-    wrap corresponds when its `:event/data`, derived `:event/id`, **and**
-    `:event/causes` match the expected set (serial previous-wrap edge when
-    applicable, plus every mapped source parent ID, deduplicated); an
+    wrap corresponds only when **every prescribed wrapper field** equals the
+    value the cutover rules derive for its source: `:event/id`, `:event/schema`
+    (the published wrap revision), `:event/type`, `:event/stream`
+    (`<repo>/legacy`), `:event/seq` (its causal-topo ordinal), `:event/causes`
+    (serial previous-wrap edge when applicable, plus every mapped source parent
+    ID, deduplicated, in the prescribed order), `:event/actor`
+    (`receipt-river/cutover`), `:event/subject`, `:event/at` (the normalized
+    UTC ISO-8601 instant) and `:event/data`, and the wrap has no other keys.
+    Clio validity alone cannot catch a wrong stream, seq, actor or timestamp;
+    any mismatch fails the check. An
     already-full-Clio archived record corresponds only to an active event that
     is **byte-for-byte identical** to the archived event (complete map: id,
     schema, type, stream, seq, causes, actor, subject, at, data — not merely
@@ -302,13 +324,16 @@ segment directories); do not split a ledger whose consumers read one file.
   belongs to eta-mu's receipt/ledger commands once those exist.
 - When receipt-river moves onto Clio, legacy receipts are wrapped once by the
   serial cutover above (one `<repo>/legacy` stream); every **new** receipt event
-  uses a stream keyed by **both writer and branch** (e.g.
-  `<repo>/<writer>/<branch>`), or a per-run stream identity, never one shared
-  stream per repository. A shared stream for ongoing writes, a writer-only
-  stream (one agent on two branches) or a branch-only stream (two agents on one
-  branch) recreates concurrent-write conflicts on `[:event/stream :event/seq]`;
-  use writer-and-branch or per-run streams unless a documented serial allocator
-  hands out the slots.
+  uses a **per-run** stream that also names writer and branch (e.g.
+  `<repo>/<writer>/<branch>/<run-id>`, where `<run-id>` is unique per session
+  or process, such as a fresh UUID), never one shared stream per repository.
+  Writer-and-branch alone is **not** enough: two concurrent sessions of the same
+  writer on the same branch (e.g. two `grok-bot` runs on one PR) would both
+  derive the same next `:event/seq`. A shared stream, a writer-only stream, a
+  branch-only stream or a writer-and-branch stream without a run identity all
+  recreate concurrent-write conflicts on `[:event/stream :event/seq]`; the only
+  alternative to a per-run stream is a documented serial allocator that hands
+  out the slots.
 
 ## Rules (both modes)
 These rules and the minimal workflow below apply in both modes. In segmented

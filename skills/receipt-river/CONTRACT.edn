@@ -73,7 +73,9 @@
   (segmented-mode-scripts-forbidden ["scripts/rr-init.bb" "scripts/rr-append.bb" "scripts/rr-tail.bb" "scripts/rr-last.bb"])
   (segmented-mode-tools-forbidden ["receipt_river"])
   (segmented-mode-pr-flow-ledger-writes :forbidden-until-segment-aware)
-  (cutover-wrap-correspondence [:event/data :event/id :event/causes])
+  (cutover-wrap-correspondence [:event/id :event/schema :event/type :event/stream :event/seq
+                                :event/causes :event/actor :event/subject :event/at :event/data])
+  (cutover-wrap-correspondence-rule :every-prescribed-field-equals-derived-value-and-no-extra-keys)
   (cutover-wrap-ranking :causal-topo-then-effective-time-tie-break)
   (segment-dir ".ημ/receipts")
   ;; One authoritative order for any merged ledger holding a non-Clio record
@@ -149,6 +151,9 @@
         (namespace-uuid "6ba7b810-9dad-11d1-80b4-00c04fd430c8")
         (name-bytes
           (id-less-plain :utf8-lowercase-hex-sha256-canonical-edn-identity)
+          ;; A plain receipt (no :event/type) carrying :event/id is still ID-less:
+          ;; the key is data, hashed with the whole record.
+          (plain-receipt-with-event-id :treated-as-id-less-whole-record-hash)
           (receipt-river-envelope-non-canonical-id
             {:utf8-prefix "receipt-river/event-id:" :then :canonical-edn-text-of-event-id})))
       (promoted-event-causes :verbatim-fail-closed-if-unresolvable-or-remapped)
@@ -157,6 +162,10 @@
       (seq :one-based-ordinal-among-wraps-in-causal-topo-order-effective-time-tie-break)
       (promoted-clio-events :keep-original-stream-and-seq)
       (causes [:previous-wrap :source-caused-by-mapped-to-cutover-ids])
+      (source-caused-by-key
+        {:receipt-river-envelope :event/caused-by
+         :plain-receipt :caused-by
+         :other-or-both :fail-closed})
       (unresolvable-source-parent :fail-closed))
     (legacy-file :archived-source-byte-identical-outside-active-union)
     (converted-source-segments :archived-in-place-via-cutover-excluded-manifest)
@@ -203,7 +212,7 @@
     (event/data {:receipt-river/receipt :receipt-map})
     (new-write-receipt-required-keys [ts kind origin owner dod pi host manifest refs])
     (cutover-wrap-receipt :grandfathered)
-    (new-write-stream :writer-and-branch-or-per-run-unless-serial-allocator)
+    (new-write-stream :per-run-repo-writer-branch-run-id-unless-serial-allocator)
     (pre-cutover-new-writes-must-satisfy-clio-history-laws
       [:stream-seq-continuity :no-slot-reuse :causes-resolve :acyclic-dag])
     (other-event-types :invalid))
