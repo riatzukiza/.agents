@@ -735,6 +735,15 @@
   spore: none
   receipt-refs: canonical-old-review-current-withdrawal-green-20261014
   note: The original published review retains its native ID/node ID/opener and known full original commit, which may be older than current head. Derived proof separates original-head/original-review-id from current head. Current native withdrawal and later authorized writer still require exact head/root/URL/identity/context/chronology and actual resolved conversation; unknown original metadata and stale current custody deny. New gate invariance tests refuse missing/stale approval, insufficient cohort, required reviewer/check gaps and other unsettled findings. Original captured17comments remain exact; synthetic prospective successors are test-only. Pure predicate/tests and canonical skill/contract0.3.3 only; collector/adapters unchanged. Full outputs/hashes retained in GREEN evidence. Current-head native code review, required hosted checks, exact MERGE, protected adoption and fresh ETA15 native settlement remain required. Local tests supply no review/approval/round credit. B1 B2 B3 remain0of3; heartbeatPAUSED; no runtime/credentials/model/paid/grant/publication/deployment/newagent/spore change.
+- ts: 2026-10-15T10:47:45.675371838Z
+  session: codex:01a12257-fc69-7720-888c-dd2595ff7dc7/cms_native_journey_binding
+  task: Qualify and publish the exact Knoxx fork actionability policy
+  p-efficiency: 0.82
+  p-friction: 0.35
+  p-skill-candidate: 0
+  spore: none
+  receipt-refs: initial receipts.edn#d5680635-a4ef-4fe1-b629-c11f5a9f0e2a; sourceGREENc8e76afd31c440ecddce1d5df456f63142d29c74
+  note: Preserve exact source hashes while resolving execution-budget uncertainty with the actual full owning CLI terminal result. The120s/600s timeouts were limits, not algorithm defects or pass credit; the unchanged99-test CLI completed in808.84s under pinnedNode22/NBB. Commit testRED, three-file policyGREEN, and append-only provenance separately. Exact repository enrollment cannot supply a transport grant, native assessment, rejection agreement or adoption. Keep live canonical checkout untouched; publish reviewable source only. Candidate0, no spore.
 
 - ts: 2026-10-14T14:55:10.000000000Z
   session: e1-11-shepherd-2026-10-14
