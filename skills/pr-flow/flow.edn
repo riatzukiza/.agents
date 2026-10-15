@@ -58,6 +58,9 @@
                                             :node-id "BOT_kgDOEBg1QA"}}
                                          ["open-hax/knoxx" 1199983316]
                                          #{{:login "eta-mu-ai[bot]" :id 270021952
+                                            :node-id "BOT_kgDOEBg1QA"}}
+                                         ["riatzukiza/knoxx" 1401249297]
+                                         #{{:login "eta-mu-ai[bot]" :id 270021952
                                             :node-id "BOT_kgDOEBg1QA"}}}}
                  ;; Separate preservation purpose: source preparation requires
                  ;; protected adoption and accepted independent native input.
