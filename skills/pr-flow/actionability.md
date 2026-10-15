@@ -79,7 +79,16 @@ verified native OpenCode `opencode-agent[bot]`, user `219766164`, node
 `BOT_kgDODRldlA`, is admitted globally here. A source-preparation extension in
 `:repository-identities` additionally admits native MiMo `eta-mu-ai[bot]`, user
 `270021952`, node `BOT_kgDOEBg1QA`, only for the exact native repository pairs
-`["open-hax/proxx" 1178288746]` and `["open-hax/knoxx" 1199983316]`.
+`["open-hax/proxx" 1178288746]`, `["open-hax/knoxx" 1199983316]`, and
+`["riatzukiza/knoxx" 1401249297]`.
+
+The development-fork entry is the same two-field repository enrollment as the
+existing entries. Its transport must independently verify the exact public
+repository and native node `R_kgDOU4VeEQ` before creating a target token. An
+enrollment entry does not establish an App installation grant, a completed
+independent invocation or permission to resolve a conversation. The synthetic
+fork-shaped controls in `test_informational.cljs` execute through the registered
+`test_law.cljs` entrypoint; they supply no native assessment or review credit.
 Both fields must match; aliases, renames,
 foreign repositories and matching names with different IDs do not admit MiMo.
 The real full-review tuple supplies identity evidence, not a new scoped native
