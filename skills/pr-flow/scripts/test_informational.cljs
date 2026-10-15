@@ -573,11 +573,93 @@
   (is (= {["open-hax/proxx" 1178288746]
           #{{:login "eta-mu-ai[bot]" :id 270021952 :node-id "BOT_kgDOEBg1QA"}}
           ["open-hax/knoxx" 1199983316]
+          #{{:login "eta-mu-ai[bot]" :id 270021952 :node-id "BOT_kgDOEBg1QA"}}
+          ["riatzukiza/knoxx" 1401249297]
           #{{:login "eta-mu-ai[bot]" :id 270021952 :node-id "BOT_kgDOEBg1QA"}}}
          (:repository-identities mimo-test-policy)))
   (is (false? (boolean (actionability/assessor-identity?
                         {:user mimo-test-user} mimo-test-policy))))
   (is (= "resolved-author-only-empty-reviews" actionability/scope)))
+
+;; Synthetic fork-shaped controls reuse the captured author-only context. They
+;; establish pure enrollment behavior, never a native assessment or App grant.
+(def knoxx-fork-test-source
+  "Captured author context with the exact development fork's repository tuple."
+  (update mimo-test-source :repository merge
+          {:id "R_kgDOU4VeEQ" :databaseId 1401249297 :nameWithOwner "riatzukiza/knoxx"}))
+(defn knoxx-fork-test-input
+  "Bind a fresh synthetic proposal/assessment after each repository mutation."
+  ([] (knoxx-fork-test-input identity))
+  ([f] (-> (evidence (input (f knoxx-fork-test-source)))
+           (assoc :actionability-policy mimo-test-policy)
+           (assoc-in [:issue-comments 1 :user] mimo-test-user))))
+
+(deftest mimo-knoxx-development-fork-enrollment-is-exact-and-actionability-only
+  (let [t (knoxx-fork-test-input) c (law/classify-thread t) d (:actionability c)
+        assessment (second (:issue-comments t))
+        selected (actionability/assessor-policy mimo-test-policy
+                                               (get-in t [:native-context :repository]))]
+    (is (actionability/assessor-identity? {:user mimo-test-user} selected))
+    (is (not (actionability/assessor-identity? {:user mimo-test-user} mimo-test-policy)))
+    (is (= :informational (:kind d)))
+    (is (= :qualified (:status d)))
+    (is (= 7002 (:assessment-id d)))
+    (is (not (law/finding-obligation? c)))
+    (is (false? (:settled? c)))
+    (is (nil? (:resolution c)))
+    (is (false? (:rejection-approved? c)))
+    (is (empty? (:approved-heads (law/review-evidence
+                                 (:head t) [] [assessment] law/default-reviewer-identities))))
+    (is (empty? (:reviewed-heads (law/review-evidence
+                                 (:head t) [] [assessment] law/default-reviewer-identities))))
+    (is (empty? (law/completed-review-rounds [] [assessment] law/default-reviewer-identities)))))
+
+(deftest mimo-knoxx-development-fork-rejects-neighbor-repositories-and-identities
+  (doseq [[label f]
+          [["another personal repository" #(assoc-in % [:repository :nameWithOwner] "riatzukiza/services")]
+           ["wrong numeric ID" #(assoc-in % [:repository :databaseId] 1401249298)]
+           ["numeric string ID" #(assoc-in % [:repository :databaseId] "1401249297")]
+           ["same ID with foreign name" #(assoc-in % [:repository :nameWithOwner] "other/knoxx")]
+           ["case alias" #(assoc-in % [:repository :nameWithOwner] "Riatzukiza/knoxx")]
+           ["whitespace alias" #(assoc-in % [:repository :nameWithOwner] "riatzukiza/knoxx ")]
+           ["missing ID" #(update % :repository dissoc :databaseId)]
+           ["missing name" #(update % :repository dissoc :nameWithOwner)]]]
+    (mimo-test-finding (knoxx-fork-test-input f) label))
+  (let [t (knoxx-fork-test-input)]
+    (doseq [[label f]
+            [["wrong Bot ID" #(assoc-in % [:issue-comments 1 :user :id] 270021953)]
+             ["wrong Bot node" #(assoc-in % [:issue-comments 1 :user :node_id] "BOT_other")]
+             ["wrong Bot login" #(assoc-in % [:issue-comments 1 :user :login] "github-actions[bot]")]
+             ["User impersonation" #(assoc-in % [:issue-comments 1 :user :type] "User")]
+             ["missing fork enrollment" #(update-in % [:actionability-policy :repository-identities]
+                                                    dissoc ["riatzukiza/knoxx" 1401249297])]]]
+      (mimo-test-finding (f t) label))
+    (is (= :informational
+           (:kind (mimo-test-decision
+                    (assoc-in t [:issue-comments 1 :user]
+                              {:login "opencode-agent[bot]" :id 219766164
+                               :node_id "BOT_kgDODRldlA" :type "Bot"}))))
+        "existing global OpenCode admission is retained")))
+
+(deftest mimo-knoxx-development-fork-keeps-protocol-and-merge-obligations
+  (let [t (knoxx-fork-test-input) c (law/classify-thread t)]
+    (doseq [[label f]
+            [["unavailable history" #(assoc % :actionability-observations nil)]
+             ["stale head" #(assoc % :head (apply str (repeat 40 "a")))]
+             ["wrong context digest" #(assoc % :context-digest (apply str (repeat 64 "b")))]
+             ["edited proposal" #(assoc-in % [:issue-comments 0 :updated_at] "2026-10-03T14:00:10Z")]
+             ["finding assessment" #(change-issue % 1 (fn [a] (change-payload a (fn [v] (assoc v 9 "finding")))))]
+             ["uncertain assessment" #(change-issue % 1 (fn [a] (change-payload a (fn [v] (assoc v 9 "uncertain")))))]
+             ["same-Bot withdrawal" #(update % :issue-comments conj (withdrawal % 7002))]]]
+      (mimo-test-finding (f t) label))
+    (is (:pass? (gate c)))
+    (is (not (:pass? (gate (assoc c :resolved? false)))))
+    (doseq [state ["FAILURE" "CANCELLED" "PENDING"]]
+      (is (not (:pass? (law/merge-gate
+                        {:threads [c] :head (:head t) :snapshot-head (:head t)
+                         :approved-heads {"mimo" #{(:head t)}} :rounds 5
+                         :review-participants #{"mimo"}
+                         :checks [{:name "required-laws" :required? true :state state}]})))))))
 
 (deftest mimo-proxx-author-only-informational-supplies-zero-other-credit
   (let [t (mimo-test-input) c (law/classify-thread t) d (:actionability c)
