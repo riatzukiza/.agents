@@ -205,3 +205,20 @@ Narrow GREEN is separating-whitespace tolerance only within recognized
 incomplete-scope phrases; raw prefix/helper/global reviewer-prose/native-skipped
 boundaries and artifact-guard exception remain. No generic normalization, new
 points, oldapproval transfer, Fixed, MERGE, installation or live proof.
+
+
+## Narrow scope grammar GREEN - 2026-10-16 UTC
+
+After committed causalREDc71dfc2388c922faf569f6f410baaf5e10265e74, only the
+incomplete-scope phrase regex atlaw1049 changes eleven separating spaces to
+whitespace quantifiers. Every other law byte, exact prefix helper, global
+reviewer-prose, native-skipped raw boundary, artifact exception and frozen
+RED tests remain unchanged. No generic positive-envelope normalization.
+
+Actual complete registered Node22.23.3 GREEN: law189/5001, policy67/1714,
+portable4/29 and fullCLI105/3020, all0failures0errors. FullCLI ran once
+07:29:05.143503-07:45:12.456822UTC/967.312seconds. Flow/contract/diff pass;
+complete scripts kondo0errors0warnings; all gate stderr empty and all30
+observed owned PIDs absent. New in-sentence command-path cases really ran.
+This is local verification, not current nativeapproval, hostedqualification,
+Fixed, MERGE, installation, liveproof or heartbeat resumption.

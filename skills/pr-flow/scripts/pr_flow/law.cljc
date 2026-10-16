@@ -1046,7 +1046,7 @@
                       (remove-matches prose #"(?i)\b(?:prevent(?:s|ed|ing)?|reject(?:s|ed|ing)?|block(?:s|ed|ing)?)\s+(?:altered\s+or\s+)?(?:partial|incomplete)\s+review\s+submissions?\b"))]
     (cond
       (nil? prose) :ambiguous-prose
-      (re-find #"(?i)\breview (?:is |was |remains )?(?:incomplete|rate limited)\b|\b(?:partial|incomplete) review\b|\b(?:unable to|could not|couldn't|cannot|can't) complete (?:the )?review\b" scope-prose)
+      (re-find #"(?i)\breview\s+(?:is\s+|was\s+|remains\s+)?(?:incomplete|rate\s+limited)\b|\b(?:partial|incomplete)\s+review\b|\b(?:unable\s+to|could\s+not|couldn't|cannot|can't)\s+complete\s+(?:the\s+)?review\b" scope-prose)
       :incomplete-review
       (or (native-skipped-review-input? body)
           (re-find #"(?im)(?:^|[.;]\s*)(?:some |the |these )?unreviewed (?:files|changes|input) (?:still )?remain\b" prose)
