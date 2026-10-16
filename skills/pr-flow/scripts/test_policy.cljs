@@ -132,6 +132,51 @@
       ;; supplies no cohort; historical review facts remain a separate input.
       (is (empty? (law/completed-review-rounds [] [codex-receipt-v1-request later] identities)) label))))
 
+(deftest in-sentence-codex-marker-incomplete-scope-revokes-and-does-not-complete
+  (doseq [[kind body] codex-receipt-v1-bodies
+          [case admission]
+          [["native finding" "Review <!-- codex-review-receipt:v1 --> is incomplete."]
+           ["rate limited" "Review is rate <!-- codex-review-receipt:v1 --> limited."]]]
+    (let [earlier (assoc (review "chatgpt-codex-connector[bot]" "APPROVED" codex-receipt-v1-head)
+                         :submitted_at "2026-10-16T02:01:00Z")
+          text (str body "\n\n" admission)
+          later (assoc native-codex-receipt-v1 :body text
+                       :resolved-commit-id codex-receipt-v1-head
+                       :updated_at "2026-10-16T02:03:00Z")
+          evidence (law/review-evidence codex-receipt-v1-head [earlier] [later] identities)
+          rounds (law/completed-review-rounds [] [codex-receipt-v1-request later] identities)
+          label (str "synthetic " kind "/" case)]
+      (is (= #{codex-receipt-v1-head}
+             (get-in (law/review-evidence codex-receipt-v1-head [earlier] [] identities)
+                     [:approved-heads "codex"])) label)
+      (is (true? (law/codex-positive-body? text)) label)
+      (is (empty? (:approved-heads evidence)) label)
+      (is (= {:head codex-receipt-v1-head :channel :explicit-issue-verdict :id 6206360170}
+             (select-keys (get-in evidence [:incomplete-evidence "codex"]) [:head :channel :id])) label)
+      (is (empty? rounds) label)
+      (is (zero? (law/stage-review-rounds rounds [] "code" #{"codex"})) label)
+      (is (= text (:body later)) label))))
+
+(deftest excluded-in-sentence-incomplete-examples-do-not-revoke-codex
+  (let [admission "Review <!-- codex-review-receipt:v1 --> is incomplete."]
+    (doseq [[kind body] codex-receipt-v1-bodies
+            [case suffix]
+            [["quoted" (str "> " admission)]
+             ["fenced" (str "```text\n" admission "\n```")]
+             ["generated" (str "<details>\n<summary>🧩 Analysis chain</summary>\n"
+                                admission "\n</details>")]]]
+      (let [earlier (assoc (review "chatgpt-codex-connector[bot]" "APPROVED" codex-receipt-v1-head)
+                           :submitted_at "2026-10-16T02:01:00Z")
+            later (assoc native-codex-receipt-v1 :body (str body "\n\n" suffix)
+                         :resolved-commit-id codex-receipt-v1-head
+                         :updated_at "2026-10-16T02:03:00Z")
+            evidence (law/review-evidence codex-receipt-v1-head [earlier] [later] identities)
+            rounds (law/completed-review-rounds [] [codex-receipt-v1-request later] identities)
+            label (str "synthetic " kind "/" case)]
+        (is (= #{codex-receipt-v1-head} (get-in evidence [:approved-heads "codex"])) label)
+        (is (empty? (:incomplete-evidence evidence)) label)
+        (is (= 1 (law/stage-review-rounds rounds [] "code" #{"codex"})) label)))))
+
 (def native-kimi
   (js->clj (js/JSON.parse (fs/readFileSync
                           (path/join (path/dirname *file*) "fixtures/native-proxx-kimi-publication.json") "utf8"))

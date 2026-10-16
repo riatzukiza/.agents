@@ -568,10 +568,12 @@
 
 (deftest incomplete-codex-receipts-with-later-markers-revoke-earlier-approval
   (doseq [envelope ["" codex-receipt-v1-envelope]
-          suffix ["\n\n<!-- codex-review-receipt:v1 -->"
-                  "\n\n> <!-- codex-review-receipt:v1 -->"]]
+          [admission suffix]
+          [["Review incomplete. Unreviewed files remain." "\n\n<!-- codex-review-receipt:v1 -->"]
+           ["Review incomplete. Unreviewed files remain." "\n\n> <!-- codex-review-receipt:v1 -->"]
+           ["Review <!-- codex-review-receipt:v1 --> is incomplete." ""]]]
     (let [comment (codex-cli-comment (str envelope codex-cli-positive-body
-                                        "\nReview incomplete. Unreviewed files remain." suffix))
+                                        "\n" admission suffix))
           earlier (assoc approval :user {:login "chatgpt-codex-connector[bot]" :type "Bot"}
                          :submitted_at "2026-10-03T00:59:00Z")
           result (execute (assoc (codex-cli-config comment) :reviews [earlier])

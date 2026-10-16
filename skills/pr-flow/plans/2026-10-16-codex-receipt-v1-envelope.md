@@ -189,3 +189,19 @@ still required. Append-only implementation custody retains actual commands,
 raw log hashes, source hashes and audit limits. Local GREEN is not final code
 review, native approval, MERGE, installation/adoption or live B1/B2/B3 proof.
 Both task estimates remain distinct; heartbeat stays human-paused.
+
+
+## In-sentence scope revocation correction - 2026-10-16 UTC
+
+Full current9c CodeRabbit5544234437/root4291863831 confirms that removing
+a later inert receipt marker leaves separating whitespace in an explicit
+incomplete-review admission. Format1 AC4 already requires its revocation and
+no completion credit. Qualified native operative comment retains InProgress1.
+Causal RED against unchanged9c: law189/5001/12fail, policy67/1714/16fail,
+portable4/29/4fail, all0errors. Every failure is new; prior assertions and
+positive/exclusion/artifact controls pass. CLI command cases registered/linted,
+not executed RED. Kondo0/0 and diff pass; owned processes exited.
+Narrow GREEN is separating-whitespace tolerance only within recognized
+incomplete-scope phrases; raw prefix/helper/global reviewer-prose/native-skipped
+boundaries and artifact-guard exception remain. No generic normalization, new
+points, oldapproval transfer, Fixed, MERGE, installation or live proof.

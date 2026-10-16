@@ -42,6 +42,22 @@
     (is (false? (law/codex-positive-body? nil)))
     (is (true? (law/codex-positive-body? (str envelope legacy "\n\n> " envelope))))))
 
+(deftest in-sentence-marker-incomplete-scope-is-portable
+  (let [prefix "Codex Review: Didn't find any major issues."
+        marker "<!-- codex-review-receipt:v1 -->"
+        admission (str "Review " marker " is incomplete.")]
+    (doseq [envelope ["" (str marker "\n\n")]]
+      (doseq [prose [admission (str "Review\t" marker "\r\nis\tincomplete.")]]
+        (let [body (str envelope prefix "\n\n" prose)]
+          (is (true? (law/codex-positive-body? body)))
+          (is (= :incomplete-review (law/incomplete-review-reason body)) (pr-str prose))))
+      (doseq [excluded [(str "> " admission)
+                        (str "```text\n" admission "\n```")
+                        (str "<details>\n<summary>🧩 Analysis chain</summary>\n" admission "\n</details>")
+                        (str "Reject incomplete " marker " review submissions.")]]
+        (is (nil? (law/incomplete-review-reason (str envelope prefix "\n\n" excluded)))
+            (pr-str excluded))))))
+
 (let [{:keys [fail error]} (run-tests 'test-babashka)]
   (when (pos? (+ fail error))
     (System/exit 1)))
