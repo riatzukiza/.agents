@@ -58,6 +58,21 @@
         (is (nil? (law/incomplete-review-reason (str envelope prefix "\n\n" excluded)))
             (pr-str excluded))))))
 
+(deftest paragraph-and-exclusion-scope-boundaries-are-portable
+  (doseq [separator ["\n\n" "\r\n\r\n" "\r\r" "\n \t\n"]]
+    (is (nil? (law/incomplete-review-reason
+                (str "Review" separator "Rate limited requests are retried with backoff.")))
+        (pr-str separator)))
+  (doseq [body ["Review\n> example text\nis incomplete."
+                "Review\n```text\nexample text\n```\nis incomplete."
+                "Review <details><summary>🧩 Analysis chain</summary>example text</details> is incomplete."
+                "Review <details><summary>✏️ Learnings added</summary>example text</details> is incomplete."
+                "Review <!-- This is an auto-generated comment: tweet message by coderabbit.ai -->example text<!-- end of auto-generated comment: tweet message by coderabbit.ai --> is incomplete."]]
+    (is (nil? (law/incomplete-review-reason body)) body))
+  (doseq [body ["Review <!-- unrelated inert note --> is incomplete."
+                "> <!--\n\nReview <!-- unrelated inert note --> is incomplete.\n-->"]]
+    (is (= :incomplete-review (law/incomplete-review-reason body)) body)))
+
 (let [{:keys [fail error]} (run-tests 'test-babashka)]
   (when (pos? (+ fail error))
     (System/exit 1)))

@@ -139,6 +139,47 @@
         (is (nil? (law/incomplete-review-reason text)) label)
         (is (= #{codex-receipt-v1-head} (get-in evidence [:approved-heads "codex"])) label)))))
 
+(deftest incomplete-phrase-fragments-do-not-cross-paragraphs-or-excluded-blocks
+  (let [wrapped (:body native-codex-receipt-v1)
+        controls (concat
+                   (for [separator ["\n\n" "\r\n\r\n" "\r\r" "\n \t\n"]]
+                     [(str "heading " (pr-str separator))
+                      (str "Review" separator "Rate limited requests are retried with backoff.")])
+                   [["partial heading" "Partial\n\nreview adapters retain their inputs."]
+                    ["unable heading" "Unable to\n\ncomplete the review API request retries."]
+                    ["quote barrier" "Review\n> example text\nis incomplete."]
+                    ["fence barrier" "Review\n```text\nexample text\n```\nis incomplete."]
+                    ["analysis barrier" "Review <details><summary>🧩 Analysis chain</summary>example text</details> is incomplete."]
+                    ["learnings barrier" "Review <details><summary>✏️ Learnings added</summary>example text</details> is incomplete."]
+                    ["share barrier" "Review <!-- This is an auto-generated comment: tweet message by coderabbit.ai -->example text<!-- end of auto-generated comment: tweet message by coderabbit.ai --> is incomplete."]])]
+    (doseq [[kind body] [["legacy" (subs wrapped (count codex-receipt-v1-envelope))]
+                        ["wrapped" wrapped]]
+            [case suffix] controls]
+      (let [text (str body "\n\n" suffix)
+            label (str "synthetic " kind "/" case)]
+        (is (true? (law/codex-positive-body? text)) label)
+        (is (nil? (law/incomplete-review-reason text)) label)))))
+
+(deftest live-incomplete-prose-after-examples-and-generic-inline-comments-remains-visible
+  (let [wrapped (:body native-codex-receipt-v1)
+        admission "Review <!-- unrelated inert note --> is incomplete."
+        examples [["none" ""]
+                  ["quote" "> example text\n\n"]
+                  ["fence" "```text\nexample text\n```\n\n"]
+                  ["analysis" "<details><summary>🧩 Analysis chain</summary>example text</details>\n\n"]
+                  ["learnings" "<details><summary>✏️ Learnings added</summary>example text</details>\n\n"]
+                  ["share" "<!-- This is an auto-generated comment: tweet message by coderabbit.ai -->example text<!-- end of auto-generated comment: tweet message by coderabbit.ai -->\n\n"]
+                  ;; A quoted comment opener cannot consume later live prose.
+                  ["quoted HTML opener" "> <!--\n\n"]]]
+    (doseq [[kind body] [["legacy" (subs wrapped (count codex-receipt-v1-envelope))]
+                        ["wrapped" wrapped]]
+            [case example] examples]
+      (let [text (str body "\n\n" example admission
+                      (when (= case "quoted HTML opener") "\n-->"))
+            label (str "synthetic " kind "/" case)]
+        (is (true? (law/codex-positive-body? text)) label)
+        (is (= :incomplete-review (law/incomplete-review-reason text)) label)))))
+
 (deftest codex-positive-lexical-boundary-refuses-nontext-input
   ;; Input-shape refusal stays local; the caller tests above own actual evidence.
   (doseq [body [nil false 42 {} []]]

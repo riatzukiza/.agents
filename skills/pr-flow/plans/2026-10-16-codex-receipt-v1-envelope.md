@@ -222,3 +222,21 @@ complete scripts kondo0errors0warnings; all gate stderr empty and all30
 observed owned PIDs absent. New in-sentence command-path cases really ran.
 This is local verification, not current nativeapproval, hostedqualification,
 Fixed, MERGE, installation, liveproof or heartbeat resumption.
+
+
+## Paragraph and excluded-fragment causal RED - 2026-10-16 UTC
+
+Actual d723 Codex5544627211/root4292173389 confirms that unrestricted whitespace
+can join separate paragraphs into an incomplete-review phrase. Causal registered
+RED leaves production/global helpers/P1 snapshots/native4206Bfixture unchanged:
+law191/5073/22fail,policy69/1762/24fail,portable5/40/9fail, all0errors. Every
+failure is new; old assertions and unknown-inline-comment/live-after-example
+controls pass. CLI command cases registered/linted, not executedRED.
+Kondo0/0,diffPASS,stderrEmpty; owned gate processes exited.
+
+Existing InProgress1 native plan also selects documentary minimization for
+4292173384: six surplus board exports and one embedded readback are retained
+exactly in protected custody and immutable d723 history, with current-tree
+hash-only availability references. Necessary identities and public native
+Codex fixture remain. This is not a claim of historical erasure or secret-free
+certification. No source/P1 change precedes this committed RED.

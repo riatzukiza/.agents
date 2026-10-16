@@ -453,6 +453,21 @@
       (is (str/includes? (:out (execute (assoc config :resolvedCommit other) "status" "riatzukiza/.agents" "8"))
                          "gate: BLOCKED") label))))
 
+(deftest codex-paragraph-headings-and-generated-fragments-keep-the-gate-eligible
+  (doseq [envelope ["" codex-receipt-v1-envelope]
+          suffix ["Review\n\nRate limited requests are retried with backoff."
+                  "Review <details><summary>🧩 Analysis chain</summary>example text</details> is incomplete."]]
+    (let [comment (codex-cli-comment (str envelope codex-cli-positive-body "\n\n" suffix))
+          result (execute (codex-cli-config comment) "status" "riatzukiza/.agents" "8")
+          collected (collected-codex-comments result (:id comment))]
+      (is (= 0 (:exit result)) (str (:out result) (:err result)))
+      (is (str/includes? (:out result) "gate: PASS"))
+      (is (seq (codex-commit-reads result)))
+      (is (seq collected))
+      (is (every? #(and (= (:body comment) (:body %)) (= head (:resolved-commit-id %))) collected))
+      (is (empty? (writes result "merge")))
+      (is (empty? (mutations result))))))
+
 (deftest actual-codex-receipt-v1-hydrates-without-rewriting-native-json
   (let [file (path/resolve here ".." ".." ".." ".ημ" "review-evidence"
                            "codex-receipt-v1-20261016" "native-codex-passing-6206360170.json")
@@ -571,7 +586,9 @@
           [admission suffix]
           [["Review incomplete. Unreviewed files remain." "\n\n<!-- codex-review-receipt:v1 -->"]
            ["Review incomplete. Unreviewed files remain." "\n\n> <!-- codex-review-receipt:v1 -->"]
-           ["Review <!-- codex-review-receipt:v1 --> is incomplete." ""]]]
+           ["Review <!-- codex-review-receipt:v1 --> is incomplete." ""]
+           ["Review <!-- unrelated inert note --> is incomplete." ""]
+           ["> <!--\n\nReview <!-- unrelated inert note --> is incomplete.\n-->" ""]]]
     (let [comment (codex-cli-comment (str envelope codex-cli-positive-body
                                         "\n" admission suffix))
           earlier (assoc approval :user {:login "chatgpt-codex-connector[bot]" :type "Bot"}

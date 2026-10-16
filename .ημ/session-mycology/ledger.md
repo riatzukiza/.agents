@@ -854,3 +854,13 @@
   spore: none
   receipt-refs: cephalon-codex-incomplete-scope-whitespace-green-20261016
   note: Onlyeleven separating spaces inexisting incomplete-review phraseregex become whitespacequantifiers. Nativein-sentencemarkers canno longerhideexistingrevocation/completionrefusal. No genericrawbody orpositive-envelope normalization. Prior191receipts/reflectionprefixes retained. Currentnewheadhosted/fullreview/settlement/MERGE/protectedadoptionstillrequired; no old9c approvaltransfer oroperationalcandidateuse. No newpoints/scope, runtime/credential/provider/paid/deployment/social/heartbeat change; live0of3/humanPAUSED.
+
+- ts: 2026-10-16T08:25:51.919Z
+  session: /home/err/spaces/cephalon-outdated-withdrawal/.agents
+  task: cephalon-character-memory/B1-B3/codex-format1
+  p-efficiency: 0.8
+  p-friction: 0.2
+  p-skill-candidate: 0.1
+  spore: none
+  receipt-refs: cephalon-codex-paragraph-scope-causal-red-20261016
+  note: Unrestrictedwhitespace masksparagraph boundaries/excludedfragments, falselyrevokingvalidreviewevidence. Production/globalprose/helper/otherguards/native4206fixture/P1artifacts equal d723. Preserveall192oldreceipts/reflectionbytes; no newsourcepush/Fixed/MERGE/install. PlannedP1 minimization retains exactprivate/historical originals andidentities, nothistoryerasure. No newscope/points, provider/credential/paid/runtime/deployment/social/heartbeat change; live0of3/humanPAUSED.
