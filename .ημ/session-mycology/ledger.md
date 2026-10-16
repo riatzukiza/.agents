@@ -794,3 +794,13 @@
   spore: none
   receipt-refs: cephalon-outdated-withdrawal-scoped-green-20261016
   note: Only known concordant location booleans are accepted inside existing current resolved withdrawal custody; original finding severity/history and all other gates remain. This is local preparation, not code review, native approval, merge, adoption or live goal proof. The new one-point format task is separately planned. No credentials, provider, paid usage, collector, runtime, deployment, social or heartbeat change; heartbeat remains human-paused.
+
+- ts: 2026-10-16T02:45:30.876Z
+  session: /home/err/spaces/cephalon-outdated-withdrawal/.agents
+  task: cephalon-character-memory/B1-B3/canonical-review-format
+  p-efficiency: 0.8
+  p-friction: 0.2
+  p-skill-candidate: 0.1
+  spore: none
+  receipt-refs: cephalon-codex-receipt-v1-human-included-native-plan-20261016
+  note: Human included exact-format recognition through shared portable helper at existing hydration/verdict/completion sites plus registered regressions and format-only skill/contract wording. No general whitespace/HTML normalization or later marker veto. Preserve every identity/commit/scope/revocation/cohort/check/merge guard and separate withdrawal2 scope. Initial native default slug draft was natively detached, direct rejection refused exit3, no forced transition or history rewrite; explicit UUID successor owns scope. No local board parser, credential/provider/paid/runtime/deployment/social or heartbeat change; live0of3/human-paused heartbeat.
