@@ -1,0 +1,218 @@
+{
+  "kind": "observed local full GREEN after committed causal RED, not native reviewer approval/MERGE/installation",
+  "recordedAt": "2026-10-16T09:28:10.798291+00:00",
+  "redCommit": "04ca982c4cf560fdc2cbd43d20bcbb736dae8c7a",
+  "change": {
+    "path": "skills/pr-flow/scripts/pr_flow/law.cljc",
+    "bytes": {
+      "before": "(retain-excluded-regions #\"(?m)^[ \\t]*>[^\\n]*(?:\\n|$)\")",
+      "after": "(retain-excluded-regions #\"(?m)^[ \\t]*>[^\\r\\n]*\")"
+    },
+    "allOtherLawBytesPreserved": true,
+    "exactCodexHelperGlobalProseNativeSkippedAndOtherBranchesPreserved": true,
+    "allFourREDTestsFrozen": true
+  },
+  "counts": {
+    "law": {
+      "tests": 193,
+      "assertions": 5105,
+      "failures": 0,
+      "errors": 0
+    },
+    "policy": {
+      "tests": 71,
+      "assertions": 1794,
+      "failures": 0,
+      "errors": 0
+    },
+    "portable": {
+      "tests": 6,
+      "assertions": 46,
+      "failures": 0,
+      "errors": 0
+    },
+    "cli": {
+      "tests": 107,
+      "assertions": 3148,
+      "failures": 0,
+      "errors": 0
+    }
+  },
+  "fast": [
+    {
+      "name": "law",
+      "command": [
+        "nbb",
+        "-cp",
+        "skills/pr-flow/scripts",
+        "skills/pr-flow/scripts/test_law.cljs"
+      ],
+      "started_at": "2026-10-16T09:08:35.822159+00:00",
+      "completed_at": "2026-10-16T09:08:41.122706+00:00",
+      "pid": 1065819,
+      "exit": 0,
+      "elapsed_seconds": 5.301,
+      "pid_absent": true
+    },
+    {
+      "name": "policy",
+      "command": [
+        "nbb",
+        "-cp",
+        "skills/pr-flow/scripts",
+        "skills/pr-flow/scripts/test_policy.cljs"
+      ],
+      "started_at": "2026-10-16T09:08:35.822385+00:00",
+      "completed_at": "2026-10-16T09:08:36.848656+00:00",
+      "pid": 1065820,
+      "exit": 0,
+      "elapsed_seconds": 1.026,
+      "pid_absent": true
+    },
+    {
+      "name": "portable",
+      "command": [
+        "bb",
+        "--classpath",
+        "skills/pr-flow/scripts",
+        "skills/pr-flow/scripts/test_babashka.clj"
+      ],
+      "started_at": "2026-10-16T09:08:35.822733+00:00",
+      "completed_at": "2026-10-16T09:08:35.910236+00:00",
+      "pid": 1065821,
+      "exit": 0,
+      "elapsed_seconds": 0.088,
+      "pid_absent": true
+    }
+  ],
+  "aux": [
+    {
+      "name": "flow",
+      "command": [
+        "nbb",
+        "-cp",
+        "skills/pr-flow/scripts",
+        "skills/pr-flow/scripts/pr.cljs",
+        "flow"
+      ],
+      "started_at": "2026-10-16T09:09:25.839262+00:00",
+      "completed_at": "2026-10-16T09:09:26.315563+00:00",
+      "pid": 1070098,
+      "exit": 0,
+      "elapsed_seconds": 0.476,
+      "pid_absent": true
+    },
+    {
+      "name": "contract",
+      "command": [
+        "nbb",
+        "-e",
+        "(require (quote [clojure.edn :as edn]) (quote [\"fs\" :as fs])) (let [c (edn/read-string (fs/readFileSync \"skills/pr-flow/CONTRACT.edn\" \"utf8\"))] (assert (= (quote skill-contract) (first c))) (assert (= \"ημ.skill/pr-flow@0.3.6\" (second (first (filter #(= (quote v) (first %)) (rest c)))))) (println \"contract parse/version PASS\"))"
+      ],
+      "started_at": "2026-10-16T09:09:26.315837+00:00",
+      "completed_at": "2026-10-16T09:09:26.434300+00:00",
+      "pid": 1070133,
+      "exit": 0,
+      "elapsed_seconds": 0.118,
+      "pid_absent": true
+    },
+    {
+      "name": "kondo",
+      "command": [
+        "clj-kondo",
+        "--lint",
+        "skills/pr-flow/scripts"
+      ],
+      "started_at": "2026-10-16T09:09:26.434571+00:00",
+      "completed_at": "2026-10-16T09:09:27.652212+00:00",
+      "pid": 1070146,
+      "exit": 0,
+      "elapsed_seconds": 1.218,
+      "pid_absent": true
+    },
+    {
+      "name": "diff-check",
+      "command": [
+        "git",
+        "--no-optional-locks",
+        "diff",
+        "--check"
+      ],
+      "started_at": "2026-10-16T09:09:27.652460+00:00",
+      "completed_at": "2026-10-16T09:09:27.657620+00:00",
+      "pid": 1070267,
+      "exit": 0,
+      "elapsed_seconds": 0.005,
+      "pid_absent": true
+    }
+  ],
+  "fullCLI": {
+    "command": [
+      "nbb",
+      "-cp",
+      "skills/pr-flow/scripts",
+      "skills/pr-flow/scripts/test_cli.cljs"
+    ],
+    "started_at": "2026-10-16T09:09:27.670294+00:00",
+    "completed_at": "2026-10-16T09:24:59.280838+00:00",
+    "exit": 0,
+    "elapsed_seconds": 931.611,
+    "node": "v22.23.3",
+    "law_sha256": "0ba3c19933ee69cf188e52682110b5d1eaa7f9f7114eedcc21746fcc21e95bc5",
+    "all_598_tracked_paths_stable": true,
+    "stdout": {
+      "bytes": 112,
+      "sha256": "b21105561be292ae6028a21fad27add4a56546d7b53c11809a484b10f1770f3b"
+    },
+    "stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "sourceFiles": {
+    "skills/pr-flow/scripts/pr_flow/law.cljc": {
+      "bytes": 103900,
+      "sha256": "0ba3c19933ee69cf188e52682110b5d1eaa7f9f7114eedcc21746fcc21e95bc5"
+    },
+    "skills/pr-flow/scripts/pr.cljs": {
+      "bytes": 61209,
+      "sha256": "9d117ccbda7392144006bd3ff59770b75078281bfac0927f64fbdd9af607d3b1"
+    },
+    "skills/pr-flow/scripts/test_law.cljs": {
+      "bytes": 100367,
+      "sha256": "3af8695a973ded21bb911205714a76c251e67fa9b8bcc5c44ab11e17fc26238a"
+    },
+    "skills/pr-flow/scripts/test_policy.cljs": {
+      "bytes": 114226,
+      "sha256": "ce9622a1132db28e9311aaed4eec3579ad276ec65ec37913140fae41d14c7b32"
+    },
+    "skills/pr-flow/scripts/test_cli.cljs": {
+      "bytes": 172101,
+      "sha256": "b1c7e648daca3544f19ee4e8e3a60dfef3a4a452b5d9592a7ace8d7977a80c5d"
+    },
+    "skills/pr-flow/scripts/test_babashka.clj": {
+      "bytes": 5554,
+      "sha256": "ad0ea12bee40ad1e71de442b1d3b520ec57b14ac95c525b688fbd73ffa099fa7"
+    },
+    ".ημ/review-evidence/codex-receipt-v1-20261016/native-codex-passing-6206360170.json": {
+      "bytes": 4206,
+      "sha256": "b5e9927e862ff5c5d5d7dcbb662099e838755cefa9d3dfa1df1e9c96b7473eaf"
+    }
+  },
+  "rawVerificationProofSHA256": "734d69c15d480ac47be4bf72d54eab54320982e4a913ac073ce9035d376ba4fe",
+  "preservation": {
+    "all598TrackedPathsFrozenDuringRun": true,
+    "all597OtherTrackedPathsPreserved": true,
+    "all60RecordedPIDsAbsent": true,
+    "ownedCLIGroupEmpty": true,
+    "testCapMillisecondsUnchanged": 5000,
+    "noOracleWeakening": true,
+    "priorFailedAndCancelledRunsRemainDistinct": true
+  },
+  "limits": [
+    "Source and test verification only; final source receipt/evidence appends occur after this tested source freeze.",
+    "Current native complete reviews/checks/settlements and canonical exact-head MERGE remain required.",
+    "Protected installation follows verified native MERGE and source/parent-byte guards; no candidate classifier self-admission.",
+    "B1-B3live0of3/goalACTIVE/heartbeatHUMAN-PAUSED; no provider/credential/paid/runtime/deployment/social change."
+  ]
+}

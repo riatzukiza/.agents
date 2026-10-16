@@ -874,3 +874,13 @@
   spore: none
   receipt-refs: cephalon-codex-paragraph-quote-adjacency-causal-red-20261016
   note: TruthfulintermediateREDcommit includesearlierparagraphprojection anddocumentaryP1curation; itdoesnotclaimfullGREEN. IndependentadjacentquoteLF/CRLF+completefenceaudit reproducedfalseambiguousreason beforeproductionfix; liveadmissionexactreason/unterminatedambiguitycontrols preserved. Newfixnotapplied; exactCodexhelper/globalprose/native-skipped/otherunreviewedbranches unchanged. Originalcancellationrecord wronglysaidexplicit humanSTOP: appendcorrection maincoordinatorstoppedonlyownedlocaltestdueconfirmedcandidatebug, no directhumanstop/maker/providerinterruption. Originalfailed/cancelled/observerattemptbytes remain. ActualoldnativeMiMo38869843873cancelledat45mjoblimit, producer/compilerPASS/gateFAIL; notapproval/quota oroperatorcancel. Currenttreerawminimization retainsprivateoriginals+immutablepublicGithistory, nothistoryerasure/incidentclaim. Sourcecurrentheadreviews/checks/settlements/MERGE/adoptionstilldue; no cap/points/newscope/providercredential/paid/runtime/deployment/social/heartbeatchange. Live0of3/goalACTIVE/heartbeatHUMAN-PAUSED/sporenone.
+
+- ts: 2026-10-16T09:28:29.856Z
+  session: /home/err/spaces/cephalon-outdated-withdrawal/.agents
+  task: cephalon-character-memory/B1-B3/canonical-review-format
+  p-efficiency: 0.8
+  p-friction: 0.2
+  p-skill-candidate: 0.1
+  spore: none
+  receipt-refs: cephalon-codex-paragraph-quote-adjacency-green-20261016
+  note: Onlyphrase-localquotepattern nowleavesactualCR/LFbytes bymatchingcontentthroughnonCRLFcharacters. Existingbarrierretained; adjacentcompletefences preservepositiveeligibility, outside liveadmissions stillexactlyrefuse/revoke, unterminatedfences remainambiguous. ExactCodexlexicalhelper/globalreviewerprose/native-scope/otherbranches unchanged. Earlierfull106/3084/1fail0error hadnilchildexit withno rawtimeoutcode; timinginterpretation remainsinference, focusedunchanged1test8PASS separate. Coordinatorcancelledrepeat/firstobserverfailures andcausal12/20/4RED remainimmutable, notrelabeledGREEN. Newactualfullpassed afterminimalfixwithalloracles/capsfrozen. Currentnativeheadreviews/checks/settlements/MERGE/guardedinstallationremainrequired; no newpoints/scope/paid/providercredential/runtime/deployment/social/heartbeatchange. Live0of3/goalACTIVE/heartbeatHUMAN-PAUSED/sporenone.

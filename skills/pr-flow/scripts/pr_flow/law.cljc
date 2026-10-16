@@ -1040,7 +1040,7 @@
           (retain-excluded-regions #"(?s)<!-- This is an auto-generated comment: tweet message by coderabbit\.ai -->.*?<!-- end of auto-generated comment: tweet message by coderabbit\.ai -->")
           (retain-excluded-regions #"(?s)<details>\s*<summary>(?:🧩 Analysis chain|✏️ Learnings added)</summary>.*?</details>")
           (retain-excluded-regions #"<blockquote>[\s\S]*?</blockquote>")
-          (retain-excluded-regions #"(?m)^[ \t]*>[^\n]*(?:\n|$)")
+          (retain-excluded-regions #"(?m)^[ \t]*>[^\r\n]*")
           (#(when (verdict-prose %) %))
           (retain-excluded-regions #"(?ms)^[ \t]*(`{3,}|~{3,})[^\n]*\n.*?^[ \t]*\1[ \t]*$")
           (str/replace #"<!--[\s\S]*?-->" "")
