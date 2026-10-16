@@ -1,0 +1,215 @@
+{
+  "kind": "observed local causal RED and current-tree evidence curation, not full GREEN/native approval/adoption",
+  "recordedAt": "2026-10-16T09:07:00.831515+00:00",
+  "parentCommit": "bf574de354ed684b0b5af28d6ea966ed0821114a",
+  "candidateLawSHA256": "9b93608661898b880bc9bc01093ae7490f5c6464b000c698accb2ebae5745cb4",
+  "reason": "Phrase-local quote mask consumes actual line ending; adjacent complete opening fence is glued to sentinel and falsely becomes ambiguous.",
+  "causalRED": {
+    "law": {
+      "tests": 193,
+      "assertions": 5105,
+      "failures": 12,
+      "errors": 0
+    },
+    "policy": {
+      "tests": 71,
+      "assertions": 1794,
+      "failures": 20,
+      "errors": 0
+    },
+    "portable": {
+      "tests": 6,
+      "assertions": 46,
+      "failures": 4,
+      "errors": 0
+    },
+    "actualExecution": {
+      "completed_at": "2026-10-16T09:04:32.703322+00:00",
+      "results": [
+        {
+          "name": "law",
+          "command": [
+            "nbb",
+            "-cp",
+            "skills/pr-flow/scripts",
+            "skills/pr-flow/scripts/test_law.cljs"
+          ],
+          "started_at": "2026-10-16T09:04:28.078076+00:00",
+          "completed_at": "2026-10-16T09:04:32.702512+00:00",
+          "pid": 1044634,
+          "exit_code": 1,
+          "elapsed_seconds": 4.624,
+          "pid_absent": true,
+          "stdout": {
+            "bytes": 3976,
+            "sha256": "b149db64de5d6f3eb7301d9a9b689ceaa3fafabe7e0ad2b97a5edb870e4edf85"
+          },
+          "stderr": {
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        },
+        {
+          "name": "policy",
+          "command": [
+            "nbb",
+            "-cp",
+            "skills/pr-flow/scripts",
+            "skills/pr-flow/scripts/test_policy.cljs"
+          ],
+          "started_at": "2026-10-16T09:04:28.078387+00:00",
+          "completed_at": "2026-10-16T09:04:29.079227+00:00",
+          "pid": 1044636,
+          "exit_code": 1,
+          "elapsed_seconds": 1.001,
+          "pid_absent": true,
+          "stdout": {
+            "bytes": 6956,
+            "sha256": "e5a8d1754f3bc44ea36e6a343001ae24ece65e82548ed0de3a28ed6f2814bfe6"
+          },
+          "stderr": {
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        },
+        {
+          "name": "portable",
+          "command": [
+            "bb",
+            "--classpath",
+            "skills/pr-flow/scripts",
+            "skills/pr-flow/scripts/test_babashka.clj"
+          ],
+          "started_at": "2026-10-16T09:04:28.078579+00:00",
+          "completed_at": "2026-10-16T09:04:28.193462+00:00",
+          "pid": 1044637,
+          "exit_code": 1,
+          "elapsed_seconds": 0.115,
+          "pid_absent": true,
+          "stdout": {
+            "bytes": 1176,
+            "sha256": "bc6f8e7ce8d10e3df48d532f8c84e3e9b06fa7c03f069934fe79cdb4801a4808"
+          },
+          "stderr": {
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        },
+        {
+          "name": "kondo",
+          "command": [
+            "clj-kondo",
+            "--lint",
+            "skills/pr-flow/scripts/test_law.cljs",
+            "skills/pr-flow/scripts/test_policy.cljs",
+            "skills/pr-flow/scripts/test_cli.cljs",
+            "skills/pr-flow/scripts/test_babashka.clj"
+          ],
+          "started_at": "2026-10-16T09:04:28.078974+00:00",
+          "completed_at": "2026-10-16T09:04:28.675676+00:00",
+          "pid": 1044640,
+          "exit_code": 0,
+          "elapsed_seconds": 0.597,
+          "pid_absent": true,
+          "stdout": {
+            "bytes": 43,
+            "sha256": "65a61e47c1bf442ff9882158e3972f8d3af2fbe0368c634e97a7a36589ca053c"
+          },
+          "stderr": {
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        },
+        {
+          "name": "diff-check",
+          "command": [
+            "git",
+            "--no-optional-locks",
+            "diff",
+            "--check",
+            "--",
+            "skills/pr-flow/scripts/test_law.cljs",
+            "skills/pr-flow/scripts/test_policy.cljs",
+            "skills/pr-flow/scripts/test_cli.cljs",
+            "skills/pr-flow/scripts/test_babashka.clj"
+          ],
+          "started_at": "2026-10-16T09:04:28.079502+00:00",
+          "completed_at": "2026-10-16T09:04:28.086418+00:00",
+          "pid": 1044645,
+          "exit_code": 0,
+          "elapsed_seconds": 0.007,
+          "pid_absent": true,
+          "stdout": {
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "stderr": {
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        }
+      ],
+      "all_test_hashes_stable": true,
+      "production_law_stable": true
+    },
+    "priorCasesPass": true,
+    "CLI": "new cases registered/linted, not full RED executed",
+    "kondo": "0errors0warnings",
+    "diff": "PASS"
+  },
+  "sourceBoundary": {
+    "intermediateParagraphProjectionIncluded": true,
+    "newQuoteFixNotApplied": true,
+    "onlyFourRegisteredTestsChangedInThisREDStep": true,
+    "priorAssertionsPreserved": true,
+    "allOtherFrozenCandidateBytesPreserved": true,
+    "native4206BFixtureUnchanged": true,
+    "rawProofSHA256": "9ff16b9c49df57f6817d3a186378952fb559df9cd8e751a42119c4c1500bb4a3"
+  },
+  "priorIntermediateVerification": {
+    "fast": "law191/5073, policy69/1762, portable5/40 all PASS",
+    "firstFullCLI": {
+      "tests": 106,
+      "assertions": 3084,
+      "failures": 1,
+      "errors": 0,
+      "exit": 1,
+      "reasonObserved": "request child exit nil; original raw timeout code not captured",
+      "focusedUnchangedFixture": "actual1test8assertionsPASS; three actual child elapsed1352/2448/1441ms at unchanged5000ms cap",
+      "observerFailures": "first two process-local observer preparations failed before fixture execution; retained as operator harness failures"
+    },
+    "stoppedRepeat": {
+      "exit": -15,
+      "elapsedSeconds": 97.386,
+      "status": "coordinator-cancelled owned local test after independent concrete candidate defect",
+      "originalRecordSHA256": "4f4e4ffbe829e0be833f12290c277792a3341ad77847e2befc886b74efcd75ff",
+      "correction": "Original record says explicit human STOP/user-cancelled; that attribution is incorrect. Actual sender was main coordinator, with no direct human stop. Original bytes/signals retained; no maker/provider interrupted.",
+      "knownOwnedPIDsAbsent": true
+    }
+  },
+  "P1CurrentTreeCuration": {
+    "nativeRoot": 4292173384,
+    "sixRawExportsRemoved": true,
+    "threeDerivedDocumentsRetainOtherFacts": true,
+    "originalsRetainedPrivateAndImmutableGit": true,
+    "noHistoryErasure": true,
+    "manifestSHA256": "b2ddabb3f6188609fe6863e184c029f12acfb1d70e0906560d33004030119abb",
+    "independentAuditSHA256": "1ab49761fedbfb3ccbb9e48850aaa383a8748e736c8648463b1d999f7687e3c7",
+    "allNineOriginalsAndReceiptReflectionPrefixesVerified": true,
+    "noCanonicalBoardMutation": true
+  },
+  "nativeOldHeadReview": {
+    "head": "d72324a2d00af5813195d99dc74bdf4c74623d48",
+    "MiMoRun": 38869843873,
+    "status": "completed/cancelled",
+    "nativeAnnotation": "The job has exceeded the maximum execution time of 45m0s",
+    "noOperatorCancellation": true,
+    "noReviewApprovalOrWaiver": true
+  },
+  "limits": [
+    "This is truthful intermediate RED, not complete GREEN.",
+    "Original Codex lexical helper/global reviewer prose/native skipped caller and other admission branches are unchanged.",
+    "No new scope/points, timeout/cap increase, native review request, MERGE, installation, provider/credential/runtime/deployment/social/heartbeat change.",
+    "B1-B3 live0of3, goalACTIVE, heartbeatHUMAN-PAUSED."
+  ]
+}

@@ -59,28 +59,30 @@
     (is (nil? (:rejection-reviewer result)))))
 
 (deftest native-author-opener-head-root-and-context-cannot-be-substituted
-  (doseq [t [(assoc (input prospective) :head (apply str (repeat 40 "b")))
-             (assoc (input prospective) :root-comment-id 4176835304)
-             (assoc (input prospective) :id "PRRT_other")
-             (dissoc (input prospective) :native-context)
-             (assoc-in (input prospective) [:comments 2 :body] "I withdraw this finding.")
-             (assoc-in (input prospective) [:comments 3 :authorized?] false)]]
-    (is (not (cleared? t))))
-  (doseq [[label raw] [["author impersonation" (assoc-in prospective [:comments :nodes 2 :author] (get-in fixture [:pr :author]))]
-                       ["different opener" (assoc-in prospective [:comments :nodes 2 :author :login] "eta-mu-ai")]
-                       ["native User, not Bot" (assoc-in prospective [:comments :nodes 2 :author :__typename] "User")]
-                       ["missing review binding" (update-in prospective [:comments :nodes 2] dissoc :pullRequestReview)]
-                       ["old review head" (assoc-in prospective [:comments :nodes 2 :pullRequestReview :commit :oid] (apply str (repeat 40 "b")))]
-                       ["unknown original root head" (assoc-in prospective [:comments :nodes 0 :pullRequestReview :commit :oid] nil)]
-                       ["cross-root URL" (assoc-in prospective [:comments :nodes 2 :url] "https://github.com/riatzukiza/sol/pull/4#discussion_r4176945609")]
-                       ["partial conversation" (assoc-in prospective [:comments :pageInfo :hasNextPage] true)]
-                       ["wrong total" (assoc-in prospective [:comments :totalCount] 3)]
-                       ["unresolved" (assoc prospective :isResolved false)]
-                       ["outdated" (assoc prospective :isOutdated true)]
-                       ["opener self-settlement" (assoc-in prospective [:comments :nodes 3 :author] (get-in actual [:comments :nodes 0 :author]))]
-                       ["missing writer type" (update-in prospective [:comments :nodes 3 :author] dissoc :__typename)]
-                       ["unbound Handled" (assoc-in prospective [:comments :nodes 3 :body] "Handled: thanks.")]]]
-    (is (not (cleared? (input raw))) label)))
+  (doseq [outdated? [false true]
+          :let [prospective (assoc prospective :isOutdated outdated?)]]
+    (doseq [t [(assoc (input prospective) :head (apply str (repeat 40 "b")))
+               (assoc (input prospective) :root-comment-id 4176835304)
+               (assoc (input prospective) :id "PRRT_other")
+               (dissoc (input prospective) :native-context)
+               (assoc-in (input prospective) [:comments 2 :body] "I withdraw this finding.")
+               (assoc-in (input prospective) [:comments 3 :authorized?] false)]]
+      (is (not (cleared? t))))
+    (doseq [[label raw] [["author impersonation" (assoc-in prospective [:comments :nodes 2 :author] (get-in fixture [:pr :author]))]
+                         ["different opener" (assoc-in prospective [:comments :nodes 2 :author :login] "eta-mu-ai")]
+                         ["native User, not Bot" (assoc-in prospective [:comments :nodes 2 :author :__typename] "User")]
+                         ["missing review binding" (update-in prospective [:comments :nodes 2] dissoc :pullRequestReview)]
+                         ["old review head" (assoc-in prospective [:comments :nodes 2 :pullRequestReview :commit :oid] (apply str (repeat 40 "b")))]
+                         ["unknown original root head" (assoc-in prospective [:comments :nodes 0 :pullRequestReview :commit :oid] nil)]
+                         ["cross-root URL" (assoc-in prospective [:comments :nodes 2 :url] "https://github.com/riatzukiza/sol/pull/4#discussion_r4176945609")]
+                         ["partial conversation" (assoc-in prospective [:comments :pageInfo :hasNextPage] true)]
+                         ["wrong total" (assoc-in prospective [:comments :totalCount] 3)]
+                         ["unresolved" (assoc prospective :isResolved false)]
+                         ["unknown outdated flag" (dissoc prospective :isOutdated)]
+                         ["opener self-settlement" (assoc-in prospective [:comments :nodes 3 :author] (get-in actual [:comments :nodes 0 :author]))]
+                         ["missing writer type" (update-in prospective [:comments :nodes 3 :author] dissoc :__typename)]
+                         ["unbound Handled" (assoc-in prospective [:comments :nodes 3 :body] "Handled: thanks.")]]]
+      (is (not (cleared? (input raw))) label))))
 
 (deftest quotes-generated-examples-quota-and-ambiguous-withdrawals-remain-blocking
   (let [body (get-in actual [:comments :nodes 2 :body])]
@@ -197,41 +199,43 @@
     (is (= eta-head (get-in result [:opener-withdrawal :head])))))
 
 (deftest old-provenance-never-replaces-current-withdrawal-or-writer-custody
-  (let [wi 17 si 18 old-head (get-in eta-root [:pullRequestReview :commit :oid])]
-    (doseq [[label raw]
-            [["raw stale752 statements" (:thread eta-fixture)]
-             ["no writer" (-> eta-prospective (update-in [:comments :nodes] pop)
-                               (update-in [:comments :totalCount] dec))]
-             ["stale withdrawal" (assoc-in eta-prospective [:comments :nodes wi :pullRequestReview :commit :oid] old-head)]
-             ["stale writer" (assoc-in eta-prospective [:comments :nodes si :pullRequestReview :commit :oid] old-head)]
-             ["unknown original commit" (assoc-in eta-prospective [:comments :nodes 0 :pullRequestReview :commit :oid] nil)]
-             ["malformed original commit" (assoc-in eta-prospective [:comments :nodes 0 :pullRequestReview :commit :oid] "unknown")]
-             ["missing original review id" (update-in eta-prospective [:comments :nodes 0 :pullRequestReview] dissoc :databaseId)]
-             ["invalid original review id" (assoc-in eta-prospective [:comments :nodes 0 :pullRequestReview :databaseId] 0)]
-             ["missing original review node id" (update-in eta-prospective [:comments :nodes 0 :pullRequestReview] dissoc :id)]
-             ["blank original review node id" (assoc-in eta-prospective [:comments :nodes 0 :pullRequestReview :id] " ")]
-             ["unknown original review state" (assoc-in eta-prospective [:comments :nodes 0 :pullRequestReview :state] "UNKNOWN")]
-             ["unpublished original review" (assoc-in eta-prospective [:comments :nodes 0 :pullRequestReview :state] "PENDING")]
-             ["wrong original reviewer" (assoc-in eta-prospective [:comments :nodes 0 :pullRequestReview :author :login] "different")]
-             ["wrong original reviewer type" (assoc-in eta-prospective [:comments :nodes 0 :pullRequestReview :author :__typename] "User")]
-             ["different withdrawing opener" (assoc-in eta-prospective [:comments :nodes wi :author :login] "eta-mu-ai")]
-             ["writer is Bot" (assoc-in eta-prospective [:comments :nodes si :author :__typename] "Bot")]
-             ["wrong root binding" (assoc-in eta-prospective [:comments :nodes si :body]
-                                            (str/replace (:body eta-fresh-writer) "comment4265471027" "comment4265471028"))]
-             ["wrong withdrawal URL" (assoc-in eta-prospective [:comments :nodes wi :url]
-                                               "https://github.com/riatzukiza/eta-mu/pull/16#discussion_r990010001")]
-             ["partial pagination" (assoc-in eta-prospective [:comments :pageInfo :hasNextPage] true)]
-             ["wrong total" (update-in eta-prospective [:comments :totalCount] dec)]
-             ["unresolved" (assoc eta-prospective :isResolved false)]
-             ["outdated" (assoc eta-prospective :isOutdated true)]
-             ["later original edit" (assoc-in eta-prospective [:comments :nodes 0 :updatedAt] "2026-10-14T10:02:00Z")]
-             ["late withdrawal edit" (assoc-in eta-prospective [:comments :nodes wi :updatedAt] "2026-10-14T10:02:00Z")]
-             ["unknown chronology" (assoc-in eta-prospective [:comments :nodes wi :createdAt] "invalid")]]]
-      (is (not (cleared? (eta-input raw))) label))
-    (is (not (cleared? (assoc-in (eta-input eta-prospective) [:comments si :authorized?] false))))
-    (doseq [[field value] [[:number 16] [:headRefOid old-head]]]
-      (is (not (cleared? (assoc-in (eta-input eta-prospective) [:native-context :pr field] value)))))
-    (is (not (cleared? (assoc-in (eta-input eta-prospective) [:native-context :repository :nameWithOwner] "other/eta-mu"))))))
+  (doseq [outdated? [false true]
+          :let [eta-prospective (assoc eta-prospective :isOutdated outdated?)]]
+    (let [wi 17 si 18 old-head (get-in eta-root [:pullRequestReview :commit :oid])]
+      (doseq [[label raw]
+              [["raw stale752 statements" (:thread eta-fixture)]
+               ["no writer" (-> eta-prospective (update-in [:comments :nodes] pop)
+                                 (update-in [:comments :totalCount] dec))]
+               ["stale withdrawal" (assoc-in eta-prospective [:comments :nodes wi :pullRequestReview :commit :oid] old-head)]
+               ["stale writer" (assoc-in eta-prospective [:comments :nodes si :pullRequestReview :commit :oid] old-head)]
+               ["unknown original commit" (assoc-in eta-prospective [:comments :nodes 0 :pullRequestReview :commit :oid] nil)]
+               ["malformed original commit" (assoc-in eta-prospective [:comments :nodes 0 :pullRequestReview :commit :oid] "unknown")]
+               ["missing original review id" (update-in eta-prospective [:comments :nodes 0 :pullRequestReview] dissoc :databaseId)]
+               ["invalid original review id" (assoc-in eta-prospective [:comments :nodes 0 :pullRequestReview :databaseId] 0)]
+               ["missing original review node id" (update-in eta-prospective [:comments :nodes 0 :pullRequestReview] dissoc :id)]
+               ["blank original review node id" (assoc-in eta-prospective [:comments :nodes 0 :pullRequestReview :id] " ")]
+               ["unknown original review state" (assoc-in eta-prospective [:comments :nodes 0 :pullRequestReview :state] "UNKNOWN")]
+               ["unpublished original review" (assoc-in eta-prospective [:comments :nodes 0 :pullRequestReview :state] "PENDING")]
+               ["wrong original reviewer" (assoc-in eta-prospective [:comments :nodes 0 :pullRequestReview :author :login] "different")]
+               ["wrong original reviewer type" (assoc-in eta-prospective [:comments :nodes 0 :pullRequestReview :author :__typename] "User")]
+               ["different withdrawing opener" (assoc-in eta-prospective [:comments :nodes wi :author :login] "eta-mu-ai")]
+               ["writer is Bot" (assoc-in eta-prospective [:comments :nodes si :author :__typename] "Bot")]
+               ["wrong root binding" (assoc-in eta-prospective [:comments :nodes si :body]
+                                              (str/replace (:body eta-fresh-writer) "comment4265471027" "comment4265471028"))]
+               ["wrong withdrawal URL" (assoc-in eta-prospective [:comments :nodes wi :url]
+                                                 "https://github.com/riatzukiza/eta-mu/pull/16#discussion_r990010001")]
+               ["partial pagination" (assoc-in eta-prospective [:comments :pageInfo :hasNextPage] true)]
+               ["wrong total" (update-in eta-prospective [:comments :totalCount] dec)]
+               ["unresolved" (assoc eta-prospective :isResolved false)]
+               ["unknown outdated flag" (dissoc eta-prospective :isOutdated)]
+               ["later original edit" (assoc-in eta-prospective [:comments :nodes 0 :updatedAt] "2026-10-14T10:02:00Z")]
+               ["late withdrawal edit" (assoc-in eta-prospective [:comments :nodes wi :updatedAt] "2026-10-14T10:02:00Z")]
+               ["unknown chronology" (assoc-in eta-prospective [:comments :nodes wi :createdAt] "invalid")]]]
+        (is (not (cleared? (eta-input raw))) label))
+      (is (not (cleared? (assoc-in (eta-input eta-prospective) [:comments si :authorized?] false))))
+      (doseq [[field value] [[:number 16] [:headRefOid old-head]]]
+        (is (not (cleared? (assoc-in (eta-input eta-prospective) [:native-context :pr field] value)))))
+      (is (not (cleared? (assoc-in (eta-input eta-prospective) [:native-context :repository :nameWithOwner] "other/eta-mu")))))))
 
 (deftest old-review-withdrawal-supplies-no-other-merge-credit
   (let [t (law/classify-thread (eta-input eta-prospective))
@@ -249,3 +253,53 @@
                                           {:id "other-finding" :resolved? false
                                            :comments [{:author "coderabbitai" :body "P1: independent defect"}]}))]]
       (is (not (:pass? (law/merge-gate bad)))))))
+
+(deftest qualified-withdrawal-retains-known-location-and-original-history
+  (doseq [[label original base to-input]
+          [["current original review" actual prospective input]
+           ["immutable older original review" (:thread eta-fixture) eta-prospective eta-input]]
+          outdated? [false true]
+          :let [raw (assoc base :isOutdated outdated?)
+                t (to-input raw)
+                result (law/classify-thread t)
+                original-comments (get-in original [:comments :nodes])]]
+    (is (cleared? t) (str label " / outdated=" outdated?))
+    (is (= :p1 (:severity result)))
+    (is (law/finding-obligation? result))
+    (is (not (:rejection-approved? result)))
+    (is (= (first original-comments) (get-in raw [:comments :nodes 0])))
+    (is (= original-comments
+           (vec (take (count original-comments) (get-in raw [:comments :nodes])))))))
+
+(deftest location-agreement-does-not-replace-complete-current-custody
+  (doseq [[label base to-input] [["current original review" prospective input]
+                               ["immutable older original review" eta-prospective eta-input]]
+          outdated? [false true]
+          :let [raw (assoc base :isOutdated outdated?)
+                t (to-input raw)
+                wi (- (count (get-in raw [:comments :nodes])) 2)
+                si (inc wi)
+                withdrawal (get-in raw [:comments :nodes wi])
+                same-time (:updatedAt withdrawal)]]
+    (doseq [bad [(dissoc t :outdated?)
+                 (assoc t :outdated? nil)
+                 (assoc t :outdated? "true")
+                 (assoc t :outdated? 1)
+                 (assoc t :outdated? (not outdated?))
+                 (update-in t [:native-context :thread] dissoc :isOutdated)
+                 (assoc-in t [:native-context :thread :isOutdated] nil)
+                 (assoc-in t [:native-context :thread :isOutdated] "true")
+                 (assoc-in t [:native-context :thread :isOutdated] 1)
+                 (assoc-in t [:native-context :thread :isOutdated] (not outdated?))
+                 (assoc t :resolved? false)
+                 (assoc-in t [:native-context :thread :isResolved] false)]]
+      (is (not (cleared? bad)) (str label " / malformed or discordant native custody")))
+    (doseq [[reason bad]
+            [["equal writer chronology" (-> raw
+                                             (assoc-in [:comments :nodes si :createdAt] same-time)
+                                             (assoc-in [:comments :nodes si :updatedAt] same-time))]
+             ["quoted withdrawal" (assoc-in raw [:comments :nodes wi :body]
+                                            (str "> " (str/replace (:body withdrawal) "\n" "\n> ")))]
+             ["retracted withdrawal" (assoc-in raw [:comments :nodes wi :body]
+                                               (str (:body withdrawal) "\nI retract my withdrawal; the finding remains valid."))]]]
+      (is (not (cleared? (to-input bad))) (str label " / " reason)))))

@@ -111,6 +111,22 @@
           (remove-matches #"(?m)^_You are interacting with an AI system\._[ \t]*$|^[ \t]*---[ \t]*$")
           (str/replace #"\[([^\]]*)\]\([^\s)]*\)" "$1")))
 
+(defn codex-positive-body?
+  "Recognize only the native positive prefix, legacy or receipt-v1 wrapped.
+   This lexical predicate supplies no identity, commit, scope or gate proof."
+  [body]
+  (let [envelope "<!-- codex-review-receipt:v1 -->\n\n"
+        prefix "Codex Review: Didn't find any major issues."
+        candidate (when (string? body)
+                    (if (str/starts-with? body envelope)
+                      (subs body (count envelope))
+                      body))]
+    (boolean
+     (and candidate
+          ;; No trim, multiline search or generic HTML-comment normalization.
+          (str/starts-with? candidate prefix)
+          (str/starts-with? (or (reviewer-prose candidate) "") prefix)))))
+
 (defn- confirmed? [body]
   (let [prose (reviewer-prose body)]
     (boolean
@@ -446,7 +462,9 @@
         evidence-comments (thread-evidence-comments input)]
     (when (and (valid-head? head) (= head (:headRefOid pr)) (= "OPEN" (:state pr))
                (= id (:id thread)) (= root-comment-id (:databaseId root))
-               (true? resolved?) (true? (:isResolved thread)) (false? outdated?) (false? (:isOutdated thread))
+               (true? resolved?) (true? (:isResolved thread))
+               ;; Location age is provenance; current resolved custody is required.
+               (boolean? outdated?) (= outdated? (:isOutdated thread))
                (vector? nodes) (seq nodes) (false? (get-in thread [:comments :pageInfo :hasNextPage]))
                (= (count nodes) (get-in thread [:comments :totalCount]) (count comments)
                   (count (set (map :databaseId nodes))))
@@ -1015,6 +1033,20 @@
    (re-find #"(?m)^[ ]{0,3}<details>[ \t]*(?:\r\n|\r|\n)[ \t]*<summary><strong>🚧 Files skipped from review as they are similar to previous changes \([1-9][0-9]*\)</strong></summary>[ \t]*(?:\r?$)"
             (native-scope-prose body))))
 
+(defn- incomplete-phrase-prose [body]
+  ;; Use reviewer-prose's exclusions and order, retaining block barriers so
+  ;; removal cannot assemble a phrase. Generic inline comments remain inert.
+  (some-> (str body)
+          (retain-excluded-regions #"(?s)<!-- This is an auto-generated comment: tweet message by coderabbit\.ai -->.*?<!-- end of auto-generated comment: tweet message by coderabbit\.ai -->")
+          (retain-excluded-regions #"(?s)<details>\s*<summary>(?:🧩 Analysis chain|✏️ Learnings added)</summary>.*?</details>")
+          (retain-excluded-regions #"<blockquote>[\s\S]*?</blockquote>")
+          (retain-excluded-regions #"(?m)^[ \t]*>[^\r\n]*")
+          (#(when (verdict-prose %) %))
+          (retain-excluded-regions #"(?ms)^[ \t]*(`{3,}|~{3,})[^\n]*\n.*?^[ \t]*\1[ \t]*$")
+          (str/replace #"<!--[\s\S]*?-->" "")
+          (remove-matches #"(?m)^_You are interacting with an AI system\._[ \t]*$|^[ \t]*---[ \t]*$")
+          (str/replace #"\[([^\]]*)\]\([^\s)]*\)" "$1")))
+
 (defn incomplete-review-reason
   "Commit binding is distinct from completed review scope. Reject an actual
    admission of unfinished/omitted input, including formal approvals. Quotes
@@ -1022,13 +1054,16 @@
    not disqualify a reviewer who retrieved and reviewed the omitted input."
   [body]
   (let [prose (reviewer-prose body)
+        phrase-prose (incomplete-phrase-prose body)
         ;; A guard against incomplete review submissions describes an artifact,
         ;; not the reviewer's scope. Keep every other admission in the section.
-        scope-prose (when prose
-                      (remove-matches prose #"(?i)\b(?:prevent(?:s|ed|ing)?|reject(?:s|ed|ing)?|block(?:s|ed|ing)?)\s+(?:altered\s+or\s+)?(?:partial|incomplete)\s+review\s+submissions?\b"))]
+        paragraphs (when phrase-prose
+                     (map #(remove-matches % #"(?i)\b(?:prevent(?:s|ed|ing)?|reject(?:s|ed|ing)?|block(?:s|ed|ing)?)\s+(?:altered\s+or\s+)?(?:partial|incomplete)\s+review\s+submissions?\b")
+                          (str/split phrase-prose #"(?:\r?\n|\r(?!\n))[ \t]*(?:\r?\n|\r(?!\n))")))]
     (cond
-      (nil? prose) :ambiguous-prose
-      (re-find #"(?i)\breview (?:is |was |remains )?(?:incomplete|rate limited)\b|\b(?:partial|incomplete) review\b|\b(?:unable to|could not|couldn't|cannot|can't) complete (?:the )?review\b" scope-prose)
+      (or (nil? prose) (nil? phrase-prose)) :ambiguous-prose
+      (some #(re-find #"(?i)\breview\s+(?:is\s+|was\s+|remains\s+)?(?:incomplete|rate\s+limited)\b|\b(?:partial|incomplete)\s+review\b|\b(?:unable\s+to|could\s+not|couldn't|cannot|can't)\s+complete\s+(?:the\s+)?review\b" %)
+            paragraphs)
       :incomplete-review
       (or (native-skipped-review-input? body)
           (re-find #"(?im)(?:^|[.;]\s*)(?:some |the |these )?unreviewed (?:files|changes|input) (?:still )?remain\b" prose)
@@ -1113,7 +1148,7 @@
                                                    recent (str/includes? recent head)
                                                    (re-find #"(?m)^No actionable comments were generated in the recent review\." (or (reviewer-prose recent) "")))
                                  "codex" (and (= head (:resolved-commit-id c))
-                                              (re-find #"^Codex Review: Didn't find any major issues\." (or (reviewer-prose body) "")))
+                                              (codex-positive-body? body))
                                  false)]
                   (when (and (valid-head? head) passing?
                              ;; Incomplete native verdicts still revoke prior
@@ -1232,7 +1267,7 @@
                                      (cond-> completed (= 1 (count coverage)) (assoc :commit_id (first coverage)))))
                                  "codex"
                                  (when (and (valid-head? (:resolved-commit-id c))
-                                            (re-find #"^Codex Review: Didn't find any major issues\." (or (reviewer-prose (:body c)) "")))
+                                            (codex-positive-body? (:body c)))
                                    (assoc completed :commit_id (:resolved-commit-id c)))
                                  nil))) comments)
         rounds (keep (fn [r]

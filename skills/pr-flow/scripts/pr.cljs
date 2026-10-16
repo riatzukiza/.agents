@@ -237,7 +237,7 @@
         comments (mapv
                   (fn [c]
                     (if (and (= "codex" (law/trusted-reviewer c (reviewer-identities)))
-                             (re-find #"^Codex Review: Didn't find any major issues\." (str (:body c))))
+                             (law/codex-positive-body? (:body c)))
                       (let [markers (map second (re-seq #"(?m)^\*\*Reviewed commit:\*\* `([0-9a-f]{10,40})`\s*$" (str (:body c))))]
                         (if (= 1 (count markers))
                           (assoc c :resolved-commit-id

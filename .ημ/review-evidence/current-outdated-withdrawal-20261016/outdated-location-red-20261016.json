@@ -1,0 +1,25 @@
+{
+  "tier": "Observed command-output transcription; not raw native provider evidence or live disposition",
+  "base": "8497afdd329c3dcaefb78eec36d8e629a59d9eb2",
+  "planningHead": "1965780de0ff1c4807f235126bce6024579a36ea",
+  "nativePrimaryUUID": "6c789296-a573-47ae-9d46-3f30a9f359ae",
+  "nativeStatus": "in_progress",
+  "points": "2",
+  "parentPoints": "41",
+  "command": "nbb -cp skills/pr-flow/scripts skills/pr-flow/scripts/test_law.cljs",
+  "tests": 183,
+  "assertions": 4892,
+  "failures": 2,
+  "errors": 0,
+  "failingTest": "qualified-withdrawal-retains-known-location-and-original-history",
+  "causalLabels": [
+    "current original review / outdated=true",
+    "immutable older original review / outdated=true"
+  ],
+  "lawUntouched": true,
+  "lawSHA256": "891e7f2f2c80e9997caaa51cf37049d846d2c1e767423144ac7b4f7a053b6e33",
+  "testSHA256": "a946c8155dce4eb1167940b397980f96396597d27ea183db6cf11413e08402dc",
+  "fullLogBytes": 130826,
+  "fullLogSHA256": "a980ad5c5142b6aa558e9fd65fa39c35910dc30ca9b70101d9145f65f1b6b587",
+  "scope": "Two known concordant outdated-location positives; existing identity/context/chronology/unknown/mismatch/unresolved negatives preserved. No Codex format, collector or policy override."
+}

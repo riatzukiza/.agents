@@ -1,0 +1,90 @@
+{
+  "kind": "derived hash-only retained-original custody manifest",
+  "observedAt": "2026-10-16T08:29:52.201497+00:00",
+  "nativeFinding": 4292173384,
+  "sourceCommit": "d72324a2d00af5813195d99dc74bdf4c74623d48",
+  "rawBoardExports": [
+    {
+      "sourcePath": ".\u03b7\u03bc/review-evidence/current-outdated-withdrawal-20261016/actual-parent-epic-inclusion-read.json",
+      "sourceCommit": "d72324a2d00af5813195d99dc74bdf4c74623d48",
+      "gitBlob": "cf4102722f526309fe1fc8bb5611fb9485a32ec3",
+      "bytes": 14833,
+      "sha256": "f6999bed8bb53d35a7b0ee27454353e4819ad0f2eaedb8f00fcb6af1fa618679"
+    },
+    {
+      "sourcePath": ".\u03b7\u03bc/review-evidence/current-outdated-withdrawal-20261016/actual-initial-incoming-primary-read.json",
+      "sourceCommit": "d72324a2d00af5813195d99dc74bdf4c74623d48",
+      "gitBlob": "39fea20d3d81d4383116f6cba27202b3046414d3",
+      "bytes": 6655,
+      "sha256": "f76f2b9ca2afa596ebc5865d1d05d7e835637a4fff9b86a38d80746e2c2910fe"
+    },
+    {
+      "sourcePath": ".\u03b7\u03bc/review-evidence/current-outdated-withdrawal-20261016/actual-parent-direct-children-query.json",
+      "sourceCommit": "d72324a2d00af5813195d99dc74bdf4c74623d48",
+      "gitBlob": "47599601518222271b28db59a84a89d93a87fd89",
+      "bytes": 77787,
+      "sha256": "a908fe0fd96d679f9581c6cf93d1f67416ac68f198f68a6ab6ab8a88a14cc6f8"
+    },
+    {
+      "sourcePath": ".\u03b7\u03bc/review-evidence/current-outdated-withdrawal-20261016/actual-primary-parent-inventory-refinement-read.json",
+      "sourceCommit": "d72324a2d00af5813195d99dc74bdf4c74623d48",
+      "gitBlob": "0dc5f47d879cc5ea8242bb8354844dd702eb71d4",
+      "bytes": 10455,
+      "sha256": "c44aba8ea0414909ddfc602f9745f0a8718be6d80c67deca420eaf73fcd95d9a"
+    },
+    {
+      "sourcePath": ".\u03b7\u03bc/review-evidence/current-outdated-withdrawal-20261016/actual-primary-readiness-reference-correction-read.json",
+      "sourceCommit": "d72324a2d00af5813195d99dc74bdf4c74623d48",
+      "gitBlob": "96e88ccd287913dc843a8e088fc8675d1fc8b10b",
+      "bytes": 11459,
+      "sha256": "432f45b8fc812e0fff7035d47814768f5470900967dae4f1c0253f8275a7d852"
+    },
+    {
+      "sourcePath": ".\u03b7\u03bc/review-evidence/codex-receipt-v1-20261016/native-incoming-card-read.json",
+      "sourceCommit": "d72324a2d00af5813195d99dc74bdf4c74623d48",
+      "gitBlob": "16f0ea89db80782330c0184474030af82822e9aa",
+      "bytes": 6145,
+      "sha256": "27099cac3b92be8354658f513cf9103c47b4c26112f88acaa97cd22926737491"
+    }
+  ],
+  "originalDerivedCustodyDocuments": [
+    {
+      "sourcePath": ".\u03b7\u03bc/review-evidence/current-outdated-withdrawal-20261016/custody.json",
+      "sourceCommit": "d72324a2d00af5813195d99dc74bdf4c74623d48",
+      "gitBlob": "31378bfad0c93713a23ab3c2b8bd1d52e730dc63",
+      "bytes": 2288,
+      "sha256": "31c2db2302ab3f76643fc1aae48ee5b13769496209a7472b41ee887bc0ac9c03"
+    },
+    {
+      "sourcePath": ".\u03b7\u03bc/review-evidence/codex-receipt-v1-20261016/custody.json",
+      "sourceCommit": "d72324a2d00af5813195d99dc74bdf4c74623d48",
+      "gitBlob": "7e6d70fb5baf159afa637f5d0a4efe7a013bdbe1",
+      "bytes": 5172,
+      "sha256": "8a57fac86effc22071f1a7429d14b390d7cb1dfecb558bcae8c6f168ca4ce6f3"
+    },
+    {
+      "sourcePath": ".\u03b7\u03bc/review-evidence/codex-receipt-v1-20261016/implementation-custody.json",
+      "sourceCommit": "d72324a2d00af5813195d99dc74bdf4c74623d48",
+      "gitBlob": "78f87a8d0ee5034cedabf769b9c409cb0d159784",
+      "bytes": 31709,
+      "sha256": "073c6892e3aa665c8d6c1dda0965f12d0821366ae9cfa7c9520699216c93c9a6"
+    }
+  ],
+  "embeddedNativeReadback": {
+    "kind": "derived retained-original reference",
+    "bytes": 6878,
+    "sha256": "f7dae4a541809150131f95c78e9afca9b9b30416f60f241b5131d5fcb5960130",
+    "sourceDocument": ".\u03b7\u03bc/review-evidence/codex-receipt-v1-20261016/implementation-custody.json",
+    "sourceCommit": "d72324a2d00af5813195d99dc74bdf4c74623d48",
+    "sourceJSONPointer": "/records/0/nativeCurrentPrimaryRawUTF8",
+    "availability": "protected retained original and immutable historical document; not raw current board data"
+  },
+  "retention": "Exact originals independently compared with source Git blobs and protected copies before current-tree minimization; protected archive directories0700/files0600. Historical Git/receipts/events/reflections remain unchanged.",
+  "evidenceBoundary": "Hashes identify retained originals but are not independently available raw/current board evidence, current board validation/admission, provider approval or a history-erasure claim. Authorized independent inspection needs the originals.",
+  "preservedPublicFixture": {
+    "path": ".\u03b7\u03bc/review-evidence/codex-receipt-v1-20261016/native-codex-passing-6206360170.json",
+    "bytes": 4206,
+    "sha256": "b5e9927e862ff5c5d5d7dcbb662099e838755cefa9d3dfa1df1e9c96b7473eaf"
+  },
+  "classificationLimit": "Documentary surplus was minimized; canonical trace identities remain. No new incident, rotation requirement or corpus secret-free certification is asserted."
+}
