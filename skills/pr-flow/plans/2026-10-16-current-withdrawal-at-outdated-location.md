@@ -300,3 +300,34 @@ remain historical bytes. The new actual readback
 The native primary stays Incoming2; parent41 is still proposed and unapplied.
 No parent point write, Ready transition, source predicate implementation or
 adoption follows from a corrective comment.
+
+
+## Operative implementation follow-up — 2026-10-16
+
+The initial prose-only / Incoming / unapplied statements above are preserved
+as dated planning history. They do not describe this later implementation.
+Current196 planning qualified with actual CodeRabbit full completion
+6206517176/6206518468/summary6204907591 and MiMo APPROVED5541910110, five
+passing checks, one completed available-agent cohort and every finding settled.
+Qualified owning Rheos85369213 then performed the real ten-child reconciliation
+to parent Incoming41 and moved primary6c789296-a573-47ae-9d46-3f30a9f359ae
+through Accepted, Breakdown, Ready, Todo and InProgress2. The actual native
+ledger prefix and seventeen operations are retained by the coordinator.
+
+Local causal RED commit ca70d5039ff7a4426e0677964454690d4b8ac802 has exactly two
+expected failures across the two existing fixture families:183 tests /4892
+assertions /2 failures /0 errors. The production repair changes only the
+withdrawal predicate's outdated-location guard to require known concordant
+booleans, retaining both true resolution flags and all other custody checks.
+It does not change collection, commit hydration or any Codex format recognizer.
+
+Full local GREEN passed: law183/4892, policy61/1554, isolated CLI99/2681,
+portable2/7; flow, contract parsing and lint also passed with zero warnings.
+The observed-output transcription and raw-log hashes are in
+`.ημ/review-evidence/current-outdated-withdrawal-20261016/outdated-location-green-20261016.json`.
+Independent read-only source audit found no confirmed gap; that audit and local
+checks supply no native full review, approval, merge, installation or PR37
+settlement. A distinct human-included one-point Codex receipt-format plan may
+share PR38; it does not expand this two-point task or reuse this planning exit.
+Final code review and all protected gates must qualify the complete implemented
+head before authorized MERGE and supported adoption.

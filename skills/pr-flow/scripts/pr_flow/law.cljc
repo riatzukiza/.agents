@@ -446,7 +446,9 @@
         evidence-comments (thread-evidence-comments input)]
     (when (and (valid-head? head) (= head (:headRefOid pr)) (= "OPEN" (:state pr))
                (= id (:id thread)) (= root-comment-id (:databaseId root))
-               (true? resolved?) (true? (:isResolved thread)) (false? outdated?) (false? (:isOutdated thread))
+               (true? resolved?) (true? (:isResolved thread))
+               ;; Location age is provenance; current resolved custody is required.
+               (boolean? outdated?) (= outdated? (:isOutdated thread))
                (vector? nodes) (seq nodes) (false? (get-in thread [:comments :pageInfo :hasNextPage]))
                (= (count nodes) (get-in thread [:comments :totalCount]) (count comments)
                   (count (set (map :databaseId nodes))))

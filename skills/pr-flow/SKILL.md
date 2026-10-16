@@ -171,7 +171,11 @@ An authenticated finding opener's explicit withdrawal is a separate bounded
 disposition, described in [review settlement](../pr-review-settlement/SKILL.md).
 Original severity and native history remain finding evidence. The original
 review's known immutable commit may be older than the current head; the new
-withdrawal and writer reviews must bind the current head. A resolved thread
+withdrawal and writer reviews must bind the current head. Both normalized and
+native resolution flags must be true. Their location flags must be known
+booleans that agree: either both false or both true. An outdated location keeps
+its provenance; unknown or discordant flags and unresolved custody still block.
+A resolved thread
 still needs an authorized writer's current-head, root-bound `Handled:` reply
 referencing that native withdrawal; this supplies no independent rejection,
 approval, coverage or completed round. Author objections and CodeRabbit assent
