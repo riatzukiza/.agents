@@ -180,6 +180,36 @@
         (is (true? (law/codex-positive-body? text)) label)
         (is (= :incomplete-review (law/incomplete-review-reason text)) label)))))
 
+(deftest adjacent-quote-and-complete-fence-preserve-positive-scope
+  ;; Synthetic adjacent blocks retain their actual LF/CRLF boundary. Neither
+  ;; example-only prose nor a fenced admission is the live reviewer's verdict.
+  (let [wrapped (:body native-codex-receipt-v1)]
+    (doseq [[kind body] [["legacy" (subs wrapped (count codex-receipt-v1-envelope))]
+                        ["wrapped" wrapped]]
+            newline ["\n" "\r\n"]
+            example ["example text" "Review is incomplete."]]
+      (let [text (str body "\n\n> quoted context" newline
+                      "```text" newline example newline "```")
+            label (str "synthetic " kind "/" (pr-str newline) "/" example)]
+        (is (true? (law/codex-positive-body? text)) label)
+        (is (nil? (law/incomplete-review-reason text)) label)))))
+
+(deftest adjacent-quote-fence-keeps-live-admission-and-ambiguity-distinct
+  (let [wrapped (:body native-codex-receipt-v1)]
+    (doseq [[kind body] [["legacy" (subs wrapped (count codex-receipt-v1-envelope))]
+                        ["wrapped" wrapped]]
+            newline ["\n" "\r\n"]]
+      (let [example (str body "\n\n> quoted context" newline
+                         "```text" newline "example text" newline)
+            live (str example "```" newline newline
+                      "Review <!-- unrelated inert note --> is incomplete.")
+            unterminated (str example "Review is incomplete.")
+            label (str "synthetic " kind "/" (pr-str newline))]
+        (is (true? (law/codex-positive-body? live)) label)
+        (is (= :incomplete-review (law/incomplete-review-reason live)) label)
+        (is (false? (law/codex-positive-body? unterminated)) label)
+        (is (= :ambiguous-prose (law/incomplete-review-reason unterminated)) label)))))
+
 (deftest codex-positive-lexical-boundary-refuses-nontext-input
   ;; Input-shape refusal stays local; the caller tests above own actual evidence.
   (doseq [body [nil false 42 {} []]]

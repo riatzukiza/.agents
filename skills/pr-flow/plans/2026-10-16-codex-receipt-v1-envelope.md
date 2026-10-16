@@ -240,3 +240,21 @@ exactly in protected custody and immutable d723 history, with current-tree
 hash-only availability references. Necessary identities and public native
 Codex fixture remain. This is not a claim of historical erasure or secret-free
 certification. No source/P1 change precedes this committed RED.
+
+
+## Current documentary availability - 2026-10-16 UTC
+
+Six full Rheos board-export copies are no longer distributed in the current
+tree. Exact originals and the prior three derived custody documents remain
+retained privately and in immutable d72324a2d00af5813195d99dc74bdf4c74623d48
+history. The hash-only retained-board-originals-20261016.json manifest names
+byte/hash/Git bindings and current availability. The duplicated6878B native
+readback is represented by its retained-original reference. These are derived
+custody references, not raw current board validation, approval or a claim that
+published history was erased. Historical receipt/reflection/event rows remain.
+
+Necessary UUID/native write/review/event/accounting metadata and the public
+4206B native Codex review fixture remain unchanged. Original planning, status
+and execution observations retain their dates; this curation changes no actual
+board state, estimate, acceptance gate or run result. Authorized independent
+inspection of full originals still requires their protected source access.

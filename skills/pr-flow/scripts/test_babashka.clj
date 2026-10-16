@@ -73,6 +73,18 @@
                 "> <!--\n\nReview <!-- unrelated inert note --> is incomplete.\n-->"]]
     (is (= :incomplete-review (law/incomplete-review-reason body)) body)))
 
+(deftest adjacent-quote-fence-boundaries-are-portable
+  (doseq [newline ["\n" "\r\n"]]
+    (let [prefix (str "Codex Review: Didn't find any major issues.\n\n> quoted context" newline
+                      "```text" newline)
+          complete (str prefix "Review is incomplete." newline "```")
+          live (str prefix "example text" newline "```" newline newline
+                    "Review <!-- unrelated inert note --> is incomplete.")
+          unterminated (str prefix "Review is incomplete.")]
+      (is (nil? (law/incomplete-review-reason complete)) (pr-str newline))
+      (is (= :incomplete-review (law/incomplete-review-reason live)) (pr-str newline))
+      (is (= :ambiguous-prose (law/incomplete-review-reason unterminated)) (pr-str newline)))))
+
 (let [{:keys [fail error]} (run-tests 'test-babashka)]
   (when (pos? (+ fail error))
     (System/exit 1)))

@@ -14,27 +14,62 @@
     {
       "path": "actual-parent-epic-inclusion-read.json",
       "bytes": 14833,
-      "sha256": "f6999bed8bb53d35a7b0ee27454353e4819ad0f2eaedb8f00fcb6af1fa618679"
+      "sha256": "f6999bed8bb53d35a7b0ee27454353e4819ad0f2eaedb8f00fcb6af1fa618679",
+      "availability": {
+        "currentTree": "full-board-export-not-included",
+        "originalAvailability": "protected retained original and unchanged historical Git source",
+        "sourceCommit": "d72324a2d00af5813195d99dc74bdf4c74623d48",
+        "retentionManifest": ".\u03b7\u03bc/review-evidence/codex-receipt-v1-20261016/retained-board-originals-20261016.json",
+        "claimBoundary": "Reference only; not raw current evidence, board validation/admission, approval or historical erasure."
+      }
     },
     {
       "path": "actual-initial-incoming-primary-read.json",
       "bytes": 6655,
-      "sha256": "f76f2b9ca2afa596ebc5865d1d05d7e835637a4fff9b86a38d80746e2c2910fe"
+      "sha256": "f76f2b9ca2afa596ebc5865d1d05d7e835637a4fff9b86a38d80746e2c2910fe",
+      "availability": {
+        "currentTree": "full-board-export-not-included",
+        "originalAvailability": "protected retained original and unchanged historical Git source",
+        "sourceCommit": "d72324a2d00af5813195d99dc74bdf4c74623d48",
+        "retentionManifest": ".\u03b7\u03bc/review-evidence/codex-receipt-v1-20261016/retained-board-originals-20261016.json",
+        "claimBoundary": "Reference only; not raw current evidence, board validation/admission, approval or historical erasure."
+      }
     },
     {
       "path": "actual-parent-direct-children-query.json",
       "bytes": 77787,
-      "sha256": "a908fe0fd96d679f9581c6cf93d1f67416ac68f198f68a6ab6ab8a88a14cc6f8"
+      "sha256": "a908fe0fd96d679f9581c6cf93d1f67416ac68f198f68a6ab6ab8a88a14cc6f8",
+      "availability": {
+        "currentTree": "full-board-export-not-included",
+        "originalAvailability": "protected retained original and unchanged historical Git source",
+        "sourceCommit": "d72324a2d00af5813195d99dc74bdf4c74623d48",
+        "retentionManifest": ".\u03b7\u03bc/review-evidence/codex-receipt-v1-20261016/retained-board-originals-20261016.json",
+        "claimBoundary": "Reference only; not raw current evidence, board validation/admission, approval or historical erasure."
+      }
     },
     {
       "path": "actual-primary-parent-inventory-refinement-read.json",
       "bytes": 10455,
-      "sha256": "c44aba8ea0414909ddfc602f9745f0a8718be6d80c67deca420eaf73fcd95d9a"
+      "sha256": "c44aba8ea0414909ddfc602f9745f0a8718be6d80c67deca420eaf73fcd95d9a",
+      "availability": {
+        "currentTree": "full-board-export-not-included",
+        "originalAvailability": "protected retained original and unchanged historical Git source",
+        "sourceCommit": "d72324a2d00af5813195d99dc74bdf4c74623d48",
+        "retentionManifest": ".\u03b7\u03bc/review-evidence/codex-receipt-v1-20261016/retained-board-originals-20261016.json",
+        "claimBoundary": "Reference only; not raw current evidence, board validation/admission, approval or historical erasure."
+      }
     },
     {
       "path": "actual-primary-readiness-reference-correction-read.json",
       "bytes": 11459,
-      "sha256": "432f45b8fc812e0fff7035d47814768f5470900967dae4f1c0253f8275a7d852"
+      "sha256": "432f45b8fc812e0fff7035d47814768f5470900967dae4f1c0253f8275a7d852",
+      "availability": {
+        "currentTree": "full-board-export-not-included",
+        "originalAvailability": "protected retained original and unchanged historical Git source",
+        "sourceCommit": "d72324a2d00af5813195d99dc74bdf4c74623d48",
+        "retentionManifest": ".\u03b7\u03bc/review-evidence/codex-receipt-v1-20261016/retained-board-originals-20261016.json",
+        "claimBoundary": "Reference only; not raw current evidence, board validation/admission, approval or historical erasure."
+      }
     }
   ],
   "parentProposedSameScopePoints": 41,
@@ -49,5 +84,13 @@
     "nativeEventId": "kanban-6c789296-a573-47ae-9d46-3f30a9f359ae-f44ceebd-521d-44bb-80cb-d7ddb7a70d64",
     "retainedIncomingPoints": "2",
     "parentPointsOrReadyChanged": false
+  },
+  "currentProjection": {
+    "kind": "derived documentary minimization",
+    "observedAt": "2026-10-16T08:29:52.201056+00:00",
+    "originalSourceCommit": "d72324a2d00af5813195d99dc74bdf4c74623d48",
+    "originalDocumentSHA256": "31c2db2302ab3f76643fc1aae48ee5b13769496209a7472b41ee887bc0ac9c03",
+    "retentionManifest": ".\u03b7\u03bc/review-evidence/codex-receipt-v1-20261016/retained-board-originals-20261016.json",
+    "meaning": "Preserved original facts/identities/results with explicit current availability; full originals retained, no synthetic raw provider or board evidence."
   }
 }

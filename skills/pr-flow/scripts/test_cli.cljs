@@ -456,7 +456,9 @@
 (deftest codex-paragraph-headings-and-generated-fragments-keep-the-gate-eligible
   (doseq [envelope ["" codex-receipt-v1-envelope]
           suffix ["Review\n\nRate limited requests are retried with backoff."
-                  "Review <details><summary>🧩 Analysis chain</summary>example text</details> is incomplete."]]
+                  "Review <details><summary>🧩 Analysis chain</summary>example text</details> is incomplete."
+                  "> quoted context\n```text\nReview is incomplete.\n```"
+                  "> quoted context\r\n```text\r\nReview is incomplete.\r\n```"]]
     (let [comment (codex-cli-comment (str envelope codex-cli-positive-body "\n\n" suffix))
           result (execute (codex-cli-config comment) "status" "riatzukiza/.agents" "8")
           collected (collected-codex-comments result (:id comment))]
@@ -600,6 +602,28 @@
       (is (str/includes? (:out result) "gate: BLOCKED"))
       (is (str/includes? (:out result) "exact-head approvals: #{}"))
       (is (str/includes? (:out result) "incomplete review scope:"))
+      (is (seq (codex-commit-reads result)))
+      (is (seq collected))
+      (is (every? #(and (= (:body comment) (:body %)) (= head (:resolved-commit-id %))) collected))
+      (is (empty? (writes result "merge")))
+      (is (empty? (mutations result))))))
+
+(deftest live-admission-after-adjacent-quote-fence-keeps-exact-cli-refusal
+  (doseq [envelope ["" codex-receipt-v1-envelope]
+          newline ["\n" "\r\n"]]
+    (let [comment (codex-cli-comment
+                    (str envelope codex-cli-positive-body "\n\n> quoted context" newline
+                         "```text" newline "example text" newline "```" newline newline
+                         "Review <!-- unrelated inert note --> is incomplete."))
+          earlier (assoc approval :user {:login "chatgpt-codex-connector[bot]" :type "Bot"}
+                         :submitted_at "2026-10-03T00:59:00Z")
+          result (execute (assoc (codex-cli-config comment) :reviews [earlier])
+                          "gate" "riatzukiza/.agents" "8" "--apply")
+          collected (collected-codex-comments result (:id comment))]
+      (is (= 2 (:exit result)) (str (:out result) (:err result)))
+      (is (str/includes? (:out result) "gate: BLOCKED"))
+      (is (str/includes? (:out result) "exact-head approvals: #{}"))
+      (is (str/includes? (:out result) ":reason :incomplete-review"))
       (is (seq (codex-commit-reads result)))
       (is (seq collected))
       (is (every? #(and (= (:body comment) (:body %)) (= head (:resolved-commit-id %))) collected))

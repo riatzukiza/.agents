@@ -214,6 +214,42 @@
       (is (= 6206360170 (get-in evidence [:incomplete-evidence "codex" :id])) label)
       (is (empty? (law/completed-review-rounds [] [codex-receipt-v1-request later] identities)) label))))
 
+(deftest adjacent-quote-and-fenced-admission-do-not-revoke-or-lose-completion
+  (doseq [[kind body] codex-receipt-v1-bodies
+          newline ["\n" "\r\n"]]
+    (let [earlier (assoc (review "chatgpt-codex-connector[bot]" "APPROVED" codex-receipt-v1-head)
+                         :submitted_at "2026-10-16T02:01:00Z")
+          later (assoc native-codex-receipt-v1
+                       :body (str body "\n\n> quoted context" newline "```text" newline
+                                  "Review is incomplete." newline "```")
+                       :resolved-commit-id codex-receipt-v1-head
+                       :updated_at "2026-10-16T02:03:00Z")
+          evidence (law/review-evidence codex-receipt-v1-head [earlier] [later] identities)
+          rounds (law/completed-review-rounds [] [codex-receipt-v1-request later] identities)
+          label (str "synthetic " kind "/" (pr-str newline))]
+      (is (nil? (law/incomplete-review-reason (:body later))) label)
+      (is (= #{codex-receipt-v1-head} (get-in evidence [:approved-heads "codex"])) label)
+      (is (empty? (:incomplete-evidence evidence)) label)
+      (is (= 1 (law/stage-review-rounds rounds [] "code" #{"codex"})) label))))
+
+(deftest live-admission-after-adjacent-quote-fence-revokes-with-incomplete-reason
+  (doseq [[kind body] codex-receipt-v1-bodies
+          newline ["\n" "\r\n"]]
+    (let [earlier (assoc (review "chatgpt-codex-connector[bot]" "APPROVED" codex-receipt-v1-head)
+                         :submitted_at "2026-10-16T02:01:00Z")
+          later (assoc native-codex-receipt-v1
+                       :body (str body "\n\n> quoted context" newline "```text" newline
+                                  "example text" newline "```" newline newline
+                                  "Review <!-- unrelated inert note --> is incomplete.")
+                       :resolved-commit-id codex-receipt-v1-head
+                       :updated_at "2026-10-16T02:03:00Z")
+          evidence (law/review-evidence codex-receipt-v1-head [earlier] [later] identities)
+          label (str "synthetic " kind "/" (pr-str newline))]
+      (is (= :incomplete-review (law/incomplete-review-reason (:body later))) label)
+      (is (empty? (:approved-heads evidence)) label)
+      (is (= 6206360170 (get-in evidence [:incomplete-evidence "codex" :id])) label)
+      (is (empty? (law/completed-review-rounds [] [codex-receipt-v1-request later] identities)) label))))
+
 (def native-kimi
   (js->clj (js/JSON.parse (fs/readFileSync
                           (path/join (path/dirname *file*) "fixtures/native-proxx-kimi-publication.json") "utf8"))

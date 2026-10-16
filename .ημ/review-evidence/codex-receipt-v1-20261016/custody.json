@@ -107,7 +107,14 @@
   "rawFiles": {
     "native-incoming-card-read.json": {
       "bytes": 6145,
-      "sha256": "27099cac3b92be8354658f513cf9103c47b4c26112f88acaa97cd22926737491"
+      "sha256": "27099cac3b92be8354658f513cf9103c47b4c26112f88acaa97cd22926737491",
+      "availability": {
+        "currentTree": "full-board-export-not-included",
+        "originalAvailability": "protected retained original and unchanged historical Git source",
+        "sourceCommit": "d72324a2d00af5813195d99dc74bdf4c74623d48",
+        "retentionManifest": ".\u03b7\u03bc/review-evidence/codex-receipt-v1-20261016/retained-board-originals-20261016.json",
+        "claimBoundary": "Reference only; not raw current evidence, board validation/admission, approval or historical erasure."
+      }
     },
     "native-codex-passing-6206360170.json": {
       "bytes": 4206,
@@ -119,5 +126,13 @@
   "rawNativeCodexJSONIsUnchanged": true,
   "initialDefaultSlugCorrection": "Original default slug draft remains Incoming, detached by native writer and explicitly superseded; direct rejected transition was refused exit3. No identity/history rewrite or forced transition. This UUID card is sole added parent child.",
   "implementationApplied": false,
-  "noApprovalOrReadyOrEstimateWrite": true
+  "noApprovalOrReadyOrEstimateWrite": true,
+  "currentProjection": {
+    "kind": "derived documentary minimization",
+    "observedAt": "2026-10-16T08:29:52.201077+00:00",
+    "originalSourceCommit": "d72324a2d00af5813195d99dc74bdf4c74623d48",
+    "originalDocumentSHA256": "8a57fac86effc22071f1a7429d14b390d7cb1dfecb558bcae8c6f168ca4ce6f3",
+    "retentionManifest": ".\u03b7\u03bc/review-evidence/codex-receipt-v1-20261016/retained-board-originals-20261016.json",
+    "meaning": "Preserved original facts/identities/results with explicit current availability; full originals retained, no synthetic raw provider or board evidence."
+  }
 }

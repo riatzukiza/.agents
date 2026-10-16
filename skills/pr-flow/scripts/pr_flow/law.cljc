@@ -1033,6 +1033,20 @@
    (re-find #"(?m)^[ ]{0,3}<details>[ \t]*(?:\r\n|\r|\n)[ \t]*<summary><strong>🚧 Files skipped from review as they are similar to previous changes \([1-9][0-9]*\)</strong></summary>[ \t]*(?:\r?$)"
             (native-scope-prose body))))
 
+(defn- incomplete-phrase-prose [body]
+  ;; Use reviewer-prose's exclusions and order, retaining block barriers so
+  ;; removal cannot assemble a phrase. Generic inline comments remain inert.
+  (some-> (str body)
+          (retain-excluded-regions #"(?s)<!-- This is an auto-generated comment: tweet message by coderabbit\.ai -->.*?<!-- end of auto-generated comment: tweet message by coderabbit\.ai -->")
+          (retain-excluded-regions #"(?s)<details>\s*<summary>(?:🧩 Analysis chain|✏️ Learnings added)</summary>.*?</details>")
+          (retain-excluded-regions #"<blockquote>[\s\S]*?</blockquote>")
+          (retain-excluded-regions #"(?m)^[ \t]*>[^\n]*(?:\n|$)")
+          (#(when (verdict-prose %) %))
+          (retain-excluded-regions #"(?ms)^[ \t]*(`{3,}|~{3,})[^\n]*\n.*?^[ \t]*\1[ \t]*$")
+          (str/replace #"<!--[\s\S]*?-->" "")
+          (remove-matches #"(?m)^_You are interacting with an AI system\._[ \t]*$|^[ \t]*---[ \t]*$")
+          (str/replace #"\[([^\]]*)\]\([^\s)]*\)" "$1")))
+
 (defn incomplete-review-reason
   "Commit binding is distinct from completed review scope. Reject an actual
    admission of unfinished/omitted input, including formal approvals. Quotes
@@ -1040,13 +1054,16 @@
    not disqualify a reviewer who retrieved and reviewed the omitted input."
   [body]
   (let [prose (reviewer-prose body)
+        phrase-prose (incomplete-phrase-prose body)
         ;; A guard against incomplete review submissions describes an artifact,
         ;; not the reviewer's scope. Keep every other admission in the section.
-        scope-prose (when prose
-                      (remove-matches prose #"(?i)\b(?:prevent(?:s|ed|ing)?|reject(?:s|ed|ing)?|block(?:s|ed|ing)?)\s+(?:altered\s+or\s+)?(?:partial|incomplete)\s+review\s+submissions?\b"))]
+        paragraphs (when phrase-prose
+                     (map #(remove-matches % #"(?i)\b(?:prevent(?:s|ed|ing)?|reject(?:s|ed|ing)?|block(?:s|ed|ing)?)\s+(?:altered\s+or\s+)?(?:partial|incomplete)\s+review\s+submissions?\b")
+                          (str/split phrase-prose #"(?:\r?\n|\r(?!\n))[ \t]*(?:\r?\n|\r(?!\n))")))]
     (cond
-      (nil? prose) :ambiguous-prose
-      (re-find #"(?i)\breview\s+(?:is\s+|was\s+|remains\s+)?(?:incomplete|rate\s+limited)\b|\b(?:partial|incomplete)\s+review\b|\b(?:unable\s+to|could\s+not|couldn't|cannot|can't)\s+complete\s+(?:the\s+)?review\b" scope-prose)
+      (or (nil? prose) (nil? phrase-prose)) :ambiguous-prose
+      (some #(re-find #"(?i)\breview\s+(?:is\s+|was\s+|remains\s+)?(?:incomplete|rate\s+limited)\b|\b(?:partial|incomplete)\s+review\b|\b(?:unable\s+to|could\s+not|couldn't|cannot|can't)\s+complete\s+(?:the\s+)?review\b" %)
+            paragraphs)
       :incomplete-review
       (or (native-skipped-review-input? body)
           (re-find #"(?im)(?:^|[.;]\s*)(?:some |the |these )?unreviewed (?:files|changes|input) (?:still )?remain\b" prose)
