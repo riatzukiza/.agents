@@ -281,3 +281,22 @@ byte-identical before/after and unchanged tracked Git status. No native churn
 was observed in that capture. The configured inventory was one project with
 82 cards, not a union of all owning source boards. No board write, transition,
 comment, estimate update, approval, merge or adoption resulted from these reads.
+
+
+### Native readiness reference correction — 2026-10-16
+
+CodeRabbit review5541826987/root4289889280 correctly distinguishes the native
+primary's numbering from this source plan. In the native card, **AC1** owns
+parent reconciliation and **AC2** owns causal RED. This plan's **AC2** parent
+proposal reference above remains correct and unchanged.
+
+Qualified Rheos comment write1792113618190-0.jimjz55chdhzxmwugwj and actual event
+kanban-6c789296-a573-47ae-9d46-3f30a9f359ae-f44ceebd-521d-44bb-80cb-d7ddb7a70d64
+provide the operative native correction. Rheos exposes comments for subsequent
+card updates, so the original primary body and all four retained raw snapshots
+remain historical bytes. The new actual readback
+`actual-primary-readiness-reference-correction-read.json` includes that correction:
+11,459bytes, SHA256432f45b8fc812e0fff7035d47814768f5470900967dae4f1c0253f8275a7d852.
+The native primary stays Incoming2; parent41 is still proposed and unapplied.
+No parent point write, Ready transition, source predicate implementation or
+adoption follows from a corrective comment.

@@ -30,8 +30,24 @@
       "path": "actual-primary-parent-inventory-refinement-read.json",
       "bytes": 10455,
       "sha256": "c44aba8ea0414909ddfc602f9745f0a8718be6d80c67deca420eaf73fcd95d9a"
+    },
+    {
+      "path": "actual-primary-readiness-reference-correction-read.json",
+      "bytes": 11459,
+      "sha256": "432f45b8fc812e0fff7035d47814768f5470900967dae4f1c0253f8275a7d852"
     }
   ],
   "parentProposedSameScopePoints": 41,
-  "parentProposedInventory": "Ten distinct direct children from owningRheos, not full cross-owner execution cost; independent review/native application pending"
+  "parentProposedInventory": "Ten distinct direct children from owningRheos, not full cross-owner execution cost; independent review/native application pending",
+  "readinessReferenceCorrection": {
+    "nativePrimary": "6c789296-a573-47ae-9d46-3f30a9f359ae",
+    "nativeCardParentReconciliation": "AC1",
+    "nativeCardCausalRed": "AC2",
+    "sourcePlanParentReconciliation": "AC2 remains unchanged",
+    "method": "qualified Rheos operative correction comment; original text/raw snapshots preserved",
+    "nativeWriteId": "1792113618190-0.jimjz55chdhzxmwugwj",
+    "nativeEventId": "kanban-6c789296-a573-47ae-9d46-3f30a9f359ae-f44ceebd-521d-44bb-80cb-d7ddb7a70d64",
+    "retainedIncomingPoints": "2",
+    "parentPointsOrReadyChanged": false
+  }
 }
