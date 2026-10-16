@@ -1,0 +1,25 @@
+{
+  "kind": "actual qualified CLI output custody, not native provider approval",
+  "humanAuthorization": "call_d8c6b1f77776480da59c8d108d3c43ec",
+  "initialPrimary": "6c789296-a573-47ae-9d46-3f30a9f359ae",
+  "parent": "63a0e4ff-353f-4c90-ab8a-7241d958d54c",
+  "parentObservedIncomingPoints": 39,
+  "parentReconciliationPending": true,
+  "rheosArtifactSha256": "85369213440634989365f75929045d36eb69b6c6b1e7679f68d483374a0d526b",
+  "runtimeNode": "22.20.0",
+  "configuredBoardOwner": "Foresight managed coordinator openhax.kanban.edn",
+  "patchApplied": false,
+  "ready": false,
+  "files": [
+    {
+      "path": "actual-parent-epic-inclusion-read.json",
+      "bytes": 14833,
+      "sha256": "f6999bed8bb53d35a7b0ee27454353e4819ad0f2eaedb8f00fcb6af1fa618679"
+    },
+    {
+      "path": "actual-initial-incoming-primary-read.json",
+      "bytes": 6655,
+      "sha256": "f76f2b9ca2afa596ebc5865d1d05d7e835637a4fff9b86a38d80746e2c2910fe"
+    }
+  ]
+}

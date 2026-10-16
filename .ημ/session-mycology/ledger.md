@@ -744,3 +744,13 @@
   spore: none
   receipt-refs: initial receipts.edn#d5680635-a4ef-4fe1-b629-c11f5a9f0e2a; sourceGREENc8e76afd31c440ecddce1d5df456f63142d29c74
   note: Preserve exact source hashes while resolving execution-budget uncertainty with the actual full owning CLI terminal result. The120s/600s timeouts were limits, not algorithm defects or pass credit; the unchanged99-test CLI completed in808.84s under pinnedNode22/NBB. Commit testRED, three-file policyGREEN, and append-only provenance separately. Exact repository enrollment cannot supply a transport grant, native assessment, rejection agreement or adoption. Keep live canonical checkout untouched; publish reviewable source only. Candidate0, no spore.
+
+- ts: 2026-10-16T00:04:17.541Z
+  session: /home/err/spaces/cephalon-outdated-withdrawal/.agents
+  task: cephalon-character-memory/finite-loop/B1-B2-B3
+  p-efficiency: 0.8
+  p-friction: 0.2
+  p-skill-candidate: 0.1
+  spore: none
+  receipt-refs: cephalon-outdated-location-withdrawal-planning-included-20261016
+  note: Human included only concordant known outdated-location flags within fresh exact-current-head opener withdrawal and later authorized User settlement. Pure predicate/tests/skill-contract scope2; collector, identities, checks and approval policy unchanged. Both old blanket-outdated negative matrices must be intentionally qualified after native Ready; original patch remains unapplied. Parent inventory and actual reviewed total must be reconciled through Rheos before Ready, no blind39+2 arithmetic. Protected review/MERGE/adoption then NEW actual final-head PR37 withdrawal/Handled required; no44 evidence transfer. GoalACTIVE/live0of3/heartbeat humanPAUSED; no runtime/credentials/paid/provider/deployment/social/spore change.
