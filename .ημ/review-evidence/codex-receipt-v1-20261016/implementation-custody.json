@@ -335,7 +335,7 @@
       },
       "notYet": "Protected final code-stage reviews/checks, authorized exact-head MERGE and qualified operational adoption remain required. The earlier default24 timeout is retained separately; this required local run explicitly uses existing Node22.23.3 and the owning hosted Node22 suite remains required. No current native credit or live B1/B2/B3 proof.",
       "earlierDefaultNodeAttempt": {
-        "description": "Actual local full registered GREEN gate output; not native approval or operational adoption",
+        "description": "Actual local full registered gate output from the failed Node24 attempt (cli exit 1); not GREEN, native approval or operational adoption",
         "before": {
           "skills/pr-flow/scripts/pr_flow/law.cljc": "e5d5ef9aaca28abf57330cceef8f957c3f1700868f0056e03a51870c9a4e5f54",
           "skills/pr-flow/scripts/pr.cljs": "9d117ccbda7392144006bd3ff59770b75078281bfac0927f64fbdd9af607d3b1",

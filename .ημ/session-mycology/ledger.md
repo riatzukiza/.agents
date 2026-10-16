@@ -824,3 +824,13 @@
   spore: none
   receipt-refs: cephalon-codex-receipt-v1-scoped-local-green-20261016
   note: Exactsharedhelper recognizes onlyliterallegacy oroneobservedleadingmarker+LFLF; rawbody/identity/onecommit/nativefullSHA/head/scope/revocation/cohort/check/settlement/merge gates preserved. Latermarker text is notveto; markedincomplete verdict stillrevokes. Preservewithdrawal2/originalsnapshots. Localpreparationonly: finalcode reviews/requiredchecks/authorizedMERGE/qualifiedadoption stillrequired, no syntheticnativeapproval. ExistingNode22.23.3 selected onlyforthisprocess; earlierdefault24 fixturetimeout fullyretained, no source/assertion/timeout/runtimeinstallation/globalchange. No provider/credential/paid/deployment/social/heartbeat change; live0of3/heartbeat humanPAUSED.
+
+- ts: 2026-10-16T06:14:09.724Z
+  session: /home/err/spaces/cephalon-outdated-withdrawal/.agents
+  task: cephalon-character-memory/B1-B3/canonical-codex-format1
+  p-efficiency: 0.8
+  p-friction: 0.2
+  p-skill-candidate: 0.1
+  spore: none
+  receipt-refs: cephalon-pr38-failed-node24-attempt-description-correction-20261016
+  note: ApplyexactCodeRabbitsuggestion: earlierDefaultNodeAttempt namesfailedNode24/cli exit1/notGREEN, replacingincorrectGREENannotation. Failure/all_exits_zero:false/NoGREENcredit andallactualsource/hash/outputprovenance remainunchanged. Originalwrongannotation retainedin5aGit/privateproof; thisnewreceipt recordsitscorrection instead ofeditinganypastreceipt/event. Initialauthoritativevalidationrefusedunsupported:correctionkind beforeanyappend; actualcorrective observationusesexisting:observationkind withoutvalidatorchange. Sameexistingformat1 implementation/no newprerequisite/point/policywaiver. No currentapproval/MERGE/installation/liveBproof. GoalACTIVE/live0of3/heartbeatHUMAN-PAUSED; no runtime, credential, provider, paid, deployment, social or spore mutation.
