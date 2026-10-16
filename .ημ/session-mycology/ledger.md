@@ -814,3 +814,13 @@
   spore: none
   receipt-refs: cephalon-codex-receipt-v1-qualified-causal-red-20261016
   note: Actualplanning/nativeReady permits this registeredcausalRED. ExistingmarkerLF-LF body misses the old rawprefilter and anchoredissueverdict/completion; markedincomplete laterreceipts failtorevokeearlierapproval. NewtestskeepactualrawJSONunchanged, syntheticmutations explicit, andevery existingassertion/control. CLIcopied-source spy observesactualhydratedcomments whileforwardingtheexactsamevalues to reallaw. Productionhelper andthreecallsites remainunapplied untilthislocalREDcommit. No newharness/namespace/runnerfilter, syntheticnativeapproval, waiver, paid/model/credential/provider/runtime/deployment/social/heartbeat change; heartbeat humanPAUSED/live0of3.
+
+- ts: 2026-10-16T04:51:09.307Z
+  session: /home/err/spaces/cephalon-outdated-withdrawal/.agents
+  task: cephalon-character-memory/B1-B3/canonical-review-format
+  p-efficiency: 0.8
+  p-friction: 0.2
+  p-skill-candidate: 0.1
+  spore: none
+  receipt-refs: cephalon-codex-receipt-v1-scoped-local-green-20261016
+  note: Exactsharedhelper recognizes onlyliterallegacy oroneobservedleadingmarker+LFLF; rawbody/identity/onecommit/nativefullSHA/head/scope/revocation/cohort/check/settlement/merge gates preserved. Latermarker text is notveto; markedincomplete verdict stillrevokes. Preservewithdrawal2/originalsnapshots. Localpreparationonly: finalcode reviews/requiredchecks/authorizedMERGE/qualifiedadoption stillrequired, no syntheticnativeapproval. ExistingNode22.23.3 selected onlyforthisprocess; earlierdefault24 fixturetimeout fullyretained, no source/assertion/timeout/runtimeinstallation/globalchange. No provider/credential/paid/deployment/social/heartbeat change; live0of3/heartbeat humanPAUSED.

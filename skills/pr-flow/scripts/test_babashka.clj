@@ -32,6 +32,16 @@
              (select-keys (actionability/disposition {:issue-comments [comment]})
                           [:kind :status :observations]))))))
 
+(deftest codex-positive-envelope-is-portable
+  (let [legacy "Codex Review: Didn't find any major issues."
+        envelope "<!-- codex-review-receipt:v1 -->\n\n"]
+    (is (true? (law/codex-positive-body? legacy)))
+    (is (true? (law/codex-positive-body? (str envelope legacy))))
+    (is (false? (law/codex-positive-body? (str envelope envelope legacy))))
+    (is (false? (law/codex-positive-body? (str " " legacy))))
+    (is (false? (law/codex-positive-body? nil)))
+    (is (true? (law/codex-positive-body? (str envelope legacy "\n\n> " envelope))))))
+
 (let [{:keys [fail error]} (run-tests 'test-babashka)]
   (when (pos? (+ fail error))
     (System/exit 1)))

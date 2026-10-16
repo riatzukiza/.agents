@@ -111,6 +111,22 @@
           (remove-matches #"(?m)^_You are interacting with an AI system\._[ \t]*$|^[ \t]*---[ \t]*$")
           (str/replace #"\[([^\]]*)\]\([^\s)]*\)" "$1")))
 
+(defn codex-positive-body?
+  "Recognize only the native positive prefix, legacy or receipt-v1 wrapped.
+   This lexical predicate supplies no identity, commit, scope or gate proof."
+  [body]
+  (let [envelope "<!-- codex-review-receipt:v1 -->\n\n"
+        prefix "Codex Review: Didn't find any major issues."
+        candidate (when (string? body)
+                    (if (str/starts-with? body envelope)
+                      (subs body (count envelope))
+                      body))]
+    (boolean
+     (and candidate
+          ;; No trim, multiline search or generic HTML-comment normalization.
+          (str/starts-with? candidate prefix)
+          (str/starts-with? (or (reviewer-prose candidate) "") prefix)))))
+
 (defn- confirmed? [body]
   (let [prose (reviewer-prose body)]
     (boolean
@@ -1115,7 +1131,7 @@
                                                    recent (str/includes? recent head)
                                                    (re-find #"(?m)^No actionable comments were generated in the recent review\." (or (reviewer-prose recent) "")))
                                  "codex" (and (= head (:resolved-commit-id c))
-                                              (re-find #"^Codex Review: Didn't find any major issues\." (or (reviewer-prose body) "")))
+                                              (codex-positive-body? body))
                                  false)]
                   (when (and (valid-head? head) passing?
                              ;; Incomplete native verdicts still revoke prior
@@ -1234,7 +1250,7 @@
                                      (cond-> completed (= 1 (count coverage)) (assoc :commit_id (first coverage)))))
                                  "codex"
                                  (when (and (valid-head? (:resolved-commit-id c))
-                                            (re-find #"^Codex Review: Didn't find any major issues\." (or (reviewer-prose (:body c)) "")))
+                                            (codex-positive-body? (:body c)))
                                    (assoc completed :commit_id (:resolved-commit-id c)))
                                  nil))) comments)
         rounds (keep (fn [r]

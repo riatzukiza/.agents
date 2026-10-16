@@ -94,6 +94,442 @@
         "nativeDynamicIncludedRate": "Last native footer0remaining/1reviewperhour; next fullafter04:21:33 onlywithfreshpending/cooldown evidence"
       },
       "noApprovalMergeAdoptionOrLiveProofCredit": true
+    },
+    {
+      "record": 2,
+      "phase": "local-green",
+      "kind": "observed-command-output-transcription-and-independent-read-only-audit",
+      "observedAt": "2026-10-16T04:51:09.112458+00:00",
+      "causalRedCommit": "05e5673f962436bce278481240b964ce894c300c",
+      "approvedCandidateSHA256": "f27755844a96e2a660c5a18ec452623a4c1d98371e0600c83d8613cd3f2aab73",
+      "implementation": "Exact approved shared lexical helper plus CLI hydration and issue verdict/completion sites; format-only SKILL/CONTRACT0.3.6; preserved withdrawal2 and all authority/gate rules",
+      "registeredGreen": {
+        "law": {
+          "tests": 187,
+          "assertions": 4941,
+          "failures": 0,
+          "errors": 0
+        },
+        "policy": {
+          "tests": 65,
+          "assertions": 1668,
+          "failures": 0,
+          "errors": 0
+        },
+        "cli": {
+          "tests": 105,
+          "assertions": 3002,
+          "failures": 0,
+          "errors": 0
+        },
+        "portable": {
+          "tests": 3,
+          "assertions": 13,
+          "failures": 0,
+          "errors": 0
+        }
+      },
+      "actualGates": [
+        {
+          "name": "law",
+          "command": [
+            "nbb",
+            "-cp",
+            "skills/pr-flow/scripts",
+            "skills/pr-flow/scripts/test_law.cljs"
+          ],
+          "started_at": "2026-10-16T04:32:40.616662+00:00",
+          "ended_at": "2026-10-16T04:32:47.749341+00:00",
+          "elapsed_seconds": 7.132713322993368,
+          "exit": 0,
+          "stdout": {
+            "bytes": 289,
+            "sha256": "282b24ec692b963d7bd3efc2e83e89e9a3a3587817437311821bae70e4862482"
+          },
+          "stderr": {
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        },
+        {
+          "name": "policy",
+          "command": [
+            "nbb",
+            "-cp",
+            "skills/pr-flow/scripts",
+            "skills/pr-flow/scripts/test_policy.cljs"
+          ],
+          "started_at": "2026-10-16T04:32:40.616948+00:00",
+          "ended_at": "2026-10-16T04:32:42.538344+00:00",
+          "elapsed_seconds": 1.9214184620068409,
+          "exit": 0,
+          "stdout": {
+            "bytes": 85,
+            "sha256": "7657cd69a84eebe5b3eb92bc1e14b9c6c552b5da816489b02c527a606ce06316"
+          },
+          "stderr": {
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        },
+        {
+          "name": "cli",
+          "command": [
+            "nbb",
+            "-cp",
+            "skills/pr-flow/scripts",
+            "skills/pr-flow/scripts/test_cli.cljs"
+          ],
+          "started_at": "2026-10-16T04:32:40.617433+00:00",
+          "ended_at": "2026-10-16T04:50:09.956687+00:00",
+          "elapsed_seconds": 1049.3401482410263,
+          "exit": 0,
+          "stdout": {
+            "bytes": 112,
+            "sha256": "d4a7d2e04c85073b53cd4d29b95f4b1255bd9710fc4516369bd571d4556b1f6a"
+          },
+          "stderr": {
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        },
+        {
+          "name": "portable",
+          "command": [
+            "bb",
+            "--classpath",
+            "skills/pr-flow/scripts",
+            "skills/pr-flow/scripts/test_babashka.clj"
+          ],
+          "started_at": "2026-10-16T04:32:40.618027+00:00",
+          "ended_at": "2026-10-16T04:32:40.833612+00:00",
+          "elapsed_seconds": 0.21561278798617423,
+          "exit": 0,
+          "stdout": {
+            "bytes": 84,
+            "sha256": "e71e23d24c8e2819af0e5d2e2fa57cb3086efda745a04a26bd39aa8757b5c012"
+          },
+          "stderr": {
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        },
+        {
+          "name": "flow",
+          "command": [
+            "nbb",
+            "-cp",
+            "skills/pr-flow/scripts",
+            "skills/pr-flow/scripts/pr.cljs",
+            "flow"
+          ],
+          "started_at": "2026-10-16T04:32:40.618324+00:00",
+          "ended_at": "2026-10-16T04:32:41.687410+00:00",
+          "elapsed_seconds": 1.0691090619657189,
+          "exit": 0,
+          "stdout": {
+            "bytes": 535,
+            "sha256": "04a787faf09292f4cc3882bc87c308717c05a7de5656103198113de64c88415e"
+          },
+          "stderr": {
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        },
+        {
+          "name": "contract",
+          "command": [
+            "nbb",
+            "-e",
+            "(require (quote [clojure.edn :as edn]) (quote [\"fs\" :as fs])) (let [c (edn/read-string (fs/readFileSync \"skills/pr-flow/CONTRACT.edn\" \"utf8\"))] (assert (= (quote skill-contract) (first c))) (assert (= \"ημ.skill/pr-flow@0.3.6\" (second (first (filter #(= (quote v) (first %)) (rest c)))))) (println \"contract parse/version PASS\"))"
+          ],
+          "started_at": "2026-10-16T04:32:40.619208+00:00",
+          "ended_at": "2026-10-16T04:32:40.834827+00:00",
+          "elapsed_seconds": 0.21563142602099106,
+          "exit": 0,
+          "stdout": {
+            "bytes": 28,
+            "sha256": "0395056e6c04aac3ed1d9247aa099eafceb13d029a726d7301c96cc66d5ad19e"
+          },
+          "stderr": {
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        },
+        {
+          "name": "lint",
+          "command": [
+            "clj-kondo",
+            "--lint",
+            "skills/pr-flow/scripts"
+          ],
+          "started_at": "2026-10-16T04:32:40.619489+00:00",
+          "ended_at": "2026-10-16T04:32:43.189935+00:00",
+          "elapsed_seconds": 2.5704694069572724,
+          "exit": 0,
+          "stdout": {
+            "bytes": 44,
+            "sha256": "eb7a2cfbc0ebec65f38e36a2d8ac05d1cfca3322aaae914262eeebd196112f8d"
+          },
+          "stderr": {
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        },
+        {
+          "name": "diff",
+          "command": [
+            "git",
+            "diff",
+            "--check"
+          ],
+          "started_at": "2026-10-16T04:32:40.619948+00:00",
+          "ended_at": "2026-10-16T04:32:40.636484+00:00",
+          "elapsed_seconds": 0.016555605980101973,
+          "exit": 0,
+          "stdout": {
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "stderr": {
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        }
+      ],
+      "sourceSHA256": {
+        "skills/pr-flow/scripts/pr_flow/law.cljc": "e5d5ef9aaca28abf57330cceef8f957c3f1700868f0056e03a51870c9a4e5f54",
+        "skills/pr-flow/scripts/pr.cljs": "9d117ccbda7392144006bd3ff59770b75078281bfac0927f64fbdd9af607d3b1",
+        "skills/pr-flow/scripts/test_law.cljs": "f25fe8491d7d779ce553a478a606aef6ec74c2ec500fadd559f4b66122661adf",
+        "skills/pr-flow/scripts/test_policy.cljs": "988f743979616bb2285a745cf43c7c9c0d1fb3813b19b784dec26646eacaf3b3",
+        "skills/pr-flow/scripts/test_cli.cljs": "dd034294359763a6f48c4ddbe0c7fee2556f447f0bd5fada59ebe8aa4b995f8d",
+        "skills/pr-flow/scripts/test_babashka.clj": "9e665f1113bc9f57e837234eaf19c35cc0a895f0ddaea1129ee8934cbd3e7fc3",
+        "skills/pr-flow/SKILL.md": "7b93edb94530d3615a314cc268768832ca8e76ddc533583e683673fbad5d4a6c",
+        "skills/pr-flow/CONTRACT.edn": "2f048c3aaf3f38191b1b6ac3c8162da9aba14ca507560b9bb09240f8b310e564",
+        ".ημ/review-evidence/codex-receipt-v1-20261016/native-codex-passing-6206360170.json": "b5e9927e862ff5c5d5d7dcbb662099e838755cefa9d3dfa1df1e9c96b7473eaf"
+      },
+      "allGateSourceBytesUnchanged": true,
+      "runtimeObservation": {
+        "observedAt": "2026-10-16T04:32:40.452988+00:00",
+        "versions": {
+          "node": "v22.23.3",
+          "nbb": "nbb v1.3.204",
+          "bb": "babashka v1.12.207"
+        },
+        "selection": "Existing Node22.23.3 prepended to this subprocess PATH only; run.py verifies actual NBB process version before starting",
+        "earlierLocalNode24Run": {
+          "directory": "/home/err/.local/share/codex/cephalon-review-artifacts/receipt-river-fixture-20261009/openplanner-context-consumer-20261014/continuation-20261014T2234/codex-format1-green-20261016T0419Z",
+          "terminalProofSHA256": "9e8c4df2b1f8e2b0f2916925eb68150860e3d1601b05f30cfe4aed6a1bad59a3",
+          "allExitsZero": false
+        },
+        "note": "Correct existing repository Node22 boundary after the earlier local default24 fullCLI hit an existing five-second fixture timeout. Retain its failure; no source/test/timeout/global-runtime change."
+      },
+      "audit": {
+        "privatePath": "/home/err/.local/share/codex/cephalon-review-artifacts/receipt-river-fixture-20261009/openplanner-context-consumer-20261014/continuation-20261014T2234/codex-format1-node22-green-20261016/audit-format1-20261016T041834Z.md",
+        "sha256": "4231672056cd583b0133132d1ab43bd96812f04035390587d73b04baa81d3234",
+        "result": "No confirmed source defect/scope drift; static inspection only, no native approval or execution credit"
+      },
+      "nativeFixtureUnchanged": {
+        "bytes": 4206,
+        "sha256": "b5e9927e862ff5c5d5d7dcbb662099e838755cefa9d3dfa1df1e9c96b7473eaf"
+      },
+      "notYet": "Protected final code-stage reviews/checks, authorized exact-head MERGE and qualified operational adoption remain required. The earlier default24 timeout is retained separately; this required local run explicitly uses existing Node22.23.3 and the owning hosted Node22 suite remains required. No current native credit or live B1/B2/B3 proof.",
+      "earlierDefaultNodeAttempt": {
+        "description": "Actual local full registered GREEN gate output; not native approval or operational adoption",
+        "before": {
+          "skills/pr-flow/scripts/pr_flow/law.cljc": "e5d5ef9aaca28abf57330cceef8f957c3f1700868f0056e03a51870c9a4e5f54",
+          "skills/pr-flow/scripts/pr.cljs": "9d117ccbda7392144006bd3ff59770b75078281bfac0927f64fbdd9af607d3b1",
+          "skills/pr-flow/scripts/test_law.cljs": "f25fe8491d7d779ce553a478a606aef6ec74c2ec500fadd559f4b66122661adf",
+          "skills/pr-flow/scripts/test_policy.cljs": "988f743979616bb2285a745cf43c7c9c0d1fb3813b19b784dec26646eacaf3b3",
+          "skills/pr-flow/scripts/test_cli.cljs": "dd034294359763a6f48c4ddbe0c7fee2556f447f0bd5fada59ebe8aa4b995f8d",
+          "skills/pr-flow/scripts/test_babashka.clj": "9e665f1113bc9f57e837234eaf19c35cc0a895f0ddaea1129ee8934cbd3e7fc3",
+          "skills/pr-flow/SKILL.md": "7b93edb94530d3615a314cc268768832ca8e76ddc533583e683673fbad5d4a6c",
+          "skills/pr-flow/CONTRACT.edn": "2f048c3aaf3f38191b1b6ac3c8162da9aba14ca507560b9bb09240f8b310e564",
+          ".ημ/review-evidence/codex-receipt-v1-20261016/native-codex-passing-6206360170.json": "b5e9927e862ff5c5d5d7dcbb662099e838755cefa9d3dfa1df1e9c96b7473eaf"
+        },
+        "after": {
+          "skills/pr-flow/scripts/pr_flow/law.cljc": "e5d5ef9aaca28abf57330cceef8f957c3f1700868f0056e03a51870c9a4e5f54",
+          "skills/pr-flow/scripts/pr.cljs": "9d117ccbda7392144006bd3ff59770b75078281bfac0927f64fbdd9af607d3b1",
+          "skills/pr-flow/scripts/test_law.cljs": "f25fe8491d7d779ce553a478a606aef6ec74c2ec500fadd559f4b66122661adf",
+          "skills/pr-flow/scripts/test_policy.cljs": "988f743979616bb2285a745cf43c7c9c0d1fb3813b19b784dec26646eacaf3b3",
+          "skills/pr-flow/scripts/test_cli.cljs": "dd034294359763a6f48c4ddbe0c7fee2556f447f0bd5fada59ebe8aa4b995f8d",
+          "skills/pr-flow/scripts/test_babashka.clj": "9e665f1113bc9f57e837234eaf19c35cc0a895f0ddaea1129ee8934cbd3e7fc3",
+          "skills/pr-flow/SKILL.md": "7b93edb94530d3615a314cc268768832ca8e76ddc533583e683673fbad5d4a6c",
+          "skills/pr-flow/CONTRACT.edn": "2f048c3aaf3f38191b1b6ac3c8162da9aba14ca507560b9bb09240f8b310e564",
+          ".ημ/review-evidence/codex-receipt-v1-20261016/native-codex-passing-6206360170.json": "b5e9927e862ff5c5d5d7dcbb662099e838755cefa9d3dfa1df1e9c96b7473eaf"
+        },
+        "source_unchanged": true,
+        "results": [
+          {
+            "name": "law",
+            "command": [
+              "nbb",
+              "-cp",
+              "skills/pr-flow/scripts",
+              "skills/pr-flow/scripts/test_law.cljs"
+            ],
+            "started_at": "2026-10-16T04:16:06.494092+00:00",
+            "ended_at": "2026-10-16T04:16:12.879670+00:00",
+            "elapsed_seconds": 6.385611801000778,
+            "exit": 0,
+            "stdout": {
+              "bytes": 289,
+              "sha256": "282b24ec692b963d7bd3efc2e83e89e9a3a3587817437311821bae70e4862482"
+            },
+            "stderr": {
+              "bytes": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            }
+          },
+          {
+            "name": "policy",
+            "command": [
+              "nbb",
+              "-cp",
+              "skills/pr-flow/scripts",
+              "skills/pr-flow/scripts/test_policy.cljs"
+            ],
+            "started_at": "2026-10-16T04:16:06.494316+00:00",
+            "ended_at": "2026-10-16T04:16:08.421033+00:00",
+            "elapsed_seconds": 1.9267412819899619,
+            "exit": 0,
+            "stdout": {
+              "bytes": 85,
+              "sha256": "7657cd69a84eebe5b3eb92bc1e14b9c6c552b5da816489b02c527a606ce06316"
+            },
+            "stderr": {
+              "bytes": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            }
+          },
+          {
+            "name": "cli",
+            "command": [
+              "nbb",
+              "-cp",
+              "skills/pr-flow/scripts",
+              "skills/pr-flow/scripts/test_cli.cljs"
+            ],
+            "started_at": "2026-10-16T04:16:06.494746+00:00",
+            "ended_at": "2026-10-16T04:32:38.434162+00:00",
+            "elapsed_seconds": 991.940388424031,
+            "exit": 1,
+            "stdout": {
+              "bytes": 588,
+              "sha256": "8bdf856440593ea1d6efdcda6e1293cb4d695e5a3841c2b4b9f1ea4d0a1f6587"
+            },
+            "stderr": {
+              "bytes": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            }
+          },
+          {
+            "name": "portable",
+            "command": [
+              "bb",
+              "--classpath",
+              "skills/pr-flow/scripts",
+              "skills/pr-flow/scripts/test_babashka.clj"
+            ],
+            "started_at": "2026-10-16T04:16:06.494953+00:00",
+            "ended_at": "2026-10-16T04:16:06.761055+00:00",
+            "elapsed_seconds": 0.2661257850122638,
+            "exit": 0,
+            "stdout": {
+              "bytes": 84,
+              "sha256": "e71e23d24c8e2819af0e5d2e2fa57cb3086efda745a04a26bd39aa8757b5c012"
+            },
+            "stderr": {
+              "bytes": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            }
+          },
+          {
+            "name": "flow",
+            "command": [
+              "nbb",
+              "-cp",
+              "skills/pr-flow/scripts",
+              "skills/pr-flow/scripts/pr.cljs",
+              "flow"
+            ],
+            "started_at": "2026-10-16T04:16:06.495656+00:00",
+            "ended_at": "2026-10-16T04:16:07.417051+00:00",
+            "elapsed_seconds": 0.9214212050428614,
+            "exit": 0,
+            "stdout": {
+              "bytes": 535,
+              "sha256": "04a787faf09292f4cc3882bc87c308717c05a7de5656103198113de64c88415e"
+            },
+            "stderr": {
+              "bytes": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            }
+          },
+          {
+            "name": "contract",
+            "command": [
+              "nbb",
+              "-e",
+              "(require (quote [clojure.edn :as edn]) (quote [\"fs\" :as fs])) (let [c (edn/read-string (fs/readFileSync \"skills/pr-flow/CONTRACT.edn\" \"utf8\"))] (assert (= (quote skill-contract) (first c))) (assert (= \"ημ.skill/pr-flow@0.3.6\" (second (first (filter #(= (quote v) (first %)) (rest c)))))) (println \"contract parse/version PASS\"))"
+            ],
+            "started_at": "2026-10-16T04:16:06.496039+00:00",
+            "ended_at": "2026-10-16T04:16:06.660982+00:00",
+            "elapsed_seconds": 0.16497080598492175,
+            "exit": 0,
+            "stdout": {
+              "bytes": 28,
+              "sha256": "0395056e6c04aac3ed1d9247aa099eafceb13d029a726d7301c96cc66d5ad19e"
+            },
+            "stderr": {
+              "bytes": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            }
+          },
+          {
+            "name": "lint",
+            "command": [
+              "clj-kondo",
+              "--lint",
+              "skills/pr-flow/scripts"
+            ],
+            "started_at": "2026-10-16T04:16:06.496294+00:00",
+            "ended_at": "2026-10-16T04:16:08.775287+00:00",
+            "elapsed_seconds": 2.279018595989328,
+            "exit": 0,
+            "stdout": {
+              "bytes": 44,
+              "sha256": "6caacc419c96f9fef1cac8addd618af326482991ca81d98aae60cb686e7854d7"
+            },
+            "stderr": {
+              "bytes": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            }
+          },
+          {
+            "name": "diff",
+            "command": [
+              "git",
+              "diff",
+              "--check"
+            ],
+            "started_at": "2026-10-16T04:16:06.496955+00:00",
+            "ended_at": "2026-10-16T04:16:06.513906+00:00",
+            "elapsed_seconds": 0.016977176012005657,
+            "exit": 0,
+            "stdout": {
+              "bytes": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            "stderr": {
+              "bytes": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            }
+          }
+        ],
+        "all_exits_zero": false
+      },
+      "earlierDefaultNodeAttemptLimit": "Actual first fullCLI105/3002/2fail0error at existing5sec child fixture under observedNode24. No causalRED or GREEN credit; no test/source/timeout modification. Cause beyond the observed timeout/runtime is not established."
     }
   ]
 }

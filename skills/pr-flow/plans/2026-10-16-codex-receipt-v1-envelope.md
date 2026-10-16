@@ -157,3 +157,35 @@ protected identity or past event was edited, and the detached initial draft
 does not enter the eleven-child sum.
 
 License: GPL-3.0-or-later.
+
+
+## Operative implementation follow-up — 2026-10-16T04:51:09.112458+00:00
+
+Earlier Incoming/unapplied statements are dated planning history. Exactba07 full
+planning review qualified through CodeRabbit6207286630/6207288293/6204907591 and
+MiMo5542572061 with all5 checks and one complete available cohort. Qualified
+Rheos85369213 completed17 actual operations: same parent42, distinct1 task through
+Ready into InProgress. Original native history and raw snapshots remain intact.
+
+Causal RED is committed in05e5673f962436bce278481240b964ce894c300c:
+law186/4935/4fail, policy65/1668/13fail and corrected fullCLI105/3002/34fail,
+all zero errors. Initial mixed test-oracle discovery is retained separately.
+The exact reviewed v2 helper and three existing consumers are now implemented;
+production matches candidatef2775584, with matching format-only skill/contract0.3.6.
+Existing withdrawal2 edits and every independent authority/gate remain preserved.
+
+Registered local GREEN passes: law187/4941,
+policy65/1668, fullCLI105/3002,
+portable3/13, all zero failures/errors;
+flow/contract/diff pass and clj-kondo reports0 errors/0 warnings. The direct
+nontext and portable controls extend existing registered tests. Native4206-byte
+fixture is unchanged; independent read-only audit found no confirmed source gap.
+
+Actual required local run explicitly used existing Node22.23.3, NBB1.3.204 and
+Babashka1.12.207 through a process-only PATH. No runtime was installed or globally
+changed. Earlier default24 fullCLI105/3002 had2 failures at the existing5-second
+fixture timeout; full output is retained and is not called causal RED or GREEN. The unchanged owning hosted full Node22 suite is
+still required. Append-only implementation custody retains actual commands,
+raw log hashes, source hashes and audit limits. Local GREEN is not final code
+review, native approval, MERGE, installation/adoption or live B1/B2/B3 proof.
+Both task estimates remain distinct; heartbeat stays human-paused.

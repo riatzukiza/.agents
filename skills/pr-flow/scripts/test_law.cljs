@@ -98,6 +98,12 @@
             (str "synthetic " kind "/" tail))
         (is (empty? (:incomplete-evidence evidence)) (str kind "/" tail))))))
 
+(deftest codex-positive-lexical-boundary-refuses-nontext-input
+  ;; Input-shape refusal stays local; the caller tests above own actual evidence.
+  (doseq [body [nil false 42 {} []]]
+    (is (false? (law/codex-positive-body? body))))
+  (is (true? (law/codex-positive-body? (:body native-codex-receipt-v1)))))
+
 (deftest severity-from-coderabbit-banners
   (is (= :p0 (law/severity "_⚠️ Potential issue_ | _🔴 Critical_\n\nbody")))
   (is (= :p1 (law/severity "_⚠️ Potential issue_ | _🟠 Major_")))

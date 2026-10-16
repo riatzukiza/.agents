@@ -1,6 +1,6 @@
 (skill-contract
   (name "pr-flow")
-  (v "ημ.skill/pr-flow@0.3.5")
+  (v "ημ.skill/pr-flow@0.3.6")
 
   (intent
     "Route every pull-request interaction through the pr-flow state machine (flow.edn): muse, plan, planning review, ready, red, green, code review, merge gate, merged, reflected. Ships an nbb CLI over pure .cljc laws for GitHub review mechanics.")
@@ -50,6 +50,7 @@
     (legacy-stage-provenance "An authorized native User's unedited legacy pr-flow-head declaration with one live exact full head marker and one planning/code stage marker is stage history on that PR. Preserve native ID/head/time and apply the existing timestamp boundary; no retroactive first-stage binding is introduced. Missing/ambiguous/quoted/generated/edited or public non-writer declarations do not qualify. Planning-to-code transitions, current-head approval, eligible complete review cohorts, quota/incomplete/revoked evidence and required checks retain their existing laws. A stage declaration alone supplies no review, approval, completed round or model-identity credit.")
     (available-agent-cohort "All available agents; authenticated quota observations exclude optional agents only; per-review notices bind the current head, while the observed Codex account-quota format also covers automatic App runs and preserves any original request head across pushes, never mandatory reviewers. Preserve native IDs/time/reset, restore on expiry/new request/new completion, and retain historical full-roster counts. A current complete available pass supplies at most one cohort, with no quota approval/review credit.")
     (approval-quorum "One trusted exact-head formal approval or completed explicit passing verdict with verified commit coverage from CodeRabbit, Codex, MiMo or Kimi; all remain invited.")
+    (codex-positive-format "One shared portable lexical predicate recognizes the literal legacy passing prefix or exactly one leading codex-review-receipt:v1 HTML marker plus LF LF before that same prefix. No leading trim, generic HTML normalization or quote/example recovery. Raw native bodies remain unchanged; later literal/quoted markers are not a veto and cannot hide incomplete-scope revocation. Identity, exactly one raw Reviewed commit marker, actual GitHub full-SHA resolution, exact head, chronology, scope, cohort, checks, settlement and merge remain independently required.")
     (coverage-not-approval "Coverage alone, COMMENTED state alone, CLI AgenticKey evidence and acknowledgements are not approval; native explicit passing verdicts require completed review and verified current-commit coverage.")
     (review-scope "Exact commit binding does not erase an admitted incomplete review or omitted input. Such verdicts cannot qualify even when formally APPROVED, revoke that provider's earlier approval on the same head, and cannot supersede unsettled body change requests. Recovered and reviewed truncated input remains eligible; exhaustive proof of correctness is not required.")
     (mandatory-overrides "--reviewers and explicit reviewed repository overrides retain all-of approval requirements; default quorum one also applies to Knoxx.")
