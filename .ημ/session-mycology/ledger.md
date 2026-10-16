@@ -754,3 +754,13 @@
   spore: none
   receipt-refs: cephalon-outdated-location-withdrawal-planning-included-20261016
   note: Human included only concordant known outdated-location flags within fresh exact-current-head opener withdrawal and later authorized User settlement. Pure predicate/tests/skill-contract scope2; collector, identities, checks and approval policy unchanged. Both old blanket-outdated negative matrices must be intentionally qualified after native Ready; original patch remains unapplied. Parent inventory and actual reviewed total must be reconciled through Rheos before Ready, no blind39+2 arithmetic. Protected review/MERGE/adoption then NEW actual final-head PR37 withdrawal/Handled required; no44 evidence transfer. GoalACTIVE/live0of3/heartbeat humanPAUSED; no runtime/credentials/paid/provider/deployment/social/spore change.
+
+- ts: 2026-10-16T00:27:54.483Z
+  session: /home/err/spaces/cephalon-outdated-withdrawal/.agents
+  task: cephalon-character-memory/finite-loop/B1-B2-B3
+  p-efficiency: 0.8
+  p-friction: 0.2
+  p-skill-candidate: 0.1
+  spore: none
+  receipt-refs: cephalon-outdated-withdrawal-specific-parent-inventory-and-question-id-20261016
+  note: Replace misleading humanAuthorization metadata key with accurate humanScopeQuestionId, preserving the exact nativechat questionID and all Git history. Original scannerfailure stays visible; no credential, scannerconfig/ignore/incidentsetting or requiredcheck waiver, no promise newscanpasses. Scopeclarification uses actual17nativequeries, ten directchildren table and conditional41 proposal for SAME parent accounting boundary. Independentreview then qualifiedRheos inventorycomment/reviewed41/readback precedeReady; currentparent39 unchanged. External sourceprerequisites remain separatelyowned/nonadditive; do notinvent whole75pointreevaluation beforepure2cardReady. No newnativeparentpoint/status/edgewrite or creationevent. Originalpredicatepatchc2ec remainsUNAPPLIED, two oldoutdated-negative matrices require latercausalRED/GREEN. Priorwholemodel/Codex/CodeRabbit reviews terminal before newpush; oldpolicyjobstillpending and notclaimedPASS. Fresh exacthead/full8changedinput review/checks remain mandatory; no approvaltransfer. GoalACTIVE/live0of3/heartbeat humanPAUSED; no runtime/provider/credential/paid/deployment/social/spore change.

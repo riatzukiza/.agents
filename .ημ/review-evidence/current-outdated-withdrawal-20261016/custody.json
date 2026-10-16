@@ -1,6 +1,6 @@
 {
   "kind": "actual qualified CLI output custody, not native provider approval",
-  "humanAuthorization": "call_d8c6b1f77776480da59c8d108d3c43ec",
+  "humanScopeQuestionId": "call_d8c6b1f77776480da59c8d108d3c43ec",
   "initialPrimary": "6c789296-a573-47ae-9d46-3f30a9f359ae",
   "parent": "63a0e4ff-353f-4c90-ab8a-7241d958d54c",
   "parentObservedIncomingPoints": 39,
@@ -20,6 +20,18 @@
       "path": "actual-initial-incoming-primary-read.json",
       "bytes": 6655,
       "sha256": "f76f2b9ca2afa596ebc5865d1d05d7e835637a4fff9b86a38d80746e2c2910fe"
+    },
+    {
+      "path": "actual-parent-direct-children-query.json",
+      "bytes": 77787,
+      "sha256": "a908fe0fd96d679f9581c6cf93d1f67416ac68f198f68a6ab6ab8a88a14cc6f8"
+    },
+    {
+      "path": "actual-primary-parent-inventory-refinement-read.json",
+      "bytes": 10455,
+      "sha256": "c44aba8ea0414909ddfc602f9745f0a8718be6d80c67deca420eaf73fcd95d9a"
     }
-  ]
+  ],
+  "parentProposedSameScopePoints": 41,
+  "parentProposedInventory": "Ten distinct direct children from owningRheos, not full cross-owner execution cost; independent review/native application pending"
 }

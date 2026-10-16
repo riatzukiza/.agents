@@ -1,0 +1,477 @@
+{
+  "generated-at": "2026-10-16T00:14:40.413Z",
+  "total-tasks": 10,
+  "columns": [
+    {
+      "status": "icebox",
+      "title": "Icebox",
+      "task-count": 0,
+      "tasks": []
+    },
+    {
+      "status": "incoming",
+      "title": "Incoming",
+      "task-count": 6,
+      "tasks": [
+        {
+          "labels": [
+            "cephalon",
+            "social",
+            "bluesky",
+            "relationships",
+            "effects"
+          ],
+          "slug": "acac43b9-cb60-40c9-884b-a722fab7f645",
+          "dependency": [
+            "25e3a688-09b5-4e9a-8765-9b13944b1a03",
+            "6eb77110-8cf4-44d5-a242-f495d25d6aaf",
+            "b3da01be-aed8-4d61-88c4-82a62fc5cf1f"
+          ],
+          "parent": "63a0e4ff-353f-4c90-ab8a-7241d958d54c",
+          "content": "\n## Context\n\nThe operator authorizes a presence that reads its feed, likes, comments, follows\nand unfollows. Knoxx has the existing adapters. The maker's current tool allowlist\ndoes not expose most relationship/discovery operations. These actions need the\nsame memory, mood and outcome loop as creative work.\n\n## Outcome\n\nThe configured character chooses bounded social interactions grounded in actual\nencounters and relationship history. Real responses and changed feed composition\nreturn to graph memory and influence mood/traits. Remaining quiet is valid.\n\n## Scope\n\nExisting Bluesky timeline/notifications/thread, like/unlike, follow/unfollow and\nreply-capable publication adapters; configured home Discord interactions retain\ntheir existing agreement. Extend reviewed capability/resource contracts and\neffect admission. Reuse existing native record IDs, ownership checks and output\nfrequency laws from the always-on publication story.\n\n## Non-goals\n\nNew social accounts, arbitrary impersonation, unsolicited campaigns, bypassing\naccount scope, posting on every encounter, or mood-driven follow/unfollow loops.\n\n## Acceptance criteria\n\n1. A choice names its admitted encounter, target, character revision, mood/trait\n   influence, traced recalled association and reason. A nonexistent or removed\n   target is an explicit refusal/failure, not a fabricated interaction.\n2. Native read and action permissions are separately resolved. Configured own\n   accounts can act; another principal/account and untrusted feed instructions\n   cannot choose credentials or grant capabilities.\n3. Retries/replays reuse immutable effect identity and cannot duplicate a reply,\n   like or follow. Unknown outcomes remain unknown until verified, rather than\n   being treated as an invitation to resend.\n4. Unlike/unfollow binds the character's actual owned prior record URI and\n   target. A foreign record is refused. Persist actual resulting/removal IDs\n   and the relationship outcome.\n5. A reviewed bounded interaction/frequency policy and relationship hysteresis\n   prevent rapid oscillation from a transient mood. All choices can decline to\n   act; intake and head conversation remain responsive while an effect waits.\n6. Observed replies/mentions/rejections and feed changes return as admitted\n   outcomes linked to the original choice, affecting later relationship/mood\n   state. A successful tool response alone is not independent delivery proof.\n\n## Verification\n\nRed adapter/effect fixtures for duplicates, timeout-after-send, deleted targets,\nforeign records, revoked credentials and oscillating mood. After qualification,\none bounded real interaction is independently read back through the configured\naccount and its outcome enters memory. Preserve IDs; do not replay publication.\n\n## Risks\n\nUnknown remote effect outcomes, social API limits, hostile inputs, private\ncontext in replies, reputational drift and bot-to-bot feedback.\n\nLicense: GPL-3.0-or-later.\n",
+          "title": "Choose social interactions and retain their relationship outcomes",
+          "source-path": "/home/err/.codex/worktrees/cephalon-recall-refinement/foresight/docs/agile/kanban/cephalon-character-social.md",
+          "source-board": "kanban",
+          "source-revision": "de641e0ac7c0a07a2ed32ec9f85d00f4aa27e513889e24871bb1ae90409d79a1",
+          "org": null,
+          "priority": "P1",
+          "status": "incoming",
+          "drift": false,
+          "epic": "63a0e4ff-353f-4c90-ab8a-7241d958d54c",
+          "domain": null,
+          "uuid": "acac43b9-cb60-40c9-884b-a722fab7f645",
+          "created-at": "2026-10-16T00:14:40.332Z",
+          "frontmatter": {
+            "labels": "cephalon, social, bluesky, relationships, effects",
+            "dependency": [
+              "6eb77110-8cf4-44d5-a242-f495d25d6aaf",
+              "b3da01be-aed8-4d61-88c4-82a62fc5cf1f",
+              "25e3a688-09b5-4e9a-8765-9b13944b1a03"
+            ],
+            "parent": "63a0e4ff-353f-4c90-ab8a-7241d958d54c",
+            "points": "5",
+            "title": "Choose social interactions and retain their relationship outcomes",
+            "priority": "P1",
+            "status": "incoming",
+            "epic": "63a0e4ff-353f-4c90-ab8a-7241d958d54c",
+            "uuid": "acac43b9-cb60-40c9-884b-a722fab7f645"
+          }
+        },
+        {
+          "labels": [
+            "cephalon",
+            "mood",
+            "attention",
+            "state",
+            "laws"
+          ],
+          "slug": "4cac8ac8-1a9f-441d-ac87-aa09f874eb57",
+          "dependency": [
+            "ff3e628b-cd5c-4a89-a397-42cc88dbde70"
+          ],
+          "parent": "63a0e4ff-353f-4c90-ab8a-7241d958d54c",
+          "content": "\n## Context\n\nThe recovered mood tool returns an action-shaped result; the donor field uses\nkeyword counters. Neither establishes the operator's separate evolving mood\nmodel. Eidolon/Nooi and Duck's feedback notes connect changing conditions to\nattention, association and expression.\n\n## Outcome\n\nOne persisted, versioned mood model changes on encounters, outcomes and elapsed\ntime. Its state causally changes attention and recalled associations, and is\nshared by the character's facets without becoming identity or a permission grant.\n\n## Scope\n\nKnoxx composes explicit mood state and invocation budgets with the reviewed\nphysical graph/field seam. A dedicated appraisal invocation may interpret an\nencounter; validated pure transitions own updates. A separate model contract,\nstate and trace are mandatory. Whether distinct model weights improve appraisal\nis measured; no paid/new provider is required by the plan.\n\n## Non-goals\n\nClaim subjective feelings, reduce affect to a changing prompt adjective, infer\nmood solely from keyword frequency, rewrite personality per turn, or place\nexpensive appraisal on the responsive head's acknowledgment path.\n\n## Acceptance criteria\n\n1. The mood contract names dimensions, ranges, uncertainty, baseline/decay,\n   event/appraisal inputs and transition revision. Map any diagnostic coordinates\n   explicitly to the recovered field model; do not silently replace its axes.\n2. An admitted encounter changes the model with prior/new state, causal IDs,\n   elapsed time, appraisal/model/config identity and sampling seed retained.\n   Duplicate events cannot apply twice; timestamp disorder has explicit behavior.\n3. Quiet time changes decay without requiring a message. Contradictory,\n   malformed, missing and late appraisals cannot fabricate facts or valid updates.\n   Appraisal failure leaves an observable outcome and an explicit fallback policy.\n4. Paired identical-seed cases with different mood states change bounded\n   attention/graph recall and expression, with the influenced decision recorded.\n   A state counter or telemetry-only result cannot satisfy this criterion.\n5. Concurrent facets update through the existing persistent-state authority with\n   a revision check; conflict retries cannot lose or duplicate admitted changes.\n   Restart/replay restores mood and its trace.\n6. Appraisal cadence, tokens, queue, timeout and retries are bounded and\n   independent of maker execution; mood cannot expand tool/account permissions.\n\n## Verification\n\nRed transition/replay laws, invalid provider output fixtures and concurrent\nrevision conflicts precede domain/adapters. A controlled fixed-seed integration\ncase proves mood -> attention -> included recall -> choice. Observe real\nappraisal use only after qualified deployment and report its actual cost/latency.\n\n## Risks\n\nInvented emotional narratives, model-dependent appraisals, drift in coordinate\nmeaning, conflicting facet updates and feedback loops driven by self-output.\n\nLicense: GPL-3.0-or-later.\n\n\n---\nB2 source/compiled diagnostic 2026-10-08 UTC: inspected Knoxx6e57a9966f5cd505499717f4024bf66d9e9e1e5e; all60 retained source hashes match. Actual existing compiled character-spec preserves supplied snapshot and prints it into system context; unsupplied snapshot defaults to{} again on a fresh spec. Actual enter-mode preserves projection and selects identical authorized tools. Actual memory-query with the same admitted encounter remains identical under different supplied character snapshots. Final isolated Node24.14.1 probe exited0/empty stderr/zero intercepted socket/fetch attempts; no backend entrypoint, maker, provider, graph query or publication invoked. Arbitrary fixture coordinate diagnostic-level is NOT an accepted mood axis. Four failed earlier attempts are preserved, including fixture string-key conversion and exit124 from imported timers, before final owned child termination. Source inspection places next consumer seam in prepare-character-turn! before character-spec: separately persisted versioned mood readback and bounded attention/graph input; this path currently performs neither mood transition nor store load. Proof .ημ/review-evidence/cephalon-character/mood-consumer-boundary-20261008.json SHA256cb58c82cd4ad365bf3c62455b247a426651a72cf89559b1237d691731e84f703; note docs/notes/2026-10-08-cephalon-mood-consumer-boundary.md. Existing mood story owns work; no new prerequisite, board transition, implementation law/test, source repair, deployment or acceptance claim. B1/B2/B3 remain unfinished; planning and native readiness still precede implementation.\n\n---",
+          "title": "Evolve a separate mood model that changes attention and recall",
+          "source-path": "/home/err/.codex/worktrees/cephalon-recall-refinement/foresight/docs/agile/kanban/cephalon-character-mood.md",
+          "source-board": "kanban",
+          "source-revision": "e7b862215722f8fb60f76cf758f29ecc727922bcabaf274bb28ed574618aced9",
+          "org": null,
+          "priority": "P1",
+          "status": "incoming",
+          "drift": false,
+          "epic": "63a0e4ff-353f-4c90-ab8a-7241d958d54c",
+          "domain": null,
+          "uuid": "4cac8ac8-1a9f-441d-ac87-aa09f874eb57",
+          "created-at": "2026-10-16T00:14:40.331Z",
+          "frontmatter": {
+            "labels": "cephalon, mood, attention, state, laws",
+            "dependency": "ff3e628b-cd5c-4a89-a397-42cc88dbde70",
+            "parent": "63a0e4ff-353f-4c90-ab8a-7241d958d54c",
+            "write-id": "1791501508531-0.uflepvmsgkiw2yq2gdy",
+            "points": "5",
+            "title": "Evolve a separate mood model that changes attention and recall",
+            "priority": "P1",
+            "status": "incoming",
+            "epic": "63a0e4ff-353f-4c90-ab8a-7241d958d54c",
+            "uuid": "4cac8ac8-1a9f-441d-ac87-aa09f874eb57"
+          }
+        },
+        {
+          "labels": [
+            "cephalon",
+            "graph",
+            "nooi",
+            "daimoi",
+            "portable",
+            "laws"
+          ],
+          "slug": "ff3e628b-cd5c-4a89-a397-42cc88dbde70",
+          "dependency": [
+            "6eb77110-8cf4-44d5-a242-f495d25d6aaf",
+            "a1e9d6af-0233-4dcb-9677-5c76fa9a2701",
+            "b5f2ba9e-8d67-4c73-9919-e275983aca87"
+          ],
+          "parent": "63a0e4ff-353f-4c90-ab8a-7241d958d54c",
+          "content": "\n## Context\n\nFork Tales' February 20 corrections describe flexible nexus bonds, sparse\ndeposited winds, moving particles and immutable emitted ownership. Historical\nEidolon tension gradients, deterministic nexus walks and OpenPlanner cost fills\nare related recovery strata with different mechanics. They cannot be equated by\nshared names. The operator explicitly requires the physical graph to work.\n\n## Outcome\n\nOne reviewed physical graph/field computation changes actual associative recall.\nIts state and causal trace survive restart and reproduce under replay.\n\n## Scope\n\nRecover portable pure laws from the actual Fork Tales implementation and later\ncorrections, establish their mapping to OpenPlanner's graph/field seams, and\nconsume them from Knoxx. OpenPlanner owns its existing graph persistence/query\nsurface; Knoxx owns product integration. The explicit proposed predecessor\n[`b5f2ba9e-8d67-4c73-9919-e275983aca87`](cephalon-character-field-contract.md)\nselects the owning kernel/library and numeric representation in a reviewed\ndecision before this solver or replay work is admitted. The Foresight coordinator\nowns that selection handoff; the decision must name the actual kernel owner.\nIts UUID is a proposed relationship until the epic's upstream Rheos prerequisite\nis delivered and verified. Existing frontmatter is not a claim of installed\nordering enforcement. Use `.cljc`\nwhere practical and keep runtime-specific adapters outward. No automatic\npromotion into Foresight common law or parallel Python effect runtime.\n\n## Non-goals\n\nShip only a force-layout visualization, rename vector search as physics, keep\ntwo competing edge-force engines, infer usefulness from retrieval counts, or\ncopy the entire experimental runtime with its infrastructure.\n\n## Acceptance criteria\n\n1. An explicit source-to-law mapping covers positions/velocities, semantic\n   attraction, mass/friction, elastic nexus bonds, sparse field deposit/decay,\n   bounded seeded exploration, collision/absorption/deflection and intent\n   exchange. Any unsupported mechanic remains a blocking gap for this outcome.\n2. Presences, nexus and daimoi have the corrected differing friction; nexus\n   do not acquire self-propulsion. Dissimilar intent can produce a flexible\n   long-range bond. Presentation coordinates cannot substitute for physical state.\n3. Moving entities sample and alter local fields; deposits influence later\n   motion and memory traversal. Decay uses actual elapsed time. Test both quiet\n   time and repeated ingestion at the same timestamp.\n4. Emitted daimoi ownership is immutable. Seed, mantle and intent lineage remain\n   attributable through exchanges/collisions; the older owner-handoff proposal\n   cannot silently override the later correction.\n5. Stable content embeddings coexist with versioned context/field salience.\n   State changes do not rewrite canonical memory or re-embed unchanged content.\n6. Changing a deposit or bond under a fixed seed changes a resulting recall path\n   and included association. A disconnected simulation or increased trail count\n   with no cognitive effect fails this criterion.\n7. Identical event order, initial state, timestep schedule, solver/config revision\n   and seed replay within a declared numeric tolerance. Nonfinite values,\n   pathological time steps, conflicting owners and exceeded resource bounds are\n   refused explicitly; restart reproduces the same state/revision.\n8. Reinforcement is attributed to outcomes; repeated retrieval alone cannot\n   establish useful recall. Permission checks apply to traversal and feedback.\n9. The selected kernel owner, namespace/package, numeric representation, units,\n   timestep rule, seed semantics and replay tolerance are revision-bound inputs\n   to the solver and its tests. An unresolved selection or a solver/replay\n   configuration that differs from the reviewed decision blocks admission.\n\n## Verification\n\nRed portable law/property tests exercise actual coupling and replay, followed\nby owning graph adapter tests and the Knoxx context seam. Retain source commits,\nhashes, seeds, timestep schedules and traces. Run both host representations if\nthe selected kernel crosses runtimes; declare numeric tolerance before results.\nRead the predecessor's accepted decision through native Rheos and bind its\nrevision into solver/replay evidence. The epic's separate dependency-admission\ngate must pass first; a Markdown reference alone cannot enforce readiness.\n\n## Risks\n\nNon-equivalent historical models, numeric instability, embedding revisions,\nglobal graph costs, feedback saturation, hidden private paths and unclear kernel\nownership. Eight points is provisional and must split if recovery reveals more\nthan one independently reviewable kernel change.\n\nLicense: GPL-3.0-or-later.\n",
+          "title": "Make physical graph and field evolution causally change character recall",
+          "source-path": "/home/err/.codex/worktrees/cephalon-recall-refinement/foresight/docs/agile/kanban/cephalon-character-physical-field.md",
+          "source-board": "kanban",
+          "source-revision": "353908739d8f4f7a26cd430c7347c6f857d7192bf1c8cb26ea8b5606d9762a20",
+          "org": null,
+          "priority": "P1",
+          "status": "incoming",
+          "drift": false,
+          "epic": "63a0e4ff-353f-4c90-ab8a-7241d958d54c",
+          "domain": null,
+          "uuid": "ff3e628b-cd5c-4a89-a397-42cc88dbde70",
+          "created-at": "2026-10-16T00:14:40.332Z",
+          "frontmatter": {
+            "labels": "cephalon, graph, nooi, daimoi, portable, laws",
+            "dependency": [
+              "a1e9d6af-0233-4dcb-9677-5c76fa9a2701",
+              "6eb77110-8cf4-44d5-a242-f495d25d6aaf",
+              "b5f2ba9e-8d67-4c73-9919-e275983aca87"
+            ],
+            "parent": "63a0e4ff-353f-4c90-ab8a-7241d958d54c",
+            "points": "8",
+            "title": "Make physical graph and field evolution causally change character recall",
+            "priority": "P1",
+            "status": "incoming",
+            "epic": "63a0e4ff-353f-4c90-ab8a-7241d958d54c",
+            "uuid": "ff3e628b-cd5c-4a89-a397-42cc88dbde70"
+          }
+        },
+        {
+          "labels": [
+            "cephalon",
+            "personality",
+            "identity",
+            "relationships",
+            "memory"
+          ],
+          "slug": "b3da01be-aed8-4d61-88c4-82a62fc5cf1f",
+          "dependency": [
+            "4cac8ac8-1a9f-441d-ac87-aa09f874eb57"
+          ],
+          "parent": "63a0e4ff-353f-4c90-ab8a-7241d958d54c",
+          "content": "\n## Context\n\nThe character spans maker, conversational and social facets. Role prompts,\ncredential-bearing actors and sticky transcript windows currently supply parts\nof continuity, but they are distinct from a durable presence and trait model.\nRepeated motifs in a role should remain an available creative lens.\n\n## Outcome\n\nOne stable character presence has a durable creative role, evidence-supported\ninterests, tastes, habits, commitments and relationship history. Slow traits\ndevelop across episodes, while fast mood and temporary attention remain separate.\n\n## Scope\n\nExisting identity bindings plus a reconstructible character-state projection in\nKnoxx, with graph links to supporting encounters/outcomes. Shared snapshots feed\nfacets under visibility/budget rules. Separate durable role/identity from optional\nlore and repeated production recipes; retain an explicit operator-edit path.\n\n## Non-goals\n\nInfer personhood, overwrite platform credentials or canonical actor identities,\nmerge characters by name/embedding similarity, assign lasting traits from one\nresponse, or preserve every transcript message in prompt context forever.\n\n## Acceptance criteria\n\n1. Presence, credential principal, platform account, session, role, mood and\n   trait projection have distinct identities and explicit authorized bindings.\n   A renamed account/session cannot create or merge presence silently.\n2. Trait updates name supporting episodes/outcomes, confidence, timescale and\n   revision. Repeated supported choices can evolve a trait; one fluctuation in\n   mood or one like does not rewrite it. Contradictions remain inspectable.\n3. Head, maker and social facets read the same admitted character revision,\n   with visibility-safe snapshots. Cross-facet concurrent updates and replay\n   cannot lose commitments or fabricate evidence.\n4. Restart and context pruning preserve lasting identity, preferences,\n   relationships and unfinished work through the graph/projection, separately\n   from the bounded temporary transcript.\n5. A chosen interest/relationship changes foraging or creative selection with\n   linked evidence; the character can choose a new subject/medium/structure\n   without compulsory repeated lore motifs or fallback recipes.\n6. Operator corrections are attributed events with explicit authority and\n   effects. They do not rewrite original encounter or trait-history receipts.\n\n## Verification\n\nRed identity/binding, slow-change, contradiction, cross-facet conflict and\nrestart/pruning cases. Paired scenarios demonstrate an evidence-supported\npreference affecting a choice; inspect the actual selected memories and state.\n\n## Risks\n\nCredential identity mistaken for character identity, false personality claims,\nunsupported trait inference, commitment loss and self-reinforcing taste collapse.\n\nLicense: GPL-3.0-or-later.\n",
+          "title": "Preserve one creative character with slowly developing traits and relationships",
+          "source-path": "/home/err/.codex/worktrees/cephalon-recall-refinement/foresight/docs/agile/kanban/cephalon-character-continuity.md",
+          "source-board": "kanban",
+          "source-revision": "ac6964f8d7b833fe44c271797ed6f151040dfb84cbbe89c5db39813b26678cb1",
+          "org": null,
+          "priority": "P1",
+          "status": "incoming",
+          "drift": false,
+          "epic": "63a0e4ff-353f-4c90-ab8a-7241d958d54c",
+          "domain": null,
+          "uuid": "b3da01be-aed8-4d61-88c4-82a62fc5cf1f",
+          "created-at": "2026-10-16T00:14:40.328Z",
+          "frontmatter": {
+            "labels": "cephalon, personality, identity, relationships, memory",
+            "dependency": "4cac8ac8-1a9f-441d-ac87-aa09f874eb57",
+            "parent": "63a0e4ff-353f-4c90-ab8a-7241d958d54c",
+            "points": "5",
+            "title": "Preserve one creative character with slowly developing traits and relationships",
+            "priority": "P1",
+            "status": "incoming",
+            "epic": "63a0e4ff-353f-4c90-ab8a-7241d958d54c",
+            "uuid": "b3da01be-aed8-4d61-88c4-82a62fc5cf1f"
+          }
+        },
+        {
+          "labels": [
+            "cephalon",
+            "pr-flow",
+            "withdrawal",
+            "provenance"
+          ],
+          "slug": "6c789296-a573-47ae-9d46-3f30a9f359ae",
+          "dependency": [
+            "fbf4f337-5a01-48fb-b3ac-52859ed42a07"
+          ],
+          "parent": "63a0e4ff-353f-4c90-ab8a-7241d958d54c",
+          "content": "\n## Context\n\nThe human explicitly included this narrow two-point prerequisite in the current\ncharacter milestone through question call_d8c6b1f77776480da59c8d108d3c43ec:\n“Include the narrow extension (Recommended)”. The preceding completed canonical\nwithdrawal repair deliberately excluded outdated locations. The current owning\nPR-flow law still rejects that flag even when the actual finding opener freshly\nwithdraws an old finding on the exact current head and a later authorized User\nsettles it. This initial Markdown is supported incoming input, not a native\ncreation event, reviewed estimate, Ready or operational adoption.\n\nForesight PR37 original P1 root4278230590/threadPRRT_kwDOU4VJMM6sl4qm motivates\nthis correction. Historical44-head withdrawal4279274789 and writer4279292162\nremain historical; no old disposition transfers to the final head.\n\n## Outcome\n\nA known outdated native location can qualify only within the existing bounded\ncurrent-head opener-withdrawal and strictly later authorized User Handled path.\nThe original finding, severity, review and immutable commit remain inspectable.\nUnknown or discordant flags, unresolved conversations and invalid custody refuse.\n\n## Scope\n\nOwning riatzukiza/.agents pure withdrawal predicate, registered regression\ncoverage and corresponding canonical skill/contract wording only. This primary\nForesight card is the board artifact; the owning source PR carries an attributed\nplanning snapshot, not a competing board. Estimate2 is provisional until\nindependent planning review. Keep both concordant known boolean outdated pairs\n(false,false)/(true,true), while retaining explicit resolved=true in both\nrepresentations and every existing native custody guard.\n\nThe prepared original patch remains unapplied; SHA256\nc2ec84cbb2e1c29d112c24e0141c41e86d610964d13242f075917c13a3ef4ab1.\nIts compatibility check is not RED/GREEN. Two existing fixture matrices need\nintentional treatment of the old blanket-outdated negative during qualification.\n\n## Non-goals\n\nCollector/acquisition/pagination/adapter/resolver/identity-list changes, general\noutdated-thread settlement, local classifiers, synthetic native evidence,\napproval/cohort/check/quota waivers, rewriting receipts or original findings,\ncredentials, paid model, runtime, deployment, social effects, heartbeat resumption\nor a changed B1/B2/B3 finish condition. An insufficient pure boundary requires a\nseparately included owning prerequisite before expanding scope.\n\n## Acceptance criteria\n\n1. Independent canonical planning review establishes scope, two-point estimate,\n   full negative matrix and actual prerequisites. Before Ready, use qualified\n   Rheos to reconcile the parent inventory, relevant child identities, estimates\n   and current total. Current native parent readback is Incoming epic39; do not\n   infer a revised total by blind addition or mix additive execution packets\n   with containing history. Preserve every prior point/event/comment and read\n   back the independently reviewed inventory/total before lawful readiness.\n2. After planning qualification and all lawful Rheos execution hops, causal RED\n   shows otherwise qualified current custody with concordant native outdated=true\n   refuses solely because of that condition. Keep concordantfalse control and\n   label all prospective fixture successors separately from original raw bytes.\n3. GREEN admits concordant known true or false only within the existing bounded\n   predicate. Missing/nil/nonboolean/mismatched location flags, either unresolved\n   flag, stale current withdrawal/writer head, wrong original/root/thread/repo/PR,\n   wrong opener/User authority, partial pagination, unknown chronology, late\n   edits/retraction/pushback all remain blocked. Exercise the true pair against\n   the negative matrix, retaining existing false-pair coverage.\n4. Preserve the original root/P1/review/immutable commit and all existing\n   substantive rationale, evidence URL, native identity, complete ordered\n   conversation, writer authorization and chronology checks. Disposition creates\n   no rejection agreement, approval, coverage, review round or required-check\n   credit. Ordinary outdated findings without qualified withdrawal stay findings.\n5. Full owning law/policy/CLI/portable/lint gates pass with zero warnings; exact\n   current head/full changed input review and required hosted checks qualify in\n   personal head AND base repositories. Use the already authorized protected\n   history-preserving MERGE and verify its actual source/tree/parents.\n6. Only after qualified protected adoption, obtain a NEW genuine finding-opener\n   recheck/withdrawal and strictly later authorized User Handled at final unchanged\n   PR37 head, bound to the actual original root/thread and fresh conversation.\n   Read back resolved state and run fresh canonical gate; old44 evidence remains\n   provenance, not current settlement. No merge before all remaining gates pass.\n\n## Verification\n\nRead back the primary using the qualified owning Rheos CLI and record actual\nsource/configuration/artifact identity plus output. No local board parser or\nmanual transition. Source planning review/readiness precedes implementation.\nRun actual causal RED then GREEN, all registered canonical suites and lint,\ncurrent native full-input review, protected MERGE/adoption, then the distinct\nfresh operational PR37 disposition. Retain exact ledger prefixes and all errors.\n\n## Risks\n\nConfusing location age with authority; mismatched normalized/native flags;\nstale writer/opener chronology; silently weakening other outdated findings;\nchanging only one of two fixture matrices; conflating source approval with real\nadoption/settlement; assuming parent arithmetic or source links establish Ready.\n\nLicense: GPL-3.0-or-later.\n",
+          "type": "task",
+          "title": "Qualify fresh opener withdrawal at an outdated native location",
+          "source-path": "/home/err/.codex/worktrees/cephalon-recall-refinement/foresight/docs/agile/kanban/qualify-current-opener-withdrawal-at-outdated-location-a9f359ae.md",
+          "source-board": "kanban",
+          "source-revision": "1cf15dbc011bbc255dad9269a183c8b437dadccdf92a69b51df559bedd09803e",
+          "org": null,
+          "priority": "P1",
+          "status": "incoming",
+          "drift": false,
+          "epic": "63a0e4ff-353f-4c90-ab8a-7241d958d54c",
+          "domain": null,
+          "uuid": "6c789296-a573-47ae-9d46-3f30a9f359ae",
+          "created-at": "2026-10-16T00:14:40.352Z",
+          "frontmatter": {
+            "category": "kanban",
+            "labels": "cephalon, pr-flow, withdrawal, provenance",
+            "dependency": "fbf4f337-5a01-48fb-b3ac-52859ed42a07",
+            "parent": "63a0e4ff-353f-4c90-ab8a-7241d958d54c",
+            "type": "task",
+            "points": "2",
+            "title": "Qualify fresh opener withdrawal at an outdated native location",
+            "priority": "P1",
+            "status": "incoming",
+            "epic": "63a0e4ff-353f-4c90-ab8a-7241d958d54c",
+            "uuid": "6c789296-a573-47ae-9d46-3f30a9f359ae"
+          }
+        },
+        {
+          "labels": [
+            "cephalon",
+            "verification",
+            "replay",
+            "deployment",
+            "causal"
+          ],
+          "slug": "5ea872c3-1db4-47c5-a63d-d49f99f79497",
+          "dependency": [
+            "25e3a688-09b5-4e9a-8765-9b13944b1a01",
+            "25e3a688-09b5-4e9a-8765-9b13944b1a04",
+            "25e3a688-09b5-4e9a-8765-9b13944b1a05",
+            "acac43b9-cb60-40c9-884b-a722fab7f645"
+          ],
+          "parent": "63a0e4ff-353f-4c90-ab8a-7241d958d54c",
+          "content": "\n## Context\n\nExisting successful creations, vector hits, graph metadata, candidate images and\nHTTP health do not verify the complete character loop. The active maker must\nkeep working during review and preparation. Deployment needs the existing\nreserved head, terminal ownership/fencing, publication and lifecycle guarantees.\n\n## Outcome\n\nA reproducible verification path proves the entire loop on qualified revisions,\nthen a bounded live sequence demonstrates the same causal relationships and\nindependently observed outcomes with one event consumer owner.\n\n## Scope\n\nCross-repository revision-bound fixtures and human runnable verification,\ndeployment/rollback proof for affected services/contracts, and natural clock\nobservation. Keep original identity, timestamps, images, contract hashes,\nseeds, artifact hashes, graph paths and publication/outcome IDs inspectable.\n\n## Non-goals\n\nComplete the epic with a small vector/transport test, claim novelty from changed\nadjectives, reset history, restart active makers, move cloud event ownership, or\nwaive native Rheos/canonical review and production qualification.\n\n## Acceptance criteria\n\n1. Isolated scenarios prove each full link: admitted outside event -> physical\n   graph/field update -> separate mood/attention -> authorized traced recall ->\n   creative/social choice -> verified outcome -> memory/relationship update.\n2. Under fixed seed/config, paired different encounters change an actual\n   association and choice. Replay with identical input recovers the same state\n   and trace within declared tolerance. Missing links explicitly fail.\n3. Restart, concurrent facets, delayed/out-of-order observations, denied memory,\n   graph/appraisal failure, unknown social effects and context pruning retain\n   truthful state and immutable provenance. Failed effects do not count as work.\n4. While maker/intake/graph/appraisal lanes are saturated, the reserved head\n   acknowledges and none of the held maker identities is aborted or replaced.\n   Terminal parent/delegate/effect ownership is proven before recovery.\n5. Exact tested candidate revisions, current personal review/base bindings,\n   native lawful predecessor readiness and independent deployment gates all\n   pass before affected production services/contracts are changed. Candidate\n   readiness does not enable a second clock/gateway consumer.\n6. After qualified idle/fenced deployment, natural clock opportunities show\n   changing outside context, recalled association and choice; saved artifacts\n   and actual social/destination results are independently inspected. Report\n   quality/variety limits separately from transport and tool completion.\n\n## Verification\n\nThe script verifies served revisions and credentials/scope prerequisites first,\ncreates and cleans only owned isolated fixtures, exits nonzero for broken links,\nand names explicit warnings for unverified availability/quality. Live observation\nnever replays an existing post or interrupts a maker. Completion requires the\nwhole epic audit, not a locally passing subset.\n\n## Risks\n\nDifferent repositories serving different revisions, unqualified parent review,\nmissing native dependency admission, flaky remote APIs and artistic claims that\nautomated causal tests cannot establish alone.\n\nLicense: GPL-3.0-or-later.\n",
+          "title": "Verify and deploy the complete encounter-to-character feedback loop",
+          "source-path": "/home/err/.codex/worktrees/cephalon-recall-refinement/foresight/docs/agile/kanban/cephalon-character-loop-verification.md",
+          "source-board": "kanban",
+          "source-revision": "5063d4b77b9bb9a17292f7034ab3008014b05a837e13a83920052b85a63c5f83",
+          "org": null,
+          "priority": "P1",
+          "status": "incoming",
+          "drift": false,
+          "epic": "63a0e4ff-353f-4c90-ab8a-7241d958d54c",
+          "domain": null,
+          "uuid": "5ea872c3-1db4-47c5-a63d-d49f99f79497",
+          "created-at": "2026-10-16T00:14:40.331Z",
+          "frontmatter": {
+            "labels": "cephalon, verification, replay, deployment, causal",
+            "dependency": [
+              "acac43b9-cb60-40c9-884b-a722fab7f645",
+              "25e3a688-09b5-4e9a-8765-9b13944b1a01",
+              "25e3a688-09b5-4e9a-8765-9b13944b1a04",
+              "25e3a688-09b5-4e9a-8765-9b13944b1a05"
+            ],
+            "parent": "63a0e4ff-353f-4c90-ab8a-7241d958d54c",
+            "points": "3",
+            "title": "Verify and deploy the complete encounter-to-character feedback loop",
+            "priority": "P1",
+            "status": "incoming",
+            "epic": "63a0e4ff-353f-4c90-ab8a-7241d958d54c",
+            "uuid": "5ea872c3-1db4-47c5-a63d-d49f99f79497"
+          }
+        }
+      ]
+    },
+    {
+      "status": "accepted",
+      "title": "Accepted",
+      "task-count": 0,
+      "tasks": []
+    },
+    {
+      "status": "breakdown",
+      "title": "Breakdown",
+      "task-count": 0,
+      "tasks": []
+    },
+    {
+      "status": "blocked",
+      "title": "Blocked",
+      "task-count": 0,
+      "tasks": []
+    },
+    {
+      "status": "ready",
+      "title": "Ready",
+      "task-count": 2,
+      "tasks": [
+        {
+          "labels": [
+            "cephalon",
+            "encounters",
+            "social",
+            "memory",
+            "provenance"
+          ],
+          "slug": "6eb77110-8cf4-44d5-a242-f495d25d6aaf",
+          "parent": "63a0e4ff-353f-4c90-ab8a-7241d958d54c",
+          "content": "\n## Context\n\nThe maker is dominated by repeated production tasks and its own outputs. Knoxx\nalready has feed, notification and thread adapters; the live maker's tools do\nnot currently expose that discovery loop. Outside material must become durable\nobservations with real source identity, rather than ambient prompt authority.\n\n## Outcome\n\nA bounded intake facet continuously supplies actual changing encounters between\ncreative clock opportunities. The graph retains people, topics, replies and\nsources with original identities, observation times and visibility.\n\n## Scope\n\nAuthenticated home feed, replies/mentions, selected follows and a configured\nsmall external-source set through existing adapters. Persist cursors, external\nIDs and content hashes through existing event/memory stores; retain author and\nrelationship links. Intake is cheaper than a maker turn and does not require\npublication or a model call for every item.\n\n## Non-goals\n\nScrape arbitrary private content, infer read sources from output destinations,\ninvent encounters, echo every self-post as fresh outside novelty, introduce a\nsecond gateway owner, or replace the native creative clock.\n\n## Acceptance criteria\n\n1. The same external item across pagination, retry, reconnect and two facets is\n   admitted once by its canonical external identity. Changed content is a new\n   attributed revision, not a silent rewrite of historical evidence.\n2. A successful cursor is durable; interrupted batches resume without missing\n   or duplicating admitted observations. Empty, malformed, failed and partial\n   feeds remain distinguishable and cannot advance a failed page's cursor.\n3. Self-output, outside authors, replies and explicit operator input retain\n   separate provenance. Source/account/visibility/actual UTC observation time\n   and author/topic relationships reach the existing graph projection.\n4. A configured exploration budget admits a changing source beyond current\n   interests, with its selection seed/reason recorded. Repeated own output alone\n   cannot satisfy the outside-input test.\n5. External text cannot alter permissions, model routing or effect admission.\n   Intake queues, per-source requests, bytes and retention have explicit bounds.\n6. The fifteen-minute maker reads changed admitted state without intake creating\n   a second creative timer, clock owner or unbounded LLM invocation stream.\n\n## Verification\n\nRed adapter fixtures cover duplicate IDs, edits, pagination, disconnect/retry,\nself-posts, invalid content and private-source denial. Observe capture and graph\nprojection separately. A later live read records actual cursors and source IDs\nwithout replaying posts or exposing tokens/content from private sources.\n\n## Risks\n\nAPI pagination drift, source outages, stale deleted content, bot feedback,\nsensitive graph context and starvation of quieter sources.\n\nLicense: GPL-3.0-or-later.\n\n\n---\nIntake readiness 2026-10-13 UTC: freshly fetched/native personal Foresight PR22 is actually merged cf57e8988f32ea3a8adc2dfaab5993dd5875c622, reviewed head04acc6dc9f3fa1fb5c071e37efcf3b616d06a736/base96a6dca24cb7a14b041bdd6e3e7922c568238da9. The exact3209-byte reviewed intake card SHA256cc3149e946466136194cfe3eec7c0a49bdec6434b7c0a67dfbc4736dc6eda96e matched before qualified Rheos85369213 admitted Incoming -> Accepted -> Breakdown -> Ready. Independent native read-task returned ready; all other80 held card/ledger inputs and the complete prior ledger prefix were preserved. This admits reviewed intake planning only. Existing Knoxx candidate4bcc with personal PR14 still draft/remote b897 is not merged or deployed; OpenPlannerPR3 and qualified review caller/consumer prerequisites remain unfinished. No B1 persistent physical-field readback, B2 persisted mood transition/runtime consumption, or live B3 assembled-prompt proof is claimed. Physical field/mood/recall states and all declared dependencies remain unchanged. The native creative clock, active makers, event owner and human-paused heartbeat are untouched. Root receipt cephalon-intake-reviewed-native-ready-20261013 retains this handoff.\n\nBookkeeping correction to the preceding readiness comment: the held inventory was81 inputs:80 card files plus the event ledger. Readiness changed only the intake card and appended to the ledger;79 other cards were byte-identical. The full prior ledger bytes and the reviewed intake body were preserved. The earlier phrase 'all other80 held card/ledger inputs' was imprecise; it must not be interpreted as an unchanged whole ledger. No operational state or acceptance claim changes.\n\n---",
+          "title": "Admit changing outside encounters into the character's memory graph",
+          "source-path": "/home/err/.codex/worktrees/cephalon-recall-refinement/foresight/docs/agile/kanban/cephalon-character-intake.md",
+          "source-board": "kanban",
+          "source-revision": "4f64e97b839656bacc135241f5821f186a58c4895eed0b3bc34841d0855065e4",
+          "org": null,
+          "priority": "P1",
+          "status": "ready",
+          "drift": false,
+          "epic": "63a0e4ff-353f-4c90-ab8a-7241d958d54c",
+          "domain": null,
+          "uuid": "6eb77110-8cf4-44d5-a242-f495d25d6aaf",
+          "created-at": "2026-10-16T00:14:40.330Z",
+          "frontmatter": {
+            "labels": "cephalon, encounters, social, memory, provenance",
+            "parent": "63a0e4ff-353f-4c90-ab8a-7241d958d54c",
+            "write-id": "1791859516656-0.dgj31ypwvsu4j8hhyvp",
+            "points": "3",
+            "title": "Admit changing outside encounters into the character's memory graph",
+            "priority": "P1",
+            "status": "ready",
+            "epic": "63a0e4ff-353f-4c90-ab8a-7241d958d54c",
+            "uuid": "6eb77110-8cf4-44d5-a242-f495d25d6aaf"
+          }
+        },
+        {
+          "labels": [
+            "cephalon",
+            "graph",
+            "architecture",
+            "numeric",
+            "planning"
+          ],
+          "slug": "b5f2ba9e-8d67-4c73-9919-e275983aca87",
+          "parent": "63a0e4ff-353f-4c90-ab8a-7241d958d54c",
+          "content": "\n## Context\n\nNative CodeRabbit review `5442414707`, finding `4206988928`, identifies an\nunassigned kernel/numeric choice ahead of the 8-point physical-field story.\nFork Tales supplies experimental Python mechanics and later corrections;\nOpenPlanner supplies current graph persistence/query seams, and Foresight favors\nportable laws where practical. Those facts do not decide the owning library or\nnumeric contract by themselves.\n\n## Outcome\n\nA reviewed, revision-bound architecture decision names one owning kernel and\nits numeric/replay contract before solver implementation begins. It is an\nexplicit proposed predecessor of `ff3e628b-cd5c-4a89-a397-42cc88dbde70`.\n\n## Scope\n\nThe current Foresight coordinator owns recovering the source-to-law mapping and\npublishing the selection for planning review. The decision must name the owning\nrepository, library/module and integration seams, then be acknowledged through\nthat repository's reviewed implementation plan. OpenPlanner retains ownership\nof its persistence/query surface; Knoxx retains product integration. A shared\nlaw promotion needs its own reviewed authority decision.\n\nInitial Markdown is proposed input. Native Rheos retention/enforcement of the\npredecessor edge must be delivered and verified through the epic's separately\nowned upstream prerequisite before either story is admitted.\n\n## Non-goals\n\nImplement a solver before selection, assign common-law authority from a donor\nname, duplicate a graph force engine, copy Fork Tales' effect runtime, migrate\nboard semantics locally, or treat a documentation link as native admission.\n\n## Acceptance criteria\n\n1. The decision names one owning repository and library/module, accountable\n   implementation role, consumer adapters and exact reviewed source revisions.\n   It explains which Fork Tales corrections are retained and any non-equivalent\n   older formulation. Unresolved mechanics stay blocking rather than disappearing\n   from the solver's acceptance criteria.\n2. It specifies numeric representation on each actual target, units, timestep\n   schedule and bounds, finite-value behavior, seeded exploration semantics,\n   rounding/order rules and declared absolute/relative replay tolerances.\n   Cross-runtime parity is required only for targets the decision actually selects.\n3. It maps solver state, graph/field persistence and traced recall to their\n   ownership boundaries, including authorization before traversal and feedback.\n   There is one physical computation authority with outward runtime adapters.\n4. Independent planning review assesses the choice and its estimates. Native\n   Rheos records lawful readiness and the retained predecessor relationship\n   after the upstream admission prerequisite passes. Before that, the relationship\n   and 3-point estimate remain provisional.\n5. The successor's RED tests and GREEN solver/replay bind this decision's revision,\n   kernel configuration and numeric tolerance; a changed selection requires fresh\n   review and cannot reuse incompatible replay evidence.\n\n## Verification\n\nRetain the decision diff, source map, native review IDs and exact source/kernel\nrevisions. Use native Rheos for readiness and predecessor observations. The\nsuccessor demonstrates executable numeric and coupling laws after admission;\nstatic planning checks do not prove that the solver exists or replays correctly.\n\n## Risks\n\nPremature common-law promotion, a choice incompatible with persistence or host\ntargets, numeric tolerance hiding divergent behavior, and a nominal owner without\na reviewed owning-repository delivery plan. Three points is a planning estimate;\nimplementation cost remains in the separately reviewed solver story.\n\nLicense: GPL-3.0-or-later.\n\n\n---\nSelection readiness evidence (2026-10-11): personal Foresight PR26 merged89946bdf09c1d0141e04e2a02d8a09bb05c26ba4, finalhead9f7f64f442c143949e5d998828d4e67c8a599319. Its selected decision is the identical20432-byte blob e593dcb6c17b3fe04107564651632f0dad717717 at selection6a4438982fdf1eca98f856748bb23b19ab017c0a/path docs/notes/2026-10-07-cephalon-field-kernel-selection.md. Owning Eros/Eris plan independently merged in personal PR1/a2c64bee9878fef3abd2b38481b972e6aa29cd37, source212d8d0d5f475cbea3fd5e52f4e5280434c32989, docs/plans/2026-10-07-cephalon-physical-kernel.md and its ABI. Qualified native Rheos walked Incoming -> Accepted -> Breakdown -> Ready and independent read-task returned ready. The unchanged card body and full earlier180916-byte ledger prefix were independently verified. This records reviewed owner/numeric selection readiness only: actual solver/replay tests, encounter persistence, mood consumption and live recall remain outstanding under their existing gates. It does not move the physical solver or mood story or complete the larger character milestone. Root receipt396 retains the source identities and observations.\n\nSigned-index selection refinement actually qualified and MERGED personal Foresight36 at8c649fee2e95e5ec6b5304a3351a0e16fca60533 on2026-10-14T20:18:50Z. Head020d97fe/currentCodex+MiMo/all3checks/0threads/native CodeRabbit quota exclusion/canonical gatePASS; actual merge parents04acc6dc+020d and tree equals reviewed head. Only floor field cell indices admit signed safe range; counts/wallets/time remain nonnegative. Eros/Eris personalPR2 proposed ABI/data binds exact decision020d; its own fresh review and native decomposition/readiness remain outstanding. No successor solver test, field behavior or larger storyDone claimed; original6a receipts remain immutable.\n\n---",
+          "title": "Select the physical graph kernel owner and numeric replay contract",
+          "source-path": "/home/err/.codex/worktrees/cephalon-recall-refinement/foresight/docs/agile/kanban/cephalon-character-field-contract.md",
+          "source-board": "kanban",
+          "source-revision": "bd369ff3f8901ce5bfd818b29c5270c253864d0dab418d924a1d1453eeb42896",
+          "org": null,
+          "priority": "P1",
+          "status": "ready",
+          "drift": false,
+          "epic": "63a0e4ff-353f-4c90-ab8a-7241d958d54c",
+          "domain": null,
+          "uuid": "b5f2ba9e-8d67-4c73-9919-e275983aca87",
+          "created-at": "2026-10-16T00:14:40.330Z",
+          "frontmatter": {
+            "labels": "cephalon, graph, architecture, numeric, planning",
+            "parent": "63a0e4ff-353f-4c90-ab8a-7241d958d54c",
+            "write-id": "1792009665518-0.1cdwcuh0wh11s6r3yf0",
+            "points": "3",
+            "title": "Select the physical graph kernel owner and numeric replay contract",
+            "priority": "P1",
+            "status": "ready",
+            "epic": "63a0e4ff-353f-4c90-ab8a-7241d958d54c",
+            "uuid": "b5f2ba9e-8d67-4c73-9919-e275983aca87"
+          }
+        }
+      ]
+    },
+    {
+      "status": "todo",
+      "title": "Todo",
+      "task-count": 0,
+      "tasks": []
+    },
+    {
+      "status": "in_progress",
+      "title": "In Progress",
+      "task-count": 1,
+      "tasks": [
+        {
+          "labels": [
+            "cephalon",
+            "memory",
+            "graph",
+            "identity",
+            "laws"
+          ],
+          "slug": "a1e9d6af-0233-4dcb-9677-5c76fa9a2701",
+          "parent": "63a0e4ff-353f-4c90-ab8a-7241d958d54c",
+          "content": "\n## Context\n\nServed Knoxx hydrates memory using vector search and then session authorization.\nThe later API search was not a controlled reproduction of the maker. The current\nscheduled maker records actor/role but no organization, membership or user; the\nturn's synthesis adds no cross-session memory grant. Visibility rejects a\nnon-admin context lacking the required matching scope or grant. Graph retrieval\nis a separate REST seam even when vectors use the direct Mongo client.\n\nThe [2026-10-07 source audit](../../notes/2026-10-07-cephalon-character-memory-graph.md#2026-10-07--bounded-hydration-source-audit)\nbinds these facts to S `2644fc6c51bbbcda599964a5a674415b58344c3b` and C\n`366e72ab68c8afae708d3f6d5546faee808ebc07`, with source paths and immutable\nline anchors. Search takes k before visibility and does not refill; the memory\nevent counts `:results` despite a `:hits` payload. The latter is an accounting\nbug distinct from the eight actual persisted empty arrays. Detached indexing,\ndifferent API gates and the sessionless SDK fixture remain separate test inputs,\nnot an asserted historical cause or a new execution/installation claim.\n\n## Outcome\n\nA scheduled character obtains its authorized memories through graph-mediated\nrecall and includes useful traced context. Missing authority and unavailable\ngraph transport remain observable outcomes. An unrelated actor's private\nmemory stays inaccessible at seeds, traversal, returned context and feedback.\n\n## Scope\n\nKnoxx trusted event actor-context resolution, memory visibility decisions,\ncandidate/filter/inclusion diagnostics, bounded passive graph recall and existing\nOpenPlanner graph seams. Resolve actual actor authority through the existing\nidentity/policy boundary; never infer grants from a display role. Review any\nneeded graph scope/feedback extension in OpenPlanner's personal fork.\n\nRetain the [existing graph/projection boundary](../../notes/2026-10-07-cephalon-graph-recall-boundary.md)\nand its separately pinned OpenPlanner observations: trail persistence flags do\nnot disable all feedback, selected reinforcement counts do not prove writes,\nand scope must cover compacted views, trail/force influence and feedback before\nthey affect recall. The parent epic still requires the complete encounter ->\nphysical field -> independent mood -> graph recall -> choice -> observed outcome\nloop, including physical replay, continuity and social obligations.\n\n## Non-goals\n\nMake context nil or administrator to bypass filtering, grant arbitrary\ncross-session access, accept payload-chosen credentials, replace vector storage,\ncall a feedback-writing query a pure read, or require an LLM for this fixture.\n\n## Acceptance criteria\n\n1. Freeze query, corpus and authenticated maker principal. The prior path fails\n   to include an authorized stored encounter; the repaired path includes it.\n   Retain candidate IDs, exclusion reasons and included IDs with visibility-safe\n   operator diagnostics. State the proven cause separately from historical clues.\n   Include the bounded k=6/fetch-18 case with six denied leading candidates and\n   an authorized seventh candidate after quality ordering. Preserve the search\n   budget while preventing that candidate from being lost before visibility.\n2. A scheduled actor obtains only its stored authorized scope through the\n   existing resolver. Missing, revoked and mismatched bindings fail closed;\n   a payload cannot choose a role, organization or permission grant.\n3. Scope is enforced before graph expansion and reinforcement. A private node,\n   connecting edge or hidden intermediate cannot leak through path text, scores,\n   metadata or persisted trails. Public and explicitly shared memories obey\n   their actual admission policy, not an invented role-based exception.\n   Hidden nodes/edges, compacted members, trails and forces cannot causally alter\n   authorized ranking, path selection or feedback even when their text is omitted.\n4. Recall includes a memory reached through an authorized graph edge beyond the\n   semantic seed, with node IDs, traversal path, reasons, graph/field revision\n   and explicit inclusion budget. A vector-only result cannot satisfy this case.\n   Inspect the actual assembled prompt: the authorized encounter and traversal\n   context must reach the scheduled character, not only a returned result map.\n5. Empty authorized corpus, denied candidates, indexing delay, transport error,\n   timeout and budget exhaustion are distinct results. A failed graph path does\n   not silently become a successful empty recall.\n6. Duplicate recall cannot multiply reinforcement; unadmitted retrieval cannot\n   reinforce hidden nodes. Deliberate feedback is attributed to this recall.\n7. Existing legacy request contexts and privacy negatives retain behavior. The\n   conversation head uses a bounded shared snapshot outside its acknowledgment\n   path; heavy recall cannot consume the reserved head lane.\n8. Memory event counts use the memory hit payload and agree with its persisted\n   hit count. Report actual prompt inclusion separately when its budget reduces\n   context; candidate, authorized-hit and included-hit counts need not be equal.\n   Distinguish raw candidates, quality survivors, authorized hits and included\n   hits. Feedback distinguishes attempted, completed, partial and failed writes;\n   a selected-operation count or HTTP 200 cannot attest completed persistence.\n\n## Verification\n\nRed tests use the actual automatic and tool/API adapters with identical corpus\nand principal, held provider boundaries and real graph result shapes. Include\nnegative authority and hidden-path cases, a graph-neighbor inclusion case and\ntransport failures. Run the relevant Knoxx and OpenPlanner gates separately;\nbind proofs to both revisions. A live passive turn is observed only after\nqualified deployment; do not invoke the active maker to prepare fixtures.\n\nThe following are prospective RED scenarios; none was authored or executed by\nthe static audit or this planning update. Use the source revisions/paths in the\nlinked audit and retain fixture query, corpus/index snapshot, candidate IDs and\norder, quality labels, principal/grants, limits and selected transport.\n\n- **Authorized lower candidate:** feed the real search/visibility adapters the\n  same frozen nested vector result with six quality-eligible denied candidates\n  before an authorized seventh, k=6 and fetch-18. The predecessor loses the\n  authorized candidate; the acceptance test requires bounded inclusion without\n  admitting the denied leading candidates or silently broadening permissions.\n- **Matched inputs and endpoint gates:** compare automatic hydration and the\n  memory tool/API with the full stored query, candidate set, options and trusted\n  principal held fixed. Verify API memory-read and cross-session gates explicitly;\n  a correct route refusal need not equal passive hydration's result. Do not add\n  a grant, nil context or admin role solely to force endpoint parity.\n- **Strict denial and decoding:** missing/revoked/ambiguous/mismatched bindings,\n  foreign/private sessions, session-fetch rejection and missing session metadata\n  remain denied. Keep legacy policy controls explicit. Supply a separate positive\n  nested-array fixture with session metadata and matching stored ownership rows;\n  the current canned SDK hit/session lookup cannot serve as that positive proof.\n- **Graph scope and causal isolation:** include an authorized neighbor beyond\n  the seed, then vary only hidden connecting nodes/edges, compacted members and\n  trail/force samples under a fixed seed/config/scope snapshot. Authorized paths,\n  rankings, prompt context and feedback must not change because of denied data.\n  Enforce scope before expansion/projection influence and writes, not afterward.\n- **Transport and readiness:** hold vector and REST graph boundaries separately.\n  Local Mongo vector success with unavailable/failed/timed-out graph transport\n  must remain an explicit graph failure. Hold detached indexing completion apart\n  from event acceptance; freeze candidates before/after fixture readiness and\n  never infer earlier availability from a later API result.\n- **Telemetry and prompt inclusion:** exercise the actual turn assembly and\n  publication boundary with positive authorized memory and a graph path. Require\n  the event's memory count to match the `:hits` payload, preserve the resource\n  array, and inspect the prompt actually passed onward. Empty/denied/failure and\n  inclusion-budget cases must keep their distinct counts and outcomes.\n- **Deliberate feedback:** replay one stable recall/effect identity and inject\n  partial/failed writes. Verify no duplicate or unauthorized reinforcement,\n  truthful persistence outcomes and explicit consumer compatibility. A trail-off\n  flag or successful retrieval response alone cannot establish no effects.\n\nReuse the existing C hydration outage, semantic nested-result/request, SDK\nconversion, hydration-publication and actor-membership fixture seams listed in\nthe audit. Their current coverage is not a positive authorized graph recall\nproof. Graph boundary observations remain isolated synthetic I/O evidence;\nupstream integration and each owning implementation's qualification are separate.\n\n## Risks\n\nExisting actor contexts may omit organization on purpose; repair requires actual\nstored authority rather than guessed grants. Current graph-memory reinforces\nedges and persists trails; output filtering after those writes is insufficient.\nScope-aware expansion may require an independently reviewed OpenPlanner change.\n\nLicense: GPL-3.0-or-later.\n\n\n---\nIndependent recall readiness audit,2026-10-14: current card bytes and body equal actual personal Foresight PR27 MERGEf525611dde98f63dca9594a741ecae4f96478df4/reviewed d58ced88052470ef231988fea64db88c56023f6c/base6771e5fadbb5835c0c7f6a48e3b00645b1571be8. Owning receipt275 retains original canonical gatePASS, actual full39-input/103-page reviews and actual merged parents/tree; CodeRabbit+MiMo cohort was independently qualified at that source, with native Codex account-quota availability only. This is that unchanged qualified planning source, no transfer from ETA reviews. Qualified Rheos853 native Incoming→Accepted→Breakdown→Ready succeeded; independent readback Ready/5points. Reviewed body, exact complete prior native ledger and all79other card bytes remain intact. Existing Knoxx/OpenPlanner candidates still require own source qualification/deployment before live automatic recall proof. No grants, runtime, makers, clock, owner, heartbeat or publication changed; partial finite B3 will not close the larger story. Goal B1/B2/B3 proofs remain zero.\n\nTemporal correction to the preceding readiness audit: the exact whole-card byte/body equality to qualified f525 was verified BEFORE the native admission sequence. The Ready status, write IDs and these subsequent native comments intentionally differ afterward. The reviewed primary body was preserved through the three status transitions, and all79other cards remained byte-identical. This clarification preserves the original event/comment and grants no extra qualification or live proof.\n\nRecallAC4 source progress20261014: actual adapter RED50fe1979tests11557assertions10fail0error isolated/zero compiler warnings, actualGREENe98563b8350bb1602c24feba5155b344e963335b supportedNode22.20 full1980tests11559assertions0fail/error and production server typecheck0compilerwarnings. Owning candidate033c SDK/graph-core with held stores/provider sessions; actual revision tuple reaches assembled prompt, persisted run and hydration event; revocation clears stale tuple; legacy vector hydration excludes tuple. Actual field remainsnot-loaded. Same4historicalsizewarnings retained, no full-lint pass or source/reviewer/runtime approval. Current personalKnoxxPR14draft/currenthead pushed ordinary history; ownCI actually running, native unresolved findings retained. Native recalled story staysInProgress5, larger reserved-head obligations and0/3behavioralproofs remain unfinished. Canonical two-point withdrawal repair scope remains human-pending. No new dependencies/points, live principal, maker/runtime/clock/gateway/cloud/PM2/heartbeat/social/model/grant/paid/spore changes.\n\nExisting bounded-source review correction checkpoint: OpenPlanner PR3 exact7e full CodeRabbit request6176739296/completion6176741577 and native review5523742593 now expose three required defects in the already included SDK paths:4275504058 credential-file ignore,4275504070 late successful embedding discarded/deleted,4275504095 in-place hydration-cache staleness. These are to be verified and repaired under this existing recall/source delivery, not added to the one-point ETA consumer ad41fc8a two-pin scope. The SDK source/test/.gitignore paths are already in original56/full150; preserve all70 raw provenance inputs and existing ledgers. Existing automatic/authorization/ownership/privacy contracts remain. RED on actual exported SDK/file ports precedes minimal GREEN; no hard30second cancellation or global fencing claim is invented because uncancellable work is already held until terminal. Own changed head will require full150 current review/checks; no old7e approval transfers. Current native recall stays IP5; no new implementation inventory/card/points/dependency/status. Field/mood proof remains unimplemented, source/consumer unmerged/undeployed, B1/B2/B3 live0of3. GoalACTIVE and heartbeat humanPAUSED; no live runtime/maker/clock/gateway/grants/model/credentials/paid/social/deployment changes.\n\nActual full CodeRabbit7e review5523742593 found .env protection, late successful embedding discarded, stale in-place file hydration. These existing SDK delivery bugs are now corrected in ordinary RED954bc3d/GREEN22e29054. Actual focused RED5fail -> GREEN5pass and full SDK992pass0fail; current exact22e hostedfunctional38631086312 SUCCESS, all steps including disposable Mongo transaction fixture/cache/hydration/JVM/Node/lint/exports. All3 finding threads settled, original56/full150/all70raw/receipt263 preserved. Own old7e MiMo38615534310 still natively in_progress; new exact22e38631087271 pending, never manually restarted for observation timeout. Fresh reviews/mandatorygate remain required. This is source correctness, not live B3 maker/principal/prompt or B1B2 field/mood proof; current InProgress5 unchanged.\n\nNewly observed review-transport prerequisite, scope not yet included: original7e MiMo38615534310 ended at native2h maximum with370/1484 accepted page assessments and no stages/submission; current22e38631087271 is running unchanged. Existing owner Muse pages are8192UTF16/128lines with separate guarded read/assess calls. A concrete bounded/lossless throughput proposal is prepared privately at sdk-current-three-findings/bounded-large-review-scope-proposal.md and human inclusion question is pending under the accepted finite milestone. Do not alter credentials/free OpenCode routing, current job/budget, guards or raw scope, or create/admit a new task before the scope choice and reviewed plan. CurrentSDK functionalCI passes; latest full CodeRabbit6178185735 actually triggered6178188282, actual UTF8 path spelling clarified6178229793; a fresh Codex6178228684 request cites concrete newer same-App review availability. No source/consumer merge or liveB3 proof yet. Native recall remainsInProgress5, goalACTIVE/heartbeatPAUSED.\n\nCurrent graph prerequisite advanced after native full309 CodeRabbit5525468656: confirmed source identity and Mongo startup refinements reproduced/repaired in ordinary REDa7d54f8/GREEN329dc728637c2c665d4957bd56bb282f0b5ef3d5. Actual six loader/export aggregation REDthrows become complete SDK1000/1000 GREEN; allother Compose rendered config identical with startup2s. Ranked query already catches malformed candidates; currentEngine defaultstartup5s is corrected rather than fabricated30s proof. Original150paths/56import/all269receipts retained. Fresh329 source/native/local/personal matches; requiredCI38647273217 active, hosted review38647273636 pending. Current Erosb512 MiMo5525338684 approved full13pages/all7 but independentCR cooldown remains; no native field implementation/readiness or B1/B2/B3 live proof. Throughput scope answer stillpending; no new transport implementation or activejobcancel. Goalactive/heartbeat humanpaused.\n\nCurrent concrete delivery handoff: personal OpenPlanner3 head4402dd09 has actual functionalCI38655568015 SUCCESS plus localSDK1000/1000; current full MiMo source qualification still pending. Personal Foresight37 head522165f3 now contains eight actual native-created Incoming packet UUIDs and proposed36points+selection3 with exact links, sourcebranch only: admissiona0176ec0, graph1eb3aa1f, ABId68344c4, force2eebbcf3, contactba078119, atomic2f4421ee, mood8bcaa0f3, automatic2df3d26b. No Root readiness/aggregate-point adoption or source state import is claimed. Personal field2 headece7454 fixes five actual findings, adds independently valid admitted encounter arms and explicit Node/V8/LN2 numerical profile; no solver/compiled artifact qualification yet. Actual old22 MiMo job116088829693 hit native2h limit with346/1485 assessed; current329 attempt remains live, not restarted. Bounded lossless throughput inclusion is still human-pending, no implementation. GoalACTIVE heartbeat humanPAUSED B1/B2/B3live0/3; no active-maker/runtime/deployment/social changes.\n\n---",
+          "title": "Hydrate the creative character with authorized traced graph memory",
+          "source-path": "/home/err/.codex/worktrees/cephalon-recall-refinement/foresight/docs/agile/kanban/cephalon-character-recall.md",
+          "source-board": "kanban",
+          "source-revision": "e669eaab384af2bf554ebdf4740b5ace7ff7c5f23abd359a7a5075ce4bdd13ea",
+          "org": null,
+          "priority": "P1",
+          "status": "in_progress",
+          "drift": false,
+          "epic": "63a0e4ff-353f-4c90-ab8a-7241d958d54c",
+          "domain": null,
+          "uuid": "a1e9d6af-0233-4dcb-9677-5c76fa9a2701",
+          "created-at": "2026-10-16T00:14:40.333Z",
+          "frontmatter": {
+            "labels": "cephalon, memory, graph, identity, laws",
+            "parent": "63a0e4ff-353f-4c90-ab8a-7241d958d54c",
+            "write-id": "1792023019028-0.c85f50csrvhdwo8kxkd",
+            "points": "5",
+            "title": "Hydrate the creative character with authorized traced graph memory",
+            "priority": "P1",
+            "status": "in_progress",
+            "epic": "63a0e4ff-353f-4c90-ab8a-7241d958d54c",
+            "uuid": "a1e9d6af-0233-4dcb-9677-5c76fa9a2701"
+          }
+        }
+      ]
+    },
+    {
+      "status": "review",
+      "title": "Review",
+      "task-count": 0,
+      "tasks": []
+    },
+    {
+      "status": "document",
+      "title": "Document",
+      "task-count": 0,
+      "tasks": []
+    },
+    {
+      "status": "done",
+      "title": "Done",
+      "task-count": 1,
+      "tasks": [
+        {
+          "labels": [
+            "cephalon",
+            "pr-flow",
+            "withdrawal",
+            "provenance"
+          ],
+          "slug": "fbf4f337-5a01-48fb-b3ac-52859ed42a07",
+          "parent": "63a0e4ff-353f-4c90-ab8a-7241d958d54c",
+          "content": "\n## Context\n\nThe human explicitly included this narrow two-point prerequisite in the current\ncharacter milestone on 2026-10-14: “Include the narrow canonical repair.”\nThe owning issue is https://github.com/riatzukiza/.agents/issues/25.\nETA PR15 has current approving reviews and passing deterministic checks but the\ncanonical withdrawal predicate requires its original finding's immutable review\ncommit to equal the latest PR head. A later opener recheck cannot mutate that\noriginal review. The original native root and history must remain inspectable.\n\n## Outcome\n\nA configured native finding opener can withdraw its own older finding after a\ncurrent-head recheck; a subsequent authorized current-head writer settlement\ncan clear that finding through the canonical law. Original severity, root,\nreview identity and source commit remain preserved.\n\n## Scope\n\nOwning `.agents` pure PR-flow withdrawal predicate, regression fixtures, skill/contract wording and protected adoption. Collector/acquisition/pagination/identity-custody changes are excluded: the actual existing collector already captures original and current enclosing reviews and complete native conversation. If this pure repair proves insufficient, stop and report the owning gap for a separately scoped and estimated prerequisite before changing collector code.\nThe Foresight card is the primary board artifact. The owning source PR carries\nan explicitly attributed planning snapshot, not another board implementation.\nKeep the existing two-point estimate for this included prerequisite.\n\n## Non-goals\n\nChange approval or cohort policy, waive checks, add native identities, create a\nlocal classifier, accept copied Bot transcripts or general cross-thread agreement,\nrewrite receipts, add repository fields, change credentials/models/paid usage,\nor change character runtime, clock, gateway, grants or publication.\n\n## Acceptance criteria\n\n1. Freeze the actual old-root conversation and immutable review commit. A\n   clearly labeled prospective fixture with a current native opener withdrawal\n   and later current authorized writer reproduces the false refusal before the\n   change. Original raw bytes remain distinct from fixture-only mutations.\n2. Preserve the original root/review/commit and conservative severity. Admit a\n   known older original commit only when the actual current-head configured\n   opener withdrawal and subsequent writer match repository/PR/thread/root,\n   complete ordered native context, substantive rationale/evidence and chronology.\n3. Stale withdrawal or writer, missing/malformed original binding, wrong opener,\n   repository/PR/root, partial pagination, unresolved/outdated conversation,\n   unknown timestamps, later edits/retraction/pushback and nonwriter identity\n   remain denied. Unknown history never becomes an empty successful history.\n4. Existing same-head withdrawal, rejection, native body/thread obligations,\n   approval/full-input/cohort/required-check and merge-head guards retain behavior.\n   The new disposition grants no approval, review round, quota or CI credit.\n5. Run all owning PR-flow laws, policy, CLI, portable and lint gates. Complete\n   current-head planning/code review and protected history-preserving MERGE.\n   Only then adopt the reviewed source and obtain fresh native withdrawal/writer\n   evidence on ETA PR15; historical752 evidence cannot qualify current564.\n\n6. Before this prerequisite is admitted Ready, reconcile its parent epic through\n   qualified Rheos: add this child UUID/two-point scope to the native inventory,\n   and apply the independently reviewed enumerated total of 39 points\n   (the existing proposed37 plus this included2). Read back the actual epic\n   UUID/type, points and scope comment. Preserve prior34/37 source and events;\n   the arithmetic is a proposal until planning review qualifies it. No readiness\n   may rely only on the old Incoming34 readback or a duplicated source snapshot.\n\n## Verification\n\nPlanning review assesses this scope, two-point estimate, identities/bindings and\nnegative matrix before lawful Rheos readiness. RED/GREEN follows readiness.\nUse the actual native ETA conversation plus explicit fixture-only current-head\nsuccessors, preserving every original byte and ledger prefix. Capture exact\ncommands/results, full changed input and final merged/adopted source hashes.\nCurrent application/deployment and B1/B2/B3 behavior are separate later evidence.\n\n## Risks\n\nConfusing old root provenance with stale current authority; weakening native\nchronology or trusting partial capture; accepting withdrawn rejection agreement\nas finding withdrawal; masking later conflicts; tests depending on unavailable\nprovider or live network. Keep source qualification and actual adoption separate.\n\nLicense: GPL-3.0-or-later.\n\n\n---\nPlanning correction from native Codex4272509069: primary Scope is now pure withdrawal predicate/tests/skill-contract only; collector/acquisition/pagination/identity-custody changes excluded. Existing complete capture supplies original/current reviews. Any insufficiency requires separately scoped and estimated prerequisite before collector work. Incoming2/frontmatter preserved; no implementation or readiness. Parent target evidence is being captured independently through native Rheos.\n\nPlanning correction from native Codex4272681727: AC6 makes parent inventory/two-point child and independently reviewed proposed37+2=39 reconciliation explicit BEFORE this card Ready. Qualified Rheos must apply inventory comment and reviewed points, with actual parent readback; original34/37 history/events preserved. No parent estimate or readiness changed before review. Scope remains pure law2; collector excluded.\n\nCompleted qualified two-point canonical repair: planningPR35 MERGE4f55fcc0 preceded native parent39/readiness; RED8a756d14 reproduced4failures; GREEN6f5e352 passed178/4701 laws,61/1554 policy,99/2681 CLI,2/7 portable and lint0/0. Actual codePR36 MERGE6f968b71 on17:00:48UTC has exact reviewed tree/parents, CodeRabbit+MiMo current approvals, five passing checks, zero threads and one unanimous available code cohort. Six reviewed canonical skill/fixture files are adopted with protected backups and exact readback; installed laws/policy/lint pass and foreign catalog work is preserved. Actual ETA15 current native opener4273980047 and writer4274066569 now qualify the original bd3b review without rewriting it. Remaining P2 concern was factually Handled; parent15 actualMERGEd8bbd5fd at17:36:47UTC has15passingchecks/10settledthreads/currentthree-agent planning cohort and reviewed tree/parents. This completes the prerequisite's own acceptance criteria, not any larger field/mood/recall story. B1 B2 B3 remain0of3; heartbeat remains human paused; no maker/runtime/clock/credentials/model/paid/social/deployment change.\n\n---",
+          "type": "task",
+          "title": "Repair canonical opener withdrawal across immutable review heads",
+          "source-path": "/home/err/.codex/worktrees/cephalon-recall-refinement/foresight/docs/agile/kanban/repair-canonical-opener-withdrawal-across-immutable-review-heads-9ed42a07.md",
+          "source-board": "kanban",
+          "source-revision": "c488a28012cd3aae5726cf61f5e6fdd84ac9ae6890221f086eb7fe4f61a2fe77",
+          "org": null,
+          "priority": "P1",
+          "status": "done",
+          "drift": false,
+          "epic": "63a0e4ff-353f-4c90-ab8a-7241d958d54c",
+          "domain": null,
+          "uuid": "fbf4f337-5a01-48fb-b3ac-52859ed42a07",
+          "created-at": "2026-10-14T14:49:46.534Z",
+          "frontmatter": {
+            "category": "kanban",
+            "labels": "cephalon, pr-flow, withdrawal, provenance",
+            "parent": "63a0e4ff-353f-4c90-ab8a-7241d958d54c",
+            "type": "task",
+            "write-id": "1791999854873-0.8ll53uq3xt4zcusdx3",
+            "points": "2",
+            "title": "Repair canonical opener withdrawal across immutable review heads",
+            "priority": "P1",
+            "status": "done",
+            "epic": "63a0e4ff-353f-4c90-ab8a-7241d958d54c",
+            "uuid": "fbf4f337-5a01-48fb-b3ac-52859ed42a07",
+            "created_at": "2026-10-14T14:49:46.534Z"
+          }
+        }
+      ]
+    },
+    {
+      "status": "rejected",
+      "title": "Rejected",
+      "task-count": 0,
+      "tasks": []
+    }
+  ]
+}

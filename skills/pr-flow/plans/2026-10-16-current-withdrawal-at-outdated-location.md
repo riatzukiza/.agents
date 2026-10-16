@@ -90,17 +90,30 @@ the B1–B3 live proofs.
 
 ## Acceptance criteria
 
-1. **Native authority stays separate.** The coordinator authors the primary
-   Foresight card above. Canonical planning review assesses this scope,
-   two-point estimate, dependencies and negative matrix. No implementation or
-   causal RED begins before that review qualifies and the primary is lawfully
-   Ready through Rheos, followed by the applicable native execution transition.
-2. **Parent inventory is reconciled before Ready.** The parent's last supplied
-   total is 39 points. Reconcile every existing source prerequisite, child UUID,
-   estimate, dependency and prior total through owning Rheos before admitting
-   this child. Do not infer a new total by blindly adding two, or treat this
-   snapshot as a native point/status write. Preserve prior inventory and event
-   history and read back the reviewed native inventory and resulting total.
+1. **Native authority stays separate.** The primary Foresight card is authored
+   Incoming/2, still in planning review. Canonical planning review assesses this
+   scope, two-point estimate, dependencies and negative matrix. Its recorded
+   predecessor `fbf4f337-5a01-48fb-b3ac-52859ed42a07` is natively Done/2;
+   confirm that prerequisite and complete the reviewed parent reconciliation in
+   AC2 before lawful Ready through Rheos. No implementation or causal RED begins
+   before qualification and the applicable native execution transition.
+2. **Review and apply the enumerated parent proposal before Ready.** Propose
+   **41 points for the same parent accounting boundary**, UUID
+   `63a0e4ff-353f-4c90-ab8a-7241d958d54c`, using the ten actual direct children
+   enumerated below: the original seven delivery cards total 34, kernel selection
+   contributes 3, the completed earlier withdrawal repair contributes 2, and this
+   distinct extension contributes 2. This reconstructs the existing 39 by child
+   identity before introducing the new child; it is not blind addition or a new
+   program estimate. Preserve actual native Incoming/39, the historical 34/37
+   body and the recorded 34-to-39 event until independent planning review
+   qualifies the inventory and proposed 41. Then, before this card Ready, use
+   qualified Rheos to append the reviewed inventory/accounting comment, apply
+   the reviewed 41-point parent estimate, and read back the actual parent UUID,
+   epic type, points and comment with the child/predecessor relationships.
+   This source snapshot performs none of those writes or transitions. No
+   re-estimate of the whole 75-point program is required for this pure two-point
+   card; a concrete further blocking dependency requires separate scope
+   inclusion before expanding this prerequisite.
 3. **Causal regression is explicit.** After readiness, register a test showing
    that otherwise qualified current custody with concordant native outdated
    flags true is refused by the unchanged predicate. Preserve the concordant
@@ -172,8 +185,10 @@ append-only Receipt River and reflection custody for this delegated snapshot.
   their unknown/mismatch/stale-head and all other negative protections. Do not
   apply the old patch and infer a passing full suite.
 - A duplicated plan or assumed parent arithmetic could bypass owning admission.
-  The primary Foresight card and reconciled Rheos inventory control readiness;
-  the supplied two-point estimate is not an admission or epic point write.
+  The primary Foresight card, actual Done predecessor and reviewed native parent
+  reconciliation control readiness. The enumerated 41 remains a proposal until
+  qualified review and Rheos write/readback; it is not an admission, a remaining
+  effort forecast, or permission to expand accounting to the whole program.
 - Source approval or a synthetic passing fixture could be confused with native
   PR37 settlement. Keep source review, actual adoption and fresh operational
   evidence distinct. An unresolved collector/custody gap remains outside this
@@ -189,3 +204,80 @@ and the existing parent as Incoming epic39. The actual bare-map CLI outputs and
 byte hashes are retained under
 `.ημ/review-evidence/current-outdated-withdrawal-20261016/`. Neither read supplied
 a new write-id, board creation event, estimate reconciliation or readiness.
+
+## Native direct-child inventory and proposed parent accounting
+
+The bounded native inventory below was read through qualified Rheos artifact
+SHA256 `85369213440634989365f75929045d36eb69b6c6b1e7679f68d483374a0d526b`
+from the coordinator, with Node 22.20.0, the qualified Rheos `NODE_PATH`, and
+`--config openhax.kanban.edn`. Native `parent = <parent UUID>` and
+`epic = <parent UUID>` queries returned the same ten cards; the native query for
+children beneath those ten returned zero further descendants. These are dated
+read observations, not local board validation or readiness.
+
+| Direct child UUID | Scope | Points | Native status at read |
+| --- | --- | ---: | --- |
+| `a1e9d6af-0233-4dcb-9677-5c76fa9a2701` | Authorized traced graph memory | 5 | in_progress |
+| `6eb77110-8cf4-44d5-a242-f495d25d6aaf` | Outside encounters | 3 | ready |
+| `ff3e628b-cd5c-4a89-a397-42cc88dbde70` | Physical graph/field coupling | 8 | incoming |
+| `4cac8ac8-1a9f-441d-ac87-aa09f874eb57` | Separate mood | 5 | incoming |
+| `b3da01be-aed8-4d61-88c4-82a62fc5cf1f` | Character and relationships | 5 | incoming |
+| `acac43b9-cb60-40c9-884b-a722fab7f645` | Social choices and outcomes | 5 | incoming |
+| `5ea872c3-1db4-47c5-a63d-d49f99f79497` | Complete loop/deployment proof | 3 | incoming |
+| `b5f2ba9e-8d67-4c73-9919-e275983aca87` | Kernel ownership/numeric selection | 3 | ready |
+| `fbf4f337-5a01-48fb-b3ac-52859ed42a07` | Earlier immutable-review withdrawal repair | 2 | done |
+| `6c789296-a573-47ae-9d46-3f30a9f359ae` | New outdated-location extension | 2 | incoming |
+
+The original seven rows total **34**; selection **3** and prior withdrawal **2**
+reconstruct **39**; the new distinct extension **2** yields the proposed **41**.
+All ten rows have both parent and epic equal to
+`63a0e4ff-353f-4c90-ab8a-7241d958d54c`. The new primary's recorded dependency is
+`fbf4f337-5a01-48fb-b3ac-52859ed42a07`; its scoped native event read is empty,
+consistent with supported hand-authored Incoming input without an invented
+creation event. Parent events retain the earlier reviewed reconciliation and
+actual 34-to-39 points change. No new estimate has been applied by this audit.
+
+### Separately owned prerequisites and nonadditive outcomes
+
+Receipt River, Rheos, ETA, OpenPlanner and Knoxx prerequisites retain their own
+owners, reviewed delivery/adoption conditions and reuse relationships. Native
+parent/recall comments reference those sources, but references do not turn them
+into extra direct children or additive point estimates for this parent. For
+example, receipt-prefix repair `b44514f0-7ed6-44ae-91bc-ab3a052871f1` is natively
+Done/3 without a parent/epic link to this character epic. That completed repair
+is not another three points to add to this proposal.
+
+The physical 8-point and mood 5-point cards are containing outcomes; their finite
+execution/source packets are not additive on top of those outcomes without a
+separately reviewed containment/replacement decision. External always-on runtime
+dependencies remain under their own epic. This inventory does not re-estimate
+the broader 75-point program or require exhaustive cross-owner cost expansion
+before this pure two-point card Ready. Its current readiness prerequisites are
+the actual Done prior withdrawal repair, qualified planning review and the
+reviewed native parent reconciliation in AC2. If a concrete further blocking
+dependency is discovered, stop for separate scope inclusion rather than adding
+it silently or expanding the accounting exercise without bounds.
+
+### Actual read archive and byte custody
+
+The **17 native read/help invocations all exited 0**. Their complete raw
+stdout/stderr, exact commands, exit codes and per-file SHA256 digests are retained
+in this dated archive:
+
+`/home/err/.local/share/codex/cephalon-review-artifacts/receipt-river-fixture-20261009/openplanner-context-consumer-20261014/continuation-20261014T2234/outdated-withdrawal-extension/inventory-readonly-20261016/`.
+
+`manifest.json` lists the byte counts and digests; its entries were independently
+read back against all 54 archived payload/metadata files. Key raw output bindings:
+
+| Archive file | Bytes | SHA256 |
+| --- | ---: | --- |
+| `03-primary.stdout` | 6655 | `f76f2b9ca2afa596ebc5865d1d05d7e835637a4fff9b86a38d80746e2c2910fe` |
+| `04-parent.stdout` | 14833 | `f6999bed8bb53d35a7b0ee27454353e4819ad0f2eaedb8f00fcb6af1fa618679` |
+| `07-direct-children.stdout` | 77787 | `a908fe0fd96d679f9581c6cf93d1f67416ac68f198f68a6ab6ab8a88a14cc6f8` |
+| `14-parent-events.stdout` | 10691 | `0fa702789dca6ae3302d38ecf33866004a2ecaef00467f6f7c8eaabf53411ca9` |
+
+`18-after-and-churn.json` records all 85 monitored board/ledger files
+byte-identical before/after and unchanged tracked Git status. No native churn
+was observed in that capture. The configured inventory was one project with
+82 cards, not a union of all owning source boards. No board write, transition,
+comment, estimate update, approval, merge or adoption resulted from these reads.
