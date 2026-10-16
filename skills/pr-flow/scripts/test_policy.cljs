@@ -23,6 +23,115 @@
                :checks [{:name "laws" :state "SUCCESS" :required? true}]
                :threads []})
 
+(def native-codex-receipt-v1
+  (js->clj (js/JSON.parse
+             (fs/readFileSync
+               (path/join (path/dirname *file*) ".." ".." ".." ".ημ" "review-evidence"
+                          "codex-receipt-v1-20261016" "native-codex-passing-6206360170.json")
+               "utf8"))
+           :keywordize-keys true))
+
+;; Actual full GitHub binding is separate from the unchanged native fixture.
+;; Legacy controls, requests, timestamps and mutations below are synthetic.
+(def codex-receipt-v1-head "04bb88861f1ed876732e050a299bbfaabe1752af")
+(def codex-receipt-v1-envelope "<!-- codex-review-receipt:v1 -->\n\n")
+(def codex-receipt-v1-bodies
+  [["legacy" (subs (:body native-codex-receipt-v1) (count codex-receipt-v1-envelope))]
+   ["wrapped" (:body native-codex-receipt-v1)]])
+(def codex-receipt-v1-request
+  {:id 1 :trusted? true :created_at "2026-10-16T02:00:00Z"
+   :body (str "@codex review <!-- pr-flow-stage:code --> <!-- pr-flow-round:1 --> "
+              "<!-- pr-flow-review:" codex-receipt-v1-head " --> <!-- pr-flow-reviewer:codex -->")})
+
+(deftest codex-receipt-v1-retains-identity-and-exact-head-guards
+  (doseq [[kind body] codex-receipt-v1-bodies]
+    (let [comment (assoc native-codex-receipt-v1 :body body
+                         :resolved-commit-id codex-receipt-v1-head)
+          evidence #(law/review-evidence codex-receipt-v1-head [] [%] identities)
+          completed #(law/completed-review-rounds [] [codex-receipt-v1-request %] identities)]
+      (is (= #{codex-receipt-v1-head} (get-in (evidence comment) [:approved-heads "codex"])) kind)
+      (doseq [[label bad] [["missing full binding" (dissoc comment :resolved-commit-id)]
+                           ["stale full binding" (assoc comment :resolved-commit-id old-head)]
+                           ["short binding" (assoc comment :resolved-commit-id "04bb88861f")]
+                           ["unknown Bot" (assoc-in comment [:user :login] "unknown-reviewer[bot]")]
+                           ["lookalike Bot" (assoc-in comment [:user :login] "chatgpt-codex-connector-extra[bot]")]
+                           ["User identity" (assoc-in comment [:user :type] "User")]
+                           ["conflicting provider" (assoc comment :provider "mimo")]
+                           ["pending verdict" (update comment :body str/replace
+                                                       "Codex Review: Didn't find any major issues."
+                                                       "Codex Review: queued.")]
+                           ["negative verdict" (update comment :body str/replace
+                                                        "Codex Review: Didn't find any major issues."
+                                                        "Codex Review: Found a major issue.")]]]
+        (is (empty? (:approved-heads (evidence bad))) (str kind "/" label))
+        (is (empty? (completed bad)) (str kind "/" label)))
+      (is (empty? (:approved-heads (law/review-evidence old-head [] [comment] identities))) kind)
+      (is (empty? (:approved-heads
+                    (law/review-evidence codex-receipt-v1-head [] [comment]
+                                         (assoc identities "mimo" (get identities "codex"))))) kind)
+      (is (= body (:body comment)) kind))))
+
+(deftest codex-receipt-v1-completion-retains-request-custody
+  (doseq [[kind body] codex-receipt-v1-bodies
+          [tail marker] [["none" ""]
+                         ["later literal" "\n\n<!-- codex-review-receipt:v1 -->"]
+                         ["later quoted" "\n\n> <!-- codex-review-receipt:v1 -->"]]]
+    (let [comment (assoc native-codex-receipt-v1 :body (str body marker)
+                         :resolved-commit-id codex-receipt-v1-head)
+          completed #(law/completed-review-rounds [] [% comment] identities)
+          rounds (completed codex-receipt-v1-request)
+          label (str "synthetic request " kind "/" tail)]
+      (is (= [{:reviewer "codex" :round-id 1 :stage "code" :commit_id codex-receipt-v1-head}]
+             (mapv #(select-keys % [:reviewer :round-id :stage :commit_id]) rounds)) label)
+      (is (= 1 (law/stage-review-rounds rounds [] "code" #{"codex"})) label)
+      (doseq [bad [(assoc codex-receipt-v1-request :trusted? false)
+                   (update codex-receipt-v1-request :body str/replace codex-receipt-v1-head old-head)
+                   (assoc codex-receipt-v1-request :created_at "2026-10-16T02:03:00Z")]]
+        (is (empty? (completed bad)) label))
+      (is (empty? (law/completed-review-rounds [] [comment] identities)) label)
+      (is (= (str body marker) (:body comment)) label))))
+
+(deftest codex-receipt-v1-does-not-override-later-negative-review-ordering
+  (doseq [[kind body] codex-receipt-v1-bodies
+          state ["CHANGES_REQUESTED" "DISMISSED"]]
+    (let [comment (assoc native-codex-receipt-v1 :body body
+                         :resolved-commit-id codex-receipt-v1-head)
+          negative (assoc (review "chatgpt-codex-connector[bot]" state codex-receipt-v1-head)
+                          :submitted_at "2026-10-16T02:03:00Z")
+          prior (assoc negative :submitted_at "2026-10-16T02:01:00Z")]
+      (is (empty? (:approved-heads
+                    (law/review-evidence codex-receipt-v1-head [negative] [comment] identities)))
+          (str "synthetic later " kind "/" state))
+      (is (= #{codex-receipt-v1-head}
+             (get-in (law/review-evidence codex-receipt-v1-head [prior] [comment] identities)
+                     [:approved-heads "codex"]))
+          (str "synthetic earlier " kind "/" state)))))
+
+(deftest incomplete-codex-receipts-with-later-markers-revoke-earlier-approval
+  ;; The later marker is inert prose, not a reason to ignore the live scope
+  ;; admission. Both legacy and wrapped receipts must reach revocation.
+  (doseq [[kind body] codex-receipt-v1-bodies
+          [tail marker] [["literal" "\n\n<!-- codex-review-receipt:v1 -->"]
+                         ["quoted" "\n\n> <!-- codex-review-receipt:v1 -->"]]]
+    (let [earlier (assoc (review "chatgpt-codex-connector[bot]" "APPROVED" codex-receipt-v1-head)
+                         :submitted_at "2026-10-16T02:01:00Z")
+          later (assoc native-codex-receipt-v1
+                       :resolved-commit-id codex-receipt-v1-head
+                       :updated_at "2026-10-16T02:03:00Z"
+                       :body (str body "\n\nMy review remains incomplete. Unreviewed files remain." marker))
+          evidence (law/review-evidence codex-receipt-v1-head [earlier] [later] identities)
+          label (str "synthetic incomplete " kind "/" tail)]
+      (is (= #{codex-receipt-v1-head}
+             (get-in (law/review-evidence codex-receipt-v1-head [earlier] [] identities)
+                     [:approved-heads "codex"])) label)
+      (is (some? (law/incomplete-review-reason (:body later))) label)
+      (is (empty? (:approved-heads evidence)) label)
+      (is (= {:head codex-receipt-v1-head :channel :explicit-issue-verdict :id 6206360170}
+             (select-keys (get-in evidence [:incomplete-evidence "codex"]) [:head :channel :id])) label)
+      ;; No formal review input here: the incomplete issue response itself
+      ;; supplies no cohort; historical review facts remain a separate input.
+      (is (empty? (law/completed-review-rounds [] [codex-receipt-v1-request later] identities)) label))))
+
 (def native-kimi
   (js->clj (js/JSON.parse (fs/readFileSync
                           (path/join (path/dirname *file*) "fixtures/native-proxx-kimi-publication.json") "utf8"))

@@ -84,6 +84,21 @@
               (str/replace source needle
                 (str needle "  (fs/appendFileSync (str (aget js/process.env \"PR_FLOW_TEST_DATA\") \".observation-calls\")\n"
                             "    (str (pr-str {:repo repo :observations observations}) \"\\n\"))\n")))))
+        (when (:review-comments-spy config)
+          ;; Observe the real hydration result at the unchanged law boundary in
+          ;; this temporary CLI copy. The production file and raw fixture stay
+          ;; untouched; the same comments are passed to the real law.
+          (let [file (path/join scripts "pr.cljs") source (fs/readFileSync file "utf8")
+                needle "(law/review-evidence head reviews comments (reviewer-identities) checks)"
+                at (str/index-of source needle)]
+            (when-not (and (some? at) (= at (str/last-index-of source needle)))
+              (throw (ex-info "Copied CLI review-evidence boundary is not unique" {})))
+            (fs/writeFileSync file
+              (str/replace source needle
+                (str "(law/review-evidence head reviews\n"
+                     "  (do (fs/appendFileSync (str (aget js/process.env \"PR_FLOW_TEST_DATA\") \".review-comments\")\n"
+                     "        (str (pr-str comments) \"\\n\")) comments)\n"
+                     "  (reviewer-identities) checks)")))))
         (when (:no-receipt-ledger config) (fs/unlinkSync (path/join tmp ".ημ" "receipts.edn")))
         (when (:receipt-directory config)
           (fs/unlinkSync (path/join tmp ".ημ" "receipts.edn"))
@@ -104,10 +119,13 @@
       (fs/copyFileSync (path/join here "fixture-gh.cjs") gh) (fs/chmodSync gh 493)
       (let [r (cp/spawnSync "nbb" (clj->js (into ["-cp" scripts (path/join scripts "pr.cljs")] args)) #js {:env env :encoding "utf8" :timeout 5000})
             calls-path (str data ".calls") observation-calls-path (str data ".observation-calls")
+            review-comments-path (str data ".review-comments")
             calls (if (fs/existsSync calls-path)
                     (mapv #(js->clj (js/JSON.parse %) :keywordize-keys true)
                           (remove str/blank? (str/split-lines (fs/readFileSync calls-path "utf8")))) [])]
         {:exit (.-status r) :out (str (.-stdout r)) :err (str (.-stderr r)) :calls calls
+         :review-comments (if (fs/existsSync review-comments-path)
+                            (mapv edn/read-string (remove str/blank? (str/split-lines (fs/readFileSync review-comments-path "utf8")))) [])
          :observation-append-calls (if (fs/existsSync observation-calls-path)
                                      (mapv edn/read-string (remove str/blank? (str/split-lines (fs/readFileSync observation-calls-path "utf8")))) [])
          :receipts (when (and (fs/existsSync (path/join tmp ".ημ" "receipts.edn"))
@@ -396,17 +414,178 @@
     (is (= 0 (:exit r)) (:err r))
     (is (str/includes? (:out r) "gate: PASS"))))
 
+(def codex-receipt-v1-envelope "<!-- codex-review-receipt:v1 -->\n\n")
+(def codex-cli-positive-body
+  (str "Codex Review: Didn't find any major issues. :tada:\n\n**Reviewed commit:** `" (subs head 0 10) "`"))
+(defn codex-cli-comment [body]
+  {:id 600 :user {:login "chatgpt-codex-connector[bot]" :type "Bot"}
+   :created_at "2026-10-03T01:00:00Z" :updated_at "2026-10-03T01:00:00Z" :body body})
+(defn codex-cli-config [comment]
+  (assoc base :reviews [] :comments [comment] :review-comments-spy true))
+(defn codex-commit-reads [result]
+  ;; The base fixture also rechecks its fixed historical completion head.
+  ;; Keep those unrelated full-SHA reads out of this receipt's hydration spy.
+  (filter #(and (= "api" (first (:args %)))
+                (re-find #"/commits/[^/]+$" (str (second (:args %))))
+                (not (str/ends-with? (str (second (:args %))) (str "/commits/" other)))) (:calls result)))
+(defn collected-codex-comments [result id]
+  (mapv (fn [comments] (first (filter #(= id (:id %)) comments))) (:review-comments result)))
+
 (deftest codex-verdict-resolves-the-provider-commit
-  (let [comment {:user {:login "chatgpt-codex-connector[bot]" :type "Bot"}
-                 :updated_at "2026-10-03T01:00:00Z"
-                 :body (str "Codex Review: Didn't find any major issues. :tada:\n\n**Reviewed commit:** `" (subs head 0 10) "`")}
-        config (assoc base :reviews [] :comments [comment])
-        ok (execute config "status" "open-hax/knoxx" "382")]
-    ;; The user's default quorum one applies to Knoxx too.
-    (is (str/includes? (:out ok) "gate: PASS"))
-    (is (some #(str/ends-with? (second (:args %)) (str "/commits/" (subs head 0 10))) (:calls ok)))
-    (is (str/includes? (:out (execute config "status" "riatzukiza/.agents" "8")) "gate: PASS"))
-    (is (str/includes? (:out (execute (assoc config :resolvedCommit other) "status" "riatzukiza/.agents" "8")) "gate: BLOCKED"))))
+  (doseq [[label envelope] [["legacy" ""] ["receipt-v1" codex-receipt-v1-envelope]]]
+    (let [comment (codex-cli-comment (str envelope codex-cli-positive-body))
+          config (codex-cli-config comment)
+          ok (execute config "status" "open-hax/knoxx" "382")
+          collected (collected-codex-comments ok (:id comment))]
+      ;; The user's default quorum one applies to Knoxx too. Only the real
+      ;; existing hydration path can produce the full binding in this input.
+      (is (= 0 (:exit ok)) (str label ": " (:err ok)))
+      (is (str/includes? (:out ok) "gate: PASS") label)
+      (is (= #{["api" (str "repos/open-hax/knoxx/commits/" (subs head 0 10))]}
+             (set (map :args (codex-commit-reads ok)))) label)
+      (is (seq collected) label)
+      (is (every? #(= (:body comment) (:body %)) collected) label)
+      (is (every? #(= head (:resolved-commit-id %)) collected) label)
+      (is (nil? (:resolved-commit-id comment)) "The input fixture is never pre-hydrated")
+      (is (empty? (writes ok "merge")))
+      (is (empty? (mutations ok)))
+      (is (str/includes? (:out (execute config "status" "riatzukiza/.agents" "8")) "gate: PASS") label)
+      (is (str/includes? (:out (execute (assoc config :resolvedCommit other) "status" "riatzukiza/.agents" "8"))
+                         "gate: BLOCKED") label))))
+
+(deftest actual-codex-receipt-v1-hydrates-without-rewriting-native-json
+  (let [file (path/resolve here ".." ".." ".." ".ημ" "review-evidence"
+                           "codex-receipt-v1-20261016" "native-codex-passing-6206360170.json")
+        bytes (fs/readFileSync file)
+        raw (js->clj (js/JSON.parse (.toString bytes "utf8")) :keywordize-keys true)
+        sha "04bb88861f1ed876732e050a299bbfaabe1752af"
+        ;; Synthetic CLI context around the untouched actual native comment.
+        ;; Full binding is the existing GitHub commits stub response, never
+        ;; invented metadata added to the stored native JSON.
+        config (assoc (codex-cli-config raw) :head sha :resolvedCommit sha)
+        result (execute config "status" "riatzukiza/eta-mu" "21")
+        collected (collected-codex-comments result (:id raw))]
+    (is (= 4206 (.-length bytes)))
+    (is (= "b5e9927e862ff5c5d5d7dcbb662099e838755cefa9d3dfa1df1e9c96b7473eaf"
+           (.digest (.update (crypto/createHash "sha256") bytes) "hex")))
+    (is (str/starts-with? (:body raw) (str codex-receipt-v1-envelope "Codex Review: Didn't find any major issues.")))
+    (is (= 6206360170 (:id raw)))
+    (is (nil? (:resolved-commit-id raw)))
+    (is (= 0 (:exit result)) (:err result))
+    (is (str/includes? (:out result) "gate: PASS"))
+    (is (= #{["api" "repos/riatzukiza/eta-mu/commits/04bb88861f"]}
+           (set (map :args (codex-commit-reads result)))))
+    (is (seq collected))
+    (is (every? #(= (:body raw) (:body %)) collected))
+    (is (every? #(= sha (:resolved-commit-id %)) collected))
+    (is (.equals bytes (fs/readFileSync file)) "Native JSON bytes remain untouched")
+    (is (empty? (writes result "merge")))
+    (is (empty? (mutations result)))))
+
+(deftest codex-reviewed-commit-grammar-remains-single-and-unambiguous
+  (doseq [[label body]
+          [["missing" "Codex Review: Didn't find any major issues."]
+           ["duplicate" (str codex-cli-positive-body "\n\n**Reviewed commit:** `" (subs head 0 10) "`")]
+           ["ambiguous" (str codex-cli-positive-body "\n\n**Reviewed commit:** `" (subs other 0 10) "`")]
+           ["short" (str/replace codex-cli-positive-body (subs head 0 10) (subs head 0 9))]
+           ["unanchored" (str/replace codex-cli-positive-body "**Reviewed commit:**" " **Reviewed commit:**")]]
+          envelope ["" codex-receipt-v1-envelope]]
+    (let [comment (codex-cli-comment (str envelope body))
+          result (execute (codex-cli-config comment) "gate" "riatzukiza/.agents" "8" "--apply")
+          collected (collected-codex-comments result (:id comment))]
+      (is (= 2 (:exit result)) (str label ": " (:out result) (:err result)))
+      (is (str/includes? (:out result) "gate: BLOCKED") label)
+      (is (empty? (codex-commit-reads result)) label)
+      (is (seq collected) label)
+      (is (every? #(and (= (:body comment) (:body %)) (nil? (:resolved-commit-id %))) collected) label)
+      (is (empty? (writes result "merge")) label)
+      (is (empty? (mutations result)) label))))
+
+(deftest codex-leading-wrappers-do-not-broaden-hydration
+  (doseq [[label prefix suffix]
+          [["unknown version" "<!-- codex-review-receipt:v2 -->\n\n" ""]
+           ["repeated leading envelope" (str codex-receipt-v1-envelope codex-receipt-v1-envelope) ""]
+           ["altered marker spacing" "<!--codex-review-receipt:v1 -->\n\n" ""]
+           ["CRLF" "<!-- codex-review-receipt:v1 -->\r\n\r\n" ""]
+           ["one LF" "<!-- codex-review-receipt:v1 -->\n" ""]
+           ["three LF" "<!-- codex-review-receipt:v1 -->\n\n\n" ""]
+           ["space" " " ""] ["LF" "\n" ""] ["BOM" "\uFEFF" ""]
+           ["quote" "> " ""] ["fence" "```text\n" "\n```"]
+           ["example" "Example:\n" ""]
+           ["unrelated text after marker" (str codex-receipt-v1-envelope "Notes:\n") ""]]]
+    (let [result (execute (codex-cli-config (codex-cli-comment (str prefix codex-cli-positive-body suffix)))
+                          "gate" "riatzukiza/.agents" "8" "--apply")]
+      (is (= 2 (:exit result)) (str label ": " (:out result) (:err result)))
+      (is (str/includes? (:out result) "gate: BLOCKED") label)
+      (is (empty? (codex-commit-reads result)) label)
+      (is (empty? (writes result "merge")) label)
+      (is (empty? (mutations result)) label))))
+
+(deftest later-literal-or-quoted-receipt-markers-do-not-veto-hydration
+  (doseq [envelope ["" codex-receipt-v1-envelope]
+          suffix ["\n\n<!-- codex-review-receipt:v1 -->"
+                  "\n\n> <!-- codex-review-receipt:v1 -->"]]
+    (let [comment (codex-cli-comment (str envelope codex-cli-positive-body suffix))
+          result (execute (codex-cli-config comment) "status" "riatzukiza/.agents" "8")
+          collected (collected-codex-comments result (:id comment))]
+      (is (= 0 (:exit result)) (:err result))
+      (is (str/includes? (:out result) "gate: PASS"))
+      (is (= #{["api" (str "repos/riatzukiza/.agents/commits/" (subs head 0 10))]}
+             (set (map :args (codex-commit-reads result)))))
+      (is (seq collected))
+      (is (every? #(and (= (:body comment) (:body %)) (= head (:resolved-commit-id %))) collected))
+      (is (empty? (writes result "merge")))
+      (is (empty? (mutations result))))))
+
+(deftest hydrated-codex-receipts-retain-all-ordinary-merge-guards
+  (doseq [envelope ["" codex-receipt-v1-envelope]
+          [label change hydrate?]
+          [["lookalike identity" #(assoc-in % [:comments 0 :user :login] "fake-codex[bot]") false]
+           ["User identity" #(assoc-in % [:comments 0 :user :type] "User") false]
+           ["wrong resolved head" #(assoc % :resolvedCommit other) true]
+           ["invalid resolved SHA" #(assoc % :resolvedCommit "not-a-full-sha") true]
+           ["required checks unavailable" #(assoc % :checks [] :requiredMessage "Required checks unavailable (fixture)") true]
+           ["insufficient cohort" #(assoc % :prior-stage-rounds 0) true]
+           ["unresolved finding" #(assoc % :threads [{:id "codex-format-open-finding" :isResolved false
+                                                     :comments {:pageInfo {:hasNextPage false}
+                                                                :nodes [{:author {:login "human-reviewer"}
+                                                                         :body "P1: Still requires a source correction."}]}}]) true]
+           ["later changes requested" #(assoc % :reviews [(assoc approval :id 601
+                                                         :user {:login "chatgpt-codex-connector[bot]" :type "Bot"}
+                                                         :state "CHANGES_REQUESTED" :submitted_at "2026-10-03T01:01:00Z"
+                                                         :body "Changes required.")]) true]
+           ["later dismissal" #(assoc % :reviews [(assoc approval :id 602
+                                                 :user {:login "chatgpt-codex-connector[bot]" :type "Bot"}
+                                                 :state "DISMISSED" :submitted_at "2026-10-03T01:01:00Z"
+                                                 :body "Dismissed.")]) true]]]
+    (let [config (change (codex-cli-config (codex-cli-comment (str envelope codex-cli-positive-body))))
+          result (execute config "gate" "riatzukiza/.agents" "8" "--apply")]
+      (is (not= 0 (:exit result)) (str label ": " (:out result) (:err result)))
+      (is (not (str/includes? (:out result) "gate: PASS")))
+      (is (= hydrate? (boolean (seq (codex-commit-reads result)))) label)
+      (is (empty? (writes result "merge")) label)
+      (is (empty? (mutations result)) label))))
+
+(deftest incomplete-codex-receipts-with-later-markers-revoke-earlier-approval
+  (doseq [envelope ["" codex-receipt-v1-envelope]
+          suffix ["\n\n<!-- codex-review-receipt:v1 -->"
+                  "\n\n> <!-- codex-review-receipt:v1 -->"]]
+    (let [comment (codex-cli-comment (str envelope codex-cli-positive-body
+                                        "\nReview incomplete. Unreviewed files remain." suffix))
+          earlier (assoc approval :user {:login "chatgpt-codex-connector[bot]" :type "Bot"}
+                         :submitted_at "2026-10-03T00:59:00Z")
+          result (execute (assoc (codex-cli-config comment) :reviews [earlier])
+                          "gate" "riatzukiza/.agents" "8" "--apply")
+          collected (collected-codex-comments result (:id comment))]
+      (is (= 2 (:exit result)) (str (:out result) (:err result)))
+      (is (str/includes? (:out result) "gate: BLOCKED"))
+      (is (str/includes? (:out result) "exact-head approvals: #{}"))
+      (is (str/includes? (:out result) "incomplete review scope:"))
+      (is (seq (codex-commit-reads result)))
+      (is (seq collected))
+      (is (every? #(and (= (:body comment) (:body %)) (= head (:resolved-commit-id %))) collected))
+      (is (empty? (writes result "merge")))
+      (is (empty? (mutations result))))))
 
 (deftest requests-are-full-literal-and-deduplicated
   (let [note "Literal $() and `backticks`\nsecond line"

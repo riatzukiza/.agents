@@ -1,0 +1,99 @@
+{
+  "schema": "cephalon.pr-flow-implementation-custody/v1",
+  "records": [
+    {
+      "record": 1,
+      "phase": "causal-red",
+      "kind": "observed-command-output-transcription-with-unchanged-native-readback-text",
+      "observedAt": "2026-10-16T04:10:07.881832+00:00",
+      "sourceHeadBeforeRedCommit": "ba07f42200741853317104e42a3d055033dec333",
+      "planning": "Canonical exactba07 PASS: CodeRabbit6207286630/6207288293/summary6204907591 all20/noactionable/currentcoverage and MiMoAPPROVED5542572061/all30of30/all20/all6receipt suffix, separateactualpolicy38842196373SUCCESS",
+      "nativeReadiness": {
+        "qualifiedNativeCLI_SHA256": "85369213440634989365f75929045d36eb69b6c6b1e7679f68d483374a0d526b",
+        "planningHead": "ba07f42200741853317104e42a3d055033dec333",
+        "operations": 17,
+        "allExit0": true,
+        "primary": "166b0f44-1155-442b-96e3-22275cf5785d",
+        "actualStatus": "in_progress",
+        "actualPoints": 1,
+        "actualParent": "63a0e4ff-353f-4c90-ab8a-7241d958d54c",
+        "actualParentPoints": 42,
+        "oldLedgerPrefixBytes": 237433,
+        "oldLedgerPrefixExact": true,
+        "actualLedgerAppendedBytes": 5395,
+        "rawDirectory": "/home/err/.local/share/codex/cephalon-review-artifacts/receipt-river-fixture-20261009/openplanner-context-consumer-20261014/continuation-20261014T2234/codex-format1-qualified-native-readiness-20261016T032629Z",
+        "implementationNotStartedYet": true
+      },
+      "nativeCurrentPrimaryRawUTF8": "{\n  \"uuid\": \"166b0f44-1155-442b-96e3-22275cf5785d\",\n  \"frontmatter\": {\n    \"category\": \"kanban\",\n    \"labels\": \"cephalon, pr-flow, codex, review, provenance\",\n    \"parent\": \"63a0e4ff-353f-4c90-ab8a-7241d958d54c\",\n    \"type\": \"task\",\n    \"write-id\": \"1792121197984-0.91bkvz1cx1u3piozr9e\",\n    \"points\": \"1\",\n    \"title\": \"Recognize the exact native Codex receipt-v1 passing envelope\",\n    \"priority\": \"P1\",\n    \"status\": \"in_progress\",\n    \"epic\": \"63a0e4ff-353f-4c90-ab8a-7241d958d54c\",\n    \"uuid\": \"166b0f44-1155-442b-96e3-22275cf5785d\",\n    \"created_at\": \"2026-10-16T02:42:22.959Z\"\n  },\n  \"sections\": [\n    {\n      \"type\": \"body\",\n      \"content\": \"## Context\\n\\nThe human explicitly included the prepared narrow one-point Codex format repair\\nin the finite B1–B3 batch on 2026-10-16. ETA PR21 has current passing checks and\\nreal current-head MiMo and Codex reviews. Its preserved native Codex comment\\n6206360170 begins with the exact receipt-v1 HTML marker and two LF bytes. Three\\ncanonical anchored-prefix recognizers do not accept that envelope; this is an\\nobserved parser mismatch, not a provider or authentication failure.\\n\\nExisting pure-law diagnosis preserves the raw comment and separately uses the\\nactual GitHub-resolved full commit. Only a derived private copy with the exact\\nleading marker removed is recognized. That diagnostic creates no live approval.\\n\\n## Outcome\\n\\nThe owning canonical PR-flow tool recognizes the actual native passing format\\nwithout rewriting raw comments or relaxing identity, commit, scope, chronology,\\ncohort, required-check, settlement or merge gates. Fresh adopted-tool collection\\ncan then evaluate the untouched ETA evidence normally.\\n\\n## Scope\\n\\nOne shared portable pure lexical helper for legacy unmarked or exactly one\\nobserved leading receipt-v1 envelope with LF LF; use it in the existing commit\\nhydration prefilter, issue-verdict and issue-completion recognizers. Registered\\nlaw/policy/CLI regressions and matching canonical contract/skill wording. Keep\\nlater raw body text visible to existing incomplete-scope revocation. Same PR38\\nmay carry this plan and later qualified implementation beside the distinct\\nalready approved withdrawal task; their estimates and exits remain separate.\\n\\n## Non-goals\\n\\nNo new collector, query, pagination, identity list, resolver, workflow, model,\\ncredential, paid route, approval alias, generic HTML/whitespace normalization,\\nmultiline verdict search, rule waiver, deployment, social action or heartbeat\\nresumption. Never edit a native Bot comment or apply a transformed diagnostic\\nfixture as live evidence. Do not broaden the two-point withdrawal task.\\n\\n## Acceptance criteria\\n\\n1. Independently review this one-point scope and complete eleven-child parent\\n   accounting before Ready. The existing ten direct children reconstruct the\\n   reviewed historical41 boundary; this distinct1 proposes42 for that same\\n   parent UUID63a0e4ff-353f-4c90-ab8a-7241d958d54c. It is not remaining effort\\n   or a re-estimate of the broader conditional75-point program. Use qualified\\n   Rheos for the reviewed inventory comment, estimate and actual readback.\\n2. After native readiness, causal registered RED shows the actual marked format\\n   misses hydration, passing-verdict and completed-issue recognition while\\n   existing unmarked controls retain their behavior. Preserve native JSON/body\\n   bytes; full-commit resolution belongs in separate test input/stubs.\\n3. GREEN accepts only the legacy prefix or one exact leading observed envelope.\\n   Unknown or repeated leading markers, altered envelopes, arbitrary leading\\n   whitespace and quoted/fenced/example wrappers remain ineligible. Later\\n   quoted/literal marker text is not a new independent veto. No trim or scan.\\n4. Existing trusted Bot identity, exactly one raw Reviewed-commit marker, actual\\n   native full-SHA resolution and exact-head checks remain. Both legacy and\\n   wrapped incomplete verdicts, including later marker text, revoke prior\\n   same-head approval and provide no completed issue cohort. Unknown identity,\\n   stale/ambiguous binding, missing scope and later negative/dismissal ordering\\n   retain their current refusals. Every ordinary review/merge gate remains.\\n5. All registered owning law, policy, isolated CLI, portable, flow, contract and\\n   zero-warning lint gates pass. Current protected personal source review and\\n   head-guarded MERGE precede qualified installation/adoption. Only then collect\\n   fresh untouched native ETA evidence and run the canonical gate; no promised\\n   approval, merge, throughput or live B1/B2/B3 result.\\n\\n## Verification\\n\\nUse the existing registered test_law.cljs, test_policy.cljs, test_cli.cljs and\\nportable runner, then pr.cljs flow, contract parsing and clj-kondo with zero\\nerrors/warnings. Preserve full actual RED/GREEN logs, native raw comment hash,\\nsource/tool revisions and append-only receipts/events. Source-only preparation\\nis not operational adoption.\\n\\n## Risks\\n\\nA broad whitespace/HTML repair could admit quoted/generated verdicts or hide\\nincomplete revocation. The candidate removes only one exact leading envelope;\\nall remaining body text and current gates retain their owners. Current native\\nformat evidence does not establish when a provider changed it. This Incoming\\ncard supplies no Ready, implementation or additional parent estimate write.\"\n    },\n    {\n      \"type\": \"comment\",\n      \"content\": \"Planning scope clarification from independent read-only audit: matching format-only wording is limited to skills/pr-flow/SKILL.md coverage/approval sections and skills/pr-flow/CONTRACT.edn approval/coverage/scope clauses, preserving accepted withdrawal2 edits in those shared files. V2 hash-bound proposal remains historical. No new semantics, identity list, settlement change or additional point. Current status stays Incoming1; parent42 remains a reviewed proposal, not an applied estimate.\\n\\nDistinct1point format plan has actual currentba07 CodeRabbit full6207286630/6207288293/6204907591 noactionable/all20 and MiMoAPPROVED5542572061/full30of30/all20/all6receipts/whole38842196730SUCCESS; policy38842196373SUCCESS, canonicalplanningPASS/allfindingssettled/oneavailablecohort. Actual parentreviewed42 reconciled through owningRheos. Proceed lawful Ready/Todo/InProgress, then causal registered RED before applying v2f27755844a96e2a660c5a18ec452623a4c1d98371e0600c83d8613cd3f2aab73. Exact helper+threeexistingconsumers/tests/twonamedformat-onlydocpaths only. Preserve withdrawal2 scope/edits; currentplanningapproval is not finalcodeapproval/MERGE/adoption/liveproof. No helper or hydration/verdict change applied yet.\"\n    }\n  ],\n  \"source-path\": \"/home/err/.codex/worktrees/cephalon-recall-refinement/foresight/docs/agile/kanban/recognize-the-exact-native-codex-receipt-v1-passing-envelope-5cf5785d.md\"\n}\n",
+      "nativeCurrentPrimaryRawSHA256": "f7dae4a541809150131f95c78e9afca9b9b30416f60f241b5131d5fcb5960130",
+      "productionUnchangedDuringAllRedRuns": true,
+      "sourceSHA256": {
+        "skills/pr-flow/scripts/pr.cljs": "fb983d86d5f94b7d1989d4b4f682ec4bc926ea05a4c1132fe79ab97e453c31a7",
+        "skills/pr-flow/scripts/pr_flow/law.cljc": "d9a93d81991fe48384d6b63d6b1f40abd8edd86ddb28b2f2a546f9b849639c50",
+        "skills/pr-flow/scripts/test_law.cljs": "3ff4e67d919a3328ca6f8d4c32306fe9622e0a64278c42f7cd34006e6abbbed5",
+        "skills/pr-flow/scripts/test_policy.cljs": "988f743979616bb2285a745cf43c7c9c0d1fb3813b19b784dec26646eacaf3b3",
+        "skills/pr-flow/scripts/test_cli.cljs": "dd034294359763a6f48c4ddbe0c7fee2556f447f0bd5fada59ebe8aa4b995f8d",
+        ".ημ/review-evidence/codex-receipt-v1-20261016/native-codex-passing-6206360170.json": "b5e9927e862ff5c5d5d7dcbb662099e838755cefa9d3dfa1df1e9c96b7473eaf"
+      },
+      "registeredRed": [
+        {
+          "gate": "law",
+          "tests": 186,
+          "assertions": 4935,
+          "failures": 4,
+          "errors": 0,
+          "exit": 1,
+          "rawLogBytes": 1807,
+          "rawLogSHA256": "a9fd0b3f0fa9b686fb7c119ad180dd207fc929efd12f8c3c004f13be11035252",
+          "privateLog": "/home/err/.local/share/codex/cephalon-review-artifacts/receipt-river-fixture-20261009/openplanner-context-consumer-20261014/continuation-20261014T2234/codex-format1-law-policy-red-20261016T033019Z/law.stdout.log"
+        },
+        {
+          "gate": "policy",
+          "tests": 65,
+          "assertions": 1668,
+          "failures": 13,
+          "errors": 0,
+          "exit": 1,
+          "rawLogBytes": 5413,
+          "rawLogSHA256": "b87bc84eff7b75ba385b0134ee232654725372f816db58083d637212996f736e",
+          "privateLog": "/home/err/.local/share/codex/cephalon-review-artifacts/receipt-river-fixture-20261009/openplanner-context-consumer-20261014/continuation-20261014T2234/codex-format1-law-policy-red-20261016T033019Z/policy.stdout.log"
+        },
+        {
+          "gate": "cli",
+          "tests": 105,
+          "assertions": 3002,
+          "failures": 34,
+          "errors": 0,
+          "exit": 1,
+          "rawLogBytes": 36447,
+          "rawLogSHA256": "3bf56ca6a9684432ebc32b10564969fb7cdddf8341a38ac298f71d6ee70d4282",
+          "privateLog": "/home/err/.local/share/codex/cephalon-review-artifacts/receipt-river-fixture-20261009/openplanner-context-consumer-20261014/continuation-20261014T2234/codex-format1-cli-red-20261016T033001Z/corrected/cli-full.stdout.log"
+        }
+      ],
+      "onlyExpectedFailures": "Known marked format fails hydration/passing/completion and incomplete-scope revocation; legacy, malformed/unknown/repeated leading wrappers, identity/head/request/ordering and ordinary blocking/effect controls pass. No missing-helper, execution error or test timeout is called causal RED.",
+      "initialCLIOracleDiscovery": {
+        "acceptedAsCausalRed": false,
+        "tests": 105,
+        "assertions": 3002,
+        "failures": 57,
+        "errors": 0,
+        "rawLogSHA256": "bf3b4a0c4a11c251981efe62035cc81000d9feb7d7fe7e830a573c0a0ddebcd6",
+        "correction": "Test-only receipt-query filtering excludes the known historical full-SHA endpoint and compares exact endpoint sets, retaining initial/fresh collection. No assertion about gates/effects was weakened; corrected full105 run is separately retained."
+      },
+      "testFramework": "Existing registered runners, no new namespace/runner/filter or production override",
+      "runtimes": {
+        "lawPolicyNode": "22.20.0",
+        "CLINode": "22.23.3",
+        "NBB": "1.3.204"
+      },
+      "lint": "Scoped allthreeedited testfiles0errors/0warnings across actualagentchecks; no new fullGREEN yet",
+      "reviewFileLimitObservation": {
+        "url": "https://docs.coderabbit.ai/management/plans",
+        "observedAt": "2026-10-16T03:50:24Z",
+        "EssentialsIncludedFilesAfterPathFilters": 150,
+        "nativeDynamicIncludedRate": "Last native footer0remaining/1reviewperhour; next fullafter04:21:33 onlywithfreshpending/cooldown evidence"
+      },
+      "noApprovalMergeAdoptionOrLiveProofCredit": true
+    }
+  ]
+}

@@ -21,6 +21,83 @@
   "This script's directory, captured while nbb loads the file."
   (path/dirname *file*))
 
+(def native-codex-receipt-v1
+  (js->clj (js/JSON.parse
+             (fs/readFileSync
+               (path/join here ".." ".." ".." ".ημ" "review-evidence"
+                          "codex-receipt-v1-20261016" "native-codex-passing-6206360170.json")
+               "utf8"))
+           :keywordize-keys true))
+
+;; Actual GitHub-resolved full binding, supplied separately from the untouched
+;; native JSON. Removing the envelope and every other mutation below is synthetic.
+(def codex-receipt-v1-head "04bb88861f1ed876732e050a299bbfaabe1752af")
+(def codex-receipt-v1-envelope "<!-- codex-review-receipt:v1 -->\n\n")
+
+(deftest native-codex-receipt-v1-and-legacy-control-have-exact-head-evidence
+  (let [raw native-codex-receipt-v1
+        body (:body raw)
+        bound (assoc raw :resolved-commit-id codex-receipt-v1-head)]
+    (is (= 6206360170 (:id raw)))
+    (is (str/starts-with? body codex-receipt-v1-envelope))
+    (is (not (contains? raw :resolved-commit-id)))
+    (doseq [[label text] [["synthetic legacy control" (subs body (count codex-receipt-v1-envelope))]
+                         ["actual native receipt-v1 body" body]]]
+      (let [comment (assoc bound :body text)
+            evidence (law/review-evidence codex-receipt-v1-head [] [comment]
+                                          law/default-reviewer-identities)]
+        (is (= #{codex-receipt-v1-head} (get-in evidence [:approved-heads "codex"])) label)
+        (is (= {:head codex-receipt-v1-head :channel :explicit-issue-verdict :id 6206360170}
+               (get-in evidence [:approval-evidence "codex"])) label)
+        (is (empty? (:incomplete-evidence evidence)) label)
+        (is (= text (:body comment)) label)))
+    (is (= body (:body bound) (:body native-codex-receipt-v1)))))
+
+(deftest codex-receipt-v1-does-not-normalize-other-leading-envelopes
+  ;; All cases are synthetic negatives derived from the actual native body.
+  (let [wrapped (:body native-codex-receipt-v1)
+        legacy (subs wrapped (count codex-receipt-v1-envelope))
+        malformed [["unknown version" (str "<!-- codex-review-receipt:v2 -->\n\n" legacy)]
+                   ["altered marker" (str "<!-- Codex-review-receipt:v1 -->\n\n" legacy)]
+                   ["one LF" (str "<!-- codex-review-receipt:v1 -->\n" legacy)]
+                   ["CRLF envelope" (str "<!-- codex-review-receipt:v1 -->\r\n\r\n" legacy)]
+                   ["extra LF" (str "<!-- codex-review-receipt:v1 -->\n\n\n" legacy)]
+                   ["repeated leading envelope" (str codex-receipt-v1-envelope wrapped)]
+                   ["unrelated text after envelope" (str codex-receipt-v1-envelope "Example:\n" legacy)]]
+        wrappers [["leading space" #(str " " %)]
+                  ["leading LF" #(str "\n" %)]
+                  ["leading tab" #(str "\t" %)]
+                  ["leading BOM" #(str "\uFEFF" %)]
+                  ["Markdown quote" #(str/replace % #"(?m)^" "> ")]
+                  ["backtick fence" #(str "```text\n" % "\n```")]
+                  ["tilde fence" #(str "~~~text\n" % "\n~~~")]
+                  ["example preface" #(str "Generated example:\n" %)]]]
+    (doseq [[label body] (concat malformed
+                                (for [[kind text] [["legacy" legacy] ["wrapped" wrapped]]
+                                      [label wrap] wrappers]
+                                  [(str kind "/" label) (wrap text)]))]
+      (is (empty? (:approved-heads
+                    (law/review-evidence codex-receipt-v1-head []
+                                         [(assoc native-codex-receipt-v1 :body body
+                                                 :resolved-commit-id codex-receipt-v1-head)]
+                                         law/default-reviewer-identities))) label))))
+
+(deftest later-literal-or-quoted-codex-marker-is-not-a-verdict-veto
+  ;; Synthetic later marker prose must neither broaden the leading-envelope
+  ;; rule nor become an independent veto on an otherwise recognized body.
+  (let [wrapped (:body native-codex-receipt-v1)]
+    (doseq [[kind body] [["legacy" (subs wrapped (count codex-receipt-v1-envelope))]
+                       ["wrapped" wrapped]]
+            [tail marker] [["literal" "\n\n<!-- codex-review-receipt:v1 -->"]
+                           ["quoted" "\n\n> <!-- codex-review-receipt:v1 -->"]]]
+      (let [comment (assoc native-codex-receipt-v1 :body (str body marker)
+                           :resolved-commit-id codex-receipt-v1-head)
+            evidence (law/review-evidence codex-receipt-v1-head [] [comment]
+                                          law/default-reviewer-identities)]
+        (is (= #{codex-receipt-v1-head} (get-in evidence [:approved-heads "codex"]))
+            (str "synthetic " kind "/" tail))
+        (is (empty? (:incomplete-evidence evidence)) (str kind "/" tail))))))
+
 (deftest severity-from-coderabbit-banners
   (is (= :p0 (law/severity "_⚠️ Potential issue_ | _🔴 Critical_\n\nbody")))
   (is (= :p1 (law/severity "_⚠️ Potential issue_ | _🟠 Major_")))

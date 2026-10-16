@@ -804,3 +804,13 @@
   spore: none
   receipt-refs: cephalon-codex-receipt-v1-human-included-native-plan-20261016
   note: Human included exact-format recognition through shared portable helper at existing hydration/verdict/completion sites plus registered regressions and format-only skill/contract wording. No general whitespace/HTML normalization or later marker veto. Preserve every identity/commit/scope/revocation/cohort/check/merge guard and separate withdrawal2 scope. Initial native default slug draft was natively detached, direct rejection refused exit3, no forced transition or history rewrite; explicit UUID successor owns scope. No local board parser, credential/provider/paid/runtime/deployment/social or heartbeat change; live0of3/human-paused heartbeat.
+
+- ts: 2026-10-16T04:10:08.055Z
+  session: /home/err/spaces/cephalon-outdated-withdrawal/.agents
+  task: cephalon-character-memory/B1-B3/canonical-review-format
+  p-efficiency: 0.8
+  p-friction: 0.2
+  p-skill-candidate: 0.1
+  spore: none
+  receipt-refs: cephalon-codex-receipt-v1-qualified-causal-red-20261016
+  note: Actualplanning/nativeReady permits this registeredcausalRED. ExistingmarkerLF-LF body misses the old rawprefilter and anchoredissueverdict/completion; markedincomplete laterreceipts failtorevokeearlierapproval. NewtestskeepactualrawJSONunchanged, syntheticmutations explicit, andevery existingassertion/control. CLIcopied-source spy observesactualhydratedcomments whileforwardingtheexactsamevalues to reallaw. Productionhelper andthreecallsites remainunapplied untilthislocalREDcommit. No newharness/namespace/runnerfilter, syntheticnativeapproval, waiver, paid/model/credential/provider/runtime/deployment/social/heartbeat change; heartbeat humanPAUSED/live0of3.
