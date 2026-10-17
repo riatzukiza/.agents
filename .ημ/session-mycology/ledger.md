@@ -920,3 +920,12 @@
   spore: none
   receipt-refs: 7444c8a4ffdcfe5dee6885223a0c4be451962f5f37515ce5752a4f0fbacf9048
   note: An unaccepted reviewer advisory is evidence to verify, not native approval or a finding to settle. Existing public API controls proved a real normalization mismatch; fix the one expression and preserve complete raw custody. No spore.
+- ts: 2026-10-17T15:02:19.166656207Z
+  session: /home/err/.local/share/openhax-codex/20261010/agents-native-review-body-item-over7ab-v1
+  task: Preserve complete review edit custody across native collection
+  p-efficiency: 0.85
+  p-friction: 0.15
+  p-skill-candidate: 0
+  spore: none
+  receipt-refs: 8a558787447398a33e560519f0616afc4a3eb14ecb4c29c23ab2df50ba033bfc
+  note: Verify a native finding against the actual effect sequence, exercise changed body/edit ABA and list membership through the public collector, then reuse its complete strict hydration rather than create another partial verifier. Finite rechecks do not make remote APIs atomic. Preserve failed reviewer tool chronology instead of trusting its contradictory final prose. No spore.
