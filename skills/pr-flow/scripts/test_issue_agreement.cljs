@@ -218,7 +218,7 @@
 (def body-scope (str "review-id:101 cr-comment:v1:" body-item-id))
 (def body-review
   {:id 101 :node_id "PRR_inert_body" :state "COMMENTED" :commit_id (:head fixture)
-   :body (str "Retain the verified loader boundary. <!-- cr-comment:v1:" body-item-id " -->")
+   :body (str "Retain the verified loader boundary.\n<!-- cr-comment:v1:" body-item-id " -->")
    :submitted_at "2026-10-03T11:30:00Z" :updated_at "2026-10-03T11:31:00Z"
    :user {:login "coderabbitai[bot]" :id 136622811 :node_id "BOT_inert_cr" :type "Bot"}})
 (def body-native-review
@@ -294,6 +294,27 @@
   (doseq [v [(dissoc body-input :pr-author-user)
              (assoc-in body-input [:pr-author-user :login] "another-user")]]
     (is (not (:eligible? (law/rejection-assessment-request v 201 prospective-user))))))
+
+(deftest prospective-body-item-keeps-complete-authored-additional-layouts
+  (doseq [count-label [": 1" " (1)"]]
+    (let [layout (str "<details>\n<summary>🔇 Additional comments" count-label "</summary><blockquote>\n"
+                      "<details>\n<summary>scripts/example.py" count-label "</summary><blockquote>\n"
+                      (:body body-review) "\n</blockquote></details>\n</blockquote></details>")
+          v (body-input-with-text layout)]
+      (is (:eligible? (law/rejection-assessment-request v 201 prospective-user)))
+      (is (not (:eligible? (law/rejection-assessment-request
+                            (body-input-with-text (str "<details><summary>Quoted example (1)</summary><blockquote>\n"
+                                                       layout "\n</blockquote></details>")) 201 prospective-user)))))))
+
+(deftest prospective-body-item-raw-marker-is-authored-outside-code
+  (doseq [text [(str "`" (:body body-review) "`")
+               (str "    " (str/replace (:body body-review) "\n" "\n    "))
+               (str "`\n" (:body body-review) "\n`")
+               (str "\t" (str/replace (:body body-review) "\n" "\n\t"))
+               (str/replace (:body body-review) "<!--" "\\<!--")
+               (str/replace (:body body-review) "<!--" "``<!--")]]
+    (is (not (:eligible? (law/rejection-assessment-request
+                          (body-input-with-text text) 201 prospective-user))))))
 
 (deftest prospective-body-item-keeps-latest-native-user-and-independent-principal
   (doseq [v [(assoc-in body-input [:issue-comments 0 :authorized?] false)

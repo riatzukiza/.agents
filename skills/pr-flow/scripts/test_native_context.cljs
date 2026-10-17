@@ -49,7 +49,7 @@
 (def item-id "d9618d1e6c3cf0ee5e35cc46")
 (def native-review
   {:id 101 :node_id "PRR_inert_101" :state "COMMENTED" :commit_id (get-in sample [:pr :headRefOid])
-   :body (str "Retain this source boundary. <!-- cr-comment:v1:" item-id " -->")
+   :body (str "Retain this source boundary.\n<!-- cr-comment:v1:" item-id " -->")
    :submitted_at "2026-10-03T11:30:00Z"
    :user {:login "coderabbitai[bot]" :id 136622811 :node_id "BOT_inert_cr" :type "Bot"}})
 (defn native-review-node [review]
