@@ -46,6 +46,81 @@
                                   (= login (get-in sample [:pr :author :login])))
             :read-history (fn [id] (swap! history-reads conj id) history)}}))
 
+(def item-id "d9618d1e6c3cf0ee5e35cc46")
+(def native-review
+  {:id 101 :node_id "PRR_inert_101" :state "COMMENTED" :commit_id (get-in sample [:pr :headRefOid])
+   :body (str "Retain this source boundary. <!-- cr-comment:v1:" item-id " -->")
+   :submitted_at "2026-10-03T11:30:00Z"
+   :user {:login "coderabbitai[bot]" :id 136622811 :node_id "BOT_inert_cr" :type "Bot"}})
+(defn native-review-node [review]
+  {:id (:node_id review) :databaseId (:id review) :state (:state review) :body (:body review)
+   :submittedAt (:submitted_at review) :updatedAt "2026-10-03T11:31:00Z"
+   :commit {:oid (:commit_id review)}
+   :author {:login (get-in review [:user :login]) :databaseId (get-in review [:user :id])
+            :id (get-in review [:user :node_id]) :__typename (get-in review [:user :type])}})
+(defn body-readers [review-pages nodes]
+  (let [r (readers [(page [(:thread sample)])] [[]] [])
+        read (get-in r [:deps :read-json]) remaining (atom nodes)]
+    (assoc r :deps
+           (assoc (:deps r) :body-items? true
+                  :read-json
+                  (fn [& args]
+                    (cond
+                      (= ["api" (str "repos/" repo "/pulls/" number "/reviews") "--paginate" "--slurp"] (vec args))
+                      (do (swap! (:calls r) conj (vec args)) review-pages)
+                      (some #(and (string? %) (str/starts-with? % "id=PRR_")) args)
+                      (do (swap! (:calls r) conj (vec args))
+                          (let [node (first @remaining)]
+                            (swap! remaining subvec 1)
+                            {:data {:node node}}))
+                      :else (apply read args)))))))
+
+(deftest opted-in-body-collection-preserves-all-reviews-and-native-edit-custody
+  (let [other (assoc native-review :id 102 :node_id "PRR_inert_102" :body "No selected item here.")
+        r (body-readers [[native-review] [other]] (mapv native-review-node [native-review other]))
+        result (native-context/collect-context (:deps r) repo number)]
+    (is (true? (:reviews-complete? result)))
+    (is (= [native-review other] (:raw-reviews result)))
+    (is (= [101 102] (mapv :id (:reviews result))))
+    (is (= "2026-10-03T11:31:00Z" (get-in result [:reviews 0 :updated_at])))
+    (is (= (native-review-node native-review) (get-in result [:reviews 0 :native-review])))
+    (is (= [(:thread sample)] (:raw-threads result)))
+    (is (= [] (:history result)))
+    (is (= 5 (count @(:calls r))))))
+
+(deftest opted-in-body-collection-refuses-incomplete-duplicate-and-edited-reviews
+  (doseq [pages [nil [] [{}] [[nil]] [[native-review native-review]]
+                [[native-review (assoc native-review :id 102)]]]]
+    (let [r (body-readers pages [(native-review-node native-review)])]
+      (is (thrown? js/Error (native-context/collect-context (:deps r) repo number)))))
+  (doseq [node [nil
+                (assoc (native-review-node native-review) :body "Edit raced collection")
+                (assoc (native-review-node native-review) :databaseId 102)
+                (assoc-in (native-review-node native-review) [:author :databaseId] 1)
+                (assoc-in (native-review-node native-review) [:commit :oid] "unknown")
+                (dissoc (native-review-node native-review) :updatedAt)]]
+    (let [r (body-readers [[native-review]] [node])]
+      (is (thrown? js/Error (native-context/collect-context (:deps r) repo number))))))
+
+(deftest fresh-body-selection-is-one-native-review-item-without-a-fake-thread
+  (let [r (body-readers [[native-review]] [(native-review-node native-review)])
+        snapshot (native-context/collect-context (:deps r) repo number)
+        target {:kind :review-body-item :repo repo :repository-database-id (get-in sample [:repository :databaseId])
+                :pr-number (get-in sample [:pr :number]) :head (:head snapshot) :review-id 101 :item-id item-id}
+        select #(native-context-law/select-fresh-context %1 %2)
+        selected (:selected (select snapshot target))]
+    (is (= :review-body-item (:kind selected)))
+    (is (= [101 item-id] [(:review-id selected) (:item-id selected)]))
+    (is (= (first (:reviews snapshot)) (:review selected)))
+    (is (not-any? #(contains? selected %) [:id :thread-id :root-comment-id :settled?]))
+    (doseq [t [(assoc target :thread-id "PRRT_inert") (assoc target :items [item-id])
+               (assoc target :review-id 999) (assoc target :item-id "unknown")]]
+      (is (:refusal (select snapshot t))))
+    (doseq [s [(dissoc snapshot :reviews-complete?) (assoc snapshot :reviews-complete? false)
+               (update snapshot :reviews conj (first (:reviews snapshot)))
+               (assoc snapshot :history nil) (assoc snapshot :incomplete? true)]]
+      (is (:refusal (select s target))))))
+
 (deftest collector-preserves-complete-outer-pagination
   (let [a (:thread sample) b (assoc a :id "PRRT_synthetic_second")
         r (readers [(page [a] true "cursor-one") (page [b])] [[]] [])

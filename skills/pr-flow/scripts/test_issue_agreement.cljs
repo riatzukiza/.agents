@@ -213,6 +213,88 @@
 (defn publish [thread summary]
   (law/rejection-assessment-publication thread (:id proposal) summary prospective-user))
 
+;; This is one real-shaped native item, never a fabricated PRRT conversation.
+(def body-item-id "d9618d1e6c3cf0ee5e35cc46")
+(def body-scope (str "review-id:101 cr-comment:v1:" body-item-id))
+(def body-review
+  {:id 101 :node_id "PRR_inert_body" :state "COMMENTED" :commit_id (:head fixture)
+   :body (str "Retain the verified loader boundary. <!-- cr-comment:v1:" body-item-id " -->")
+   :submitted_at "2026-10-03T11:30:00Z" :updated_at "2026-10-03T11:31:00Z"
+   :user {:login "coderabbitai[bot]" :id 136622811 :node_id "BOT_inert_cr" :type "Bot"}})
+(def body-native-review
+  {:id (:node_id body-review) :databaseId 101 :state "COMMENTED" :body (:body body-review)
+   :submittedAt (:submitted_at body-review) :updatedAt (:updated_at body-review)
+   :commit {:oid (:head fixture)}
+   :author {:login "coderabbitai[bot]" :databaseId 136622811 :id "BOT_inert_cr" :__typename "Bot"}})
+(def body-proposal
+  {:id 201 :node_id "IC_inert_body_proposal" :html_url "https://example.invalid/201"
+   :source-channel :github-issue-comment :authorized? true
+   :user {:login "riatzukiza" :id 10676925 :node_id "U_inert_writer" :type "User"}
+   :created_at "2026-10-03T11:34:00Z" :updated_at "2026-10-03T11:34:10Z"
+   :body (str "Rejection proposal for " (:head fixture) ": " body-scope
+              "\nReason: Existing source already preserves the deliberate loader behavior."
+              "\nEvidence: scripts/test_environment_promotion.py:20")})
+(def body-input
+  {:kind :review-body-item :review-id 101 :item-id body-item-id :head (:head fixture)
+   :pr-author "riatzukiza" :review (assoc body-review :native-review body-native-review)
+   :issue-comments [body-proposal]})
+(def body-summary
+  (str "Rejection agreement for " (:head fixture) ": " body-scope
+       "\nReason: I independently traced the loader and its regression controls; the current source preserves the requested behavior."
+       "\nEvidence: scripts/test_environment_promotion.py:20"))
+
+(deftest prospective-body-item-uses-existing-request-and-publication-boundaries
+  (let [r (law/rejection-assessment-request body-input 201 prospective-user)
+        p (law/rejection-assessment-publication body-input 201 body-summary prospective-user)]
+    (is (:eligible? r))
+    (is (= [101 body-item-id] [(:review-id r) (:item-id r)]))
+    (is (= (:body body-proposal) (:proposal-body r)))
+    (is (= (:updated_at body-review) (:review-updated-at r)))
+    (is (= "2026-10-03T11:34:10.000Z" (:created-after r)))
+    (is (:eligible? p))
+    (is (= body-summary (:body p)))
+    (is (not-any? #(contains? p %) [:thread-id :root-comment-id :source-id :agreement-id :settled? :rejection-approved?]))))
+
+(deftest prospective-body-item-refuses-source-and-scope-races
+  (doseq [v [(dissoc body-input :review)
+             (assoc body-input :thread-id "PRRT_inert")
+             (assoc body-input :items [body-item-id])
+             (assoc body-input :review-id 102)
+             (assoc body-input :item-id "unknown")
+             (assoc-in body-input [:review :body] (str "> " (:body body-review)))
+             (update-in body-input [:review :body] str (:body body-review))
+             (assoc-in body-input [:review :native-review :body] "Edited native body")
+             (assoc-in body-input [:review :native-review :author :databaseId] 1)
+             (assoc-in body-input [:review :native-review :updatedAt] "2026-10-03T11:35:00Z")
+             (update-in body-input [:review] dissoc :native-review)
+             (assoc-in body-input [:review :user :type] "User")
+             (assoc-in body-input [:review :user :login] "unknown[bot]")
+             (assoc-in body-input [:review :commit_id] "unknown")
+             (assoc-in body-input [:review :state] "PENDING")
+             (assoc body-input :issue-comments nil)]]
+    (is (not (:eligible? (law/rejection-assessment-request v 201 prospective-user))))))
+
+(deftest prospective-body-item-keeps-latest-native-user-and-independent-principal
+  (doseq [v [(assoc-in body-input [:issue-comments 0 :authorized?] false)
+             (assoc-in body-input [:issue-comments 0 :user :type] "Bot")
+             (assoc-in body-input [:issue-comments 0 :user :login] "coderabbitai[bot]")
+             (assoc-in body-input [:issue-comments 0 :updated_at] "invalid")
+             (assoc-in body-input [:issue-comments 0 :created_at] "2026-10-03T11:30:00Z")
+             (update body-input :issue-comments conj body-proposal)
+             (update body-input :issue-comments conj
+                     (assoc body-proposal :id 202 :created_at "2026-10-03T11:35:00Z"
+                            :updated_at "2026-10-03T11:35:00Z" :body (str (:body body-proposal) "\nReason: ambiguous")))]]
+    (is (not (:eligible? (law/rejection-assessment-request v 201 prospective-user)))))
+  (doseq [u [(assoc prospective-user :login "coderabbitai[bot]")
+             (assoc prospective-user :type "User") (assoc prospective-user :extra true)]]
+    (is (not (:eligible? (law/rejection-assessment-request body-input 201 u)))))
+  (doseq [body [(str body-summary "\n" body-summary)
+               (str "> " body-summary)
+               (str/replace body-summary body-item-id "8471f90c17574324d5bf3da1")
+               (str/replace body-summary "Reason: I independently" "Reason: I disagree with the proposal. I independently")
+               (str/replace body-summary #"(?m)^Evidence:.*$" "Evidence: none")]]
+    (is (not (:eligible? (law/rejection-assessment-publication body-input 201 body prospective-user))))))
+
 (deftest prospective-rejection-selects-actual-latest-writer-proposal-only
   (let [r (request prospective-thread)]
     (is (:eligible? r))
