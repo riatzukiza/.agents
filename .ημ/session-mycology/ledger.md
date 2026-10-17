@@ -902,3 +902,12 @@
   spore: none
   receipt-refs: ef36324ebf3e4cbaea3d6da95d8bfba92e1b0bcc05fb4860bf991331f6061cd8
   note: Finite actual-native-format and adversarial source probes found missing authored boundaries before final publication. Reusing the existing balanced scanner and exclusion barriers preserved old positive/thread behavior; an exact existing CLI control then exposed default query drift. Final v7 laws204/5240, policy71/1794, portable6/46 and full CLI110/3184 all pass; owning caller consumes actual adopted7112/agents7ab. Preserve every earlier failed/setup/cancelled outcome. Complete finite source probes before the costly full CLI; keep strict typed hydration opt-in and preserve the old default query byte-for-byte. No spore, native assessment, settlement or rollout claim.
+- ts: 2026-10-17T13:00:39.500333144Z
+  session: /home/err/.local/share/openhax-codex/20261010/agents-native-review-body-item-over7ab-v1
+  task: Correct native REST/GraphQL actor spelling and explicit assessment-kind boundary
+  p-efficiency: 0.65
+  p-friction: 0.45
+  p-skill-candidate: 0
+  spore: none
+  receipt-refs: 6f84bb39ab6f6c1427988d2cdef801ab0f35f808fde1e5172bcaac23ec9fb48b
+  note: Native GraphQL and REST principal IDs agree while Bot login spellings differ; use real API shape in fixture and retain strict physical identity. Posteffect wrapper failure requires readonly qualification, never commit replay. No spore.
