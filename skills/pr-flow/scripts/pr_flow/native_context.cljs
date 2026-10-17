@@ -239,11 +239,13 @@
          snapshot (if (true? (:body-items? deps))
                     (let [reviews (collect-reviews (:read-json deps) repo n)
                           [owner name] (split-repo repo)
-                          final (threads-page (:read-json deps) owner name n nil)]
+                          final (threads-page (:read-json deps) owner name n nil)
+                          final-reviews (collect-reviews (:read-json deps) repo n)]
                       (when-not (and (= (:repository snapshot) (:native-repository final))
                                      (= (select-keys (:pr snapshot) [:id :number :state :isDraft :headRefOid])
-                                        (select-keys final [:id :number :state :isDraft :headRefOid])))
-                        (throw (ex-info "PR snapshot changed during review-body collection" {})))
+                                        (select-keys final [:id :number :state :isDraft :headRefOid]))
+                                     (= (:reviews reviews) (:reviews final-reviews)))
+                        (throw (ex-info "Native snapshot changed during review-body collection" {})))
                       (merge snapshot reviews)) snapshot)
          profile (:preservation-policy deps) r (:repository snapshot)]
      (if (and (= 2 (:version profile)) (= :provisional (:status profile))
