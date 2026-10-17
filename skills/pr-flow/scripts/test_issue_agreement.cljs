@@ -213,6 +213,15 @@
 (defn publish [thread summary]
   (law/rejection-assessment-publication thread (:id proposal) summary prospective-user))
 
+(deftest prospective-rejection-refuses-explicit-unsupported-kinds
+  (is (:eligible? (request prospective-thread)) "Legacy context without kind stays supported")
+  (is (:eligible? (publish prospective-thread prospective-summary)))
+  (doseq [kind [:thread :review-body :unknown nil false "" "review-body-item" {:kind :review-body-item}]]
+    (let [context (assoc prospective-thread :kind kind)]
+      (is (= {:eligible? false :reason :invalid-native-context} (request context)) (pr-str kind))
+      (is (= {:eligible? false :reason :invalid-native-context}
+             (publish context prospective-summary)) (pr-str kind)))))
+
 ;; This is one real-shaped native item, never a fabricated PRRT conversation.
 (def body-item-id "d9618d1e6c3cf0ee5e35cc46")
 (def body-scope (str "review-id:101 cr-comment:v1:" body-item-id))
@@ -225,7 +234,7 @@
   {:id (:node_id body-review) :databaseId 101 :state "COMMENTED" :body (:body body-review)
    :submittedAt (:submitted_at body-review) :updatedAt (:updated_at body-review)
    :commit {:oid (:head fixture)}
-   :author {:login "coderabbitai[bot]" :databaseId 136622811 :id "BOT_inert_cr" :__typename "Bot"}})
+   :author {:login "coderabbitai" :databaseId 136622811 :id "BOT_inert_cr" :__typename "Bot"}})
 (def body-proposal
   {:id 201 :node_id "IC_inert_body_proposal" :html_url "https://example.invalid/201"
    :source-channel :github-issue-comment :authorized? true

@@ -56,7 +56,10 @@
   {:id (:node_id review) :databaseId (:id review) :state (:state review) :body (:body review)
    :submittedAt (:submitted_at review) :updatedAt "2026-10-03T11:31:00Z"
    :commit {:oid (:commit_id review)}
-   :author {:login (get-in review [:user :login]) :databaseId (get-in review [:user :id])
+   :author {:login (let [login (get-in review [:user :login])]
+                     (if (= "Bot" (get-in review [:user :type]))
+                       (str/replace login #"\[bot\]$" "") login))
+            :databaseId (get-in review [:user :id])
             :id (get-in review [:user :node_id]) :__typename (get-in review [:user :type])}})
 (defn body-readers
   ([review-pages nodes] (body-readers review-pages nodes (page [(:thread sample)])))
@@ -76,6 +79,33 @@
                             (swap! remaining subvec 1)
                             {:data {:node node}}))
                       :else (apply read args))))))))
+
+(deftest strict-native-review-hydration-keeps-actor-specific-login-spellings
+  ;; Suffix-free GraphQL Bot login is native-observed; review body/head/times
+  ;; remain inert fixtures and supply no native eligibility evidence.
+  (let [node (native-review-node native-review)
+        hydrate (fn [review n]
+                  (native-context/hydrate-review-update (fn [& _] {:data {:node n}}) review true))
+        bot (hydrate native-review node)
+        user-review (assoc native-review :user {:login "writer" :id 7 :node_id "U_inert_writer" :type "User"})
+        user-node (native-review-node user-review)]
+    (is (= "coderabbitai" (get-in node [:author :login])))
+    (is (nil? (:positive-review-update-error bot)))
+    (is (= "2026-10-03T11:31:00Z" (:updated_at bot)))
+    (is (= node (:native-review bot)))
+    (is (nil? (:positive-review-update-error (hydrate user-review user-node))))
+    (doseq [bad [(assoc-in node [:author :login] "other")
+                 (update node :author dissoc :login)
+                 (assoc-in node [:author :login] "")
+                 (assoc-in node [:author :databaseId] 1)
+                 (assoc-in node [:author :id] "BOT_other")
+                 (assoc-in node [:author :__typename] "User")]]
+      (is (= :native-source-mismatch (:positive-review-update-error (hydrate native-review bad)))))
+    (is (= :native-source-mismatch
+           (:positive-review-update-error (hydrate user-review (assoc-in user-node [:author :login] "writer[bot]")))))
+    (is (= :native-source-mismatch
+           (:positive-review-update-error
+             (hydrate (assoc-in user-review [:user :login] nil) (assoc-in user-node [:author :login] nil)))))))
 
 (deftest opted-in-body-collection-preserves-all-reviews-and-native-edit-custody
   (let [other (assoc native-review :id 102 :node_id "PRR_inert_102" :body "No selected item here.")
