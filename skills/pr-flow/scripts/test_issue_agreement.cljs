@@ -535,3 +535,27 @@
                   (str retained-native-body-layout "\n<!-- cr-comment:v1:" body-item-id " -->")]]
       (is (not (law/native-review-item?
                  (:review (body-input-with-text text)) body-item-id identities))))))
+
+(deftest prospective-body-item-refuses-unrecognized-html-and-generated-source
+  (let [plain (:body body-review)
+        wrapped (for [tag ["q" "cite" "pre" "code" "div" "span" "section" "aside"]
+                      content [plain retained-native-body-layout]]
+                  (str "<" tag ">\n" content "\n</" tag ">"))
+        additional [(str "<Q cite=\"https://example.invalid\">\n" plain "\n</Q>")
+                    (str "<details><summary>Quoted example</summary>\n" plain "\n</details>")
+                    (str "<details>\n" plain "\n</details>")
+                    (str "<!-- quoted example\n" plain "\n-->")
+                    (str "<!-- generated example\n" retained-native-body-layout "\n-->")
+                    (str "<![CDATA[\n" plain "\n]]>")
+                    (str "<?quoted\n" plain "\n?>")
+                    (str/replace retained-native-body-layout "<blockquote>" "<blockquote cite=\"quoted\">")
+                    (str/replace retained-native-body-layout #"</blockquote></details>$" "</details>")
+                    (str retained-native-body-layout "\n</blockquote>")
+                    (str "<!-- This is an auto-generated comment: tweet message by coderabbit.ai -->\n"
+                         retained-native-body-layout "\n<!-- end of auto-generated comment: tweet message by coderabbit.ai -->")]]
+    (doseq [text (concat wrapped additional)]
+      (is (not (law/native-review-item? (:review (body-input-with-text text)) body-item-id identities)))))
+  ;; Exact native siblings remain complete prospective input, not dispositions.
+  (is (= retained-native-body-layout
+         (:review-body (law/rejection-assessment-request
+                         (body-input-with-text retained-native-body-layout) 201 prospective-user)))))
