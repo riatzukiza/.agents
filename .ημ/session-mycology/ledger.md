@@ -884,3 +884,12 @@
   spore: none
   receipt-refs: cephalon-codex-paragraph-quote-adjacency-green-20261016
   note: Onlyphrase-localquotepattern nowleavesactualCR/LFbytes bymatchingcontentthroughnonCRLFcharacters. Existingbarrierretained; adjacentcompletefences preservepositiveeligibility, outside liveadmissions stillexactlyrefuse/revoke, unterminatedfences remainambiguous. ExactCodexlexicalhelper/globalreviewerprose/native-scope/otherbranches unchanged. Earlierfull106/3084/1fail0error hadnilchildexit withno rawtimeoutcode; timinginterpretation remainsinference, focusedunchanged1test8PASS separate. Coordinatorcancelledrepeat/firstobserverfailures andcausal12/20/4RED remainimmutable, notrelabeledGREEN. Newactualfullpassed afterminimalfixwithalloracles/capsfrozen. Currentnativeheadreviews/checks/settlements/MERGE/guardedinstallationremainrequired; no newpoints/scope/paid/providercredential/runtime/deployment/social/heartbeatchange. Live0of3/goalACTIVE/heartbeatHUMAN-PAUSED/sporenone.
+- ts: 2026-10-17T10:05:00.332786941Z
+  session: /home/err/.local/share/openhax-codex/20261010/agents-opencode-plugin-skill-reference-overe391-v1
+  task: Repair a supplied stale global-skill reference in its exported tree
+  p-efficiency: 0.8
+  p-friction: 0.35
+  p-skill-candidate: 0
+  spore: none
+  receipt-refs: e115ed41-ba58-4006-8c77-6419921aaa34,447927cdb0625d72f5422d8ac8f7a28bfb685176,sha256:af4e8682294b676c2b915db344120e9a45235ed757f2d9a5087aa640a688caed
+  note: A path can be stale in trusted packaged guidance even when the target skill is correctly indexed. Preserve the actual failed trace, compare the offered source reference with the successful preceding read, and validate the replacement against the canonical and real exported mount layouts. Keep failure/deadline causality separate. Use current accepted catalog-capable review callers and retain trusted skill pins until adoption. Preserve native receipt bytes when an existing append helper chooses a new path; correct only its owned uncommitted location with prefix and inode guards. No trace exception, alias, policy change, native approval or deployment credit; candidate0/no spore.
