@@ -267,6 +267,22 @@
     (is (= body-summary (:body p)))
     (is (not-any? #(contains? p %) [:thread-id :root-comment-id :source-id :agreement-id :settled? :rejection-approved?]))))
 
+(deftest prospective-body-item-orders-normalized-native-timestamps
+  (let [earlier (assoc body-proposal :id 200 :node_id "IC_inert_earlier"
+                       :created_at "2026-10-03T11:34:00Z" :updated_at "2026-10-03T11:34:00Z")
+        later (assoc body-proposal :created_at "2026-10-03T11:34:00.5Z")
+        mixed (assoc body-input :issue-comments [earlier later])
+        normalized (assoc mixed :issue-comments
+                          [(assoc earlier :created_at "2026-10-03T11:34:00.000Z")
+                           (assoc later :created_at "2026-10-03T11:34:00.500Z")])
+        request #(law/rejection-assessment-request % 201 prospective-user)]
+    (is (:eligible? (request mixed)))
+    (is (:eligible? (request normalized)))
+    (is (= (:created_at later) (:proposal-created-at (request mixed))))
+    (is (= :invalid-native-body-context
+           (:reason (request (assoc mixed :issue-comments [later earlier])))))
+    (is (not (:eligible? (request (assoc-in mixed [:issue-comments 1 :created_at] "invalid")))))))
+
 (deftest prospective-body-item-refuses-source-and-scope-races
   (doseq [v [(dissoc body-input :review)
              (assoc body-input :thread-id "PRRT_inert")
