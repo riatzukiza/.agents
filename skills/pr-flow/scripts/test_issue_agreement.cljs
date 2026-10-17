@@ -549,7 +549,7 @@
                     (str "<![CDATA[\n" plain "\n]]>")
                     (str "<?quoted\n" plain "\n?>")
                     (str/replace retained-native-body-layout "<blockquote>" "<blockquote cite=\"quoted\">")
-                    (str/replace retained-native-body-layout #"</blockquote></details>$" "</details>")
+                    (str/replace-first retained-native-body-layout "</blockquote></details>" "</details>")
                     (str retained-native-body-layout "\n</blockquote>")
                     (str "<!-- This is an auto-generated comment: tweet message by coderabbit.ai -->\n"
                          retained-native-body-layout "\n<!-- end of auto-generated comment: tweet message by coderabbit.ai -->")]]
