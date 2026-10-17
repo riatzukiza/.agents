@@ -236,7 +236,8 @@
               "\nEvidence: scripts/test_environment_promotion.py:20")})
 (def body-input
   {:kind :review-body-item :review-id 101 :item-id body-item-id :head (:head fixture)
-   :pr-author "riatzukiza" :identities identities :review (assoc body-review :native-review body-native-review)
+   :pr-author "riatzukiza" :pr-author-user (:user body-proposal)
+   :identities identities :review (assoc body-review :native-review body-native-review)
    :issue-comments [body-proposal]})
 (defn body-input-with-text [text]
   (-> body-input (assoc-in [:review :body] text) (assoc-in [:review :native-review :body] text)))
@@ -266,6 +267,10 @@
              (body-input-with-text (str "> " (:body body-review)))
              (body-input-with-text (str "```html\n" (:body body-review) "\n```"))
              (body-input-with-text (str "<blockquote>" (:body body-review) "</blockquote>"))
+             (body-input-with-text (str "<details><summary>Quoted example (1)</summary><blockquote>"
+                                        (:body body-review) "</blockquote></details>"))
+             (body-input-with-text (str "<details><summary>Quoted example: 1</summary><blockquote>"
+                                        (:body body-review) "</blockquote></details>"))
              (body-input-with-text (str "<!-- This is an auto-generated comment: tweet message by coderabbit.ai -->\n"
                                         (:body body-review) "\n<!-- end of auto-generated comment: tweet message by coderabbit.ai -->"))
              (body-input-with-text (str (:body body-review) (:body body-review)))
@@ -278,6 +283,16 @@
              (assoc-in body-input [:review :commit_id] "unknown")
              (assoc-in body-input [:review :state] "PENDING")
              (assoc body-input :issue-comments nil)]]
+    (is (not (:eligible? (law/rejection-assessment-request v 201 prospective-user))))))
+
+(deftest prospective-body-item-physical-principals-are-distinct
+  (doseq [u [(assoc prospective-user :id (get-in body-review [:user :id]))
+             (assoc prospective-user :node_id (get-in body-review [:user :node_id]))
+             (assoc prospective-user :id (get-in body-proposal [:user :id]))
+             (assoc prospective-user :node_id (get-in body-proposal [:user :node_id]))]]
+    (is (not (:eligible? (law/rejection-assessment-request body-input 201 u)))))
+  (doseq [v [(dissoc body-input :pr-author-user)
+             (assoc-in body-input [:pr-author-user :login] "another-user")]]
     (is (not (:eligible? (law/rejection-assessment-request v 201 prospective-user))))))
 
 (deftest prospective-body-item-keeps-latest-native-user-and-independent-principal

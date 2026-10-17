@@ -118,6 +118,9 @@
     (is (= :review-body-item (:kind selected)))
     (is (= [101 item-id] [(:review-id selected) (:item-id selected)]))
     (is (= (first (:reviews snapshot)) (:review selected)))
+    (is (= {"coderabbit" #{"coderabbitai[bot]"} "opencode" #{"opencode-agent[bot]"}}
+           (get-in (select snapshot (assoc target :identities {"coderabbit" #{"coderabbitai[bot]"} "opencode" #{"opencode-agent[bot]"}}))
+                   [:selected :identities])))
     (is (not-any? #(contains? selected %) [:id :thread-id :root-comment-id :settled?]))
     (doseq [t [(assoc target :thread-id "PRRT_inert") (assoc target :items [item-id])
                (assoc target :review-id 999) (assoc target :item-id "unknown")]]
