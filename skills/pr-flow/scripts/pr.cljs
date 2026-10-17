@@ -205,23 +205,7 @@
   (if (and (= "coderabbit" (law/trusted-reviewer review (reviewer-identities)))
            (= "COMMENTED" (:state review))
            (some :positive-body-item (law/review-findings review)))
-    (let [id (:node_id review)
-          response (when (and (string? id) (not (str/blank? id)))
-                     (gh-json "api" "graphql" "-f"
-                              "query=query($id:ID!){node(id:$id){... on PullRequestReview{id databaseId state body updatedAt submittedAt commit{oid} author{__typename ... on Bot{id}}}}}"
-                              "-f" (str "id=" id)))
-          native (get-in response [:data :node])
-          matches? (and (not (seq (:errors response))) (map? native)
-                        (= id (:id native)) (= (:id review) (:databaseId native))
-                        (= (:body review) (:body native)) (= (:state review) (:state native))
-                        (= (:commit_id review) (get-in native [:commit :oid]))
-                        (= (:submitted_at review) (:submittedAt native))
-                        (string? (get-in review [:user :node_id]))
-                        (= (get-in review [:user :node_id]) (get-in native [:author :id]))
-                        (= "Bot" (get-in native [:author :__typename]))
-                        (string? (:updatedAt native)))]
-      (cond-> (assoc review :updated_at (when matches? (:updatedAt native)))
-        (not matches?) (assoc :positive-review-update-error :native-source-mismatch)))
+    (native-context/hydrate-review-update gh-json review)
     review))
 
 (defn fetch-heads
