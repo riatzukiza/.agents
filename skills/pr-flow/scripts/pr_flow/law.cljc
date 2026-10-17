@@ -888,7 +888,8 @@
                               (timestamp (:created_at %)) (timestamp (:updated_at %))
                               (not (pos? (compare (timestamp (:created_at %)) (timestamp (:updated_at %)))))) issue-comments)
                 (= (count issue-comments) (count (set (map :id issue-comments))))
-                (= (mapv :created_at issue-comments) (sort (map :created_at issue-comments)))))
+                (= (mapv #(timestamp (:created_at %)) issue-comments)
+                   (sort (map #(timestamp (:created_at %)) issue-comments)))))
       (deny :invalid-native-body-context)
 
       (not (and (positive-id? proposal-id) proposal (some? latest) (= proposal (nth issue-comments latest))
