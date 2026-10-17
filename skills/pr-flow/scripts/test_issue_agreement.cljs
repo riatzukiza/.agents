@@ -236,8 +236,10 @@
               "\nEvidence: scripts/test_environment_promotion.py:20")})
 (def body-input
   {:kind :review-body-item :review-id 101 :item-id body-item-id :head (:head fixture)
-   :pr-author "riatzukiza" :review (assoc body-review :native-review body-native-review)
+   :pr-author "riatzukiza" :identities identities :review (assoc body-review :native-review body-native-review)
    :issue-comments [body-proposal]})
+(defn body-input-with-text [text]
+  (-> body-input (assoc-in [:review :body] text) (assoc-in [:review :native-review :body] text)))
 (def body-summary
   (str "Rejection agreement for " (:head fixture) ": " body-scope
        "\nReason: I independently traced the loader and its regression controls; the current source preserves the requested behavior."
@@ -261,8 +263,12 @@
              (assoc body-input :items [body-item-id])
              (assoc body-input :review-id 102)
              (assoc body-input :item-id "unknown")
-             (assoc-in body-input [:review :body] (str "> " (:body body-review)))
-             (update-in body-input [:review :body] str (:body body-review))
+             (body-input-with-text (str "> " (:body body-review)))
+             (body-input-with-text (str "```html\n" (:body body-review) "\n```"))
+             (body-input-with-text (str "<blockquote>" (:body body-review) "</blockquote>"))
+             (body-input-with-text (str "<!-- This is an auto-generated comment: tweet message by coderabbit.ai -->\n"
+                                        (:body body-review) "\n<!-- end of auto-generated comment: tweet message by coderabbit.ai -->"))
+             (body-input-with-text (str (:body body-review) (:body body-review)))
              (assoc-in body-input [:review :native-review :body] "Edited native body")
              (assoc-in body-input [:review :native-review :author :databaseId] 1)
              (assoc-in body-input [:review :native-review :updatedAt] "2026-10-03T11:35:00Z")

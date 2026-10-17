@@ -58,8 +58,10 @@
    :commit {:oid (:commit_id review)}
    :author {:login (get-in review [:user :login]) :databaseId (get-in review [:user :id])
             :id (get-in review [:user :node_id]) :__typename (get-in review [:user :type])}})
-(defn body-readers [review-pages nodes]
-  (let [r (readers [(page [(:thread sample)])] [[]] [])
+(defn body-readers
+  ([review-pages nodes] (body-readers review-pages nodes (page [(:thread sample)])))
+  ([review-pages nodes final-page]
+  (let [r (readers [(page [(:thread sample)]) final-page] [[]] [])
         read (get-in r [:deps :read-json]) remaining (atom nodes)]
     (assoc r :deps
            (assoc (:deps r) :body-items? true
@@ -73,7 +75,7 @@
                           (let [node (first @remaining)]
                             (swap! remaining subvec 1)
                             {:data {:node node}}))
-                      :else (apply read args)))))))
+                      :else (apply read args))))))))
 
 (deftest opted-in-body-collection-preserves-all-reviews-and-native-edit-custody
   (let [other (assoc native-review :id 102 :node_id "PRR_inert_102" :body "No selected item here.")
@@ -86,7 +88,7 @@
     (is (= (native-review-node native-review) (get-in result [:reviews 0 :native-review])))
     (is (= [(:thread sample)] (:raw-threads result)))
     (is (= [] (:history result)))
-    (is (= 5 (count @(:calls r))))))
+    (is (= 6 (count @(:calls r))))))
 
 (deftest opted-in-body-collection-refuses-incomplete-duplicate-and-edited-reviews
   (doseq [pages [nil [] [{}] [[nil]] [[native-review native-review]]
@@ -100,6 +102,10 @@
                 (assoc-in (native-review-node native-review) [:commit :oid] "unknown")
                 (dissoc (native-review-node native-review) :updatedAt)]]
     (let [r (body-readers [[native-review]] [node])]
+      (is (thrown? js/Error (native-context/collect-context (:deps r) repo number)))))
+  (doseq [p [(assoc-in (page [(:thread sample)]) [:data :repository :pullRequest :headRefOid] (apply str (repeat 40 "b")))
+             (assoc-in (page [(:thread sample)]) [:data :repository :pullRequest :state] "CLOSED")]]
+    (let [r (body-readers [[native-review]] [(native-review-node native-review)] p)]
       (is (thrown? js/Error (native-context/collect-context (:deps r) repo number))))))
 
 (deftest fresh-body-selection-is-one-native-review-item-without-a-fake-thread
