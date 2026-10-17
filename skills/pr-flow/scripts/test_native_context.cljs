@@ -82,6 +82,12 @@
                             (swap! review-reads subvec 1)
                             (reset! remaining (vec nodes))
                             pages))
+                      (some #(and (string? %) (str/starts-with? % "ids[]=")) args)
+                      (do (swap! (:calls r) conj (vec args))
+                          (let [size (count (filter #(and (string? %) (str/starts-with? % "ids[]=")) args))
+                                batch (subvec @remaining 0 (min size (count @remaining)))]
+                            (swap! remaining subvec (count batch))
+                            {:data {:nodes batch}}))
                       (some #(and (string? %) (str/starts-with? % "id=PRR_")) args)
                       (do (swap! (:calls r) conj (vec args))
                           (let [node (first @remaining)]
@@ -426,3 +432,55 @@
     (is (= #{:selected} (set (keys (select snapshot)))))
     (is (not-any? #(contains? (select snapshot) %)
                   [:permission :qualified? :actionability :disposition :approval :publication]))))
+
+(defn review-batch-calls [r]
+  (filterv #(some (fn [arg] (and (string? arg) (str/starts-with? arg "ids[]="))) %) @(:calls r)))
+
+(deftest opted-in-review-hydration-batches-at-most-one-hundred-per-page
+  (let [reviews (mapv #(assoc native-review :id (+ 101 %) :node_id (str "PRR_inert_" (+ 101 %))) (range 101))
+        r (body-readers [reviews] (mapv native-review-node reviews))
+        result (native-context/collect-context (:deps r) repo number)
+        batches (review-batch-calls r)]
+    (is (= [100 1 100 1]
+           (mapv #(count (filter (fn [arg] (and (string? arg) (str/starts-with? arg "ids[]="))) %)) batches)))
+    (is (= (mapv :id reviews) (mapv :id (:reviews result))))
+    (is (= reviews (:raw-reviews result)))
+    (is (every? #(some (fn [arg] (and (string? arg) (str/includes? arg "nodes(ids:$ids)"))) %) batches))
+    (is (not-any? #(some (fn [arg] (and (string? arg) (str/starts-with? arg "id=PRR_"))) %) @(:calls r)))))
+
+(deftest opted-in-review-hydration-binds-complete-batch-and-rest-order
+  (let [other (assoc native-review :id 102 :node_id "PRR_inert_102")
+        reviews [native-review other] nodes (mapv native-review-node reviews)
+        r (body-readers [reviews] nodes)
+        read-json (get-in r [:deps :read-json])
+        deps (assoc-in (:deps r) [:read-json]
+                       (fn [& args]
+                         (let [response (apply read-json args)]
+                           (if (get-in response [:data :nodes])
+                             (update-in response [:data :nodes] #(vec (reverse %))) response))))
+        result (native-context/collect-context deps repo number)]
+    (is (= [101 102] (mapv :id (:reviews result))))
+    (is (= 2 (count (review-batch-calls r))))))
+
+(deftest opted-in-review-hydration-refuses-partial-errors-and-unrequested-nodes
+  (let [other (assoc native-review :id 102 :node_id "PRR_inert_102")
+        nodes (mapv native-review-node [native-review other])]
+    (doseq [response [{:errors [{:message "partial"}] :data {:nodes nodes}}
+                     {:data {:nodes nil}} {:data {:nodes (first nodes)}}
+                     {:data {:nodes [(first nodes)]}} {:data {:nodes [(first nodes) nil]}}
+                     {:data {:nodes [(first nodes) (first nodes)]}}
+                     {:data {:nodes (conj nodes (assoc (first nodes) :id "PRR_unrequested"))}}
+                     {:data {:nodes [(first nodes) (assoc (second nodes) :id "PRR_unrequested")]}}]]
+      (let [r (body-readers [[native-review other]] nodes)
+            read-json (get-in r [:deps :read-json])
+            deps (assoc-in (:deps r) [:read-json]
+                           (fn [& args]
+                             (if (some #(and (string? %) (str/starts-with? % "ids[]=")) args)
+                               response (apply read-json args))))]
+        (is (thrown? js/Error (native-context/collect-context deps repo number)))))))
+
+(deftest opted-in-review-hydration-empty-pages-need-no-node-request
+  (let [r (body-readers [[]] []) result (native-context/collect-context (:deps r) repo number)]
+    (is (true? (:reviews-complete? result)))
+    (is (= [] (:raw-reviews result) (:reviews result)))
+    (is (empty? (review-batch-calls r)))))
