@@ -929,3 +929,12 @@
   spore: none
   receipt-refs: 8a558787447398a33e560519f0616afc4a3eb14ecb4c29c23ab2df50ba033bfc
   note: Verify a native finding against the actual effect sequence, exercise changed body/edit ABA and list membership through the public collector, then reuse its complete strict hydration rather than create another partial verifier. Finite rechecks do not make remote APIs atomic. Preserve failed reviewer tool chronology instead of trusting its contradictory final prose. No spore.
+- ts: 2026-10-17T16:00:22.534833497Z
+  session: /home/err/.local/share/openhax-codex/20261010/agents-native-review-body-item-over7ab-v1
+  task: Preserve strict review custody while reducing native API reads
+  p-efficiency: 0.85
+  p-friction: 0.15
+  p-skill-candidate: 0
+  spore: none
+  receipt-refs: c1924ab75af4c7bc7423c4e9e09902f82cf83d05950ea857c7e88f000fb78647
+  note: Use native IDs to batch only complete validated REST-page inputs, retain exact requested-node closedset and the same pure strict matcher, then require a second complete equal snapshot. Backward-compatible fixture readers make RED prove real batching/refusal assertions. Keep original positive single-node transport and historical ledger bytes. No spore.
