@@ -541,6 +541,12 @@
         wrapped (for [tag ["q" "cite" "pre" "code" "div" "span" "section" "aside"]
                       content [plain retained-native-body-layout]]
                   (str "<" tag ">\n" content "\n</" tag ">"))
+        header-grafts (for [excluded ["<pre>quoted</pre>" "<code>quoted</code>"
+                                      "<details><summary>🧩 Analysis chain</summary>quoted</details>"
+                                      (str "<!-- This is an auto-generated comment: tweet message by coderabbit.ai -->quoted"
+                                           "<!-- end of auto-generated comment: tweet message by coderabbit.ai -->")]]
+                        (str/replace-first retained-native-body-layout "<details>\n<summary>"
+                                           (str "<details>" excluded "\n<summary>")))
         additional [(str "<Q cite=\"https://example.invalid\">\n" plain "\n</Q>")
                     (str "<details><summary>Quoted example</summary>\n" plain "\n</details>")
                     (str "<details>\n" plain "\n</details>")
@@ -553,7 +559,7 @@
                     (str retained-native-body-layout "\n</blockquote>")
                     (str "<!-- This is an auto-generated comment: tweet message by coderabbit.ai -->\n"
                          retained-native-body-layout "\n<!-- end of auto-generated comment: tweet message by coderabbit.ai -->")]]
-    (doseq [text (concat wrapped additional)]
+    (doseq [text (concat wrapped header-grafts additional)]
       (is (not (law/native-review-item? (:review (body-input-with-text text)) body-item-id identities)))))
   ;; Exact native siblings remain complete prospective input, not dispositions.
   (is (= retained-native-body-layout
