@@ -42,6 +42,19 @@
       (throw (ex-info "Invalid PR issue-comment page; cannot establish complete native evidence" {:repo repo :pr n})))
     (vec (mapcat identity pages))))
 
+(defn- review-update [review response strict?]
+  (let [native (get-in response [:data :node])
+         matches? (and (not (seq (:errors response)))
+                       (law/review-update-matches? review native (if strict? (get-in review [:user :type]) "Bot"))
+                       (or (not strict?)
+                           (and (integer? (get-in review [:user :id])) (pos? (get-in review [:user :id]))
+                                (= (get-in review [:user :id]) (get-in native [:author :databaseId]))
+                                (let [login (law/graphql-rest-login (:author native))]
+                                  (and login (= (get-in review [:user :login]) login))))))]
+     (cond-> (assoc review :updated_at (when matches? (:updatedAt native)))
+       strict? (assoc :native-review native)
+       (not matches?) (assoc :positive-review-update-error :native-source-mismatch))))
+
 (defn hydrate-review-update
   "Read the latest native review body/edit without executing source or writes.
    Strict mode also binds complete User/Bot numeric/login identity for corpus
@@ -54,18 +67,24 @@
                                (if strict?
                                  "query=query($id:ID!){node(id:$id){... on PullRequestReview{id databaseId state body updatedAt submittedAt commit{oid} author{login __typename ... on User{id databaseId} ... on Bot{id databaseId}}}}}"
                                  "query=query($id:ID!){node(id:$id){... on PullRequestReview{id databaseId state body updatedAt submittedAt commit{oid} author{__typename ... on Bot{id}}}}}")
-                               "-f" (str "id=" id)))
-         native (get-in response [:data :node])
-         matches? (and (not (seq (:errors response)))
-                       (law/review-update-matches? review native (if strict? (get-in review [:user :type]) "Bot"))
-                       (or (not strict?)
-                           (and (integer? (get-in review [:user :id])) (pos? (get-in review [:user :id]))
-                                (= (get-in review [:user :id]) (get-in native [:author :databaseId]))
-                                (let [login (law/graphql-rest-login (:author native))]
-                                  (and login (= (get-in review [:user :login]) login))))))]
-     (cond-> (assoc review :updated_at (when matches? (:updatedAt native)))
-       strict? (assoc :native-review native)
-       (not matches?) (assoc :positive-review-update-error :native-source-mismatch)))))
+                               "-f" (str "id=" id)))]
+     (review-update review response strict?))))
+
+(def ^:private reviews-query
+  "query=query($ids:[ID!]!){nodes(ids:$ids){... on PullRequestReview{id databaseId state body updatedAt submittedAt commit{oid} author{login __typename ... on User{id databaseId} ... on Bot{id databaseId}}}}}")
+
+(defn- hydrate-review-batch [read-json reviews]
+  (let [ids (mapv :node_id reviews)
+        response (apply read-json "api" "graphql" "-f" reviews-query
+                        (mapcat #(vector "-f" (str "ids[]=" %)) ids))
+        nodes (get-in response [:data :nodes])
+        native-ids (mapv :id nodes)]
+    (when-not (and (not (seq (:errors response))) (vector? nodes)
+                   (every? map? nodes) (= (count ids) (count nodes) (count (set native-ids)))
+                   (= (set ids) (set native-ids)))
+      (throw (ex-info "Incomplete or mismatched native review batch" {})))
+    (let [by-id (into {} (map (juxt :id identity) nodes))]
+      (mapv #(review-update % {:data {:node (get by-id (:node_id %))}} true) reviews))))
 
 (defn- collect-reviews [read-json repo n]
   (let [pages (read-json "api" (str "repos/" repo "/pulls/" n "/reviews") "--paginate" "--slurp")
@@ -76,7 +95,9 @@
                                     (string? (:body %))) raw)
                    (= (count raw) (count (set ids)) (count (set nodes))))
       (throw (ex-info "Incomplete or duplicate native review pages" {})))
-    (let [reviews (mapv #(hydrate-review-update read-json % true) raw)]
+    (let [reviews (vec (mapcat (fn [page]
+                                 (mapcat #(hydrate-review-batch read-json %)
+                                         (partition-all 100 page))) pages))]
       (when (some :positive-review-update-error reviews)
         (throw (ex-info "Native review body or edit changed during collection" {})))
       {:raw-reviews raw :reviews reviews :reviews-complete? true})))
