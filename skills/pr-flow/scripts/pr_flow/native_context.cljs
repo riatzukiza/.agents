@@ -61,7 +61,8 @@
                        (or (not strict?)
                            (and (integer? (get-in review [:user :id])) (pos? (get-in review [:user :id]))
                                 (= (get-in review [:user :id]) (get-in native [:author :databaseId]))
-                                (= (get-in review [:user :login]) (get-in native [:author :login])))))]
+                                (let [login (law/graphql-rest-login (:author native))]
+                                  (and login (= (get-in review [:user :login]) login))))))]
      (cond-> (assoc review :updated_at (when matches? (:updatedAt native)))
        strict? (assoc :native-review native)
        (not matches?) (assoc :positive-review-update-error :native-source-mismatch)))))

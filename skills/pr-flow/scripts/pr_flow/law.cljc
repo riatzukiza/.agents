@@ -822,6 +822,15 @@
             (when (and section (assessment-file-groups? section)) section))
           prose)))))
 
+(defn graphql-rest-login
+  "REST spelling for a native User/Bot login; no identity or permission credit."
+  [author]
+  (let [login (:login author)]
+    (when (and (#{"User" "Bot"} (:__typename author))
+               (string? login) (not (str/blank? login)))
+      (if (and (= "Bot" (:__typename author)) (not (str/ends-with? login "[bot]")))
+        (str login "[bot]") login))))
+
 (defn native-review-item?
   "One current live authored item with complete native edit/actor custody.
    This is not independent judgment, settlement or native authentication."
@@ -839,7 +848,7 @@
           (review-update-matches? review native) (= (:updated_at review) (:updatedAt native))
           (= "Bot" (:type user)) (integer? (:id user)) (pos? (:id user))
           (= (:id user) (get-in native [:author :databaseId]))
-          (= (:login user) (get-in native [:author :login]))
+          (= (:login user) (graphql-rest-login (:author native)))
           (trusted-reviewer review (or identities default-reviewer-identities))
           prose (= 1 (occurrences (:body review)) (occurrences prose)
                    (marker-lines (:body review)) (marker-lines prose))
@@ -915,22 +924,28 @@
              :proposal-created-at (:created_at proposal) :proposal-updated-at (:updated_at proposal)
              :writer-login writer :expected-user prospective-user :created-after (comment-time proposal)})))
 
+(defn- unsupported-assessment-kind? [context]
+  (and (map? context) (contains? context :kind)
+       (not= :review-body-item (:kind context))))
+
 (defn rejection-assessment-request
   "Prospective eligibility for one native thread or typed review-body item.
    Complete collection, independent invocation and real publication remain
    transport obligations; no native evidence or settlement is manufactured."
   [context proposal-id prospective-user]
-  (if (= :review-body-item (:kind context))
-    (body-assessment-request context proposal-id prospective-user)
-    (thread-assessment-request context proposal-id prospective-user)))
+  (cond
+    (unsupported-assessment-kind? context) {:eligible? false :reason :invalid-native-context}
+    (= :review-body-item (:kind context)) (body-assessment-request context proposal-id prospective-user)
+    :else (thread-assessment-request context proposal-id prospective-user)))
 
 (defn rejection-assessment-publication
   "Reconstruct one accepted agreement through the existing scope grammar.
    Actual POST/readback and later independent User settlement remain required."
   [context proposal-id accepted-summary prospective-user]
-  (if-not (= :review-body-item (:kind context))
-    (thread-assessment-publication context proposal-id accepted-summary prospective-user)
-    (let [request (body-assessment-request context proposal-id prospective-user)
+  (cond
+    (unsupported-assessment-kind? context) {:eligible? false :reason :invalid-native-context}
+    (not= :review-body-item (:kind context)) (thread-assessment-publication context proposal-id accepted-summary prospective-user)
+    :else (let [request (body-assessment-request context proposal-id prospective-user)
           scope (str "review-id:" (:review-id request) " cr-comment:v1:" (:item-id request))
           parsed (when (string? accepted-summary) (rejection-details accepted-summary))
           body (when parsed (str "Rejection agreement for " (:head request) ": " scope
