@@ -911,3 +911,12 @@
   spore: none
   receipt-refs: 6f84bb39ab6f6c1427988d2cdef801ab0f35f808fde1e5172bcaac23ec9fb48b
   note: Native GraphQL and REST principal IDs agree while Bot login spellings differ; use real API shape in fixture and retain strict physical identity. Posteffect wrapper failure requires readonly qualification, never commit replay. No spore.
+- ts: 2026-10-17T14:10:51.965634594Z
+  session: /home/err/.local/share/openhax-codex/20261010/agents-native-review-body-item-over7ab-v1
+  task: Preserve raw native timestamps while ordering by their existing normalized meaning
+  p-efficiency: 0.8
+  p-friction: 0.25
+  p-skill-candidate: 0
+  spore: none
+  receipt-refs: 7444c8a4ffdcfe5dee6885223a0c4be451962f5f37515ce5752a4f0fbacf9048
+  note: An unaccepted reviewer advisory is evidence to verify, not native approval or a finding to settle. Existing public API controls proved a real normalization mismatch; fix the one expression and preserve complete raw custody. No spore.
