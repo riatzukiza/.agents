@@ -131,6 +131,19 @@ unavailable history distinct from valid empty history without reading or
 appending the ledger. This stacked proposal is not installation or operational
 permission, and unresolved conversations remain blocked.
 
+The same prospective rejection APIs also accept one explicit
+`:kind :review-body-item` context, with native `:review-id` and stable `:item-id`.
+The opt-in native collector binds every review page and REST/GQL body, actor,
+commit, submission and edit metadata; selection preserves the caller's reviewed
+identity policy. A selected stable marker occupies its own authored raw line;
+quoted/code/generated IDs, incomplete custody, stale scope, mixed
+thread/body coordinates and physical assessor/author/opener/writer identity
+collisions refuse. The existing thread API and final item-settlement grammar
+remain unchanged. This source API supplies no operational body-assessor adapter:
+its owning ETA transport needs separate reviewed adoption, full source/history,
+accepted independent invocation and actual one-shot publication/readback before
+a later authorized User can attempt the existing settlement.
+
 The CLI preserves native formal approvals and explicit passing verdicts as
 distinct evidence channels. CodeRabbit’s authenticated issue-comment coverage
 marker alone is observed coverage only; a completed explicit no-actionable

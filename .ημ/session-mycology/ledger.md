@@ -893,3 +893,48 @@
   spore: none
   receipt-refs: e115ed41-ba58-4006-8c77-6419921aaa34,447927cdb0625d72f5422d8ac8f7a28bfb685176,sha256:af4e8682294b676c2b915db344120e9a45235ed757f2d9a5087aa640a688caed
   note: A path can be stale in trusted packaged guidance even when the target skill is correctly indexed. Preserve the actual failed trace, compare the offered source reference with the successful preceding read, and validate the replacement against the canonical and real exported mount layouts. Keep failure/deadline causality separate. Use current accepted catalog-capable review callers and retain trusted skill pins until adoption. Preserve native receipt bytes when an existing append helper chooses a new path; correct only its owned uncommitted location with prefix and inode guards. No trace exception, alias, policy change, native approval or deployment credit; candidate0/no spore.
+- ts: 2026-10-17T12:08:59.359680645Z
+  session: /home/err/.local/share/openhax-codex/20261010/agents-native-review-body-item-over7ab-v1
+  task: Canonical one-item native review-body assessment input and complete source collector
+  p-efficiency: 0.45
+  p-friction: 0.85
+  p-skill-candidate: 0.0
+  spore: none
+  receipt-refs: ef36324ebf3e4cbaea3d6da95d8bfba92e1b0bcc05fb4860bf991331f6061cd8
+  note: Finite actual-native-format and adversarial source probes found missing authored boundaries before final publication. Reusing the existing balanced scanner and exclusion barriers preserved old positive/thread behavior; an exact existing CLI control then exposed default query drift. Final v7 laws204/5240, policy71/1794, portable6/46 and full CLI110/3184 all pass; owning caller consumes actual adopted7112/agents7ab. Preserve every earlier failed/setup/cancelled outcome. Complete finite source probes before the costly full CLI; keep strict typed hydration opt-in and preserve the old default query byte-for-byte. No spore, native assessment, settlement or rollout claim.
+- ts: 2026-10-17T13:00:39.500333144Z
+  session: /home/err/.local/share/openhax-codex/20261010/agents-native-review-body-item-over7ab-v1
+  task: Correct native REST/GraphQL actor spelling and explicit assessment-kind boundary
+  p-efficiency: 0.65
+  p-friction: 0.45
+  p-skill-candidate: 0
+  spore: none
+  receipt-refs: 6f84bb39ab6f6c1427988d2cdef801ab0f35f808fde1e5172bcaac23ec9fb48b
+  note: Native GraphQL and REST principal IDs agree while Bot login spellings differ; use real API shape in fixture and retain strict physical identity. Posteffect wrapper failure requires readonly qualification, never commit replay. No spore.
+- ts: 2026-10-17T14:10:51.965634594Z
+  session: /home/err/.local/share/openhax-codex/20261010/agents-native-review-body-item-over7ab-v1
+  task: Preserve raw native timestamps while ordering by their existing normalized meaning
+  p-efficiency: 0.8
+  p-friction: 0.25
+  p-skill-candidate: 0
+  spore: none
+  receipt-refs: 7444c8a4ffdcfe5dee6885223a0c4be451962f5f37515ce5752a4f0fbacf9048
+  note: An unaccepted reviewer advisory is evidence to verify, not native approval or a finding to settle. Existing public API controls proved a real normalization mismatch; fix the one expression and preserve complete raw custody. No spore.
+- ts: 2026-10-17T15:02:19.166656207Z
+  session: /home/err/.local/share/openhax-codex/20261010/agents-native-review-body-item-over7ab-v1
+  task: Preserve complete review edit custody across native collection
+  p-efficiency: 0.85
+  p-friction: 0.15
+  p-skill-candidate: 0
+  spore: none
+  receipt-refs: 8a558787447398a33e560519f0616afc4a3eb14ecb4c29c23ab2df50ba033bfc
+  note: Verify a native finding against the actual effect sequence, exercise changed body/edit ABA and list membership through the public collector, then reuse its complete strict hydration rather than create another partial verifier. Finite rechecks do not make remote APIs atomic. Preserve failed reviewer tool chronology instead of trusting its contradictory final prose. No spore.
+- ts: 2026-10-17T16:00:22.534833497Z
+  session: /home/err/.local/share/openhax-codex/20261010/agents-native-review-body-item-over7ab-v1
+  task: Preserve strict review custody while reducing native API reads
+  p-efficiency: 0.85
+  p-friction: 0.15
+  p-skill-candidate: 0
+  spore: none
+  receipt-refs: c1924ab75af4c7bc7423c4e9e09902f82cf83d05950ea857c7e88f000fb78647
+  note: Use native IDs to batch only complete validated REST-page inputs, retain exact requested-node closedset and the same pure strict matcher, then require a second complete equal snapshot. Backward-compatible fixture readers make RED prove real batching/refusal assertions. Keep original positive single-node transport and historical ledger bytes. No spore.

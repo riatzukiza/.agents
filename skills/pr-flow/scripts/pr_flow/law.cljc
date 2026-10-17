@@ -313,7 +313,7 @@
         {:reviewer (native-agent agreement identities) :url (or (:url agreement) (:html_url agreement))
          :channel (or (:source-channel agreement) :github-review-thread) :source-id (:id agreement)})))))
 
-(defn rejection-assessment-request
+(defn- thread-assessment-request
   "Prospective scope only for an actual native thread proposal. The host must
    freshly collect/select the original normalized thread and bind complete raw
    conversation/issue history and permissions. No native evidence or effect."
@@ -374,14 +374,14 @@
        :proposal-created-at (:created-at proposal) :proposal-updated-at (:updated-at proposal)
        :writer-login writer :expected-user prospective-user :created-after (comment-time proposal)})))
 
-(defn rejection-assessment-publication
+(defn- thread-assessment-publication
   "Validate/reconstruct body-only agreement text through the existing rejection
    grammar. Never fabricate native source metadata or settle a finding. Actual
    On native readback, :user must match :expected-user for :login, :id,
    :node_id and :type; login-only matching is insufficient. POST/readback
    must later pass unchanged rejection-evidence chronology."
   [thread proposal-id accepted-summary prospective-user]
-  (let [request (rejection-assessment-request thread proposal-id prospective-user)
+  (let [request (thread-assessment-request thread proposal-id prospective-user)
         c {:body accepted-summary}
         scope [(:thread-id request) (str (:root-comment-id request))]
         parsed (when (string? accepted-summary) (rejection-details accepted-summary))
@@ -664,7 +664,9 @@
   (-> text (str/replace #"^(?:[ \t]*\n)+" "")
       (str/replace #"(?:\n[ \t]*)+$" "")))
 
-(defn- additional-comment-section [body]
+(defn- additional-comment-section
+  ([body] (additional-comment-section body #"^<details>\n<summary>🔇 Additional comments \([1-9][0-9]{0,3}\)</summary><blockquote>"))
+  ([body section-header]
   ;; Only the observed complete, top-level native section is a candidate.
   ;; Quotes/fences/generated share examples are not authored LGTM evidence.
   ;; A deliberately small balanced tag grammar rejects unfamiliar HTML rather
@@ -697,9 +699,9 @@
                         (recur tail end (pop stack) sections)))
                     (let [own-line? (or (zero? start) (= "\n" (subs text (dec start) start)))
                           additional? (and (= tag "details") (empty? stack) own-line?
-                                           (re-find #"^<details>\n<summary>🔇 Additional comments \([1-9][0-9]{0,3}\)</summary><blockquote>" (subs text start)))]
+                                           (re-find section-header (subs text start)))]
                       (recur tail end (conj stack {:tag tag :start start :additional? additional?}) sections)))))))
-          (when (and (empty? stack) (= 1 (count sections))) (first sections)))))))
+          (when (and (empty? stack) (= 1 (count sections))) (first sections))))))))
 
 (defn- native-positive-item [item file]
   (when-let [[_ start end extra id]
@@ -772,6 +774,191 @@
                 (body-finding? body))
           [{:id (str (:id review)) :kind :review-body :severity :p1 :title "Whole review body requires a verified fix"}]
           []))))
+
+(defn review-update-matches?
+  "Shared REST/GQL review-body edit binding. Numeric author identity and live
+   item selection are additional body-assessment requirements below."
+  ([review native] (review-update-matches? review native "Bot"))
+  ([review native actor-type]
+  (and (#{"User" "Bot"} actor-type)
+       (map? native) (string? (:node_id review)) (not (str/blank? (:node_id review)))
+       (= (:node_id review) (:id native)) (= (:id review) (:databaseId native))
+       (= (:body review) (:body native)) (= (:state review) (:state native))
+       (= (:commit_id review) (get-in native [:commit :oid]))
+       (= (:submitted_at review) (:submittedAt native))
+       (string? (get-in review [:user :node_id]))
+       (= (get-in review [:user :node_id]) (get-in native [:author :id]))
+       (= actor-type (get-in native [:author :__typename])) (string? (:updatedAt native)))))
+
+(defn- assessment-file-groups? [section]
+  (let [[header total-colon total-paren]
+        (re-find #"^<details>\n<summary>🔇 Additional comments(?:: ([1-9][0-9]{0,3})| \(([1-9][0-9]{0,3})\))</summary><blockquote>" section)
+        inner (when header (subs section (count header) (- (count section) (count "</blockquote></details>"))))
+        groups (re-seq #"<details>\n<summary>([^<\n]+?)(?:: ([1-9][0-9]{0,3})| \(([1-9][0-9]{0,3})\))</summary><blockquote>((?:(?!</?(?:details|summary|blockquote)>)[\s\S])*)</blockquote></details>" (str inner))
+        number #?(:clj #(Long/parseLong %) :cljs #(js/parseInt % 10))]
+    (and header (seq groups)
+         (str/blank? (reduce #(str/replace-first %1 (first %2) "") inner groups))
+         (= (number (or total-colon total-paren)) (reduce + (map #(number (or (nth % 2) (nth % 3))) groups)))
+         (every? (fn [[_ file n m content]]
+                   (and (positive-thread/source-path? file) (re-find #"[/.]" file)
+                        (<= (count (re-seq #"<!-- cr-comment:v1:[a-z0-9]+ -->" content)) (number (or n m))))) groups))))
+
+(defn- live-item-prose [body]
+  ;; Reuse the native container scanner. Unsupported HTML and excluded source
+  ;; cannot be normalized into an authored heading or marker.
+  (when-let [prose (when (and (not (multiline-code-span? (str body)))
+                             (verdict-prose body)) (str body))]
+    (let [prose (-> prose
+                    (retain-excluded-regions #"(?ms)^[ \t]*(`{3,}|~{3,})[^\n]*\n.*?^[ \t]*\1[ \t]*$")
+                    (retain-excluded-regions #"(?s)<!-- This is an auto-generated comment: tweet message by coderabbit\.ai -->.*?<!-- end of auto-generated comment: tweet message by coderabbit\.ai -->")
+                    (retain-excluded-regions #"(?s)<details>\s*<summary>(?:🧩 Analysis chain|✏️ Learnings added)</summary>.*?</details>")
+                    (retain-excluded-regions #"(?is)<(pre|code)\b[^>]*>.*?</\1>")
+                    (retain-excluded-regions #"<!--(?! cr-comment:v1:[a-z0-9]+ -->)[\s\S]*?-->"))]
+      (when-not (or (re-find #"(?m)^[ \t]*>" prose)
+                    (re-find #"(?i)<!--\s*(?:This is an auto-generated comment:|end of auto-generated comment:)" prose))
+        (if (re-find #"(?i)</?[a-z]|<\?|<!" (remove-matches prose #"<!--[\s\S]*?-->"))
+          (let [section (additional-comment-section prose
+                          #"^<details>\n<summary>🔇 Additional comments(?:: [1-9][0-9]{0,3}| \([1-9][0-9]{0,3}\))</summary><blockquote>")]
+            (when (and section (assessment-file-groups? section)) section))
+          prose)))))
+
+(defn graphql-rest-login
+  "REST spelling for a native User/Bot login; no identity or permission credit."
+  [author]
+  (let [login (:login author)]
+    (when (and (#{"User" "Bot"} (:__typename author))
+               (string? login) (not (str/blank? login)))
+      (if (and (= "Bot" (:__typename author)) (not (str/ends-with? login "[bot]")))
+        (str login "[bot]") login))))
+
+(defn native-review-item?
+  "One current live authored item with complete native edit/actor custody.
+   This is not independent judgment, settlement or native authentication."
+  [review item-id identities]
+  (let [native (:native-review review) user (:user review)
+        submitted (timestamp (:submitted_at review)) updated (timestamp (:updated_at review))
+        occurrences (fn [s] (count (re-seq (re-pattern (str "<!-- cr-comment:v1:" item-id " -->")) (str s))))
+        marker-lines (fn [s] (count (re-seq (re-pattern (str "(?m)^ {0,3}<!-- cr-comment:v1:" item-id " -->[ \t]*$")) (str s))))
+        prose (when (string? (:body review)) (live-item-prose (:body review)))]
+    (boolean
+     (and (map? review) (integer? (:id review)) (pos? (:id review))
+          (string? item-id) (re-matches #"[a-z0-9]+" item-id)
+          (#{"COMMENTED" "APPROVED" "CHANGES_REQUESTED"} (:state review))
+          (valid-head? (:commit_id review)) submitted updated (not (pos? (compare submitted updated)))
+          (review-update-matches? review native) (= (:updated_at review) (:updatedAt native))
+          (= "Bot" (:type user)) (integer? (:id user)) (pos? (:id user))
+          (= (:id user) (get-in native [:author :databaseId]))
+          (= (:login user) (graphql-rest-login (:author native)))
+          (trusted-reviewer review (or identities default-reviewer-identities))
+          prose (= 1 (occurrences (:body review)) (occurrences prose)
+                   (marker-lines (:body review)) (marker-lines prose))
+          (= 1 (count (filter #(= item-id (:id %)) (review-findings review))))))))
+
+(defn- body-assessment-request
+  [{:keys [head pr-author pr-author-user review-id item-id review issue-comments identities] :as context}
+   proposal-id prospective-user]
+  (let [deny (fn [reason] {:eligible? false :reason reason})
+        identities (or identities default-reviewer-identities)
+        scope (str "review-id:" review-id " cr-comment:v1:" item-id)
+        matches (when (vector? issue-comments) (filterv #(= proposal-id (:id %)) issue-comments))
+        proposal (when (= 1 (count matches)) (first matches)) writer (comment-login proposal)
+        attempt-prefix (str "Rejection proposal for " head ": " scope)
+        latest (when (vector? issue-comments)
+                 (last (keep-indexed
+                        (fn [i c]
+                          (let [line (first (str/split-lines (or (rejection-prose (:body c)) "")))]
+                            (when (and (true? (:authorized? c)) (= "User" (get-in c [:user :type]))
+                                       (not (bot? (comment-login c)))
+                                       (string? line) (str/starts-with? line attempt-prefix)
+                                       (or (= line attempt-prefix)
+                                           (not (re-matches #"[a-z0-9]" (subs line (count attempt-prefix) (inc (count attempt-prefix))))))) i)))
+                        issue-comments)))
+        positive-id? #(and (integer? %) (pos? %))]
+    (cond
+      (not (and (= :review-body-item (:kind context))
+                (not-any? #(contains? context %) [:id :thread-id :root-comment-id :items :scopes])
+                (valid-head? head) (string? pr-author) (not (str/blank? pr-author))
+                (map? pr-author-user) (= pr-author (:login pr-author-user))
+                (#{"User" "Bot"} (:type pr-author-user))
+                (positive-id? (:id pr-author-user)) (string? (:node_id pr-author-user))
+                (not (str/blank? (:node_id pr-author-user)))
+                (= review-id (:id review)) (native-review-item? review item-id identities)
+                (vector? issue-comments)
+                (every? #(and (positive-id? (:id %)) (string? (:body %))
+                              (timestamp (:created_at %)) (timestamp (:updated_at %))
+                              (not (pos? (compare (timestamp (:created_at %)) (timestamp (:updated_at %)))))) issue-comments)
+                (= (count issue-comments) (count (set (map :id issue-comments))))
+                (= (mapv #(timestamp (:created_at %)) issue-comments)
+                   (sort (map #(timestamp (:created_at %)) issue-comments)))))
+      (deny :invalid-native-body-context)
+
+      (not (and (positive-id? proposal-id) proposal (some? latest) (= proposal (nth issue-comments latest))
+                (= "User" (get-in proposal [:user :type])) (true? (:authorized? proposal))
+                (positive-id? (get-in proposal [:user :id]))
+                (string? (get-in proposal [:user :node_id])) (not (str/blank? (get-in proposal [:user :node_id])))
+                (string? (:node_id proposal)) (not (str/blank? (:node_id proposal)))
+                (string? (:html_url proposal)) (not (str/blank? (:html_url proposal)))
+                (not (bot? writer)) (not (str/blank? writer))
+                (not= writer (comment-login review))
+                (rejection-marker-line? head scope "proposal" proposal)
+                (= 1 (count (re-seq #"(?m)^Rejection (?:proposal|agreement) for " (or (rejection-prose (:body proposal)) ""))))
+                (rejection-details (:body proposal))
+                (pos? (compare (timestamp (:created_at proposal)) (timestamp (:submitted_at review))))
+                (pos? (compare (comment-time proposal) (timestamp (:updated_at review))))))
+      (deny :invalid-latest-proposal)
+
+      (not (and (map? prospective-user) (= #{:login :id :node_id :type} (set (keys prospective-user)))
+                (positive-id? (:id prospective-user)) (string? (:node_id prospective-user))
+                (not (str/blank? (:node_id prospective-user)))
+                (native-agent {:user prospective-user} identities)
+                (not-any? #(or (= (:id prospective-user) (:id %))
+                               (= (:node_id prospective-user) (:node_id %)))
+                          [(:user review) (:user proposal) pr-author-user])
+                (not (contains? (set [writer (str/lower-case pr-author) (comment-login review)])
+                                (str/lower-case (str (:login prospective-user)))))))
+      (deny :ineligible-principal)
+
+      :else {:eligible? true :kind :review-body-item :head head :review-id review-id :item-id item-id
+             :review-node-id (:node_id review) :review-commit (:commit_id review)
+             :review-body (:body review) :review-updated-at (:updated_at review)
+             :proposal-id proposal-id :proposal-body (:body proposal)
+             :proposal-created-at (:created_at proposal) :proposal-updated-at (:updated_at proposal)
+             :writer-login writer :expected-user prospective-user :created-after (comment-time proposal)})))
+
+(defn- unsupported-assessment-kind? [context]
+  (and (map? context) (contains? context :kind)
+       (not= :review-body-item (:kind context))))
+
+(defn rejection-assessment-request
+  "Prospective eligibility for one native thread or typed review-body item.
+   Complete collection, independent invocation and real publication remain
+   transport obligations; no native evidence or settlement is manufactured."
+  [context proposal-id prospective-user]
+  (cond
+    (unsupported-assessment-kind? context) {:eligible? false :reason :invalid-native-context}
+    (= :review-body-item (:kind context)) (body-assessment-request context proposal-id prospective-user)
+    :else (thread-assessment-request context proposal-id prospective-user)))
+
+(defn rejection-assessment-publication
+  "Reconstruct one accepted agreement through the existing scope grammar.
+   Actual POST/readback and later independent User settlement remain required."
+  [context proposal-id accepted-summary prospective-user]
+  (cond
+    (unsupported-assessment-kind? context) {:eligible? false :reason :invalid-native-context}
+    (not= :review-body-item (:kind context)) (thread-assessment-publication context proposal-id accepted-summary prospective-user)
+    :else (let [request (body-assessment-request context proposal-id prospective-user)
+          scope (str "review-id:" (:review-id request) " cr-comment:v1:" (:item-id request))
+          parsed (when (string? accepted-summary) (rejection-details accepted-summary))
+          body (when parsed (str "Rejection agreement for " (:head request) ": " scope
+                                 "\nReason: " (:reason parsed) "\nEvidence: " (:evidence parsed)))
+          c {:body accepted-summary}]
+      (cond
+        (not (:eligible? request)) request
+        (not (and parsed (= accepted-summary body) (rejection-agreement-prose? c)
+                  (rejection-marker? (:head request) (or (:identities context) default-reviewer-identities)
+                                     scope nil "agreement" c)))
+        {:eligible? false :reason :invalid-summary}
+        :else (assoc request :body body)))))
 
 (declare incomplete-review-reason)
 
