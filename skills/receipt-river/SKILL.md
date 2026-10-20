@@ -113,10 +113,22 @@ segment directories); do not split a ledger whose consumers read one file.
     (:event/data e))`; only cutover wraps keep that map grandfathered like their
     source record.
   - Any other `:event/type` is invalid in a receipt ledger.
+  - **Disjoint shapes.** Classification is by keys, with no overlap: a record
+    holding `:event/type` together with **either** lightweight key
+    (`:event/recorded-at`, `:event/payload`) **and any** full-Clio-only key
+    (`:event/schema`, `:event/stream`, `:event/seq`, `:event/causes`,
+    `:event/actor`, `:event/subject`, `:event/at`, `:event/data`) is a
+    **hybrid** and is invalid. New writes must not produce one; a hybrid found
+    in a frozen legacy record or segment makes the cutover **fail closed** for
+    an explicit decision, so no two converters can classify it differently
+    (one wrapping it as an envelope, another promoting it verbatim). The same
+    holds for a frozen record with an unrecognized `:event/type`.
   - `CONTRACT.edn` `event-envelope` (pre-cutover) and `full-clio-event` /
     `clio-cutover` (cutover/post-cutover) state the same rules for machines.
 - Record identity:
-  - `#:event` / Clio records: use `:event/id` (a reused ID with different data
+  - Valid `#:event` envelopes / full Clio events (by the disjoint shapes
+    above): use `:event/id`; invalid event records (hybrid or other
+    `:event/type`) get no identity (a reused ID with different data
     is corruption, matching Clio's laws). Content hashing must not override ID.
   - A **plain receipt** is classified by shape (a map with no `:event/type`),
     not by key presence. A plain receipt that also carries `:event/id` (any
@@ -457,7 +469,17 @@ not an ancestor of the commit that adds the event's segment, or any tip at that
 commit is absent from the event's `:event/causes`. Extra causes are allowed
 when they resolve. Tips created concurrently after the read commit are thus
 distinguishable from omitted observed tips, so an omission is detectable and
-invalid. None of `rr-init.bb` / `rr-append.bb` /
+invalid. The snapshot must also be **fresh**: the event's segment is added in
+a non-merge commit, and the active ledger at that commit's parent must equal
+the active ledger at `read-commit` (normally the parent *is* `read-commit`).
+Any active-ledger change between the read and the segment's commit (another
+segment added, or a merge or pull that brought receipts in) fails the event,
+so a run can never omit tips already in its own history; re-read the frontier
+and write a new run instead. Later merges of other branches remain fine:
+those writes are genuinely concurrent. This `read-commit` proof applies only
+to **post-cutover** runs: pre-cutover full-Clio writes and cutover wraps carry
+no `read-commit` (no cutover declaration exists yet for them to name).
+None of `rr-init.bb` / `rr-append.bb` /
 `rr-tail.bb` / `rr-last.bb` nor the `receipt_river` runtime tool may be used
 until they are union-aware. Do not inspect every immutable segment on each
 decision; use the bounded union-aware window.

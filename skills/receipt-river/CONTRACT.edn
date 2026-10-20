@@ -238,8 +238,23 @@
     (verify :bijection-every-archived-legacy-record-and-pre-cutover-non-clio-source-to-active-clio-event)
     (verify-archived-full-clio :verbatim-active-copy-complete-event-byte-identical)
     (causes-dedupe :deterministic-unique-ids-serial-then-mapped-parents-in-vector-order))
+  (record-classification
+    {:plain-receipt :map-without-event-type
+     :receipt-river-envelope {:event/type :receipt-river/receipt-recorded
+                              :has-any [:event/recorded-at :event/payload]
+                              :has-none-of :full-clio-only-keys}
+     :full-clio-event {:event/type :receipt-river/receipt-recorded
+                       :has-all :full-clio-required-keys
+                       :has-none-of [:event/recorded-at :event/payload]}
+     :full-clio-only-keys [:event/schema :event/stream :event/seq :event/causes
+                           :event/actor :event/subject :event/at :event/data]
+     :hybrid :invalid
+     :other-event-type :invalid
+     :frozen-hybrid-or-other-event-type-at-cutover :fail-closed})
   (record-identity
-    (clio-or-event :event/id)
+    (valid-receipt-river-envelope-or-full-clio-event :event/id)
+    (plain-receipt-including-ordinary-event-id-data :sha256-canonical-edn-bytes)
+    (invalid-event-records :no-identity-assigned)
     (id-less-plain-receipt :sha256-canonical-edn-bytes)
     (canonical-edn-bytes
       (canonicalize-children-before-sorting true)
@@ -274,7 +289,7 @@
                            :receipt-river/receipt-sha256 :lowercase-hex}]
        :cutover-wrap-text-form-only-when :map-form-clio-inadmissible-at-pinned-clio-rev
        :new-write {:receipt-river/receipt :receipt-map
-                   :receipt-river/read-commit :required-on-first-event-of-run-only}
+                   :receipt-river/read-commit :required-on-first-event-of-post-cutover-run-only}
        :new-write-text-form :invalid})
     (new-write-receipt-required-keys [ts kind origin owner dod pi host manifest refs])
     (cutover-wrap-receipt :grandfathered)
@@ -284,12 +299,17 @@
        :frontier-tip :active-event-named-by-no-other-active-event-as-cause
        :later-events-of-run :cause-previous-event-in-run
        :omitted-observed-tip :invalid
+       :applies-when :post-cutover
+       :not-applied-to [:pre-cutover-full-clio-writes :cutover-wraps]
        :read-snapshot {:key :receipt-river/read-commit :in :event/data
-                       :on :first-event-of-run :value :full-40-hex-commit-sha
+                       :on :first-event-of-post-cutover-run :value :full-40-hex-commit-sha
                        :frontier-read-from :committed-tree-at-read-commit}
        :verify [:read-commit-present :read-commit-contains-cutover-declaration
                 :read-commit-ancestor-of-segment-commit
+                :segment-added-in-non-merge-commit
+                :active-ledger-at-segment-commit-parent-equals-active-ledger-at-read-commit
                 :every-tip-at-read-commit-in-causes]
+       :stale-snapshot :invalid
        :extra-causes :allowed-if-resolvable})
     (pre-cutover-new-writes-must-satisfy-clio-history-laws
       [:stream-seq-continuity :no-slot-reuse :causes-resolve :acyclic-dag])

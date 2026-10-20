@@ -796,3 +796,12 @@
   spore: none
   receipt-refs: 2026-10-20T22:50:09.693Z,2026-10-20T22:50:09.694Z,2026-10-20T22:50:09.695Z
   note: Each new rule needed mirroring in AGENTS.md, README.md, SKILL.md and CONTRACT.edn; a grep for the old phrasing across entry docs before pushing would have caught two of the five findings. No spore (same candidate as the previous entry).
+- ts: 2026-10-20T23:02:17.325522Z
+  session: /workspace/led/agents-wt
+  task: Settle the c82907c findings on .agents#34 (fresh read-commit, post-cutover scope, disjoint shapes, contract classification)
+  p-efficiency: 0.65
+  p-friction: 0.6
+  p-skill-candidate: 0.45
+  spore: none
+  receipt-refs: 2026-10-20T23:02:17.325Z,2026-10-20T23:02:17.326Z,2026-10-20T23:02:17.327Z
+  note: Third round today; each new mechanism (read-commit) drew scoping and freshness follow-ups. Phase-scoping every new rule (pre-cutover / cutover / post-cutover) up front would have avoided one finding.
