@@ -787,3 +787,12 @@
   spore: none
   receipt-refs: 2026-10-20T22:33:45.090Z,2026-10-20T22:33:45.091Z,2026-10-20T22:33:45.092Z,2026-10-20T22:33:45.093Z
   note: Docs-only round. Pattern: an executable reference verifier for the cutover would catch these spec gaps faster than review rounds; that belongs with the Clio segment helpers (clio#5) and the pr.cljs segment follow-up, so no spore here.
+- ts: 2026-10-20T22:50:09.693475Z
+  session: /workspace/led/agents-wt
+  task: Settle the 24cabd7 findings on .agents#34 (entry-doc recovery order, cohort invalid :event/at, full-event data union, one cutover per lineage)
+  p-efficiency: 0.65
+  p-friction: 0.6
+  p-skill-candidate: 0.45
+  spore: none
+  receipt-refs: 2026-10-20T22:50:09.693Z,2026-10-20T22:50:09.694Z,2026-10-20T22:50:09.695Z
+  note: Each new rule needed mirroring in AGENTS.md, README.md, SKILL.md and CONTRACT.edn; a grep for the old phrasing across entry docs before pushing would have caught two of the five findings. No spore (same candidate as the previous entry).

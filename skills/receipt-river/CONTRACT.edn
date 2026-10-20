@@ -125,6 +125,8 @@
       {:governs [:display :context-recovery-newest-20]
        :cutover-cohort :active-events-in-cutover-commit-tree
        :cohort-order [:event/at-utc-instant-ms :identity-key-string]
+       :cohort-invalid-event-at :treat-as-missing
+       :cohort-missing-event-at :sorts-first
        :then :post-cutover-events-in-canonical-clio-order
        :consistent-because :every-post-cutover-event-descends-from-the-cohort-via-frontier-links}))
   ;; The reachable transition from mixed-ledger-order to clio-order.
@@ -198,6 +200,13 @@
          :join "/"
          :example "riatzukiza%2F.agents/legacy"
          :compare :exact-string})
+      (cutover-lineage
+        {:runs-once-on :canonical-lineage
+         :forks-and-branches :adopt-by-merging-the-cutover-commit
+         :independent-fork-cutover :forbidden
+         :verify [:at-most-one-cutover-declaration :at-most-one-exclusion-manifest
+                  :every-legacy-stream-event-belongs-to-the-declared-cutover]
+         :post-cutover-non-clio-segment :fail-closed})
       (stream-reserved :fail-closed-if-pre-cutover-union-uses-it)
       (seq :one-based-ordinal-among-wraps-in-causal-topo-order-effective-time-tie-break)
       (promoted-clio-events :keep-original-stream-and-seq)
@@ -259,7 +268,14 @@
                     event/causes event/actor event/subject event/at event/data])
     (event/schema {:schema/root :required :schema/id :required :schema/hash :required
                    :must-name-published-revision true})
-    (event/data {:receipt-river/receipt :receipt-map})
+    (event/data
+      {:cutover-wrap [:or {:receipt-river/receipt :receipt-map}
+                          {:receipt-river/receipt-edn :exact-archived-source-text
+                           :receipt-river/receipt-sha256 :lowercase-hex}]
+       :cutover-wrap-text-form-only-when :map-form-clio-inadmissible-at-pinned-clio-rev
+       :new-write {:receipt-river/receipt :receipt-map
+                   :receipt-river/read-commit :required-on-first-event-of-run-only}
+       :new-write-text-form :invalid})
     (new-write-receipt-required-keys [ts kind origin owner dod pi host manifest refs])
     (cutover-wrap-receipt :grandfathered)
     (new-write-stream :per-run-repo-writer-branch-run-id-unless-serial-allocator)

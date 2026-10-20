@@ -280,6 +280,18 @@ segment directories); do not split a ledger whose consumers read one file.
     with `/`. So the reserved stream for `riatzukiza/.agents` is exactly
     `riatzukiza%2F.agents/legacy`, and a branch `docs/x` is `docs%2Fx`. The
     bijection and the reservation check compare these exact strings.
+  - **One cutover per lineage.** Because forks share `stream-repo`, the
+    cutover runs **once**, on the repository's canonical lineage (the org
+    repository's default branch, or the fork that owns it by agreement), and
+    every fork or branch adopts it only by merging that cutover commit. A fork
+    or branch never performs its own cutover: two independent converters would
+    both write `<repo>/legacy` from seq 1 and collide on
+    `[:event/stream :event/seq]`. The merged-ledger check **fails closed** if
+    the union holds more than one cutover declaration or exclusion manifest, or
+    any `<repo>/legacy` event that is not part of the declared cutover. A
+    branch that diverged before cutover and merges it must not carry non-Clio
+    segments added after the cutover; the check fails such segments closed for
+    an explicit decision rather than silently re-admitting them.
   - All new wraps go in one cutover-only stream `<repo>/legacy`, which is
     **reserved**: no pre-cutover or post-cutover write may use it, and the
     cutover **fails closed** if the pre-cutover union already holds any event in
@@ -419,7 +431,9 @@ merged ledger — by effective time **before** cutover, and by the tail of the
 **post-cutover recovery order** **after** cutover. The recovery order is: the
 **cutover cohort** (every active event present in the cutover commit's tree —
 all `<repo>/legacy` wraps and every promoted Clio event) ordered by effective
-time (`:event/at` as a UTC instant, then identity key), **followed by** every
+time (`:event/at` parsed to a UTC instant, then identity key; an invalid or
+unparseable `:event/at` on a verbatim-promoted event is treated as missing and
+sorts first, exactly as in the pre-cutover order), **followed by** every
 later active event in canonical Clio topological order. Replay, validation
 and hashing keep canonical Clio order; the recovery order only selects and
 displays the window, so a recent promoted event can never fall behind 20 older

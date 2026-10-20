@@ -9,7 +9,7 @@ These instructions apply to the entire repository.
 1. Obey the active harness and user instructions.
 2. Read [`PRINCIPLE.edn`](PRINCIPLE.edn) before substantive work in this repository.
 3. Read this file completely.
-4. Inspect the receipt ledger before major decisions when it exists: a **bounded** newest ~20 records of the active union (see Receipt River / `skills/receipt-river/SKILL.md`) — legacy `.ημ/receipts.edn` in legacy mode; in segmented mode the union-aware window (effective-time pre-cutover, Clio topological tail post-cutover; post-cutover writes are frontier-linked so that tail stays recent). Do not re-read every immutable segment on each decision.
+4. Inspect the receipt ledger before major decisions when it exists: a **bounded** newest ~20 records of the active union (see Receipt River / `skills/receipt-river/SKILL.md`) — legacy `.ημ/receipts.edn` in legacy mode; in segmented mode the union-aware window (effective-time pre-cutover; post-cutover, the tail of the post-cutover recovery order — the cutover cohort by effective time then identity key, followed by later events in Clio topological order, never the raw Clio tail; later writes are frontier-linked so that tail stays recent). Do not re-read every immutable segment on each decision.
 5. Discover the smallest relevant set of skills under `skills/` and read their `SKILL.md` files before acting.
 6. Read a skill's `CONTRACT.edn` when changing its activation, governance, scoring, or non-override behavior.
 
