@@ -169,7 +169,8 @@ segment directories); do not split a ledger whose consumers read one file.
   verifiers sort only to make validation deterministic; that sort is not a
   recency order. Clio order becomes canonical only once **every** record in the
   active merged ledger is a Clio event, i.e. after the cutover below; from then
-  on timestamps never carry ordering authority. Clio order is a deterministic
+  on timestamps never carry ordering authority over replay (context recovery
+  ranks only the frozen cutover cohort by effective time; see Rules). Clio order is a deterministic
   **topological** order of the causal DAG (every event in `:event/causes`
   precedes its effects); the post-cutover tie-break among causally incomparable
   events is `[:event/stream :event/seq :event/id]` where `:event/id` is compared
@@ -205,14 +206,34 @@ segment directories); do not split a ledger whose consumers read one file.
     and `:event/data` holding the
     source receipt map verbatim under `:receipt-river/receipt` (for a lightweight
     envelope source, the payload map; for a plain receipt, the receipt itself).
+  - **Clio-inadmissible legacy values (lossless text wrap):** a source can parse
+    as EDN yet hold a value outside Clio's canonical value domain (e.g. a
+    `#inst` before 1582, which Clio rejects at canonical admission). Such a
+    source is never coerced, re-spelled or dropped. Its wrap's `:event/data` is
+    instead `{:receipt-river/receipt-edn <string> :receipt-river/receipt-sha256
+    <lowercase hex>}`: the string is the **exact archived source text**
+    (the legacy line's bytes without its trailing newline, or the whole
+    segment file's bytes), decoded as UTF-8; the hash is SHA-256 of those
+    UTF-8 bytes. Use this form **only** when the map form above is rejected by
+    Clio admission at the Clio revision pinned in the cutover declaration
+    (`clio-rev:` in `.ημ/receipts/README.md`); otherwise use the map form. The
+    two forms are exclusive, so independent converters agree. Identity, subject,
+    `:event/at` and causes are still derived from the parsed source as above
+    (an inadmissible effective time is treated as invalid and uses the pinned
+    cutover instant). The bijection accepts a text wrap only when its string's
+    bytes equal the archived source bytes, its hash matches, and the map form is
+    Clio-inadmissible at the pinned revision; the archived source itself stays
+    byte-for-byte in place.
   - Schema revision: Clio validates `:event/schema` against a **persisted**
     schema-history revision before canonicalizing, so the cutover PR first
     publishes the Receipt River catalog into the repository's Clio schema
     history (e.g. `.ημ/receipts/schemas/`, written with Clio's schema store) and
     every wrap and later write names that revision's `:schema/root` /
     `:schema/hash`. The catalog defines `:receipt-river/receipt-recorded` with
-    `:event/data` `[:map [:receipt-river/receipt [:map]]]` for cutover wraps
-    (grandfathered payloads: any map) and the nine required receipt keys for new
+    `:event/data` `[:or [:map [:receipt-river/receipt [:map]]] [:map
+    [:receipt-river/receipt-edn :string] [:receipt-river/receipt-sha256
+    :string]]]` for cutover wraps (grandfathered payloads: any map, or the
+    lossless text form above for Clio-inadmissible sources) and the nine required receipt keys for new
     writes (a separate revision or event-type version, never an edit of a
     published one). The cutover PR records the resulting root/hash in
     `.ημ/receipts/README.md`; wrappers that name an unpublished revision are
@@ -248,6 +269,17 @@ segment directories); do not split a ledger whose consumers read one file.
       (whose wrap gets a new UUIDv5) or no active event at all, the cutover
       **fails closed**: verbatim promotion and remapping cannot both hold, so stop and
       record the conflict for an explicit decision instead of rewriting.
+  - **Stream components.** `<repo>` is not a placeholder for any local
+    rendering: the cutover declaration pins `stream-repo:` as one string (the
+    repository's GitHub `owner/name` as written in the declaration, e.g.
+    `riatzukiza/.agents`; forks and promoted org copies keep the **same**
+    declared value). Every stream component (`<repo>`, `<writer>`,
+    `<branch>`, `<run-id>`) is written **percent-encoded**: UTF-8 bytes,
+    RFC 3986 unreserved characters (`A–Z a–z 0–9 - . _ ~`) kept, every other
+    byte (including `/`) as `%XX` with uppercase hex; components are joined
+    with `/`. So the reserved stream for `riatzukiza/.agents` is exactly
+    `riatzukiza%2F.agents/legacy`, and a branch `docs/x` is `docs%2Fx`. The
+    bijection and the reservation check compare these exact strings.
   - All new wraps go in one cutover-only stream `<repo>/legacy`, which is
     **reserved**: no pre-cutover or post-cutover write may use it, and the
     cutover **fails closed** if the pre-cutover union already holds any event in
@@ -275,18 +307,39 @@ segment directories); do not split a ledger whose consumers read one file.
     edge set. The source caused-by value **must be an ordered vector** (or a
     list that preserves written order) of parent identities; a set, map, or
     other unordered collection **fails closed** — there is no canonical
-    ordering of unordered inputs before dedupe. Deduplicate the combined
+    ordering of unordered inputs before dedupe. **Each element** is resolved
+    to exactly one source record through the identity-key strings defined
+    under Order: an element that is a string starting with `event-id:` or
+    `sha256:` is read as a **tagged identity key** (`sha256:` + 64 lowercase
+    hex names an ID-less plain receipt; `event-id:` + canonical EDN text names
+    an `:event/id`); any other element is a **raw `:event/id` value** and maps
+    to the key `event-id:` + its canonical EDN text (so this repository's
+    `"dda66847-…"` strings name envelopes by ID). A bare 64-hex digest without
+    `sha256:` is a raw ID, not a plain-receipt reference. Collect the candidate
+    records under **both** readings; exactly one candidate is required. Zero
+    candidates is an unresolvable parent and an element matching two records
+    (e.g. an envelope whose `:event/id` string equals a tagged key that also
+    names another record) is **ambiguous**; both **fail closed**. New
+    pre-cutover writes should spell parents as tagged identity-key strings. Deduplicate the combined
     cause IDs in deterministic order (serial previous-wrap first, then mapped
     source parents in that vector's source order, unique) — Clio rejects
     duplicate cause IDs.
-    The stream is written once, serially, so no stream slot conflicts.
+    The stream is written once, serially, so no stream slot conflicts. The
+    stream name and `:event/seq` give **no recency guarantee**: Clio uses the
+    stream tie-break only among causally incomparable events, so a promoted
+    Clio event in a stream that sorts before `<repo>/legacy` can precede every
+    wrap in Clio order even when it is the newest pre-cutover decision. Context
+    recovery therefore uses the cutover-cohort recovery order under Rules, not
+    the raw Clio tail.
     Verbatim-promoted Clio events keep their original stream/seq and are not
     rewritten into `<repo>/legacy`.
   - Declare the cutover in `.ημ/receipts/README.md` and write an exclusion
     manifest `.ημ/receipts/.cutover-excluded.edn` (EDN vector of relative
     segment filenames that were converted). The README declaration **must pin
     one cutover instant** as a UTC ISO-8601 string with exactly three
-    fractional digits and `Z` (e.g. `cutover-at: 2026-10-15T14:43:45.000Z`).
+    fractional digits and `Z` (e.g. `cutover-at: 2026-10-15T14:43:45.000Z`),
+    the `stream-repo:` string (above) and the Clio revision `clio-rev:` (a
+    full commit SHA) whose admission decides the text-wrap form.
     That exact string is the substitute `:event/at` for every wrap whose source
     time is missing/invalid, and every normalized source `:event/at` uses the
     same precision so independent converters and the bijection agree. The frozen legacy file **and** every
@@ -346,7 +399,8 @@ segment directories); do not split a ledger whose consumers read one file.
 - When receipt-river moves onto Clio, legacy receipts are wrapped once by the
   serial cutover above (one `<repo>/legacy` stream); every **new** receipt event
   uses a **per-run** stream that also names writer and branch (e.g.
-  `<repo>/<writer>/<branch>/<run-id>`, where `<run-id>` is unique per session
+  `<repo>/<writer>/<branch>/<run-id>`, each component percent-encoded as under
+  Stream components, where `<run-id>` is unique per session
   or process, such as a fresh UUID), never one shared stream per repository.
   Writer-and-branch alone is **not** enough: two concurrent sessions of the same
   writer on the same branch (e.g. two `grok-bot` runs on one PR) would both
@@ -361,9 +415,16 @@ These rules and the minimal workflow below apply in both modes. In segmented
 mode (`.ημ/receipts/` exists) the section above takes precedence for the
 mechanics: every "append" means "write a new segment file"; "tail" / context
 recovery means a **bounded** read of the newest ~20 records of the **active**
-merged ledger — by effective time **before** cutover, and by the tail of
-canonical Clio topological order **after** cutover (timestamps must not drive
-the post-cutover window). That tail is "newest" only because every post-cutover
+merged ledger — by effective time **before** cutover, and by the tail of the
+**post-cutover recovery order** **after** cutover. The recovery order is: the
+**cutover cohort** (every active event present in the cutover commit's tree —
+all `<repo>/legacy` wraps and every promoted Clio event) ordered by effective
+time (`:event/at` as a UTC instant, then identity key), **followed by** every
+later active event in canonical Clio topological order. Replay, validation
+and hashing keep canonical Clio order; the recovery order only selects and
+displays the window, so a recent promoted event can never fall behind 20 older
+wraps because of its stream name. Timestamps never order post-cutover writes.
+Post-cutover events can follow the whole cohort because every post-cutover
 write is **frontier-linked**: the **first** event of each new per-run stream
 names in `:event/causes` **every current frontier tip** of the active union it
 read (each active event that no other active event names as a cause — right
@@ -371,8 +432,18 @@ after cutover, the last `<repo>/legacy` wrap plus any promoted Clio tips), and
 each later event of that run names the run's previous event. A new run is then
 causally after everything it observed, so the topological tie-break can only
 interleave it with genuinely concurrent runs (other branches/sessions written
-since that read), never place it before older history. A write that omits a
-frontier tip it observed is invalid and the merged-ledger check fails it. None of `rr-init.bb` / `rr-append.bb` /
+since that read), never place it before older history. The read is made
+**observable**: a run reads the frontier from one committed tree, never from
+loose working-tree files, and its first event records that commit as
+`:receipt-river/read-commit` (full 40-hex SHA) in `:event/data` beside
+`:receipt-river/receipt`. The merged-ledger check recomputes the frontier tips
+of the active union at that commit and fails the event when the field is
+missing, the commit does not contain the cutover declaration, the commit is
+not an ancestor of the commit that adds the event's segment, or any tip at that
+commit is absent from the event's `:event/causes`. Extra causes are allowed
+when they resolve. Tips created concurrently after the read commit are thus
+distinguishable from omitted observed tips, so an omission is detectable and
+invalid. None of `rr-init.bb` / `rr-append.bb` /
 `rr-tail.bb` / `rr-last.bb` nor the `receipt_river` runtime tool may be used
 until they are union-aware. Do not inspect every immutable segment on each
 decision; use the bounded union-aware window.
@@ -383,9 +454,10 @@ decision; use the bounded union-aware window.
   frozen legacy file.
 - Check it regularly: regain the newest ~20 records of the active union before
   major decisions (effective-time order pre-cutover, including legacy-only
-  mode, where `rr-tail.bb`'s physical tail is only an approximation; Clio
-  topological tail post-cutover, which is recent because writes are
-  frontier-linked as above). Do not re-read every historical segment.
+  mode, where `rr-tail.bb`'s physical tail is only an approximation; the tail
+  of the post-cutover recovery order — cutover cohort by effective time, then
+  later events in Clio topological order — post-cutover, which is recent
+  because writes are frontier-linked as above). Do not re-read every historical segment.
 - Never log secrets (tokens, Authorization headers, private keys).
 
 ## Minimal workflow

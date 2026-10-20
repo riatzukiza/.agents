@@ -53,7 +53,7 @@
        "Legacy mode: if receipts.edn exists, treat it as append-only; never edit past lines."
        "Legacy mode: if receipts.edn is absent and work is non-trivial, create it (rr-init.bb; --eta-mu for .ημ/receipts.edn)."
        "Record a receipt (legacy mode: append a line; segmented mode: write a new segment) at: (1) start, (2) after each phase, (3) after tests/build, (4) after commits/pushes."
-       "Before major decisions, regain context from a bounded newest ~20 records of the active union (never every historical segment): in legacy mode, recover the newest ~20 by effective time over receipts.edn (parse ISO-8601 / #inst to a UTC instant; missing/invalid sort first) — not physical rr-tail.bb order; in segmented mode before cutover, read the merged ledger (legacy + .ημ/receipts/) via the repository verifier or a union-aware reader — not rr-tail.bb — ordered by the same effective-time then record-identity rules, interleaving frozen legacy records and #:event segments with no cross-kind precedence. After cutover (README + .ημ/receipts/.cutover-excluded.edn declare archived sources), read only the active union (segments not listed in .cutover-excluded.edn) in canonical Clio topological order and never reload archived legacy or excluded converted source segments; the post-cutover newest-20 is the tail of that Clio order, not an effective-time sort — and that tail stays recent because every new per-run stream's first event is frontier-linked (see clio-cutover new-write-frontier-link). Do not use the verifier's validation sort. Clio order applies only once every active record is a Clio event, i.e. after the dedicated cutover PR converts every active non-Clio record (legacy, plain segments, and lightweight Receipt River envelopes) into full Clio envelopes and excludes those sources from the active union. Physical rr-tail.bb / rr-last.bb remain for non-authoritative inspection in legacy mode only."
+       "Before major decisions, regain context from a bounded newest ~20 records of the active union (never every historical segment): in legacy mode, recover the newest ~20 by effective time over receipts.edn (parse ISO-8601 / #inst to a UTC instant; missing/invalid sort first) — not physical rr-tail.bb order; in segmented mode before cutover, read the merged ledger (legacy + .ημ/receipts/) via the repository verifier or a union-aware reader — not rr-tail.bb — ordered by the same effective-time then record-identity rules, interleaving frozen legacy records and #:event segments with no cross-kind precedence. After cutover (README + .ημ/receipts/.cutover-excluded.edn declare archived sources), read only the active union (segments not listed in .cutover-excluded.edn) and never reload archived legacy or excluded converted source segments; the post-cutover newest-20 is the tail of the post-cutover recovery order (see clio-order recovery-order): the cutover cohort (every active event in the cutover commit's tree — all <repo>/legacy wraps and promoted Clio events) by effective time then identity key, followed by later events in canonical Clio topological order — so a recent promoted event is never displaced by older wraps through the stream tie-break; replay and validation keep canonical Clio order. Later events stay recent because every new per-run stream's first event is frontier-linked (see full-clio-event new-write-frontier-link). Do not use the verifier's validation sort. Clio order applies only once every active record is a Clio event, i.e. after the dedicated cutover PR converts every active non-Clio record (legacy, plain segments, and lightweight Receipt River envelopes) into full Clio envelopes and excludes those sources from the active union. Physical rr-tail.bb / rr-last.bb remain for non-authoritative inspection in legacy mode only."
        "Legacy mode: when runtime exposes the receipt_river tool, prefer it over ad-hoc shell writes so receipt format can be validated and audited."
        "Segmented mode: do not use the receipt_river runtime tool until it accepts segment targets (it operates on the per-repo receipts.edn, so its append/tail would write the frozen legacy file or omit segments); write segments by hand or via Clio, and never direct it at the frozen legacy file."
        "Segmented mode: do not use pr-flow pr.cljs status/settle/gate/request paths that read or append .ημ/receipts.edn for actionability until a follow-up teaches segment read/write — those writes would modify the frozen ledger; PR comments and non-ledger GitHub mechanics remain allowed."
@@ -118,7 +118,15 @@
     (edges event/causes)
     (tie-break [event/stream event/seq event/id])
     (tie-break-event-id :identity-key-string)
-    (tie-break-scope :causally-incomparable-events-only))
+    (tie-break-scope :causally-incomparable-events-only)
+    (tie-break-recency-guarantee false)
+    (governs [:replay :validation :hashing])
+    (recovery-order
+      {:governs [:display :context-recovery-newest-20]
+       :cutover-cohort :active-events-in-cutover-commit-tree
+       :cohort-order [:event/at-utc-instant-ms :identity-key-string]
+       :then :post-cutover-events-in-canonical-clio-order
+       :consistent-because :every-post-cutover-event-descends-from-the-cohort-via-frontier-links}))
   ;; The reachable transition from mixed-ledger-order to clio-order.
   (clio-cutover
     (pr :dedicated)
@@ -133,6 +141,16 @@
       (event/data {:receipt-river/receipt
                    {:plain-receipt :source-record-verbatim
                     :receipt-river-envelope :source-event-payload-verbatim}})
+      ;; Lossless form for sources that parse as EDN but fail Clio admission
+      ;; (e.g. #inst before 1582); exclusive with the map form.
+      (event/data-clio-inadmissible
+        {:keys [:receipt-river/receipt-edn :receipt-river/receipt-sha256]
+         :receipt-edn :exact-archived-source-bytes-utf8
+         :receipt-sha256 :sha256-of-those-bytes-lowercase-hex
+         :use-when :map-form-rejected-by-clio-admission-at-pinned-clio-rev
+         :clio-rev {:declared-in ".ημ/receipts/README.md" :spelling :full-commit-sha}
+         :identity-subject-at-causes :derived-from-parsed-source
+         :bijection :bytes-and-hash-equal-archived-source-and-map-form-inadmissible})
       (event/actor "receipt-river/cutover")
       (event/subject "receipt:<identity-key-string>")
       (event/subject-serialization
@@ -170,6 +188,16 @@
             {:utf8-prefix "receipt-river/event-id:" :then :canonical-edn-text-of-event-id})))
       (promoted-event-causes :verbatim-fail-closed-if-unresolvable-or-remapped)
       (stream "<repo>/legacy")
+      (stream-components
+        {:repo {:declared-in ".ημ/receipts/README.md" :key "stream-repo:"
+                :value :github-owner-slash-name-as-declared
+                :same-across-forks-and-promotions true
+                :frozen-with-cutover-declaration true}
+         :encoding :percent-encode-utf8-rfc3986-unreserved-kept-uppercase-hex
+         :applies-to [:repo :writer :branch :run-id]
+         :join "/"
+         :example "riatzukiza%2F.agents/legacy"
+         :compare :exact-string})
       (stream-reserved :fail-closed-if-pre-cutover-union-uses-it)
       (seq :one-based-ordinal-among-wraps-in-causal-topo-order-effective-time-tie-break)
       (promoted-clio-events :keep-original-stream-and-seq)
@@ -180,6 +208,14 @@
          :other-or-both :fail-closed})
       (source-caused-by-shape :ordered-vector-or-order-preserving-list)
       (source-caused-by-unordered #{:set :map :other} :fail-closed)
+      (source-caused-by-element
+        {:tagged-identity-key {:prefixes ["event-id:" "sha256:"] :reads-as :identity-key-string}
+         :other-value {:reads-as "event-id:<canonical EDN text of element>"}
+         :bare-hex-digest :raw-event-id-not-plain-reference
+         :candidates :union-of-both-readings
+         :zero-candidates :fail-closed
+         :multiple-candidates :fail-closed-ambiguous
+         :new-pre-cutover-writes :prefer-tagged-identity-key-strings})
       (unresolvable-source-parent :fail-closed))
     (legacy-file :archived-source-byte-identical-outside-active-union)
     (converted-source-segments :archived-in-place-via-cutover-excluded-manifest)
@@ -231,7 +267,14 @@
       {:first-event-of-run :causes-every-observed-frontier-tip
        :frontier-tip :active-event-named-by-no-other-active-event-as-cause
        :later-events-of-run :cause-previous-event-in-run
-       :omitted-observed-tip :invalid})
+       :omitted-observed-tip :invalid
+       :read-snapshot {:key :receipt-river/read-commit :in :event/data
+                       :on :first-event-of-run :value :full-40-hex-commit-sha
+                       :frontier-read-from :committed-tree-at-read-commit}
+       :verify [:read-commit-present :read-commit-contains-cutover-declaration
+                :read-commit-ancestor-of-segment-commit
+                :every-tip-at-read-commit-in-causes]
+       :extra-causes :allowed-if-resolvable})
     (pre-cutover-new-writes-must-satisfy-clio-history-laws
       [:stream-seq-continuity :no-slot-reuse :causes-resolve :acyclic-dag])
     (other-event-types :invalid))

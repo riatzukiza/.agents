@@ -769,3 +769,21 @@
   spore: none
   receipt-refs: 2026-10-15T00:18:38.000Z,2026-10-15T00:18:39.000Z,2026-10-15T00:18:40.000Z
   note: Review rounds kept surfacing dependent-skill and cutover-correspondence gaps (pr-flow/ultra-code/Claude hooks, causal ranking vs seq, verbatim promote, causes dedupe, ISO :event/at); docs-only; pr.cljs segment awareness is a follow-up.
+- ts: 2026-10-15T15:41:09.000000000Z
+  session: /workspace/led/agents-wt
+  task: Reflection for the final .agents#34 repair round on 213bff7 findings (receipts 2026-10-15T15:41:08.787Z..789Z; appended late on 2026-10-20)
+  p-efficiency: 0.5
+  p-friction: 0.7
+  p-skill-candidate: 0.4
+  spore: none
+  receipt-refs: 2026-10-15T15:41:08.787Z,2026-10-15T15:41:08.788Z,2026-10-15T15:41:08.789Z
+  note: Added subject serialization (receipt:+identity key), a pinned cutover-at, ordered caused-by vectors and frontier-linked post-cutover writes. Each spec tightening exposed the next underspecified serialization (repo component, caused-by element identity, read snapshot), which the following round addressed.
+- ts: 2026-10-20T22:33:45.090546Z
+  session: /workspace/led/agents-wt
+  task: Settle the e85b8f2 findings on .agents#34 (lossless text wrap, caused-by identity, stream components, read-commit, cohort recovery order)
+  p-efficiency: 0.6
+  p-friction: 0.65
+  p-skill-candidate: 0.45
+  spore: none
+  receipt-refs: 2026-10-20T22:33:45.090Z,2026-10-20T22:33:45.091Z,2026-10-20T22:33:45.092Z,2026-10-20T22:33:45.093Z
+  note: Docs-only round. Pattern: an executable reference verifier for the cutover would catch these spec gaps faster than review rounds; that belongs with the Clio segment helpers (clio#5) and the pr.cljs segment follow-up, so no spore here.
