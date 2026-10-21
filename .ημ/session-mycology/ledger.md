@@ -938,3 +938,64 @@
   spore: none
   receipt-refs: c1924ab75af4c7bc7423c4e9e09902f82cf83d05950ea857c7e88f000fb78647
   note: Use native IDs to batch only complete validated REST-page inputs, retain exact requested-node closedset and the same pure strict matcher, then require a second complete equal snapshot. Backward-compatible fixture readers make RED prove real batching/refusal assertions. Keep original positive single-node transport and historical ledger bytes. No spore.
+
+- ts: 2026-10-14T14:55:10.000000000Z
+  session: e1-11-shepherd-2026-10-14
+  task: Document segmented Receipt River as the standard (.agents#34)
+  p-efficiency: 0.72
+  p-friction: 0.35
+  p-skill-candidate: 0.55
+  spore: none
+  receipt-refs: riatzukiza/.agents#34
+  note: Codified segmented, merge-validated ledgers in receipt-river SKILL + CONTRACT; forbade monolith bb scripts in segmented mode until union-aware; clarified Clio CLI availability (append/canonicalize today; append-segment pending clio#5); event IDs for #:event records; writer/branch streams for future Clio migration; freeze the actual legacy path at migration. No spore.
+
+## 2026-10-14T00:18:38Z — .agents#34 segmented receipt-river (second wave)
+- p-efficiency: 0.55
+- p-friction: 0.7
+- p-skill-candidate: 0.4
+- note: Review rounds kept surfacing dependent-skill and cutover-correspondence gaps (pr-flow/ultra-code/Claude hooks, causal ranking vs seq, verbatim promote, causes dedupe, ISO :event/at). Docs-only PR; implementation follow-ups remain for pr-flow segment I/O and Clio segment helpers.
+- ts: 2026-10-15T14:43:45.028077304Z
+  session: /workspace/led/agents-wt
+  task: Final reflection for .agents#34 second-wave segmented receipt-river docs (2026-10-15T00:18:38Z round; supersedes the malformed '## 2026-10-14T00:18:38Z' block above)
+  p-efficiency: 0.55
+  p-friction: 0.7
+  p-skill-candidate: 0.4
+  spore: none
+  receipt-refs: 2026-10-15T00:18:38.000Z,2026-10-15T00:18:39.000Z,2026-10-15T00:18:40.000Z
+  note: Review rounds kept surfacing dependent-skill and cutover-correspondence gaps (pr-flow/ultra-code/Claude hooks, causal ranking vs seq, verbatim promote, causes dedupe, ISO :event/at); docs-only; pr.cljs segment awareness is a follow-up.
+- ts: 2026-10-15T15:41:09.000000000Z
+  session: /workspace/led/agents-wt
+  task: Reflection for the final .agents#34 repair round on 213bff7 findings (receipts 2026-10-15T15:41:08.787Z..789Z; appended late on 2026-10-20)
+  p-efficiency: 0.5
+  p-friction: 0.7
+  p-skill-candidate: 0.4
+  spore: none
+  receipt-refs: 2026-10-15T15:41:08.787Z,2026-10-15T15:41:08.788Z,2026-10-15T15:41:08.789Z
+  note: Added subject serialization (receipt:+identity key), a pinned cutover-at, ordered caused-by vectors and frontier-linked post-cutover writes. Each spec tightening exposed the next underspecified serialization (repo component, caused-by element identity, read snapshot), which the following round addressed.
+- ts: 2026-10-20T22:33:45.090546Z
+  session: /workspace/led/agents-wt
+  task: Settle the e85b8f2 findings on .agents#34 (lossless text wrap, caused-by identity, stream components, read-commit, cohort recovery order)
+  p-efficiency: 0.6
+  p-friction: 0.65
+  p-skill-candidate: 0.45
+  spore: none
+  receipt-refs: 2026-10-20T22:33:45.090Z,2026-10-20T22:33:45.091Z,2026-10-20T22:33:45.092Z,2026-10-20T22:33:45.093Z
+  note: Docs-only round. Pattern: an executable reference verifier for the cutover would catch these spec gaps faster than review rounds; that belongs with the Clio segment helpers (clio#5) and the pr.cljs segment follow-up, so no spore here.
+- ts: 2026-10-20T22:50:09.693475Z
+  session: /workspace/led/agents-wt
+  task: Settle the 24cabd7 findings on .agents#34 (entry-doc recovery order, cohort invalid :event/at, full-event data union, one cutover per lineage)
+  p-efficiency: 0.65
+  p-friction: 0.6
+  p-skill-candidate: 0.45
+  spore: none
+  receipt-refs: 2026-10-20T22:50:09.693Z,2026-10-20T22:50:09.694Z,2026-10-20T22:50:09.695Z
+  note: Each new rule needed mirroring in AGENTS.md, README.md, SKILL.md and CONTRACT.edn; a grep for the old phrasing across entry docs before pushing would have caught two of the five findings. No spore (same candidate as the previous entry).
+- ts: 2026-10-20T23:02:17.325522Z
+  session: /workspace/led/agents-wt
+  task: Settle the c82907c findings on .agents#34 (fresh read-commit, post-cutover scope, disjoint shapes, contract classification)
+  p-efficiency: 0.65
+  p-friction: 0.6
+  p-skill-candidate: 0.45
+  spore: none
+  receipt-refs: 2026-10-20T23:02:17.325Z,2026-10-20T23:02:17.326Z,2026-10-20T23:02:17.327Z
+  note: Third round today; each new mechanism (read-commit) drew scoping and freshness follow-ups. Phase-scoping every new rule (pre-cutover / cutover / post-cutover) up front would have avoided one finding.

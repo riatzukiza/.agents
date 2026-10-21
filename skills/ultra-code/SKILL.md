@@ -47,7 +47,7 @@ Artifacts land in `.ημ/runs/<workflow-id>/` (relative to CWD): `journal.jsonl`
 3. Findings are claims, not facts. A finding counts only after `:stage/quorum` skeptic votes fail to refute it.
 4. Review and skeptic agents are read-only by constitution (see `agents/`). Orchestration never writes production code outside an explicit `:implement` stage's declared packet.
 5. Failed agents (limits, timeouts, parse errors) are excluded from quorums and logged — never silently counted as either refuted or confirmed.
-6. After a run, report `:confirmed` vs `:all` honestly, and append a receipts.edn entry for the wave.
+6. After a run, report `:confirmed` vs `:all` honestly, and record a Receipt River entry for the wave: in **legacy mode** append to `receipts.edn` / `.ημ/receipts.edn`; in **segmented mode** (`.ημ/receipts/` exists) write a new `.ημ/receipts/` segment — never append to the frozen legacy file.
 
 ## Authoring a new workflow
 

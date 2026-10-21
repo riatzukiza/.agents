@@ -9,7 +9,7 @@ These instructions apply to the entire repository.
 1. Obey the active harness and user instructions.
 2. Read [`PRINCIPLE.edn`](PRINCIPLE.edn) before substantive work in this repository.
 3. Read this file completely.
-4. Inspect `.ημ/receipts.edn` before major decisions when it exists.
+4. Inspect the receipt ledger before major decisions when it exists: a **bounded** newest ~20 records of the active union (see Receipt River / `skills/receipt-river/SKILL.md`) — in legacy mode, `receipts.edn` in the project root, or `.ημ/receipts.edn` when that file exists; in segmented mode the union-aware window (effective-time pre-cutover; post-cutover, the tail of the post-cutover recovery order — the cutover cohort by effective time then identity key, followed by later events in Clio topological order, never the raw Clio tail; later writes are frontier-linked so that tail stays recent). Do not re-read every immutable segment on each decision.
 5. Discover the smallest relevant set of skills under `skills/` and read their `SKILL.md` files before acting.
 6. Read a skill's `CONTRACT.edn` when changing its activation, governance, scoring, or non-override behavior.
 
@@ -74,9 +74,23 @@ When adding or materially revising a skill:
 
 ## Receipt River
 
-For non-trivial work, maintain `.ημ/receipts.edn` as an append-only ledger.
+For non-trivial work, maintain the Receipt River ledger. Which file you write
+depends on the mode defined in [`skills/receipt-river/SKILL.md`](skills/receipt-river/SKILL.md):
 
-- Never modify or delete prior receipt lines.
+- **Legacy mode** (`.ημ/receipts/` absent — this repository today):
+  `.ημ/receipts.edn` is the append-only ledger.
+- **Segmented mode** (`.ημ/receipts/` exists): the legacy file that was
+  canonical at migration (project-root `receipts.edn` or `.ημ/receipts.edn`)
+  is frozen. Write each new receipt as its own `.ημ/receipts/` segment, read a
+  bounded newest ~20 of the **active** merged ledger for context (exclude
+  `.cutover-excluded.edn` sources after cutover; after cutover do not re-merge
+  the frozen legacy file), and do not use the monolith-only `rr-*.bb` scripts,
+  `receipt_river` tool, or `pr-flow` `pr.cljs` paths that append to
+  `.ημ/receipts.edn` until those gain segment awareness.
+
+In either mode:
+
+- Never modify or delete prior receipt lines or committed segments.
 - Append an observation near the start.
 - Append decisions when choosing among meaningful alternatives.
 - Append verification results after checks.
