@@ -459,14 +459,17 @@ each later event of that run names the run's previous event. A new run is then
 causally after everything it observed, so the topological tie-break can only
 interleave it with genuinely concurrent runs (other branches/sessions written
 since that read), never place it before older history. The read is made
-**observable**: a run reads the frontier from one committed tree, never from
-loose working-tree files, and its first event records that commit as
-`:receipt-river/read-commit` (full 40-hex SHA) in `:event/data` beside
-`:receipt-river/receipt`. The merged-ledger check recomputes the frontier tips
-of the active union at that commit and fails the event when the field is
-missing, the commit does not contain the cutover declaration, the commit is
-not an ancestor of the commit that adds the event's segment, or any tip at that
-commit is absent from the event's `:event/causes`. Extra causes are allowed
+**observable**: before **each** post-cutover event, a run reads the frontier
+from one committed tree, never from loose working-tree files, and that event
+records that commit as `:receipt-river/read-commit` (full 40-hex SHA) in
+`:event/data` beside `:receipt-river/receipt`. The event's *observed frontier*
+is the frontier tips of the active union at that commit together with the
+run's own earlier events added in the same commit as this event's segment (so
+a run that commits several segments at once still links each to the previous
+one). The merged-ledger check recomputes that observed frontier and fails the
+event when the field is missing, the commit does not contain the cutover
+declaration, the commit is not an ancestor of the commit that adds the event's
+segment, or any observed tip is absent from the event's `:event/causes`. Extra causes are allowed
 when they resolve. Tips created concurrently after the read commit are thus
 distinguishable from omitted observed tips, so an omission is detectable and
 invalid. The snapshot must also be **fresh**: the event's segment is added in
@@ -475,7 +478,12 @@ the active ledger at `read-commit` (normally the parent *is* `read-commit`).
 Any active-ledger change between the read and the segment's commit (another
 segment added, or a merge or pull that brought receipts in) fails the event,
 so a run can never omit tips already in its own history; re-read the frontier
-and write a new run instead. Later merges of other branches remain fine:
+and write a new run instead. A later event may continue the same run (causing
+only the run's previous event) only when its fresh read shows that previous
+event as the **only** observed tip. If another active tip is present, start a
+new frontier-linked run whose first event causes every observed tip,
+including this run's last event; refreshing `read-commit` alone is not
+sufficient. Later merges of other branches remain fine:
 those writes are genuinely concurrent. This `read-commit` proof applies only
 to **post-cutover** runs: pre-cutover full-Clio writes and cutover wraps carry
 no `read-commit` (no cutover declaration exists yet for them to name).

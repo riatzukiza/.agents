@@ -289,7 +289,7 @@
                            :receipt-river/receipt-sha256 :lowercase-hex}]
        :cutover-wrap-text-form-only-when :map-form-clio-inadmissible-at-pinned-clio-rev
        :new-write {:receipt-river/receipt :receipt-map
-                   :receipt-river/read-commit :required-on-first-event-of-post-cutover-run-only}
+                   :receipt-river/read-commit :required-on-every-event-of-post-cutover-run}
        :new-write-text-form :invalid})
     (new-write-receipt-required-keys [ts kind origin owner dod pi host manifest refs])
     (cutover-wrap-receipt :grandfathered)
@@ -297,18 +297,22 @@
     (new-write-frontier-link
       {:first-event-of-run :causes-every-observed-frontier-tip
        :frontier-tip :active-event-named-by-no-other-active-event-as-cause
-       :later-events-of-run :cause-previous-event-in-run
+       :later-events-of-run {:cause-previous-event-in-run true
+                             :same-run-only-when :previous-event-is-only-observed-frontier-tip
+                             :other-active-tip :start-new-frontier-linked-run}
+       :observed-frontier [:tips-of-active-union-at-read-commit
+                           :plus-own-run-earlier-events-added-in-same-commit]
        :omitted-observed-tip :invalid
        :applies-when :post-cutover
        :not-applied-to [:pre-cutover-full-clio-writes :cutover-wraps]
        :read-snapshot {:key :receipt-river/read-commit :in :event/data
-                       :on :first-event-of-post-cutover-run :value :full-40-hex-commit-sha
+                       :on :every-event-of-post-cutover-run :value :full-40-hex-commit-sha
                        :frontier-read-from :committed-tree-at-read-commit}
        :verify [:read-commit-present :read-commit-contains-cutover-declaration
                 :read-commit-ancestor-of-segment-commit
                 :segment-added-in-non-merge-commit
                 :active-ledger-at-segment-commit-parent-equals-active-ledger-at-read-commit
-                :every-tip-at-read-commit-in-causes]
+                :every-observed-frontier-tip-in-causes]
        :stale-snapshot :invalid
        :extra-causes :allowed-if-resolvable})
     (pre-cutover-new-writes-must-satisfy-clio-history-laws
