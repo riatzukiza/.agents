@@ -116,9 +116,15 @@ segment directories); do not split a ledger whose consumers read one file.
   - **Disjoint shapes.** Classification is by keys, with no overlap: a record
     holding `:event/type` together with **either** lightweight key
     (`:event/recorded-at`, `:event/payload`) **and any** full-Clio-only key
-    (`:event/schema`, `:event/stream`, `:event/seq`, `:event/causes`,
-    `:event/actor`, `:event/subject`, `:event/at`, `:event/data`) is a
-    **hybrid** and is invalid. New writes must not produce one; a hybrid found
+    (`:event/stream`, `:event/seq`, `:event/causes`, `:event/actor`,
+    `:event/at`, `:event/data`) is a **hybrid** and is invalid.
+    `:event/schema` and `:event/subject` are **shared metadata**, not
+    full-Clio-only: existing lightweight envelopes already carry them (for
+    example `:event/schema {:id … :version …}` beside `:event/producer`,
+    `:event/refs` or `:event/caused-by`), so their presence alone never makes a
+    hybrid. On a lightweight envelope they are ordinary metadata in any shape;
+    the published-revision `:event/schema` map rule applies only to full Clio
+    events. New writes must not produce one; a hybrid found
     in a frozen legacy record or segment makes the cutover **fail closed** for
     an explicit decision, so no two converters can classify it differently
     (one wrapping it as an envelope, another promoting it verbatim). The same
@@ -463,10 +469,12 @@ since that read), never place it before older history. The read is made
 from one committed tree, never from loose working-tree files, and that event
 records that commit as `:receipt-river/read-commit` (full 40-hex SHA) in
 `:event/data` beside `:receipt-river/receipt`. The event's *observed frontier*
-is the frontier tips of the active union at that commit together with the
-run's own earlier events added in the same commit as this event's segment (so
-a run that commits several segments at once still links each to the previous
-one). The merged-ledger check recomputes that observed frontier and fails the
+is the set of frontier tips **recomputed** over the active union at that
+commit plus the run's own earlier events added in the same commit as this
+event's segment, not the snapshot's tips with those events appended: with
+snapshot tip F and a first event A causing F, a second same-commit event B
+observes only [A], so a run that commits several segments at once still
+continues as one run. The merged-ledger check recomputes that observed frontier and fails the
 event when the field is missing, the commit does not contain the cutover
 declaration, the commit is not an ancestor of the commit that adds the event's
 segment, or any observed tip is absent from the event's `:event/causes`. Extra causes are allowed

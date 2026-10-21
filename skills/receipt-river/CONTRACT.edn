@@ -246,8 +246,14 @@
      :full-clio-event {:event/type :receipt-river/receipt-recorded
                        :has-all :full-clio-required-keys
                        :has-none-of [:event/recorded-at :event/payload]}
-     :full-clio-only-keys [:event/schema :event/stream :event/seq :event/causes
-                           :event/actor :event/subject :event/at :event/data]
+     :full-clio-only-keys [:event/stream :event/seq :event/causes
+                           :event/actor :event/at :event/data]
+     ;; Existing lightweight envelopes carry :event/schema {:id :version} and
+     ;; :event/subject; presence alone is never a hybrid.
+     :shared-metadata-keys [:event/schema :event/subject]
+     :envelope-optional-metadata [:event/schema :event/subject :event/producer
+                                  :event/refs :event/caused-by]
+     :published-revision-schema-map-applies-to :full-clio-event-only
      :hybrid :invalid
      :other-event-type :invalid
      :frozen-hybrid-or-other-event-type-at-cutover :fail-closed})
@@ -300,8 +306,9 @@
        :later-events-of-run {:cause-previous-event-in-run true
                              :same-run-only-when :previous-event-is-only-observed-frontier-tip
                              :other-active-tip :start-new-frontier-linked-run}
-       :observed-frontier [:tips-of-active-union-at-read-commit
-                           :plus-own-run-earlier-events-added-in-same-commit]
+       :observed-frontier {:tips-recomputed-over [:active-union-at-read-commit
+                                                  :own-run-earlier-events-added-in-same-commit]
+                           :not :snapshot-tips-plus-same-commit-events}
        :omitted-observed-tip :invalid
        :applies-when :post-cutover
        :not-applied-to [:pre-cutover-full-clio-writes :cutover-wraps]
