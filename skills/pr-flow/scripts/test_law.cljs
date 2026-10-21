@@ -21,6 +21,201 @@
   "This script's directory, captured while nbb loads the file."
   (path/dirname *file*))
 
+(def native-codex-receipt-v1
+  (js->clj (js/JSON.parse
+             (fs/readFileSync
+               (path/join here ".." ".." ".." ".ημ" "review-evidence"
+                          "codex-receipt-v1-20261016" "native-codex-passing-6206360170.json")
+               "utf8"))
+           :keywordize-keys true))
+
+;; Actual GitHub-resolved full binding, supplied separately from the untouched
+;; native JSON. Removing the envelope and every other mutation below is synthetic.
+(def codex-receipt-v1-head "04bb88861f1ed876732e050a299bbfaabe1752af")
+(def codex-receipt-v1-envelope "<!-- codex-review-receipt:v1 -->\n\n")
+
+(deftest native-codex-receipt-v1-and-legacy-control-have-exact-head-evidence
+  (let [raw native-codex-receipt-v1
+        body (:body raw)
+        bound (assoc raw :resolved-commit-id codex-receipt-v1-head)]
+    (is (= 6206360170 (:id raw)))
+    (is (str/starts-with? body codex-receipt-v1-envelope))
+    (is (not (contains? raw :resolved-commit-id)))
+    (doseq [[label text] [["synthetic legacy control" (subs body (count codex-receipt-v1-envelope))]
+                         ["actual native receipt-v1 body" body]]]
+      (let [comment (assoc bound :body text)
+            evidence (law/review-evidence codex-receipt-v1-head [] [comment]
+                                          law/default-reviewer-identities)]
+        (is (= #{codex-receipt-v1-head} (get-in evidence [:approved-heads "codex"])) label)
+        (is (= {:head codex-receipt-v1-head :channel :explicit-issue-verdict :id 6206360170}
+               (get-in evidence [:approval-evidence "codex"])) label)
+        (is (empty? (:incomplete-evidence evidence)) label)
+        (is (= text (:body comment)) label)))
+    (is (= body (:body bound) (:body native-codex-receipt-v1)))))
+
+(deftest codex-receipt-v1-does-not-normalize-other-leading-envelopes
+  ;; All cases are synthetic negatives derived from the actual native body.
+  (let [wrapped (:body native-codex-receipt-v1)
+        legacy (subs wrapped (count codex-receipt-v1-envelope))
+        malformed [["unknown version" (str "<!-- codex-review-receipt:v2 -->\n\n" legacy)]
+                   ["altered marker" (str "<!-- Codex-review-receipt:v1 -->\n\n" legacy)]
+                   ["one LF" (str "<!-- codex-review-receipt:v1 -->\n" legacy)]
+                   ["CRLF envelope" (str "<!-- codex-review-receipt:v1 -->\r\n\r\n" legacy)]
+                   ["extra LF" (str "<!-- codex-review-receipt:v1 -->\n\n\n" legacy)]
+                   ["repeated leading envelope" (str codex-receipt-v1-envelope wrapped)]
+                   ["unrelated text after envelope" (str codex-receipt-v1-envelope "Example:\n" legacy)]]
+        wrappers [["leading space" #(str " " %)]
+                  ["leading LF" #(str "\n" %)]
+                  ["leading tab" #(str "\t" %)]
+                  ["leading BOM" #(str "\uFEFF" %)]
+                  ["Markdown quote" #(str/replace % #"(?m)^" "> ")]
+                  ["backtick fence" #(str "```text\n" % "\n```")]
+                  ["tilde fence" #(str "~~~text\n" % "\n~~~")]
+                  ["example preface" #(str "Generated example:\n" %)]]]
+    (doseq [[label body] (concat malformed
+                                (for [[kind text] [["legacy" legacy] ["wrapped" wrapped]]
+                                      [label wrap] wrappers]
+                                  [(str kind "/" label) (wrap text)]))]
+      (is (empty? (:approved-heads
+                    (law/review-evidence codex-receipt-v1-head []
+                                         [(assoc native-codex-receipt-v1 :body body
+                                                 :resolved-commit-id codex-receipt-v1-head)]
+                                         law/default-reviewer-identities))) label))))
+
+(deftest later-literal-or-quoted-codex-marker-is-not-a-verdict-veto
+  ;; Synthetic later marker prose must neither broaden the leading-envelope
+  ;; rule nor become an independent veto on an otherwise recognized body.
+  (let [wrapped (:body native-codex-receipt-v1)]
+    (doseq [[kind body] [["legacy" (subs wrapped (count codex-receipt-v1-envelope))]
+                       ["wrapped" wrapped]]
+            [tail marker] [["literal" "\n\n<!-- codex-review-receipt:v1 -->"]
+                           ["quoted" "\n\n> <!-- codex-review-receipt:v1 -->"]]]
+      (let [comment (assoc native-codex-receipt-v1 :body (str body marker)
+                           :resolved-commit-id codex-receipt-v1-head)
+            evidence (law/review-evidence codex-receipt-v1-head [] [comment]
+                                          law/default-reviewer-identities)]
+        (is (= #{codex-receipt-v1-head} (get-in evidence [:approved-heads "codex"]))
+            (str "synthetic " kind "/" tail))
+        (is (empty? (:incomplete-evidence evidence)) (str kind "/" tail))))))
+
+(deftest in-sentence-codex-marker-preserves-incomplete-scope-admissions
+  ;; Synthetic admissions appended to the unchanged native prefix/body. Removing
+  ;; an inert later comment must not hide the separating whitespace in prose.
+  (let [wrapped (:body native-codex-receipt-v1)]
+    (doseq [[kind body] [["legacy" (subs wrapped (count codex-receipt-v1-envelope))]
+                        ["wrapped" wrapped]]
+            [case admission]
+            [["native finding" "Review <!-- codex-review-receipt:v1 --> is incomplete."]
+             ["before adjective" "Review is <!-- codex-review-receipt:v1 --> incomplete."]
+             ["tab and CRLF separators" "Review\t<!-- codex-review-receipt:v1 -->\r\nis\tincomplete."]
+             ["rate limited" "Review is rate <!-- codex-review-receipt:v1 --> limited."]
+             ["incomplete review" "Incomplete <!-- codex-review-receipt:v1 --> review."]
+             ["could not complete" "Could <!-- codex-review-receipt:v1 --> not complete the review."]]]
+      (let [text (str body "\n\n" admission)
+            label (str "synthetic " kind "/" case)]
+        (is (true? (law/codex-positive-body? text)) label)
+        (is (= :incomplete-review (law/incomplete-review-reason text)) label)))))
+
+(deftest in-sentence-marker-controls-preserve-positive-scope
+  (let [wrapped (:body native-codex-receipt-v1)
+        admission "Review <!-- codex-review-receipt:v1 --> is incomplete."]
+    (doseq [[kind body] [["legacy" (subs wrapped (count codex-receipt-v1-envelope))]
+                        ["wrapped" wrapped]]
+            [case suffix]
+            [["later literal marker" "<!-- codex-review-receipt:v1 -->"]
+             ["quoted admission" (str "> " admission)]
+             ["fenced admission" (str "```text\n" admission "\n```")]
+             ["generated admission" (str "<details>\n<summary>🧩 Analysis chain</summary>\n"
+                                         admission "\n</details>")]
+             ["artifact guard" "Reject incomplete <!-- codex-review-receipt:v1 --> review submissions."]
+             ["no word separator" "Review<!-- codex-review-receipt:v1 -->is incomplete."]]]
+      (let [text (str body "\n\n" suffix)
+            comment (assoc native-codex-receipt-v1 :body text
+                           :resolved-commit-id codex-receipt-v1-head)
+            evidence (law/review-evidence codex-receipt-v1-head [] [comment]
+                                          law/default-reviewer-identities)
+            label (str "synthetic " kind "/" case)]
+        (is (true? (law/codex-positive-body? text)) label)
+        (is (nil? (law/incomplete-review-reason text)) label)
+        (is (= #{codex-receipt-v1-head} (get-in evidence [:approved-heads "codex"])) label)))))
+
+(deftest incomplete-phrase-fragments-do-not-cross-paragraphs-or-excluded-blocks
+  (let [wrapped (:body native-codex-receipt-v1)
+        controls (concat
+                   (for [separator ["\n\n" "\r\n\r\n" "\r\r" "\n \t\n"]]
+                     [(str "heading " (pr-str separator))
+                      (str "Review" separator "Rate limited requests are retried with backoff.")])
+                   [["partial heading" "Partial\n\nreview adapters retain their inputs."]
+                    ["unable heading" "Unable to\n\ncomplete the review API request retries."]
+                    ["quote barrier" "Review\n> example text\nis incomplete."]
+                    ["fence barrier" "Review\n```text\nexample text\n```\nis incomplete."]
+                    ["analysis barrier" "Review <details><summary>🧩 Analysis chain</summary>example text</details> is incomplete."]
+                    ["learnings barrier" "Review <details><summary>✏️ Learnings added</summary>example text</details> is incomplete."]
+                    ["share barrier" "Review <!-- This is an auto-generated comment: tweet message by coderabbit.ai -->example text<!-- end of auto-generated comment: tweet message by coderabbit.ai --> is incomplete."]])]
+    (doseq [[kind body] [["legacy" (subs wrapped (count codex-receipt-v1-envelope))]
+                        ["wrapped" wrapped]]
+            [case suffix] controls]
+      (let [text (str body "\n\n" suffix)
+            label (str "synthetic " kind "/" case)]
+        (is (true? (law/codex-positive-body? text)) label)
+        (is (nil? (law/incomplete-review-reason text)) label)))))
+
+(deftest live-incomplete-prose-after-examples-and-generic-inline-comments-remains-visible
+  (let [wrapped (:body native-codex-receipt-v1)
+        admission "Review <!-- unrelated inert note --> is incomplete."
+        examples [["none" ""]
+                  ["quote" "> example text\n\n"]
+                  ["fence" "```text\nexample text\n```\n\n"]
+                  ["analysis" "<details><summary>🧩 Analysis chain</summary>example text</details>\n\n"]
+                  ["learnings" "<details><summary>✏️ Learnings added</summary>example text</details>\n\n"]
+                  ["share" "<!-- This is an auto-generated comment: tweet message by coderabbit.ai -->example text<!-- end of auto-generated comment: tweet message by coderabbit.ai -->\n\n"]
+                  ;; A quoted comment opener cannot consume later live prose.
+                  ["quoted HTML opener" "> <!--\n\n"]]]
+    (doseq [[kind body] [["legacy" (subs wrapped (count codex-receipt-v1-envelope))]
+                        ["wrapped" wrapped]]
+            [case example] examples]
+      (let [text (str body "\n\n" example admission
+                      (when (= case "quoted HTML opener") "\n-->"))
+            label (str "synthetic " kind "/" case)]
+        (is (true? (law/codex-positive-body? text)) label)
+        (is (= :incomplete-review (law/incomplete-review-reason text)) label)))))
+
+(deftest adjacent-quote-and-complete-fence-preserve-positive-scope
+  ;; Synthetic adjacent blocks retain their actual LF/CRLF boundary. Neither
+  ;; example-only prose nor a fenced admission is the live reviewer's verdict.
+  (let [wrapped (:body native-codex-receipt-v1)]
+    (doseq [[kind body] [["legacy" (subs wrapped (count codex-receipt-v1-envelope))]
+                        ["wrapped" wrapped]]
+            newline ["\n" "\r\n"]
+            example ["example text" "Review is incomplete."]]
+      (let [text (str body "\n\n> quoted context" newline
+                      "```text" newline example newline "```")
+            label (str "synthetic " kind "/" (pr-str newline) "/" example)]
+        (is (true? (law/codex-positive-body? text)) label)
+        (is (nil? (law/incomplete-review-reason text)) label)))))
+
+(deftest adjacent-quote-fence-keeps-live-admission-and-ambiguity-distinct
+  (let [wrapped (:body native-codex-receipt-v1)]
+    (doseq [[kind body] [["legacy" (subs wrapped (count codex-receipt-v1-envelope))]
+                        ["wrapped" wrapped]]
+            newline ["\n" "\r\n"]]
+      (let [example (str body "\n\n> quoted context" newline
+                         "```text" newline "example text" newline)
+            live (str example "```" newline newline
+                      "Review <!-- unrelated inert note --> is incomplete.")
+            unterminated (str example "Review is incomplete.")
+            label (str "synthetic " kind "/" (pr-str newline))]
+        (is (true? (law/codex-positive-body? live)) label)
+        (is (= :incomplete-review (law/incomplete-review-reason live)) label)
+        (is (false? (law/codex-positive-body? unterminated)) label)
+        (is (= :ambiguous-prose (law/incomplete-review-reason unterminated)) label)))))
+
+(deftest codex-positive-lexical-boundary-refuses-nontext-input
+  ;; Input-shape refusal stays local; the caller tests above own actual evidence.
+  (doseq [body [nil false 42 {} []]]
+    (is (false? (law/codex-positive-body? body))))
+  (is (true? (law/codex-positive-body? (:body native-codex-receipt-v1)))))
+
 (deftest severity-from-coderabbit-banners
   (is (= :p0 (law/severity "_⚠️ Potential issue_ | _🔴 Critical_\n\nbody")))
   (is (= :p1 (law/severity "_⚠️ Potential issue_ | _🟠 Major_")))

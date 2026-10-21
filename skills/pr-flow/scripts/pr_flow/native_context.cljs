@@ -4,6 +4,7 @@
             [clojure.string :as str]
             [pr-flow.actionability :as actionability]
             [pr-flow.positive-thread :as positive-thread]
+            [pr-flow.law :as law]
             [pr-flow.native-context-law :as native-context-law]))
 
 ;; Native reads are supplied by the caller. Importing this namespace performs
@@ -40,6 +41,66 @@
                    (every? #(and (map? %) (string? (:body %))) (mapcat identity pages)))
       (throw (ex-info "Invalid PR issue-comment page; cannot establish complete native evidence" {:repo repo :pr n})))
     (vec (mapcat identity pages))))
+
+(defn- review-update [review response strict?]
+  (let [native (get-in response [:data :node])
+         matches? (and (not (seq (:errors response)))
+                       (law/review-update-matches? review native (if strict? (get-in review [:user :type]) "Bot"))
+                       (or (not strict?)
+                           (and (integer? (get-in review [:user :id])) (pos? (get-in review [:user :id]))
+                                (= (get-in review [:user :id]) (get-in native [:author :databaseId]))
+                                (let [login (law/graphql-rest-login (:author native))]
+                                  (and login (= (get-in review [:user :login]) login))))))]
+     (cond-> (assoc review :updated_at (when matches? (:updatedAt native)))
+       strict? (assoc :native-review native)
+       (not matches?) (assoc :positive-review-update-error :native-source-mismatch))))
+
+(defn hydrate-review-update
+  "Read the latest native review body/edit without executing source or writes.
+   Strict mode also binds complete User/Bot numeric/login identity for corpus
+   input. The existing positive CLI retains its original Bot-only comparison."
+  ([read-json review] (hydrate-review-update read-json review false))
+  ([read-json review strict?]
+   (let [id (:node_id review)
+         response (when (and (string? id) (not (str/blank? id)))
+                    (read-json "api" "graphql" "-f"
+                               (if strict?
+                                 "query=query($id:ID!){node(id:$id){... on PullRequestReview{id databaseId state body updatedAt submittedAt commit{oid} author{login __typename ... on User{id databaseId} ... on Bot{id databaseId}}}}}"
+                                 "query=query($id:ID!){node(id:$id){... on PullRequestReview{id databaseId state body updatedAt submittedAt commit{oid} author{__typename ... on Bot{id}}}}}")
+                               "-f" (str "id=" id)))]
+     (review-update review response strict?))))
+
+(def ^:private reviews-query
+  "query=query($ids:[ID!]!){nodes(ids:$ids){... on PullRequestReview{id databaseId state body updatedAt submittedAt commit{oid} author{login __typename ... on User{id databaseId} ... on Bot{id databaseId}}}}}")
+
+(defn- hydrate-review-batch [read-json reviews]
+  (let [ids (mapv :node_id reviews)
+        response (apply read-json "api" "graphql" "-f" reviews-query
+                        (mapcat #(vector "-f" (str "ids[]=" %)) ids))
+        nodes (get-in response [:data :nodes])
+        native-ids (mapv :id nodes)]
+    (when-not (and (not (seq (:errors response))) (vector? nodes)
+                   (every? map? nodes) (= (count ids) (count nodes) (count (set native-ids)))
+                   (= (set ids) (set native-ids)))
+      (throw (ex-info "Incomplete or mismatched native review batch" {})))
+    (let [by-id (into {} (map (juxt :id identity) nodes))]
+      (mapv #(review-update % {:data {:node (get by-id (:node_id %))}} true) reviews))))
+
+(defn- collect-reviews [read-json repo n]
+  (let [pages (read-json "api" (str "repos/" repo "/pulls/" n "/reviews") "--paginate" "--slurp")
+        raw (when (and (vector? pages) (seq pages) (every? vector? pages)) (vec (mapcat identity pages)))
+        ids (map :id raw) nodes (map :node_id raw)]
+    (when-not (and raw (every? #(and (map? %) (integer? (:id %)) (pos? (:id %))
+                                    (string? (:node_id %)) (not (str/blank? (:node_id %)))
+                                    (string? (:body %))) raw)
+                   (= (count raw) (count (set ids)) (count (set nodes))))
+      (throw (ex-info "Incomplete or duplicate native review pages" {})))
+    (let [reviews (vec (mapcat (fn [page]
+                                 (mapcat #(hydrate-review-batch read-json %)
+                                         (partition-all 100 page))) pages))]
+      (when (some :positive-review-update-error reviews)
+        (throw (ex-info "Native review body or edit changed during collection" {})))
+      {:raw-reviews raw :reviews reviews :reviews-complete? true})))
 
 (defn- thread-connection? [conn cursor-required?]
   (let [page (:pageInfo conn)]
@@ -196,6 +257,17 @@
    (collect-context deps repo n (fetch-issue-comments (:read-json deps) repo n)))
   ([deps repo n issue-comments]
    (let [snapshot (collect-context-base deps repo n issue-comments)
+         snapshot (if (true? (:body-items? deps))
+                    (let [reviews (collect-reviews (:read-json deps) repo n)
+                          [owner name] (split-repo repo)
+                          final (threads-page (:read-json deps) owner name n nil)
+                          final-reviews (collect-reviews (:read-json deps) repo n)]
+                      (when-not (and (= (:repository snapshot) (:native-repository final))
+                                     (= (select-keys (:pr snapshot) [:id :number :state :isDraft :headRefOid])
+                                        (select-keys final [:id :number :state :isDraft :headRefOid]))
+                                     (= (:reviews reviews) (:reviews final-reviews)))
+                        (throw (ex-info "Native snapshot changed during review-body collection" {})))
+                      (merge snapshot reviews)) snapshot)
          profile (:preservation-policy deps) r (:repository snapshot)]
      (if (and (= 2 (:version profile)) (= :provisional (:status profile))
               (= [(:nameWithOwner r) (:databaseId r) (:id r)] (:repository profile)))

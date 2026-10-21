@@ -16,12 +16,12 @@ jobs:
     # Consumes the qualified merged Eta/Muse pair with bounded Discord batches.
     # Fresh exact-head caller CI/review remains required; validated global
     # skills and the existing Node policy stay pinned.
-    uses: open-hax/eta-mu/.github/workflows/opencode-code-review.yml@45ec644c2d15ed511e9bc1e797d1b4073b63dbfc
+    uses: open-hax/eta-mu/.github/workflows/opencode-code-review.yml@7112c36440d180ca183d6a3f89661cee161fdae5
     with:
       pr_head_sha: ${{ github.event.pull_request.head.sha }}
-      model: opencode/mimo-v2.6-flash-free
-      muse_revision: 0b9a91492c8355e6933dc2164d35668cb76d9e60
-      agents_revision: 7fd3252e7663ad5e68be5e90429d126aa66c38c8
+      review_timeout_minutes: 120
+      muse_revision: c1369c223cf3c57e3e31934a6d746bfcdfe73f5a
+      agents_revision: 7ab2f99e048e370f5f943acc2321b8294402e786
       setup_eta_mu_toolchain: false
       evidence_gates_script: |
         run_gate diff_stat git diff --stat "${PR_BASE_SHA}...HEAD"

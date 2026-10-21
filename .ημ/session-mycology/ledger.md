@@ -745,6 +745,200 @@
   receipt-refs: initial receipts.edn#d5680635-a4ef-4fe1-b629-c11f5a9f0e2a; sourceGREENc8e76afd31c440ecddce1d5df456f63142d29c74
   note: Preserve exact source hashes while resolving execution-budget uncertainty with the actual full owning CLI terminal result. The120s/600s timeouts were limits, not algorithm defects or pass credit; the unchanged99-test CLI completed in808.84s under pinnedNode22/NBB. Commit testRED, three-file policyGREEN, and append-only provenance separately. Exact repository enrollment cannot supply a transport grant, native assessment, rejection agreement or adoption. Keep live canonical checkout untouched; publish reviewable source only. Candidate0, no spore.
 
+- ts: 2026-10-16T00:04:17.541Z
+  session: /home/err/spaces/cephalon-outdated-withdrawal/.agents
+  task: cephalon-character-memory/finite-loop/B1-B2-B3
+  p-efficiency: 0.8
+  p-friction: 0.2
+  p-skill-candidate: 0.1
+  spore: none
+  receipt-refs: cephalon-outdated-location-withdrawal-planning-included-20261016
+  note: Human included only concordant known outdated-location flags within fresh exact-current-head opener withdrawal and later authorized User settlement. Pure predicate/tests/skill-contract scope2; collector, identities, checks and approval policy unchanged. Both old blanket-outdated negative matrices must be intentionally qualified after native Ready; original patch remains unapplied. Parent inventory and actual reviewed total must be reconciled through Rheos before Ready, no blind39+2 arithmetic. Protected review/MERGE/adoption then NEW actual final-head PR37 withdrawal/Handled required; no44 evidence transfer. GoalACTIVE/live0of3/heartbeat humanPAUSED; no runtime/credentials/paid/provider/deployment/social/spore change.
+
+- ts: 2026-10-16T00:27:54.483Z
+  session: /home/err/spaces/cephalon-outdated-withdrawal/.agents
+  task: cephalon-character-memory/finite-loop/B1-B2-B3
+  p-efficiency: 0.8
+  p-friction: 0.2
+  p-skill-candidate: 0.1
+  spore: none
+  receipt-refs: cephalon-outdated-withdrawal-specific-parent-inventory-and-question-id-20261016
+  note: Replace misleading humanAuthorization metadata key with accurate humanScopeQuestionId, preserving the exact nativechat questionID and all Git history. Original scannerfailure stays visible; no credential, scannerconfig/ignore/incidentsetting or requiredcheck waiver, no promise newscanpasses. Scopeclarification uses actual17nativequeries, ten directchildren table and conditional41 proposal for SAME parent accounting boundary. Independentreview then qualifiedRheos inventorycomment/reviewed41/readback precedeReady; currentparent39 unchanged. External sourceprerequisites remain separatelyowned/nonadditive; do notinvent whole75pointreevaluation beforepure2cardReady. No newnativeparentpoint/status/edgewrite or creationevent. Originalpredicatepatchc2ec remainsUNAPPLIED, two oldoutdated-negative matrices require latercausalRED/GREEN. Priorwholemodel/Codex/CodeRabbit reviews terminal before newpush; oldpolicyjobstillpending and notclaimedPASS. Fresh exacthead/full8changedinput review/checks remain mandatory; no approvaltransfer. GoalACTIVE/live0of3/heartbeat humanPAUSED; no runtime/provider/credential/paid/deployment/social/spore change.
+
+- ts: 2026-10-16T01:21:47.579Z
+  session: /home/err/spaces/cephalon-outdated-withdrawal/.agents
+  task: cephalon-character-memory/B1-B3/canonical-outdated-withdrawal
+  p-efficiency: 0.8
+  p-friction: 0.2
+  p-skill-candidate: 0.1
+  spore: none
+  receipt-refs: cephalon-prflow-native-readiness-ac1-correction-20261016
+  note: NativecardAC1 ownsparentreconciliation andAC2 causalRED; sourceplanAC2ownsparentproposal and staysunchanged. Correct via actualRheosoperativeappend-onlycomment and newrawreadback; neverrewritehistoricalreadsnapshot/cardbody/eventhistory. Custodymetadata addsnewrawbinding andactualnativeIDs. Initialhelp omittedexistingNODE_PATH and failed yaml resolution, then corrected; firstprewriteassert assumed numericpoints whileactualnativeJSONreturnsstring2, stoppedbeforemutation. ActualqualifiedartifactSHA matches; correctedprimitiveassert thenonecommenteffect/readback succeeded. Parent39/ proposed41 unchanged; Incoming2; patchunapplied, noReady/RED/implementation/adoption. This isconcretereviewerfix, no observationonlypush/repeatedpendingreview/paidusage. GoalACTIVE/live0of3/heartbeat humanPAUSED; no creative-runtime/provider/credential/deployment/social/spore change.
+
+- ts: 2026-10-16T02:25:21.925Z
+  session: /home/err/spaces/cephalon-outdated-withdrawal/.agents
+  task: cephalon-character-memory/B1-B3/canonical-outdated-withdrawal
+  p-efficiency: 0.8
+  p-friction: 0.2
+  p-skill-candidate: 0.1
+  spore: none
+  receipt-refs: cephalon-outdated-withdrawal-native-readiness-causal-red-20261016
+  note: Planning actually qualifies and native owning Rheos admission is complete. Add the causal regression in both existing fixture families while preserving actual original native JSON/history and current custody negatives. Two expected true/true failures, zero errors; no fixture typo or missing tool is called RED. This local red commit is preparation, not source approval, native withdrawal settlement, installation, merge or live B1/B2/B3 proof. No collector, Codex receipt-format repair, credentials, paid model, runtime, deployment, social or heartbeat change.
+
+- ts: 2026-10-16T02:43:24.241Z
+  session: /home/err/spaces/cephalon-outdated-withdrawal/.agents
+  task: cephalon-character-memory/B1-B3/canonical-outdated-withdrawal
+  p-efficiency: 0.8
+  p-friction: 0.2
+  p-skill-candidate: 0.1
+  spore: none
+  receipt-refs: cephalon-outdated-withdrawal-scoped-green-20261016
+  note: Only known concordant location booleans are accepted inside existing current resolved withdrawal custody; original finding severity/history and all other gates remain. This is local preparation, not code review, native approval, merge, adoption or live goal proof. The new one-point format task is separately planned. No credentials, provider, paid usage, collector, runtime, deployment, social or heartbeat change; heartbeat remains human-paused.
+
+- ts: 2026-10-16T02:45:30.876Z
+  session: /home/err/spaces/cephalon-outdated-withdrawal/.agents
+  task: cephalon-character-memory/B1-B3/canonical-review-format
+  p-efficiency: 0.8
+  p-friction: 0.2
+  p-skill-candidate: 0.1
+  spore: none
+  receipt-refs: cephalon-codex-receipt-v1-human-included-native-plan-20261016
+  note: Human included exact-format recognition through shared portable helper at existing hydration/verdict/completion sites plus registered regressions and format-only skill/contract wording. No general whitespace/HTML normalization or later marker veto. Preserve every identity/commit/scope/revocation/cohort/check/merge guard and separate withdrawal2 scope. Initial native default slug draft was natively detached, direct rejection refused exit3, no forced transition or history rewrite; explicit UUID successor owns scope. No local board parser, credential/provider/paid/runtime/deployment/social or heartbeat change; live0of3/human-paused heartbeat.
+
+- ts: 2026-10-16T04:10:08.055Z
+  session: /home/err/spaces/cephalon-outdated-withdrawal/.agents
+  task: cephalon-character-memory/B1-B3/canonical-review-format
+  p-efficiency: 0.8
+  p-friction: 0.2
+  p-skill-candidate: 0.1
+  spore: none
+  receipt-refs: cephalon-codex-receipt-v1-qualified-causal-red-20261016
+  note: Actualplanning/nativeReady permits this registeredcausalRED. ExistingmarkerLF-LF body misses the old rawprefilter and anchoredissueverdict/completion; markedincomplete laterreceipts failtorevokeearlierapproval. NewtestskeepactualrawJSONunchanged, syntheticmutations explicit, andevery existingassertion/control. CLIcopied-source spy observesactualhydratedcomments whileforwardingtheexactsamevalues to reallaw. Productionhelper andthreecallsites remainunapplied untilthislocalREDcommit. No newharness/namespace/runnerfilter, syntheticnativeapproval, waiver, paid/model/credential/provider/runtime/deployment/social/heartbeat change; heartbeat humanPAUSED/live0of3.
+
+- ts: 2026-10-16T04:51:09.307Z
+  session: /home/err/spaces/cephalon-outdated-withdrawal/.agents
+  task: cephalon-character-memory/B1-B3/canonical-review-format
+  p-efficiency: 0.8
+  p-friction: 0.2
+  p-skill-candidate: 0.1
+  spore: none
+  receipt-refs: cephalon-codex-receipt-v1-scoped-local-green-20261016
+  note: Exactsharedhelper recognizes onlyliterallegacy oroneobservedleadingmarker+LFLF; rawbody/identity/onecommit/nativefullSHA/head/scope/revocation/cohort/check/settlement/merge gates preserved. Latermarker text is notveto; markedincomplete verdict stillrevokes. Preservewithdrawal2/originalsnapshots. Localpreparationonly: finalcode reviews/requiredchecks/authorizedMERGE/qualifiedadoption stillrequired, no syntheticnativeapproval. ExistingNode22.23.3 selected onlyforthisprocess; earlierdefault24 fixturetimeout fullyretained, no source/assertion/timeout/runtimeinstallation/globalchange. No provider/credential/paid/deployment/social/heartbeat change; live0of3/heartbeat humanPAUSED.
+
+- ts: 2026-10-16T06:14:09.724Z
+  session: /home/err/spaces/cephalon-outdated-withdrawal/.agents
+  task: cephalon-character-memory/B1-B3/canonical-codex-format1
+  p-efficiency: 0.8
+  p-friction: 0.2
+  p-skill-candidate: 0.1
+  spore: none
+  receipt-refs: cephalon-pr38-failed-node24-attempt-description-correction-20261016
+  note: ApplyexactCodeRabbitsuggestion: earlierDefaultNodeAttempt namesfailedNode24/cli exit1/notGREEN, replacingincorrectGREENannotation. Failure/all_exits_zero:false/NoGREENcredit andallactualsource/hash/outputprovenance remainunchanged. Originalwrongannotation retainedin5aGit/privateproof; thisnewreceipt recordsitscorrection instead ofeditinganypastreceipt/event. Initialauthoritativevalidationrefusedunsupported:correctionkind beforeanyappend; actualcorrective observationusesexisting:observationkind withoutvalidatorchange. Sameexistingformat1 implementation/no newprerequisite/point/policywaiver. No currentapproval/MERGE/installation/liveBproof. GoalACTIVE/live0of3/heartbeatHUMAN-PAUSED; no runtime, credential, provider, paid, deployment, social or spore mutation.
+
+- ts: 2026-10-16T07:26:52.492Z
+  session: /home/err/spaces/cephalon-outdated-withdrawal/.agents
+  task: cephalon-character-memory/B1-B3/codex-format1
+  p-efficiency: 0.8
+  p-friction: 0.2
+  p-skill-candidate: 0.1
+  spore: none
+  receipt-refs: cephalon-codex-incomplete-scope-whitespace-causal-red-20261016
+  note: Latermarker leaves separatingwhitespace hiding incomplete-scope revocation, retaining approval and completion. Production/rawfixture equal9c; prior190receipts/reflection remain. Initial operator Unicodebytes SyntaxError and consequentENOENT/staging/no-commit failures occurredbeforeanyappend/stage/commit, nowcorrected; notproductiontestresults. No genericnormalization/newscope/points, newsourcepush/Fixed/MERGE/install/provider/paid/runtime/deployment/social/heartbeat change; live0of3/humanPAUSED.
+
+- ts: 2026-10-16T07:49:51.060Z
+  session: /home/err/spaces/cephalon-outdated-withdrawal/.agents
+  task: cephalon-character-memory/B1-B3/codex-format1
+  p-efficiency: 0.8
+  p-friction: 0.2
+  p-skill-candidate: 0.1
+  spore: none
+  receipt-refs: cephalon-codex-incomplete-scope-whitespace-green-20261016
+  note: Onlyeleven separating spaces inexisting incomplete-review phraseregex become whitespacequantifiers. Nativein-sentencemarkers canno longerhideexistingrevocation/completionrefusal. No genericrawbody orpositive-envelope normalization. Prior191receipts/reflectionprefixes retained. Currentnewheadhosted/fullreview/settlement/MERGE/protectedadoptionstillrequired; no old9c approvaltransfer oroperationalcandidateuse. No newpoints/scope, runtime/credential/provider/paid/deployment/social/heartbeat change; live0of3/humanPAUSED.
+
+- ts: 2026-10-16T08:25:51.919Z
+  session: /home/err/spaces/cephalon-outdated-withdrawal/.agents
+  task: cephalon-character-memory/B1-B3/codex-format1
+  p-efficiency: 0.8
+  p-friction: 0.2
+  p-skill-candidate: 0.1
+  spore: none
+  receipt-refs: cephalon-codex-paragraph-scope-causal-red-20261016
+  note: Unrestrictedwhitespace masksparagraph boundaries/excludedfragments, falselyrevokingvalidreviewevidence. Production/globalprose/helper/otherguards/native4206fixture/P1artifacts equal d723. Preserveall192oldreceipts/reflectionbytes; no newsourcepush/Fixed/MERGE/install. PlannedP1 minimization retains exactprivate/historical originals andidentities, nothistoryerasure. No newscope/points, provider/credential/paid/runtime/deployment/social/heartbeat change; live0of3/humanPAUSED.
+
+- ts: 2026-10-16T09:07:33.416Z
+  session: /home/err/spaces/cephalon-outdated-withdrawal/.agents
+  task: cephalon-character-memory/B1-B3/canonical-review-format
+  p-efficiency: 0.8
+  p-friction: 0.2
+  p-skill-candidate: 0.1
+  spore: none
+  receipt-refs: cephalon-codex-paragraph-quote-adjacency-causal-red-20261016
+  note: TruthfulintermediateREDcommit includesearlierparagraphprojection anddocumentaryP1curation; itdoesnotclaimfullGREEN. IndependentadjacentquoteLF/CRLF+completefenceaudit reproducedfalseambiguousreason beforeproductionfix; liveadmissionexactreason/unterminatedambiguitycontrols preserved. Newfixnotapplied; exactCodexhelper/globalprose/native-skipped/otherunreviewedbranches unchanged. Originalcancellationrecord wronglysaidexplicit humanSTOP: appendcorrection maincoordinatorstoppedonlyownedlocaltestdueconfirmedcandidatebug, no directhumanstop/maker/providerinterruption. Originalfailed/cancelled/observerattemptbytes remain. ActualoldnativeMiMo38869843873cancelledat45mjoblimit, producer/compilerPASS/gateFAIL; notapproval/quota oroperatorcancel. Currenttreerawminimization retainsprivateoriginals+immutablepublicGithistory, nothistoryerasure/incidentclaim. Sourcecurrentheadreviews/checks/settlements/MERGE/adoptionstilldue; no cap/points/newscope/providercredential/paid/runtime/deployment/social/heartbeatchange. Live0of3/goalACTIVE/heartbeatHUMAN-PAUSED/sporenone.
+
+- ts: 2026-10-16T09:28:29.856Z
+  session: /home/err/spaces/cephalon-outdated-withdrawal/.agents
+  task: cephalon-character-memory/B1-B3/canonical-review-format
+  p-efficiency: 0.8
+  p-friction: 0.2
+  p-skill-candidate: 0.1
+  spore: none
+  receipt-refs: cephalon-codex-paragraph-quote-adjacency-green-20261016
+  note: Onlyphrase-localquotepattern nowleavesactualCR/LFbytes bymatchingcontentthroughnonCRLFcharacters. Existingbarrierretained; adjacentcompletefences preservepositiveeligibility, outside liveadmissions stillexactlyrefuse/revoke, unterminatedfences remainambiguous. ExactCodexlexicalhelper/globalreviewerprose/native-scope/otherbranches unchanged. Earlierfull106/3084/1fail0error hadnilchildexit withno rawtimeoutcode; timinginterpretation remainsinference, focusedunchanged1test8PASS separate. Coordinatorcancelledrepeat/firstobserverfailures andcausal12/20/4RED remainimmutable, notrelabeledGREEN. Newactualfullpassed afterminimalfixwithalloracles/capsfrozen. Currentnativeheadreviews/checks/settlements/MERGE/guardedinstallationremainrequired; no newpoints/scope/paid/providercredential/runtime/deployment/social/heartbeatchange. Live0of3/goalACTIVE/heartbeatHUMAN-PAUSED/sporenone.
+- ts: 2026-10-17T10:05:00.332786941Z
+  session: /home/err/.local/share/openhax-codex/20261010/agents-opencode-plugin-skill-reference-overe391-v1
+  task: Repair a supplied stale global-skill reference in its exported tree
+  p-efficiency: 0.8
+  p-friction: 0.35
+  p-skill-candidate: 0
+  spore: none
+  receipt-refs: e115ed41-ba58-4006-8c77-6419921aaa34,447927cdb0625d72f5422d8ac8f7a28bfb685176,sha256:af4e8682294b676c2b915db344120e9a45235ed757f2d9a5087aa640a688caed
+  note: A path can be stale in trusted packaged guidance even when the target skill is correctly indexed. Preserve the actual failed trace, compare the offered source reference with the successful preceding read, and validate the replacement against the canonical and real exported mount layouts. Keep failure/deadline causality separate. Use current accepted catalog-capable review callers and retain trusted skill pins until adoption. Preserve native receipt bytes when an existing append helper chooses a new path; correct only its owned uncommitted location with prefix and inode guards. No trace exception, alias, policy change, native approval or deployment credit; candidate0/no spore.
+- ts: 2026-10-17T12:08:59.359680645Z
+  session: /home/err/.local/share/openhax-codex/20261010/agents-native-review-body-item-over7ab-v1
+  task: Canonical one-item native review-body assessment input and complete source collector
+  p-efficiency: 0.45
+  p-friction: 0.85
+  p-skill-candidate: 0.0
+  spore: none
+  receipt-refs: ef36324ebf3e4cbaea3d6da95d8bfba92e1b0bcc05fb4860bf991331f6061cd8
+  note: Finite actual-native-format and adversarial source probes found missing authored boundaries before final publication. Reusing the existing balanced scanner and exclusion barriers preserved old positive/thread behavior; an exact existing CLI control then exposed default query drift. Final v7 laws204/5240, policy71/1794, portable6/46 and full CLI110/3184 all pass; owning caller consumes actual adopted7112/agents7ab. Preserve every earlier failed/setup/cancelled outcome. Complete finite source probes before the costly full CLI; keep strict typed hydration opt-in and preserve the old default query byte-for-byte. No spore, native assessment, settlement or rollout claim.
+- ts: 2026-10-17T13:00:39.500333144Z
+  session: /home/err/.local/share/openhax-codex/20261010/agents-native-review-body-item-over7ab-v1
+  task: Correct native REST/GraphQL actor spelling and explicit assessment-kind boundary
+  p-efficiency: 0.65
+  p-friction: 0.45
+  p-skill-candidate: 0
+  spore: none
+  receipt-refs: 6f84bb39ab6f6c1427988d2cdef801ab0f35f808fde1e5172bcaac23ec9fb48b
+  note: Native GraphQL and REST principal IDs agree while Bot login spellings differ; use real API shape in fixture and retain strict physical identity. Posteffect wrapper failure requires readonly qualification, never commit replay. No spore.
+- ts: 2026-10-17T14:10:51.965634594Z
+  session: /home/err/.local/share/openhax-codex/20261010/agents-native-review-body-item-over7ab-v1
+  task: Preserve raw native timestamps while ordering by their existing normalized meaning
+  p-efficiency: 0.8
+  p-friction: 0.25
+  p-skill-candidate: 0
+  spore: none
+  receipt-refs: 7444c8a4ffdcfe5dee6885223a0c4be451962f5f37515ce5752a4f0fbacf9048
+  note: An unaccepted reviewer advisory is evidence to verify, not native approval or a finding to settle. Existing public API controls proved a real normalization mismatch; fix the one expression and preserve complete raw custody. No spore.
+- ts: 2026-10-17T15:02:19.166656207Z
+  session: /home/err/.local/share/openhax-codex/20261010/agents-native-review-body-item-over7ab-v1
+  task: Preserve complete review edit custody across native collection
+  p-efficiency: 0.85
+  p-friction: 0.15
+  p-skill-candidate: 0
+  spore: none
+  receipt-refs: 8a558787447398a33e560519f0616afc4a3eb14ecb4c29c23ab2df50ba033bfc
+  note: Verify a native finding against the actual effect sequence, exercise changed body/edit ABA and list membership through the public collector, then reuse its complete strict hydration rather than create another partial verifier. Finite rechecks do not make remote APIs atomic. Preserve failed reviewer tool chronology instead of trusting its contradictory final prose. No spore.
+- ts: 2026-10-17T16:00:22.534833497Z
+  session: /home/err/.local/share/openhax-codex/20261010/agents-native-review-body-item-over7ab-v1
+  task: Preserve strict review custody while reducing native API reads
+  p-efficiency: 0.85
+  p-friction: 0.15
+  p-skill-candidate: 0
+  spore: none
+  receipt-refs: c1924ab75af4c7bc7423c4e9e09902f82cf83d05950ea857c7e88f000fb78647
+  note: Use native IDs to batch only complete validated REST-page inputs, retain exact requested-node closedset and the same pure strict matcher, then require a second complete equal snapshot. Backward-compatible fixture readers make RED prove real batching/refusal assertions. Keep original positive single-node transport and historical ledger bytes. No spore.
+
 - ts: 2026-10-14T14:55:10.000000000Z
   session: e1-11-shepherd-2026-10-14
   task: Document segmented Receipt River as the standard (.agents#34)

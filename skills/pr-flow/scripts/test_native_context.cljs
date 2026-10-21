@@ -46,6 +46,148 @@
                                   (= login (get-in sample [:pr :author :login])))
             :read-history (fn [id] (swap! history-reads conj id) history)}}))
 
+(def item-id "d9618d1e6c3cf0ee5e35cc46")
+(def native-review
+  {:id 101 :node_id "PRR_inert_101" :state "COMMENTED" :commit_id (get-in sample [:pr :headRefOid])
+   :body (str "Retain this source boundary.\n<!-- cr-comment:v1:" item-id " -->")
+   :submitted_at "2026-10-03T11:30:00Z"
+   :user {:login "coderabbitai[bot]" :id 136622811 :node_id "BOT_inert_cr" :type "Bot"}})
+(defn native-review-node [review]
+  {:id (:node_id review) :databaseId (:id review) :state (:state review) :body (:body review)
+   :submittedAt (:submitted_at review) :updatedAt "2026-10-03T11:31:00Z"
+   :commit {:oid (:commit_id review)}
+   :author {:login (let [login (get-in review [:user :login])]
+                     (if (= "Bot" (get-in review [:user :type]))
+                       (str/replace login #"\[bot\]$" "") login))
+            :databaseId (get-in review [:user :id])
+            :id (get-in review [:user :node_id]) :__typename (get-in review [:user :type])}})
+(defn body-readers
+  ([review-pages nodes] (body-readers review-pages nodes (page [(:thread sample)])))
+  ([review-pages nodes final-page]
+   (body-readers review-pages nodes final-page review-pages nodes))
+  ([review-pages nodes final-page final-review-pages final-nodes]
+  (let [r (readers [(page [(:thread sample)]) final-page] [[]] [])
+        read (get-in r [:deps :read-json]) remaining (atom [])
+        review-reads (atom [[review-pages nodes] [final-review-pages final-nodes]])]
+    (assoc r :deps
+           (assoc (:deps r) :body-items? true
+                  :read-json
+                  (fn [& args]
+                    (cond
+                      (= ["api" (str "repos/" repo "/pulls/" number "/reviews") "--paginate" "--slurp"] (vec args))
+                      (do (swap! (:calls r) conj (vec args))
+                          (when-not (seq @review-reads)
+                            (throw (ex-info "Unexpected extra review collection" {})))
+                          (let [[pages nodes] (first @review-reads)]
+                            (swap! review-reads subvec 1)
+                            (reset! remaining (vec nodes))
+                            pages))
+                      (some #(and (string? %) (str/starts-with? % "ids[]=")) args)
+                      (do (swap! (:calls r) conj (vec args))
+                          (let [size (count (filter #(and (string? %) (str/starts-with? % "ids[]=")) args))
+                                batch (subvec @remaining 0 (min size (count @remaining)))]
+                            (swap! remaining subvec (count batch))
+                            {:data {:nodes batch}}))
+                      (some #(and (string? %) (str/starts-with? % "id=PRR_")) args)
+                      (do (swap! (:calls r) conj (vec args))
+                          (let [node (first @remaining)]
+                            (swap! remaining subvec 1)
+                            {:data {:node node}}))
+                      :else (apply read args))))))))
+
+(deftest strict-native-review-hydration-keeps-actor-specific-login-spellings
+  ;; Suffix-free GraphQL Bot login is native-observed; review body/head/times
+  ;; remain inert fixtures and supply no native eligibility evidence.
+  (let [node (native-review-node native-review)
+        hydrate (fn [review n]
+                  (native-context/hydrate-review-update (fn [& _] {:data {:node n}}) review true))
+        bot (hydrate native-review node)
+        user-review (assoc native-review :user {:login "writer" :id 7 :node_id "U_inert_writer" :type "User"})
+        user-node (native-review-node user-review)]
+    (is (= "coderabbitai" (get-in node [:author :login])))
+    (is (nil? (:positive-review-update-error bot)))
+    (is (= "2026-10-03T11:31:00Z" (:updated_at bot)))
+    (is (= node (:native-review bot)))
+    (is (nil? (:positive-review-update-error (hydrate user-review user-node))))
+    (doseq [bad [(assoc-in node [:author :login] "other")
+                 (update node :author dissoc :login)
+                 (assoc-in node [:author :login] "")
+                 (assoc-in node [:author :databaseId] 1)
+                 (assoc-in node [:author :id] "BOT_other")
+                 (assoc-in node [:author :__typename] "User")]]
+      (is (= :native-source-mismatch (:positive-review-update-error (hydrate native-review bad)))))
+    (is (= :native-source-mismatch
+           (:positive-review-update-error (hydrate user-review (assoc-in user-node [:author :login] "writer[bot]")))))
+    (is (= :native-source-mismatch
+           (:positive-review-update-error
+             (hydrate (assoc-in user-review [:user :login] nil) (assoc-in user-node [:author :login] nil)))))))
+
+(deftest opted-in-body-collection-preserves-all-reviews-and-native-edit-custody
+  (let [other (assoc native-review :id 102 :node_id "PRR_inert_102" :body "No selected item here.")
+        r (body-readers [[native-review] [other]] (mapv native-review-node [native-review other]))
+        result (native-context/collect-context (:deps r) repo number)]
+    (is (true? (:reviews-complete? result)))
+    (is (= [native-review other] (:raw-reviews result)))
+    (is (= [101 102] (mapv :id (:reviews result))))
+    (is (= "2026-10-03T11:31:00Z" (get-in result [:reviews 0 :updated_at])))
+    (is (= (native-review-node native-review) (get-in result [:reviews 0 :native-review])))
+    (is (= [(:thread sample)] (:raw-threads result)))
+    (is (= [] (:history result)))
+    (is (= 9 (count @(:calls r))))))
+
+(deftest opted-in-body-collection-refuses-incomplete-duplicate-and-edited-reviews
+  (doseq [pages [nil [] [{}] [[nil]] [[native-review native-review]]
+                [[native-review (assoc native-review :id 102)]]]]
+    (let [r (body-readers pages [(native-review-node native-review)])]
+      (is (thrown? js/Error (native-context/collect-context (:deps r) repo number)))))
+  (doseq [node [nil
+                (assoc (native-review-node native-review) :body "Edit raced collection")
+                (assoc (native-review-node native-review) :databaseId 102)
+                (assoc-in (native-review-node native-review) [:author :databaseId] 1)
+                (assoc-in (native-review-node native-review) [:commit :oid] "unknown")
+                (dissoc (native-review-node native-review) :updatedAt)]]
+    (let [r (body-readers [[native-review]] [node])]
+      (is (thrown? js/Error (native-context/collect-context (:deps r) repo number)))))
+  (doseq [p [(assoc-in (page [(:thread sample)]) [:data :repository :pullRequest :headRefOid] (apply str (repeat 40 "b")))
+             (assoc-in (page [(:thread sample)]) [:data :repository :pullRequest :state] "CLOSED")]]
+    (let [r (body-readers [[native-review]] [(native-review-node native-review)] p)]
+      (is (thrown? js/Error (native-context/collect-context (:deps r) repo number))))))
+
+(deftest opted-in-body-collection-refuses-reviews-changed-after-first-hydration
+  (let [edited (assoc native-review :body "A later authored edit.")
+        other (assoc native-review :id 102 :node_id "PRR_inert_102" :body "Another review.")
+        original-node (native-review-node native-review)]
+    (doseq [[pages nodes] [[[edited] [(native-review-node edited)]]
+                           [[native-review] [(assoc original-node :updatedAt "2026-10-03T11:32:00Z")]]
+                           [[native-review other] [original-node (native-review-node other)]]
+                           [[] []]]]
+      (let [r (body-readers [[native-review]] [original-node] (page [(:thread sample)]) [pages] nodes)
+            result (try (native-context/collect-context (:deps r) repo number)
+                        (catch :default e {:refusal (ex-message e)}))]
+        (is (= "Native snapshot changed during review-body collection" (:refusal result)))))))
+
+(deftest fresh-body-selection-is-one-native-review-item-without-a-fake-thread
+  (let [r (body-readers [[native-review]] [(native-review-node native-review)])
+        snapshot (native-context/collect-context (:deps r) repo number)
+        target {:kind :review-body-item :repo repo :repository-database-id (get-in sample [:repository :databaseId])
+                :pr-number (get-in sample [:pr :number]) :head (:head snapshot) :review-id 101 :item-id item-id}
+        select #(native-context-law/select-fresh-context %1 %2)
+        selected (:selected (select snapshot target))]
+    (is (= :review-body-item (:kind selected)))
+    (is (= [101 item-id] [(:review-id selected) (:item-id selected)]))
+    (is (= (first (:reviews snapshot)) (:review selected)))
+    (is (= {"coderabbit" #{"coderabbitai[bot]"} "opencode" #{"opencode-agent[bot]"}}
+           (get-in (select snapshot (assoc target :identities {"coderabbit" #{"coderabbitai[bot]"} "opencode" #{"opencode-agent[bot]"}}))
+                   [:selected :identities])))
+    (is (not-any? #(contains? selected %) [:id :thread-id :root-comment-id :settled?]))
+    (doseq [t [(assoc target :thread-id "PRRT_inert") (assoc target :items [item-id])
+               (assoc target :review-id 999) (assoc target :item-id "unknown")]]
+      (is (:refusal (select snapshot t))))
+    (doseq [s [(dissoc snapshot :reviews-complete?) (assoc snapshot :reviews-complete? false)
+               (update snapshot :reviews conj (first (:reviews snapshot)))
+               (assoc snapshot :history nil) (assoc snapshot :incomplete? true)]]
+      (is (:refusal (select s target))))))
+
 (deftest collector-preserves-complete-outer-pagination
   (let [a (:thread sample) b (assoc a :id "PRRT_synthetic_second")
         r (readers [(page [a] true "cursor-one") (page [b])] [[]] [])
@@ -290,3 +432,55 @@
     (is (= #{:selected} (set (keys (select snapshot)))))
     (is (not-any? #(contains? (select snapshot) %)
                   [:permission :qualified? :actionability :disposition :approval :publication]))))
+
+(defn review-batch-calls [r]
+  (filterv #(some (fn [arg] (and (string? arg) (str/starts-with? arg "ids[]="))) %) @(:calls r)))
+
+(deftest opted-in-review-hydration-batches-at-most-one-hundred-per-page
+  (let [reviews (mapv #(assoc native-review :id (+ 101 %) :node_id (str "PRR_inert_" (+ 101 %))) (range 101))
+        r (body-readers [reviews] (mapv native-review-node reviews))
+        result (native-context/collect-context (:deps r) repo number)
+        batches (review-batch-calls r)]
+    (is (= [100 1 100 1]
+           (mapv #(count (filter (fn [arg] (and (string? arg) (str/starts-with? arg "ids[]="))) %)) batches)))
+    (is (= (mapv :id reviews) (mapv :id (:reviews result))))
+    (is (= reviews (:raw-reviews result)))
+    (is (every? #(some (fn [arg] (and (string? arg) (str/includes? arg "nodes(ids:$ids)"))) %) batches))
+    (is (not-any? #(some (fn [arg] (and (string? arg) (str/starts-with? arg "id=PRR_"))) %) @(:calls r)))))
+
+(deftest opted-in-review-hydration-binds-complete-batch-and-rest-order
+  (let [other (assoc native-review :id 102 :node_id "PRR_inert_102")
+        reviews [native-review other] nodes (mapv native-review-node reviews)
+        r (body-readers [reviews] nodes)
+        read-json (get-in r [:deps :read-json])
+        deps (assoc-in (:deps r) [:read-json]
+                       (fn [& args]
+                         (let [response (apply read-json args)]
+                           (if (get-in response [:data :nodes])
+                             (update-in response [:data :nodes] #(vec (reverse %))) response))))
+        result (native-context/collect-context deps repo number)]
+    (is (= [101 102] (mapv :id (:reviews result))))
+    (is (= 2 (count (review-batch-calls r))))))
+
+(deftest opted-in-review-hydration-refuses-partial-errors-and-unrequested-nodes
+  (let [other (assoc native-review :id 102 :node_id "PRR_inert_102")
+        nodes (mapv native-review-node [native-review other])]
+    (doseq [response [{:errors [{:message "partial"}] :data {:nodes nodes}}
+                     {:data {:nodes nil}} {:data {:nodes (first nodes)}}
+                     {:data {:nodes [(first nodes)]}} {:data {:nodes [(first nodes) nil]}}
+                     {:data {:nodes [(first nodes) (first nodes)]}}
+                     {:data {:nodes (conj nodes (assoc (first nodes) :id "PRR_unrequested"))}}
+                     {:data {:nodes [(first nodes) (assoc (second nodes) :id "PRR_unrequested")]}}]]
+      (let [r (body-readers [[native-review other]] nodes)
+            read-json (get-in r [:deps :read-json])
+            deps (assoc-in (:deps r) [:read-json]
+                           (fn [& args]
+                             (if (some #(and (string? %) (str/starts-with? % "ids[]=")) args)
+                               response (apply read-json args))))]
+        (is (thrown? js/Error (native-context/collect-context deps repo number)))))))
+
+(deftest opted-in-review-hydration-empty-pages-need-no-node-request
+  (let [r (body-readers [[]] []) result (native-context/collect-context (:deps r) repo number)]
+    (is (true? (:reviews-complete? result)))
+    (is (= [] (:raw-reviews result) (:reviews result)))
+    (is (empty? (review-batch-calls r)))))

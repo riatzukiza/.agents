@@ -213,6 +213,155 @@
 (defn publish [thread summary]
   (law/rejection-assessment-publication thread (:id proposal) summary prospective-user))
 
+(deftest prospective-rejection-refuses-explicit-unsupported-kinds
+  (is (:eligible? (request prospective-thread)) "Legacy context without kind stays supported")
+  (is (:eligible? (publish prospective-thread prospective-summary)))
+  (doseq [kind [:thread :review-body :unknown nil false "" "review-body-item" {:kind :review-body-item}]]
+    (let [context (assoc prospective-thread :kind kind)]
+      (is (= {:eligible? false :reason :invalid-native-context} (request context)) (pr-str kind))
+      (is (= {:eligible? false :reason :invalid-native-context}
+             (publish context prospective-summary)) (pr-str kind)))))
+
+;; This is one real-shaped native item, never a fabricated PRRT conversation.
+(def body-item-id "d9618d1e6c3cf0ee5e35cc46")
+(def body-scope (str "review-id:101 cr-comment:v1:" body-item-id))
+(def body-review
+  {:id 101 :node_id "PRR_inert_body" :state "COMMENTED" :commit_id (:head fixture)
+   :body (str "Retain the verified loader boundary.\n<!-- cr-comment:v1:" body-item-id " -->")
+   :submitted_at "2026-10-03T11:30:00Z" :updated_at "2026-10-03T11:31:00Z"
+   :user {:login "coderabbitai[bot]" :id 136622811 :node_id "BOT_inert_cr" :type "Bot"}})
+(def body-native-review
+  {:id (:node_id body-review) :databaseId 101 :state "COMMENTED" :body (:body body-review)
+   :submittedAt (:submitted_at body-review) :updatedAt (:updated_at body-review)
+   :commit {:oid (:head fixture)}
+   :author {:login "coderabbitai" :databaseId 136622811 :id "BOT_inert_cr" :__typename "Bot"}})
+(def body-proposal
+  {:id 201 :node_id "IC_inert_body_proposal" :html_url "https://example.invalid/201"
+   :source-channel :github-issue-comment :authorized? true
+   :user {:login "riatzukiza" :id 10676925 :node_id "U_inert_writer" :type "User"}
+   :created_at "2026-10-03T11:34:00Z" :updated_at "2026-10-03T11:34:10Z"
+   :body (str "Rejection proposal for " (:head fixture) ": " body-scope
+              "\nReason: Existing source already preserves the deliberate loader behavior."
+              "\nEvidence: scripts/test_environment_promotion.py:20")})
+(def body-input
+  {:kind :review-body-item :review-id 101 :item-id body-item-id :head (:head fixture)
+   :pr-author "riatzukiza" :pr-author-user (:user body-proposal)
+   :identities identities :review (assoc body-review :native-review body-native-review)
+   :issue-comments [body-proposal]})
+(defn body-input-with-text [text]
+  (-> body-input (assoc-in [:review :body] text) (assoc-in [:review :native-review :body] text)))
+(def body-summary
+  (str "Rejection agreement for " (:head fixture) ": " body-scope
+       "\nReason: I independently traced the loader and its regression controls; the current source preserves the requested behavior."
+       "\nEvidence: scripts/test_environment_promotion.py:20"))
+
+(deftest prospective-body-item-uses-existing-request-and-publication-boundaries
+  (let [r (law/rejection-assessment-request body-input 201 prospective-user)
+        p (law/rejection-assessment-publication body-input 201 body-summary prospective-user)]
+    (is (:eligible? r))
+    (is (= [101 body-item-id] [(:review-id r) (:item-id r)]))
+    (is (= (:body body-proposal) (:proposal-body r)))
+    (is (= (:updated_at body-review) (:review-updated-at r)))
+    (is (= "2026-10-03T11:34:10.000Z" (:created-after r)))
+    (is (:eligible? p))
+    (is (= body-summary (:body p)))
+    (is (not-any? #(contains? p %) [:thread-id :root-comment-id :source-id :agreement-id :settled? :rejection-approved?]))))
+
+(deftest prospective-body-item-orders-normalized-native-timestamps
+  (let [earlier (assoc body-proposal :id 200 :node_id "IC_inert_earlier"
+                       :created_at "2026-10-03T11:34:00Z" :updated_at "2026-10-03T11:34:00Z")
+        later (assoc body-proposal :created_at "2026-10-03T11:34:00.5Z")
+        mixed (assoc body-input :issue-comments [earlier later])
+        normalized (assoc mixed :issue-comments
+                          [(assoc earlier :created_at "2026-10-03T11:34:00.000Z")
+                           (assoc later :created_at "2026-10-03T11:34:00.500Z")])
+        request #(law/rejection-assessment-request % 201 prospective-user)]
+    (is (:eligible? (request mixed)))
+    (is (:eligible? (request normalized)))
+    (is (= (:created_at later) (:proposal-created-at (request mixed))))
+    (is (= :invalid-native-body-context
+           (:reason (request (assoc mixed :issue-comments [later earlier])))))
+    (is (not (:eligible? (request (assoc-in mixed [:issue-comments 1 :created_at] "invalid")))))))
+
+(deftest prospective-body-item-refuses-source-and-scope-races
+  (doseq [v [(dissoc body-input :review)
+             (assoc body-input :thread-id "PRRT_inert")
+             (assoc body-input :items [body-item-id])
+             (assoc body-input :review-id 102)
+             (assoc body-input :item-id "unknown")
+             (body-input-with-text (str "> " (:body body-review)))
+             (body-input-with-text (str "```html\n" (:body body-review) "\n```"))
+             (body-input-with-text (str "<blockquote>" (:body body-review) "</blockquote>"))
+             (body-input-with-text (str "<details><summary>Quoted example (1)</summary><blockquote>"
+                                        (:body body-review) "</blockquote></details>"))
+             (body-input-with-text (str "<details><summary>Quoted example: 1</summary><blockquote>"
+                                        (:body body-review) "</blockquote></details>"))
+             (body-input-with-text (str "<!-- This is an auto-generated comment: tweet message by coderabbit.ai -->\n"
+                                        (:body body-review) "\n<!-- end of auto-generated comment: tweet message by coderabbit.ai -->"))
+             (body-input-with-text (str (:body body-review) (:body body-review)))
+             (assoc-in body-input [:review :native-review :body] "Edited native body")
+             (assoc-in body-input [:review :native-review :author :databaseId] 1)
+             (assoc-in body-input [:review :native-review :updatedAt] "2026-10-03T11:35:00Z")
+             (update-in body-input [:review] dissoc :native-review)
+             (assoc-in body-input [:review :user :type] "User")
+             (assoc-in body-input [:review :user :login] "unknown[bot]")
+             (assoc-in body-input [:review :commit_id] "unknown")
+             (assoc-in body-input [:review :state] "PENDING")
+             (assoc body-input :issue-comments nil)]]
+    (is (not (:eligible? (law/rejection-assessment-request v 201 prospective-user))))))
+
+(deftest prospective-body-item-physical-principals-are-distinct
+  (doseq [u [(assoc prospective-user :id (get-in body-review [:user :id]))
+             (assoc prospective-user :node_id (get-in body-review [:user :node_id]))
+             (assoc prospective-user :id (get-in body-proposal [:user :id]))
+             (assoc prospective-user :node_id (get-in body-proposal [:user :node_id]))]]
+    (is (not (:eligible? (law/rejection-assessment-request body-input 201 u)))))
+  (doseq [v [(dissoc body-input :pr-author-user)
+             (assoc-in body-input [:pr-author-user :login] "another-user")]]
+    (is (not (:eligible? (law/rejection-assessment-request v 201 prospective-user))))))
+
+(deftest prospective-body-item-keeps-complete-authored-additional-layouts
+  (doseq [count-label [": 1" " (1)"]]
+    (let [layout (str "<details>\n<summary>🔇 Additional comments" count-label "</summary><blockquote>\n"
+                      "<details>\n<summary>scripts/example.py" count-label "</summary><blockquote>\n"
+                      (:body body-review) "\n</blockquote></details>\n</blockquote></details>")
+          v (body-input-with-text layout)]
+      (is (:eligible? (law/rejection-assessment-request v 201 prospective-user)))
+      (is (not (:eligible? (law/rejection-assessment-request
+                            (body-input-with-text (str "<details><summary>Quoted example (1)</summary><blockquote>\n"
+                                                       layout "\n</blockquote></details>")) 201 prospective-user)))))))
+
+(deftest prospective-body-item-raw-marker-is-authored-outside-code
+  (doseq [text [(str "`" (:body body-review) "`")
+               (str "    " (str/replace (:body body-review) "\n" "\n    "))
+               (str "`\n" (:body body-review) "\n`")
+               (str "\t" (str/replace (:body body-review) "\n" "\n\t"))
+               (str/replace (:body body-review) "<!--" "\\<!--")
+               (str/replace (:body body-review) "<!--" "``<!--")]]
+    (is (not (:eligible? (law/rejection-assessment-request
+                          (body-input-with-text text) 201 prospective-user))))))
+
+(deftest prospective-body-item-keeps-latest-native-user-and-independent-principal
+  (doseq [v [(assoc-in body-input [:issue-comments 0 :authorized?] false)
+             (assoc-in body-input [:issue-comments 0 :user :type] "Bot")
+             (assoc-in body-input [:issue-comments 0 :user :login] "coderabbitai[bot]")
+             (assoc-in body-input [:issue-comments 0 :updated_at] "invalid")
+             (assoc-in body-input [:issue-comments 0 :created_at] "2026-10-03T11:30:00Z")
+             (update body-input :issue-comments conj body-proposal)
+             (update body-input :issue-comments conj
+                     (assoc body-proposal :id 202 :created_at "2026-10-03T11:35:00Z"
+                            :updated_at "2026-10-03T11:35:00Z" :body (str (:body body-proposal) "\nReason: ambiguous")))]]
+    (is (not (:eligible? (law/rejection-assessment-request v 201 prospective-user)))))
+  (doseq [u [(assoc prospective-user :login "coderabbitai[bot]")
+             (assoc prospective-user :type "User") (assoc prospective-user :extra true)]]
+    (is (not (:eligible? (law/rejection-assessment-request body-input 201 u)))))
+  (doseq [body [(str body-summary "\n" body-summary)
+               (str "> " body-summary)
+               (str/replace body-summary body-item-id "8471f90c17574324d5bf3da1")
+               (str/replace body-summary "Reason: I independently" "Reason: I disagree with the proposal. I independently")
+               (str/replace body-summary #"(?m)^Evidence:.*$" "Evidence: none")]]
+    (is (not (:eligible? (law/rejection-assessment-publication body-input 201 body prospective-user))))))
+
 (deftest prospective-rejection-selects-actual-latest-writer-proposal-only
   (let [r (request prospective-thread)]
     (is (:eligible? r))
@@ -286,3 +435,158 @@
                               [(assoc native :created_at (:updated-at proposal) :updated_at (:updated-at proposal))]))))
     (is (not (approved? (assoc input :issue-comments
                               [(assoc native :updated_at "2026-10-03T11:39:00Z")]))))))
+
+;; Retained public review5557123176 body, byte-exact; all actor/head metadata
+;; below comes from the inert fixture. No native eligibility/assessment credit.
+(def retained-native-body-layout
+  (str
+    "\n"
+    "\n"
+    "<details>\n"
+    "<summary>🔇 Additional comments: 4</summary><blockquote>\n"
+    "\n"
+    "<details>\n"
+    "<summary>scripts/tests/test_environment_workflow.py: 2</summary><blockquote>\n"
+    "\n"
+    "`52-54`: **Skip the static-analysis `yaml.load` finding.**\n"
+    "\n"
+    "`yaml.BaseLoader` on Line 54 constructs only strings, lists, and dicts. It does not instantiate arbitrary Python objects. The loader is deliberate: it keeps scalars such as `required: true` as strings, and the new test at Line 72 relies on this. The input is the repository's own workflow file. Switching to `yaml.safe_load` would turn `\"true\"` into a boolean, and the `assertEqual(\"true\", ...)` check would then fail.\n"
+    "\n"
+    "<!-- cr-comment:v1:d9618d1e6c3cf0ee5e35cc46 -->\n"
+    "\n"
+    "---\n"
+    "\n"
+    "`65-76`: LGTM!\n"
+    "\n"
+    "\n"
+    "\n"
+    "Also applies to: 164-227\n"
+    "\n"
+    "<!-- cr-comment:v1:8471f90c17574324d5bf3da1 -->\n"
+    "\n"
+    "</blockquote></details>\n"
+    "<details>\n"
+    "<summary>.github/workflows/deploy-service-environment.yml: 1</summary><blockquote>\n"
+    "\n"
+    "`20-20`: LGTM!\n"
+    "\n"
+    "\n"
+    "\n"
+    "Also applies to: 170-172\n"
+    "\n"
+    "<!-- cr-comment:v1:135e5236a08c5010c1d280f5 -->\n"
+    "\n"
+    "</blockquote></details>\n"
+    "<details>\n"
+    "<summary>.ημ/session-mycology/ledger.md-281-281: 1</summary><blockquote>\n"
+    "\n"
+    "`281-281`: **📐 Maintainability & Code Quality** | **🟡 Minor** | **⚡ Quick win**\n"
+    "\n"
+    "⚠️ **Unverified finding**\n"
+    "Verification ran but could not confirm this finding. It is shown for review, not as a verified issue.\n"
+    "\n"
+    "**P2: Separate concatenated terms in the provenance notes.**\n"
+    "\n"
+    "These lines join ordinary words to status labels, such as `missingdimensionsRED`, `ExpectedPASS`, and `syntheticRED`. Add spaces or punctuation so readers can parse and search the audit results.\n"
+    "\n"
+    "\n"
+    "\n"
+    "\n"
+    "\n"
+    "\n"
+    "Also applies to: 308-308, 317-317\n"
+    "\n"
+    "_Source: Linters/SAST tools_\n"
+    "\n"
+    "</blockquote></details>\n"
+    "\n"
+    "</blockquote></details>\n"
+    "\n"
+    "---\n"
+    "\n"
+    "<details>\n"
+    "<summary>ℹ️ Review info</summary>\n"
+    "\n"
+    "<details>\n"
+    "<summary>⚙️ Run configuration</summary>\n"
+    "\n"
+    "- **Configuration used**: Repository: open-hax/services/.coderabbit.yaml\n"
+    "- **Review profile**: CHILL\n"
+    "- **Plan**: Advanced\n"
+    "- **Run ID**: `f7ea97be-54a7-4bfb-8f17-948481a61518`\n"
+    "\n"
+    "</details>\n"
+    "\n"
+    "<details>\n"
+    "<summary>📥 Commits</summary>\n"
+    "\n"
+    "Reviewing files that changed from the base of the PR and between d8ab5bbb0bc6f67fa2d0cbc423b8f310b4cdd916 and 5b753995fdf2f8427d753ac0200b61abb5e0e9d8.\n"
+    "\n"
+    "</details>\n"
+    "\n"
+    "<details>\n"
+    "<summary>📒 Files selected for processing: 4</summary>\n"
+    "\n"
+    "* `.github/workflows/deploy-service-environment.yml`\n"
+    "* `.ημ/session-mycology/ledger.md`\n"
+    "* `receipts.edn`\n"
+    "* `scripts/tests/test_environment_workflow.py`\n"
+    "\n"
+    "</details>\n"
+    "\n"
+    "<details>\n"
+    "<summary>🚧 Files skipped from review as they are similar to previous changes: 1</summary>\n"
+    "\n"
+    "* receipts.edn\n"
+    "\n"
+    "</details>\n"
+    "\n"
+    "**Included review availability:** This review used your included allowance. Your plan provides up to 1 included review per hour; 0 remain after this review.\n"
+    "\n"
+    "</details>\n"
+    "\n"
+    "<!-- This is an auto-generated comment by CodeRabbit for review status -->\n"
+    "\n"
+    "<!-- coderabbit-review-publication v1 publication=8ebfd565-a200-447e-bd83-76488d315d4e attempt=1525bba6-4ecf-47cb-b81a-d21ff223caae batch=1/1 -->"))
+
+(deftest prospective-body-item-preserves-unidentified-authored-siblings
+  (let [review (:review (body-input-with-text retained-native-body-layout))]
+    (doseq [item [body-item-id "8471f90c17574324d5bf3da1" "135e5236a08c5010c1d280f5"]]
+      (is (law/native-review-item? review item identities)))
+    ;; The fourth un-ID SAST comment remains raw input, never a selected ID.
+    (is (not (law/native-review-item? review "unidentified" identities)))
+    (doseq [text [(str/replace retained-native-body-layout "Additional comments: 4" "Additional comments: 3")
+                  (str/replace retained-native-body-layout "test_environment_workflow.py: 2" "test_environment_workflow.py: 1")
+                  (str retained-native-body-layout "\n<!-- cr-comment:v1:" body-item-id " -->")]]
+      (is (not (law/native-review-item?
+                 (:review (body-input-with-text text)) body-item-id identities))))))
+
+(deftest prospective-body-item-refuses-unrecognized-html-and-generated-source
+  (let [plain (:body body-review)
+        wrapped (for [tag ["q" "cite" "pre" "code" "div" "span" "section" "aside"]
+                      content [plain retained-native-body-layout]]
+                  (str "<" tag ">\n" content "\n</" tag ">"))
+        header-grafts (for [excluded ["<pre>quoted</pre>" "<code>quoted</code>"
+                                      "<details><summary>🧩 Analysis chain</summary>quoted</details>"
+                                      (str "<!-- This is an auto-generated comment: tweet message by coderabbit.ai -->quoted"
+                                           "<!-- end of auto-generated comment: tweet message by coderabbit.ai -->")]]
+                        (str/replace-first retained-native-body-layout "<details>\n<summary>"
+                                           (str "<details>" excluded "\n<summary>")))
+        additional [(str "<Q cite=\"https://example.invalid\">\n" plain "\n</Q>")
+                    (str "<details><summary>Quoted example</summary>\n" plain "\n</details>")
+                    (str "<details>\n" plain "\n</details>")
+                    (str "<!-- quoted example\n" plain "\n-->")
+                    (str "<!-- generated example\n" retained-native-body-layout "\n-->")
+                    (str "<![CDATA[\n" plain "\n]]>")
+                    (str "<?quoted\n" plain "\n?>")
+                    (str/replace retained-native-body-layout "<blockquote>" "<blockquote cite=\"quoted\">")
+                    (str/replace-first retained-native-body-layout "</blockquote></details>" "</details>")
+                    (str retained-native-body-layout "\n</blockquote>")
+                    (str "<!-- This is an auto-generated comment: tweet message by coderabbit.ai -->\n"
+                         retained-native-body-layout "\n<!-- end of auto-generated comment: tweet message by coderabbit.ai -->")]]
+    (doseq [text (concat wrapped header-grafts additional)]
+      (is (not (law/native-review-item? (:review (body-input-with-text text)) body-item-id identities)))))
+  ;; Exact native siblings remain complete prospective input, not dispositions.
+  (is (= retained-native-body-layout
+         (:review-body (law/rejection-assessment-request
+                         (body-input-with-text retained-native-body-layout) 201 prospective-user)))))

@@ -102,7 +102,11 @@ and full commit SHA as immutable provenance; that commit may precede the current
 head. The withdrawal must bind the current head in the same complete ordered
 conversation, by the same configured Bot, with no later pushback or conflicting
 edit. Unknown original review bindings, different openers, author claims, quota
-replies, cross-root scope and stale withdrawals do not qualify. The conversation must be resolved
+replies, cross-root scope and stale withdrawals do not qualify. Both normalized
+and native resolution flags must be true. Their outdated-location flags must
+be known, concordant booleans, either false/false or true/true. A known outdated
+location does not replace current-head custody; unknown, discordant or unresolved
+representations remain blocking. The conversation must be resolved
 and an authorized User writer must post a settlement naming the current head,
 exact root pair and actual native withdrawal URL, for example:
 

@@ -32,6 +32,59 @@
              (select-keys (actionability/disposition {:issue-comments [comment]})
                           [:kind :status :observations]))))))
 
+(deftest codex-positive-envelope-is-portable
+  (let [legacy "Codex Review: Didn't find any major issues."
+        envelope "<!-- codex-review-receipt:v1 -->\n\n"]
+    (is (true? (law/codex-positive-body? legacy)))
+    (is (true? (law/codex-positive-body? (str envelope legacy))))
+    (is (false? (law/codex-positive-body? (str envelope envelope legacy))))
+    (is (false? (law/codex-positive-body? (str " " legacy))))
+    (is (false? (law/codex-positive-body? nil)))
+    (is (true? (law/codex-positive-body? (str envelope legacy "\n\n> " envelope))))))
+
+(deftest in-sentence-marker-incomplete-scope-is-portable
+  (let [prefix "Codex Review: Didn't find any major issues."
+        marker "<!-- codex-review-receipt:v1 -->"
+        admission (str "Review " marker " is incomplete.")]
+    (doseq [envelope ["" (str marker "\n\n")]]
+      (doseq [prose [admission (str "Review\t" marker "\r\nis\tincomplete.")]]
+        (let [body (str envelope prefix "\n\n" prose)]
+          (is (true? (law/codex-positive-body? body)))
+          (is (= :incomplete-review (law/incomplete-review-reason body)) (pr-str prose))))
+      (doseq [excluded [(str "> " admission)
+                        (str "```text\n" admission "\n```")
+                        (str "<details>\n<summary>🧩 Analysis chain</summary>\n" admission "\n</details>")
+                        (str "Reject incomplete " marker " review submissions.")]]
+        (is (nil? (law/incomplete-review-reason (str envelope prefix "\n\n" excluded)))
+            (pr-str excluded))))))
+
+(deftest paragraph-and-exclusion-scope-boundaries-are-portable
+  (doseq [separator ["\n\n" "\r\n\r\n" "\r\r" "\n \t\n"]]
+    (is (nil? (law/incomplete-review-reason
+                (str "Review" separator "Rate limited requests are retried with backoff.")))
+        (pr-str separator)))
+  (doseq [body ["Review\n> example text\nis incomplete."
+                "Review\n```text\nexample text\n```\nis incomplete."
+                "Review <details><summary>🧩 Analysis chain</summary>example text</details> is incomplete."
+                "Review <details><summary>✏️ Learnings added</summary>example text</details> is incomplete."
+                "Review <!-- This is an auto-generated comment: tweet message by coderabbit.ai -->example text<!-- end of auto-generated comment: tweet message by coderabbit.ai --> is incomplete."]]
+    (is (nil? (law/incomplete-review-reason body)) body))
+  (doseq [body ["Review <!-- unrelated inert note --> is incomplete."
+                "> <!--\n\nReview <!-- unrelated inert note --> is incomplete.\n-->"]]
+    (is (= :incomplete-review (law/incomplete-review-reason body)) body)))
+
+(deftest adjacent-quote-fence-boundaries-are-portable
+  (doseq [newline ["\n" "\r\n"]]
+    (let [prefix (str "Codex Review: Didn't find any major issues.\n\n> quoted context" newline
+                      "```text" newline)
+          complete (str prefix "Review is incomplete." newline "```")
+          live (str prefix "example text" newline "```" newline newline
+                    "Review <!-- unrelated inert note --> is incomplete.")
+          unterminated (str prefix "Review is incomplete.")]
+      (is (nil? (law/incomplete-review-reason complete)) (pr-str newline))
+      (is (= :incomplete-review (law/incomplete-review-reason live)) (pr-str newline))
+      (is (= :ambiguous-prose (law/incomplete-review-reason unterminated)) (pr-str newline)))))
+
 (let [{:keys [fail error]} (run-tests 'test-babashka)]
   (when (pos? (+ fail error))
     (System/exit 1)))
