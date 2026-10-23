@@ -309,6 +309,7 @@
                                                 :checks (or completion-checks checks) :mandatory (set mandatory)
                                                 :repository repo :publication-profile (get-in (load-flow) [:flow/defaults :review/kimi-publication])
                                                 :identities identities :now-ms (js/Date.now)})
+        availability (law/repository-review-cohort (:flow/defaults (load-flow)) repo mandatory availability)
         participants (:review-participants availability)
         completed (law/completed-review-rounds (filter full-review? reviews) comments identities completion-checks)
         proven-issue-heads (set (keep #(when (and (= "coderabbit" (:reviewer %)) (= :issue (:round-source %)))
@@ -383,6 +384,11 @@
     (println (str "  completed " (:stage progress) " rounds: " (:rounds progress)
                   " / soft minimum " (:min-review-rounds progress)
                   "  participants: " (pr-str (:review-participants progress))))
+    (doseq [[provider observation] (sort-by key (:review-availability progress))
+            :when (:cohort-waived? observation)]
+      (println (str "  " provider " cohort-waived by trusted repository policy: "
+                    (:waiver-source observation) " — " (:waiver-reason observation)
+                    " [no approval, round or check credit]")))
     (doseq [[provider observation] (sort-by key (:review-availability progress))
             :when (not (:available? observation))]
       (println (str "  " provider " quota-unavailable: native source " (:source-id observation)

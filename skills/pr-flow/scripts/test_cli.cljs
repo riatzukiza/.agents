@@ -2537,4 +2537,31 @@
     (is (empty? (mutations reserved)))
     (is (not (str/includes? (:receipts reserved) ":status :qualified")))))
 
+
+(deftest cli-foresight-waiver-retains-deterministic-obligations
+  (let [reviews [(assoc approval :id 1 :user {:login "coderabbitai[bot]" :type "Bot"})
+                 (assoc approval :id 2 :user {:login "chatgpt-codex-connector[bot]" :type "Bot"})]
+        config (assoc base :prior-stage-rounds 0 :reviews reviews
+                      :comments (completed-stage-comments 1 head "code")
+                      :checks [{:name "laws" :state "SUCCESS" :required true}
+                               {:name "CodeRabbit" :state "SUCCESS"}
+                               {:name "Evidence-first review (eta-mu) / Review pull request with OpenCode MiMo"
+                                :workflow "eta-mu evidence review" :state "FAILURE"}])
+        result (execute config "status" "riatzukiza/foresight" "47")]
+    (is (= 0 (:exit result)) (:err result))
+    (is (str/includes? (:out result) "gate: PASS"))
+    (is (str/includes? (:out result) "mimo cohort-waived by trusted repository policy"))
+    (is (str/includes? (:out result) "completed code rounds: 1"))
+    (is (empty? (mutations result)))
+    (doseq [check [{:name "laws" :state "FAILURE" :required true}
+                   {:name "Evidence-first review (eta-mu) / OpenCode evidence review gate"
+                    :workflow "eta-mu evidence review" :state "FAILURE"}]]
+      (let [blocked (execute (update config :checks conj check) "gate" "riatzukiza/foresight" "47" "--apply")]
+        (is (= 2 (:exit blocked)) (:err blocked))
+        (is (str/includes? (:out blocked) "gate: BLOCKED"))
+        (is (empty? (mutations blocked)))))
+    (let [mandatory (execute config "status" "riatzukiza/foresight" "47" "--reviewers" "mimo")]
+      (is (str/includes? (:out mandatory) "gate: BLOCKED"))
+      (is (not (str/includes? (:out mandatory) "mimo cohort-waived"))))))
+
 (run-tests 'test-cli 'test-native-context)

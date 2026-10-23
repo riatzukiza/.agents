@@ -938,3 +938,12 @@
   spore: none
   receipt-refs: c1924ab75af4c7bc7423c4e9e09902f82cf83d05950ea857c7e88f000fb78647
   note: Use native IDs to batch only complete validated REST-page inputs, retain exact requested-node closedset and the same pure strict matcher, then require a second complete equal snapshot. Backward-compatible fixture readers make RED prove real batching/refusal assertions. Keep original positive single-node transport and historical ledger bytes. No spore.
+
+- timestamp: 2026-10-23T01:03:55.825349+00:00
+  task: foresight-mimo-waiver
+  p-efficiency: 0.8
+  p-friction: 0.3
+  p-skill-candidate: 0.2
+  spore: none
+  receipt-refs: foresight-mimo-waiver
+  note: Separate trusted exact-repository cohort policy from deterministic aggregate qualification. Fresh PR47 candidate assessment confirms both native approvals, one real current cohort, and only the historical failed aggregate blocker. Preserve live catalog until reviewed adoption.

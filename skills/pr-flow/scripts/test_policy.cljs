@@ -1589,4 +1589,55 @@
                                  ["30 minutes while 2 hours remain in the billing window" 1800000]]]
       (is (= expected (law/cooldown-ms (str/replace (:body wait) "30 minutes" duration))) duration))))
 
+
+(deftest foresight-repository-waiver-changes-only-cohort
+  (let [defaults (:flow/defaults (edn/read-string (fs/readFileSync (path/join (path/dirname *file*) ".." "flow.edn") "utf8")))
+        repo "riatzukiza/foresight"
+        required (law/required-reviewers-for defaults repo nil)
+        raw {:review-participants #{"coderabbit" "codex" "mimo"}
+             :review-availability {"mimo" {:available? true :status :available}}}
+        cohort (law/repository-review-cohort defaults repo required raw)
+        completed [{:reviewer "coderabbit" :commit_id head :stage "code"}
+                   {:reviewer "codex" :commit_id head :stage "code"}]
+        rounds (law/available-review-rounds completed [] "code" (:review-participants raw)
+                                           (:review-participants cohort) head)
+        input (assoc baseline :rounds rounds :required-reviewers required
+                     :review-participants (:review-participants cohort)
+                     :approved-heads {"coderabbit" #{head} "codex" #{head}})]
+    (is (= #{"coderabbit" "codex"} required))
+    (is (= required (law/required-reviewers-for defaults "RIATZUKIZA/Foresight" nil)))
+    (is (= #{"coderabbit" "codex"} (:review-participants cohort)))
+    (is (true? (get-in cohort [:review-availability "mimo" :available?])))
+    (is (true? (get-in cohort [:review-availability "mimo" :cohort-waived?])))
+    (is (= {} (:review-availability (law/repository-review-cohort defaults repo required
+                                    (assoc raw :review-availability {})))))
+    (is (= 1 rounds))
+    (is (:pass? (law/merge-gate input)))
+    (doseq [repo ["open-hax/foresight" "someone/foresight" "riatzukiza/foresight-extra"]]
+      (is (= raw (law/repository-review-cohort defaults repo #{} raw))))
+    (is (= (:review-participants raw)
+           (:review-participants (law/repository-review-cohort defaults "riatzukiza/foresight"
+                                     (law/required-reviewers-for defaults "riatzukiza/foresight" #{"mimo"}) raw))))
+    (doseq [provider ["coderabbit" "codex"]]
+      (is (not (:pass? (law/merge-gate (update input :approved-heads dissoc provider)))))
+      (is (not (:pass? (law/merge-gate (assoc-in input [:approved-heads provider] #{old-head}))))))
+    (doseq [state ["FAILURE" "PENDING" "SKIPPED" "CANCELLED"]
+            check [{:name "laws" :required? true}
+                   {:name "Evidence-first review (eta-mu) / OpenCode evidence review gate"
+                    :workflow "eta-mu evidence review" :required? true}]]
+      (is (not (:pass? (law/merge-gate (assoc input :checks [(assoc check :state state)]))))))
+    (is (not (:pass? (law/merge-gate (assoc input :review-bodies-unanswered 1)))))
+    (is (not (:pass? (law/merge-gate (assoc input :snapshot-head old-head)))))
+    (is (not (:pass? (law/merge-gate (assoc input :threads [{:severity :p1 :settled? false :resolved? false}])))))
+    (is (not (:pass? (law/merge-gate (assoc input :rounds 0)))))))
+
+(deftest malformed-waiver-fails-closed
+  (doseq [policy [{:required #{} :waived #{"mimo"} :source "native" :reason "waiver"}
+                  {:required #{"codex"} :waived #{"codex"} :source "native" :reason "waiver"}
+                  {:required #{"codex"} :waived #{"unknown"} :source "native" :reason "waiver"}
+                  {:required #{"codex"} :waived #{"mimo"} :source "" :reason "waiver"}]]
+    (is (thrown? js/Error (law/required-reviewers-for
+                          {:review/repository-policy {"riatzukiza/foresight" policy}}
+                          "riatzukiza/foresight" nil)))))
+
 (run-tests)

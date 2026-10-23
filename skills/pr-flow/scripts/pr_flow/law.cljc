@@ -1633,12 +1633,44 @@
         current-complete? (and (valid-head? head) (seq participants) (every? passed participants))]
     (max historical (if current-complete? 1 0))))
 
+(defn repository-review-policy
+  "Exact owner/repository policy from the trusted catalog, never PR content.
+   A waiver changes cohort participation only; it grants no review or CI credit."
+  [defaults repo]
+  (when-let [policy (get-in defaults [:review/repository-policy (str/lower-case repo)])]
+    (let [{:keys [required waived source reason]} policy]
+      (when-not (and (set? required) (seq required) (every? eligible-reviewers required)
+                     (set? waived) (seq waived) (every? eligible-reviewers waived)
+                     (not-any? required waived)
+                     (string? source) (not (str/blank? source))
+                     (string? reason) (not (str/blank? reason)))
+        (throw (ex-info "Invalid trusted repository review policy" {:repository repo})))
+      policy)))
+
+(defn repository-review-cohort
+  "Retain availability observations and historical rounds. Explicit mandatory
+   reviewers override a cohort waiver; identities and findings stay intact."
+  [defaults repo mandatory availability]
+  (let [policy (repository-review-policy defaults repo)
+        waived (remove (set mandatory) (:waived policy))]
+    (-> availability
+        (update :review-participants #(apply disj % waived))
+        (update :review-availability
+                (fn [observations]
+                  (reduce (fn [out provider]
+                            (if (contains? out provider)
+                              (update out provider assoc :cohort-waived? true
+                                      :waiver-source (:source policy) :waiver-reason (:reason policy))
+                              out))
+                          observations waived))))))
+
 (defn required-reviewers-for
   "Repository-specific reviewer requirements cannot be removed by a CLI flag."
   [defaults repo requested]
   (let [repo-name (str/lower-case (last (str/split repo #"/")))]
     (into (into (:review/required defaults) (or requested #{}))
-          (get-in defaults [:review/by-repo-name repo-name] #{}))))
+          (into (get-in defaults [:review/by-repo-name repo-name] #{})
+                (:required (repository-review-policy defaults repo))))))
 
 (defn unsettled-blockers
   "P0/P1 require a fix or a detailed independently corroborated rejection.
