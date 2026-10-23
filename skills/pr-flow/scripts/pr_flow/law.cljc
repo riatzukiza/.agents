@@ -665,7 +665,7 @@
       (str/replace #"(?:\n[ \t]*)+$" "")))
 
 (defn- additional-comment-section
-  ([body] (additional-comment-section body #"^<details>\n<summary>🔇 Additional comments \([1-9][0-9]{0,3}\)</summary><blockquote>"))
+  ([body] (additional-comment-section body #"^<details>\n<summary>🔇 Additional comments(?:: [1-9][0-9]{0,3}| \([1-9][0-9]{0,3}\))</summary><blockquote>"))
   ([body section-header]
   ;; Only the observed complete, top-level native section is a candidate.
   ;; Quotes/fences/generated share examples are not authored LGTM evidence.
@@ -716,16 +716,16 @@
 
 (defn- native-positive-body-items [body]
   (when-let [section (additional-comment-section body)]
-    (when-let [[_ total inner]
-               (re-matches #"<details>\n<summary>🔇 Additional comments \(([1-9][0-9]{0,3})\)</summary><blockquote>([\s\S]*)</blockquote></details>" section)]
-      (let [groups (re-seq #"<details>\n<summary>([^<\n]+) \(([1-9][0-9]{0,3})\)</summary><blockquote>([\s\S]*?)</blockquote></details>" inner)
+    (when-let [[_ total-colon total-paren inner]
+               (re-matches #"<details>\n<summary>🔇 Additional comments(?:: ([1-9][0-9]{0,3})| \(([1-9][0-9]{0,3})\))</summary><blockquote>([\s\S]*)</blockquote></details>" section)]
+      (let [groups (re-seq #"<details>\n<summary>([^<\n]+?)(?:: ([1-9][0-9]{0,3})| \(([1-9][0-9]{0,3})\))</summary><blockquote>([\s\S]*?)</blockquote></details>" inner)
             remainder (reduce #(str/replace-first %1 (first %2) "") inner groups)
             number (fn [n] #?(:clj (Long/parseLong n) :cljs (js/parseInt n 10)))
             frequencies (frequencies (map #(str/lower-case (second %))
                                           (re-seq #"(?i)<!-- cr-comment:v1:([a-z0-9]+) -->" (str body))))]
-        (when (and (str/blank? remainder) (= (number total) (reduce + (map #(number (nth % 2)) groups))))
+        (when (and (str/blank? remainder) (= (number (or total-colon total-paren)) (reduce + (map #(number (or (nth % 2) (nth % 3))) groups))))
           (into {}
-                (for [[_ file item-count content] groups
+                (for [[_ file count-colon count-paren content] groups
                       ;; Authored repository-relative paths; never a generated
                       ;; nested summary, absolute path, or traversal fragment.
                       :when (and (re-matches #"(?:[^\s<>]| )+" file)
@@ -734,7 +734,7 @@
                                  (not (some #{"" ".." "."} (str/split file #"/" -1))))
                       :let [parts (str/split (trim-blank-lines content) #"\n[ \t]*\n---\n[ \t]*\n")
                             items (mapv #(native-positive-item % file) parts)]
-                      :when (and (= (number item-count) (count parts)) (every? some? items))
+                      :when (and (= (number (or count-colon count-paren)) (count parts)) (every? some? items))
                       item items :when (= 1 (get frequencies (:id item)))]
                   [(:id item) (dissoc item :id)])))))))
 
