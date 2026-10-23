@@ -714,29 +714,46 @@
                  (every? (fn [[a b]] (<= a b)) ranges))
         {:id id :format :native-additional-lgtm :file file :ranges ranges :source (trim-blank-lines item)}))))
 
-(defn- native-positive-body-items [body]
+(defn- native-additional-groups [body]
   (when-let [section (additional-comment-section body)]
     (when-let [[_ total-colon total-paren inner]
                (re-matches #"<details>\n<summary>🔇 Additional comments(?:: ([1-9][0-9]{0,3})| \(([1-9][0-9]{0,3})\))</summary><blockquote>([\s\S]*)</blockquote></details>" section)]
       (let [groups (re-seq #"<details>\n<summary>([^<\n]+?)(?:: ([1-9][0-9]{0,3})| \(([1-9][0-9]{0,3})\))</summary><blockquote>([\s\S]*?)</blockquote></details>" inner)
             remainder (reduce #(str/replace-first %1 (first %2) "") inner groups)
-            number (fn [n] #?(:clj (Long/parseLong n) :cljs (js/parseInt n 10)))
-            frequencies (frequencies (map #(str/lower-case (second %))
-                                          (re-seq #"(?i)<!-- cr-comment:v1:([a-z0-9]+) -->" (str body))))]
-        (when (and (str/blank? remainder) (= (number (or total-colon total-paren)) (reduce + (map #(number (or (nth % 2) (nth % 3))) groups))))
-          (into {}
-                (for [[_ file count-colon count-paren content] groups
-                      ;; Authored repository-relative paths; never a generated
-                      ;; nested summary, absolute path, or traversal fragment.
-                      :when (and (re-matches #"(?:[^\s<>]| )+" file)
-                                 (not (re-find #"[\u0000:\\]" file))
-                                 (not (str/starts-with? file "/"))
-                                 (not (some #{"" ".." "."} (str/split file #"/" -1))))
-                      :let [parts (str/split (trim-blank-lines content) #"\n[ \t]*\n---\n[ \t]*\n")
-                            items (mapv #(native-positive-item % file) parts)]
-                      :when (and (= (number (or count-colon count-paren)) (count parts)) (every? some? items))
-                      item items :when (= 1 (get frequencies (:id item)))]
-                  [(:id item) (dissoc item :id)])))))))
+            number (fn [n] #?(:clj (Long/parseLong n) :cljs (js/parseInt n 10)))]
+        (when (and (str/blank? remainder)
+                   (= (number (or total-colon total-paren))
+                      (reduce + (map #(number (or (nth % 2) (nth % 3))) groups))))
+          groups)))))
+
+(defn- unmarked-additional-finding? [body]
+  ;; Declared native items without stable IDs cannot disappear when the
+  ;; identified siblings settle. Duplicate IDs cannot fill a missing slot.
+  (boolean
+   (some (fn [[_ _ count-colon count-paren content]]
+           (> #?(:clj (Long/parseLong (or count-colon count-paren))
+                 :cljs (js/parseInt (or count-colon count-paren) 10))
+              (count (set (map second (re-seq #"<!-- cr-comment:v1:([a-z0-9]+) -->" content))))))
+         (native-additional-groups body))))
+
+(defn- native-positive-body-items [body]
+  (when-let [groups (native-additional-groups body)]
+    (let [number (fn [n] #?(:clj (Long/parseLong n) :cljs (js/parseInt n 10)))
+          frequencies (frequencies (map #(str/lower-case (second %))
+                                        (re-seq #"(?i)<!-- cr-comment:v1:([a-z0-9]+) -->" (str body))))]
+      (into {}
+            (for [[_ file count-colon count-paren content] groups
+                  ;; Authored repository-relative paths; never a generated
+                  ;; nested summary, absolute path, or traversal fragment.
+                  :when (and (re-matches #"(?:[^\s<>]| )+" file)
+                             (not (re-find #"[\u0000:\\]" file))
+                             (not (str/starts-with? file "/"))
+                             (not (some #{"" ".." "."} (str/split file #"/" -1))))
+                  :let [parts (str/split (trim-blank-lines content) #"\n[ \t]*\n---\n[ \t]*\n")
+                        items (mapv #(native-positive-item % file) parts)]
+                  :when (and (= (number (or count-colon count-paren)) (count parts)) (every? some? items))
+                  item items :when (= 1 (get frequencies (:id item)))]
+              [(:id item) (dissoc item :id)])))))
 
 (defn review-body-findings
   "Extract each outside-diff or nitpick finding and its stable CodeRabbit ID."
@@ -763,17 +780,19 @@
        (re-find #"(?im)^Confirmed findings:\s*\n\s*[1-9][0-9]*\." (str body)))))
 
 (defn review-findings
-  "Stable CR item IDs remain individual findings. Body-only change requests
-   and legacy positive-count sections use one conservative P1 whole-body ID,
-   which has an explicit Fixed settlement path rather than a phantom item."
+  "Stable CR item IDs remain individual findings. Unmarked native Additional
+   items retain a conservative P1 whole-body obligation alongside those IDs.
+   Body-only change requests and legacy sections use the same settlement path."
   [review]
   (let [items (review-body-findings (:body review))
-        body (:body review)]
-    (if (seq items) items
-        (if (or (= "CHANGES_REQUESTED" (:state review))
-                (body-finding? body))
-          [{:id (str (:id review)) :kind :review-body :severity :p1 :title "Whole review body requires a verified fix"}]
-          []))))
+        body (:body review)
+        whole-body? (or (unmarked-additional-finding? body)
+                        (and (empty? items)
+                             (or (= "CHANGES_REQUESTED" (:state review))
+                                 (body-finding? body))))]
+    (cond-> items
+      whole-body? (conj {:id (str (:id review)) :kind :review-body :severity :p1
+                         :title "Whole review body requires a verified fix"}))))
 
 (defn review-update-matches?
   "Shared REST/GQL review-body edit binding. Numeric author identity and live
@@ -977,6 +996,7 @@
                                   (pos? (compare [(:submitted_at %) (:id %)] [(:submitted_at r) (:id r)]))) reviews))]
     (filter #(or (seq (review-body-findings (:body %)))
                  (body-finding? (:body %))
+                 (unmarked-additional-finding? (:body %))
                  (and (= "CHANGES_REQUESTED" (:state %)) (not (superseded? %)))) reviews)))
 
 (defn- inline-rejection-details [text]

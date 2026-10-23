@@ -701,8 +701,8 @@
 
 (deftest native-positive-items-have-bounded-provenance-and-handled-admission
   (let [items (law/review-findings native-positive-review)
-        expected (remove #(= "3f516a61822bc7e8f7be997e" (:id %)) items)]
-    (is (= 34 (count items)))
+        expected (filter :positive-body-item items)]
+    (is (= 35 (count items)))
     (is (= 33 (count expected)))
     (is (= 33 (law/unanswered-review-count [native-positive-review]
                                            [native-positive-writer] {}))
@@ -733,7 +733,7 @@
       (is (not (:pass? gate)))
       (is (= ["No trusted exact-head APPROVED review meets the quorum"] (:reasons gate)))
       (is (:pass? (law/merge-gate approved-context)))
-      (is (= ["34 unanswered review summary item(s)"
+      (is (= ["35 unanswered review summary item(s)"
               "Review loop requires 5 completed rounds or unanimous current-head approval, with every finding settled"]
              (:reasons (law/merge-gate
                         (assoc approved-context :review-bodies-unanswered
@@ -885,17 +885,63 @@
                            (str/join "\n" (for [item positives]
                              (str "- Handled cr-comment:v1:" (:id item)
                                   " at " positive-head ": Preserved existing behavior.")))))]
-    (is (= 7 (count items)))
+    (is (= 8 (count items)))
     (is (= #{"0341dd3570a92106d785b645" "2aa5b19bdde6dc998e14c30a"
              "bfd57c46d5e07339a7e19ff3" "fa124598ff5617abdea1554f"
              "cae02b6ec8234ed28cc892fa" "a40f272605080d1974c3b553"}
            (set (map :id positives))))
     (is (every? #(= :p1 (:severity %)) items))
     (is (nil? (:positive-body-item (first items))))
-    (is (= 1 (positive-unanswered review writer)))
-    (is (= 7 (positive-unanswered review writer {})))
+    (is (= 2 (positive-unanswered review writer)))
+    (is (= 8 (positive-unanswered review writer {})))
+    (let [marked-fixed (update writer :body str
+                               "\n- Fixed cr-comment:v1:738833ecc80349af3f4ffbaa: Verified marked security fix.")
+          body-id (str "review-body:" (:id review))
+          whole (first (filter #(= :review-body (:kind %)) items))]
+      (is (= (str (:id review)) (:id whole)))
+      (is (= :p1 (:severity whole)))
+      (is (nil? (:positive-body-item whole)))
+      (is (= 1 (positive-unanswered review marked-fixed))
+          "settling all seven marked items must retain the unmarked concern")
+      (is (= 1 (positive-unanswered review (update marked-fixed :body str
+                         "\n- Handled " body-id ": No change."))))
+      (is (= 0 (positive-unanswered review (update marked-fixed :body str
+                         "\n- Fixed " body-id ": Added and verified instruction projection checks."))))
+      (is (pos? (positive-unanswered review
+                       (assoc (update marked-fixed :body str
+                                 "\n- Fixed " body-id ": Verified checks.") :authorized? false)))))
     (is (empty? (:approved-heads
                   (law/review-evidence positive-head [review] [] law/default-reviewer-identities))))))
+
+(deftest unmarked-native-additional-items-retain-whole-body-obligation
+  (doseq [style [:colon :paren]]
+    (let [body (-> (positive-body positive-item)
+                   (str/replace positive-item "`3-5`: Verify destination authorization."))
+          body (if (= style :colon)
+                 (-> body (str/replace "Additional comments (1)" "Additional comments: 1")
+                     (str/replace "src/example.cljc (1)" "src/example.cljc: 1")) body)
+          review (assoc positive-review :body body)
+          finding (first (law/review-findings review))
+          fixed (assoc positive-writer :body
+                       (str "review-id:" (:id review) "\n\n- Fixed review-body:" (:id review)
+                            ": Verified destination authorization tests."))]
+      (is (= 1 (count (law/review-findings review))))
+      (is (= :review-body (:kind finding)))
+      (is (= :p1 (:severity finding)))
+      (is (= [review] (vec (law/outstanding-review-bodies positive-head [review]))))
+      (is (= 1 (positive-unanswered review positive-writer)))
+      (is (= 0 (positive-unanswered review fixed)))
+      (doseq [excluded [(str "```html\n" body "\n```")
+                        (str/join "\n" (map #(str "> " %) (str/split-lines body)))]]
+        (is (empty? (law/review-findings (assoc review :body excluded)))))))
+  (let [body (-> (positive-body positive-item)
+                 (str/replace "Additional comments (1)" "Additional comments (2)")
+                 (str/replace "src/example.cljc (1)" "src/example.cljc (2)")
+                 (str/replace positive-item (str positive-item "\n\n---\n\n" positive-item)))
+        review (assoc positive-review :body body)]
+    (is (= 1 (count (filter #(= :review-body (:kind %)) (law/review-findings review))))
+        "duplicate IDs cannot account for two declared items")
+    (is (not-any? :positive-body-item (law/review-findings review)))))
 
 (deftest positive-format-is-complete-and-item-scoped
   (let [item (first (law/review-findings positive-review))]
@@ -1317,7 +1363,7 @@
     (is (nil? (:positive-body-item finding)))
     (is (= 1 (positive-unanswered review positive-writer))))
   (let [review (update native-positive-review :body #(str "``\n" % "\n``"))]
-    (is (= (set (map :id (law/review-findings native-positive-review)))
+    (is (= (set (map :id (remove :kind (law/review-findings native-positive-review))))
            (set (map :id (law/review-findings review)))))
     (is (zero? (count (filter :positive-body-item (law/review-findings review)))))
     (is (= 33 (law/unanswered-review-count [review] [native-positive-writer] {:head positive-head})))))
