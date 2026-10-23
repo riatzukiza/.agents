@@ -27,6 +27,14 @@
                  :review/approval-quorum 1
                  :review/required #{}
                  :review/by-repo-name {}
+                 ;; Err's Oct 21 Foresight waiver, reaffirmed Oct 22. Only the
+                 ;; cohort changes; both native exact-head approvals are required.
+                 :review/repository-policy
+                 {"riatzukiza/foresight"
+                  {:required #{"coderabbit" "codex"}
+                   :waived #{"mimo"}
+                   :source "https://github.com/riatzukiza/foresight/pull/47#issuecomment-6328083797"
+                   :reason "MiMo unestablished-review-trace; require CodeRabbit and Codex until this policy is explicitly revoked."}}
                  ;; Source preparation: one observed route, not global Kimi identity.
                  ;; Adoption requires canonical source review; never install from local fixtures.
                  :review/kimi-publication
