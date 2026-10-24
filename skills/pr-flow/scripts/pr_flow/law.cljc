@@ -3,7 +3,8 @@
    and the merge gate. No I/O; the CLI in ../pr.cljs feeds it GitHub data
    already decoded into Clojure maps."
   (:require [clojure.string :as str] [pr-flow.actionability :as actionability] [pr-flow.positive-thread :as positive-thread]
-            [pr-flow.kimi-publication :as publication]))
+            [pr-flow.kimi-publication :as publication]
+            [pr-flow.repair-ack :as repair-ack]))
 
 (def default-min-review-rounds 5)
 
@@ -554,15 +555,22 @@
                                                 evidence-comments index (rejection-details (:body reply)) nil
                                                 [(:id thread) (str (:root-comment-id thread))]))))))
         withdrawal (when (and (= :handled settlement) (not contested?))
-                     (opener-withdrawal thread (inc settle-idx)))]
+                     (opener-withdrawal thread (inc settle-idx)))
+        acknowledgement (repair-ack/proof thread
+                          (fn [a] (trusted-reviewer
+                                    {:user {:type (:__typename a)
+                                            :login (if (str/ends-with? (str (:login a)) "[bot]")
+                                                     (:login a) (str (:login a) "[bot]"))}}
+                                    (or identities default-reviewer-identities))))]
     (assoc thread
            :actionability (actionability/disposition thread)
            :preservation (positive-thread/proof thread)
            :reviewer (:author opener)
            :severity (severity (:body opener))
-           :resolution settlement
-           :settled? (and (some? settlement) (not contested?) (or (not= :rejected settlement) (some? rejection)))
-           :contested? contested?
+           :repair-acknowledgement acknowledgement
+           :resolution (if acknowledgement :fixed settlement)
+           :settled? (boolean (or acknowledgement (and (some? settlement) (not contested?) (or (not= :rejected settlement) (some? rejection)))))
+           :contested? (if acknowledgement false contested?)
            :opener-withdrawal withdrawal
            :rejection-approved? (boolean rejection)
            :rejection-reviewer (:reviewer rejection)

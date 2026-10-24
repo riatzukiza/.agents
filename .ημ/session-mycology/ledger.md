@@ -938,3 +938,23 @@
   spore: none
   receipt-refs: c1924ab75af4c7bc7423c4e9e09902f82cf83d05950ea857c7e88f000fb78647
   note: Use native IDs to batch only complete validated REST-page inputs, retain exact requested-node closedset and the same pure strict matcher, then require a second complete equal snapshot. Backward-compatible fixture readers make RED prove real batching/refusal assertions. Keep original positive single-node transport and historical ledger bytes. No spore.
+
+- ts: 2026-10-24T05:04:52.221446+00:00
+  session: pr-flow-orphaned-threads
+  task: Bounded author repair acknowledgement
+  p-efficiency: 0.7
+  p-friction: 0.5
+  p-skill-candidate: 0.4
+  spore: none
+  receipt-refs: 98b2bea645605a16aebdf7f6ece307af3a50e45e12f17cc178a67d51c1870bb4
+  note: Native wrapper and immutable enclosing-review fixtures prevented impractical digest and protocol assumptions; keep source review and operational Bot verification separate.
+
+- ts: 2026-10-24T05:04:57.748073+00:00
+  session: codex/pr-flow-orphaned-threads
+  task: Correct author repair acknowledgements without another human account
+  p-efficiency: 0.6
+  p-friction: 0.8
+  p-skill-candidate: 0.5
+  spore: none
+  receipt-refs: pr-flow-orphaned-threads test-run
+  note: Missing original review roots must preserve surviving native provenance; independently verify repair statements rather than invent a second-human requirement.
