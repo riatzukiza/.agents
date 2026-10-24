@@ -701,8 +701,8 @@
 
 (deftest native-positive-items-have-bounded-provenance-and-handled-admission
   (let [items (law/review-findings native-positive-review)
-        expected (remove #(= "3f516a61822bc7e8f7be997e" (:id %)) items)]
-    (is (= 34 (count items)))
+        expected (filter :positive-body-item items)]
+    (is (= 35 (count items)))
     (is (= 33 (count expected)))
     (is (= 33 (law/unanswered-review-count [native-positive-review]
                                            [native-positive-writer] {}))
@@ -733,12 +733,215 @@
       (is (not (:pass? gate)))
       (is (= ["No trusted exact-head APPROVED review meets the quorum"] (:reasons gate)))
       (is (:pass? (law/merge-gate approved-context)))
-      (is (= ["34 unanswered review summary item(s)"
+      (is (= ["35 unanswered review summary item(s)"
               "Review loop requires 5 completed rounds or unanimous current-head approval, with every finding settled"]
              (:reasons (law/merge-gate
                         (assoc approved-context :review-bodies-unanswered
                                (law/unanswered-review-count [native-positive-review] []
                                                             {:head positive-head})))))))))
+
+;; Native PR144 review 5623461619 uses colon counts at both levels.
+;; These format controls are synthetic; they supply no native approval evidence.
+(deftest positive-native-colon-counts-preserve-bounded-admission
+  (let [colon (-> (positive-body positive-item)
+                  (str/replace "Additional comments (1)" "Additional comments: 1")
+                  (str/replace "src/example.cljc (1)" "src/example.cljc: 1"))
+        nonpositive (str "<details>\n<summary>src/concern.cljc: 1</summary><blockquote>\n\n"
+                         "`8-9`: Verify authorization.\n\n"
+                         "<!-- cr-comment:v1:abcdef1234567890abcdef12 -->\n\n"
+                         "</blockquote></details>\n")
+        mixed (-> colon
+                  (str/replace "Additional comments: 1" "Additional comments: 2")
+                  (str/replace "<summary>🔇 Additional comments: 2</summary><blockquote>"
+                               (str "<summary>🔇 Additional comments: 2</summary><blockquote>\n" nonpositive)))]
+    (doseq [body [colon
+                  (str/replace colon "Additional comments: 1" "Additional comments (1)")
+                  (str/replace colon "src/example.cljc: 1" "src/example.cljc (1)")]]
+      (let [review (assoc positive-review :body body)
+            item (first (law/review-findings review))]
+        (is (= :native-additional-lgtm (get-in item [:positive-body-item :format])))
+        (is (= "src/example.cljc" (get-in item [:positive-body-item :file])))
+        (is (= :p1 (:severity item)))
+        (is (= 0 (positive-unanswered review positive-writer)))))
+    (let [review (assoc positive-review :body mixed)
+          items (law/review-findings review)]
+      (is (= 2 (count items)))
+      (is (= 1 (count (filter :positive-body-item items))))
+      (is (nil? (:positive-body-item (first items))))
+      (is (= 1 (positive-unanswered review positive-writer))))
+    (doseq [[label body]
+            [["section mismatch" (str/replace colon "Additional comments: 1" "Additional comments: 2")]
+             ["file mismatch" (str/replace colon "example.cljc: 1" "example.cljc: 2")]
+             ["zero count" (str/replace colon "Additional comments: 1" "Additional comments: 0")]
+             ["leading zero" (str/replace colon "example.cljc: 1" "example.cljc: 01")]
+             ["unbounded count" (str/replace colon "Additional comments: 1" "Additional comments: 10000")]
+             ["broken colon" (str/replace colon "Additional comments: 1" "Additional comments : 1")]
+             ["negative count" (str/replace colon "example.cljc: 1" "example.cljc: -1")]
+             ["mixed-group section mismatch" (str/replace mixed "Additional comments: 2" "Additional comments: 3")]
+             ["quoted" (str/join "\n" (map #(str "> " %) (str/split-lines colon)))]
+             ["fenced" (str "```html\n" colon "\n```")]
+             ["indented" (str/join "\n" (map #(str "    " %) (str/split-lines colon)))]
+             ["duplicate ID" (str colon "\n<!-- cr-comment:v1:" positive-id " -->")]
+             ["mixed negative item" (str/replace colon "LGTM!" "LGTM! But fix this.")]]]
+      (let [review (assoc positive-review :body body)]
+        (is (every? #(nil? (:positive-body-item %)) (law/review-findings review)) label)
+        (is (pos? (positive-unanswered review positive-writer)) label)))))
+
+;; Exact Additional section read from open-hax/foresight PR144 review
+;; 5623461619. Synthetic review/writer metadata below isolates format admission.
+;; The eighth file has nested nonpositive prose and no stable item marker.
+(deftest native-pr144-colon-section-keeps-six-positive-items-scoped
+  (let [body (str
+                  "<details>\n"
+                  "<summary>🔇 Additional comments: 8</summary><blockquote>\n"
+                  "\n"
+                  "<details>\n"
+                  "<summary>docs/notes/design/harness-actor-continuity.md: 1</summary><blockquote>\n"
+                  "\n"
+                  "`32-35`: **🔒 Security & Privacy**\n"
+                  "\n"
+                  "The cited design authenticates the producer but does not establish whether the payload-reference resolver enforces destination read authorization. The Knoxx/Clio resolver contract is unavailable, so this concern cannot be decided from the supplied evidence.\n"
+                  "\n"
+                  "<!-- cr-comment:v1:738833ecc80349af3f4ffbaa -->\n"
+                  "\n"
+                  "</blockquote></details>\n"
+                  "<details>\n"
+                  "<summary>docs/agile/kanban/epic-harness-actor-continuity.md: 1</summary><blockquote>\n"
+                  "\n"
+                  "`1-63`: LGTM!\n"
+                  "\n"
+                  "<!-- cr-comment:v1:0341dd3570a92106d785b645 -->\n"
+                  "\n"
+                  "</blockquote></details>\n"
+                  "<details>\n"
+                  "<summary>docs/agile/kanban/hac-01-codex-tools.md: 1</summary><blockquote>\n"
+                  "\n"
+                  "`1-56`: LGTM!\n"
+                  "\n"
+                  "<!-- cr-comment:v1:2aa5b19bdde6dc998e14c30a -->\n"
+                  "\n"
+                  "</blockquote></details>\n"
+                  "<details>\n"
+                  "<summary>docs/agile/kanban/hac-02-actor-bindings.md: 1</summary><blockquote>\n"
+                  "\n"
+                  "`1-66`: LGTM!\n"
+                  "\n"
+                  "<!-- cr-comment:v1:bfd57c46d5e07339a7e19ff3 -->\n"
+                  "\n"
+                  "</blockquote></details>\n"
+                  "<details>\n"
+                  "<summary>docs/agile/kanban/hac-03-codex-lifecycle.md: 1</summary><blockquote>\n"
+                  "\n"
+                  "`1-65`: LGTM!\n"
+                  "\n"
+                  "<!-- cr-comment:v1:fa124598ff5617abdea1554f -->\n"
+                  "\n"
+                  "</blockquote></details>\n"
+                  "<details>\n"
+                  "<summary>docs/agile/kanban/hac-04-hermes-orbit.md: 1</summary><blockquote>\n"
+                  "\n"
+                  "`1-55`: LGTM!\n"
+                  "\n"
+                  "<!-- cr-comment:v1:cae02b6ec8234ed28cc892fa -->\n"
+                  "\n"
+                  "</blockquote></details>\n"
+                  "<details>\n"
+                  "<summary>docs/agile/kanban/hac-07-memory-promotion.md: 1</summary><blockquote>\n"
+                  "\n"
+                  "`1-53`: LGTM!\n"
+                  "\n"
+                  "<!-- cr-comment:v1:a40f272605080d1974c3b553 -->\n"
+                  "\n"
+                  "</blockquote></details>\n"
+                  "<details>\n"
+                  "<summary>docs/agile/kanban/hac-06-layered-tool-projection.md-40-40: 1</summary><blockquote>\n"
+                  "\n"
+                  "`40-40`: **🗄️ Data Integrity & Integration** | **🟡 Minor** | **⚡ Quick win**\n"
+                  "\n"
+                  "⚠️ **Unverified finding**\n"
+                  "Verification ran but could not confirm this finding. It is shown for review, not as a verified issue.\n"
+                  "\n"
+                  "**Verify instruction projection after contract changes.**\n"
+                  "\n"
+                  "Line 40 checks tool exposure, but it does not check that emitted instructions follow the effective contract or that stale instruction evidence is rejected. The card can therefore pass with correct tools and stale instructions. Add assertions for instruction content or manifests after profile exclusions and ancestor changes.\n"
+                  "\n"
+                  "<details>\n"
+                  "<summary>Suggested criterion</summary>\n"
+                  "\n"
+                  "```diff\n"
+                  "- - [ ] GIVEN a profile exclusion or ancestor change WHEN rebuilt THEN tool exposure follows the effective contract and stale projection evidence is invalidated.\n"
+                  "+ - [ ] GIVEN a profile exclusion or ancestor change WHEN rebuilt THEN tool exposure and emitted instructions follow the effective contract, and stale tool or instruction evidence is rejected.\n"
+                  "```\n"
+                  "</details>\n"
+                  "\n"
+                  "</blockquote></details>\n"
+                  "\n"
+                  "</blockquote></details>")
+        review (assoc positive-review :body body)
+        items (law/review-findings review)
+        positives (filter :positive-body-item items)
+        writer (assoc positive-writer :body
+                      (str "review-id:" (:id review) "\n\n"
+                           (str/join "\n" (for [item positives]
+                             (str "- Handled cr-comment:v1:" (:id item)
+                                  " at " positive-head ": Preserved existing behavior.")))))]
+    (is (= 8 (count items)))
+    (is (= #{"0341dd3570a92106d785b645" "2aa5b19bdde6dc998e14c30a"
+             "bfd57c46d5e07339a7e19ff3" "fa124598ff5617abdea1554f"
+             "cae02b6ec8234ed28cc892fa" "a40f272605080d1974c3b553"}
+           (set (map :id positives))))
+    (is (every? #(= :p1 (:severity %)) items))
+    (is (nil? (:positive-body-item (first items))))
+    (is (= 2 (positive-unanswered review writer)))
+    (is (= 8 (positive-unanswered review writer {})))
+    (let [marked-fixed (update writer :body str
+                               "\n- Fixed cr-comment:v1:738833ecc80349af3f4ffbaa: Verified marked security fix.")
+          body-id (str "review-body:" (:id review))
+          whole (first (filter #(= :review-body (:kind %)) items))]
+      (is (= (str (:id review)) (:id whole)))
+      (is (= :p1 (:severity whole)))
+      (is (nil? (:positive-body-item whole)))
+      (is (= 1 (positive-unanswered review marked-fixed))
+          "settling all seven marked items must retain the unmarked concern")
+      (is (= 1 (positive-unanswered review (update marked-fixed :body str
+                         "\n- Handled " body-id ": No change."))))
+      (is (= 0 (positive-unanswered review (update marked-fixed :body str
+                         "\n- Fixed " body-id ": Added and verified instruction projection checks."))))
+      (is (pos? (positive-unanswered review
+                       (assoc (update marked-fixed :body str
+                                 "\n- Fixed " body-id ": Verified checks.") :authorized? false)))))
+    (is (empty? (:approved-heads
+                  (law/review-evidence positive-head [review] [] law/default-reviewer-identities))))))
+
+(deftest unmarked-native-additional-items-retain-whole-body-obligation
+  (doseq [style [:colon :paren]]
+    (let [body (-> (positive-body positive-item)
+                   (str/replace positive-item "`3-5`: Verify destination authorization."))
+          body (if (= style :colon)
+                 (-> body (str/replace "Additional comments (1)" "Additional comments: 1")
+                     (str/replace "src/example.cljc (1)" "src/example.cljc: 1")) body)
+          review (assoc positive-review :body body)
+          finding (first (law/review-findings review))
+          fixed (assoc positive-writer :body
+                       (str "review-id:" (:id review) "\n\n- Fixed review-body:" (:id review)
+                            ": Verified destination authorization tests."))]
+      (is (= 1 (count (law/review-findings review))))
+      (is (= :review-body (:kind finding)))
+      (is (= :p1 (:severity finding)))
+      (is (= [review] (vec (law/outstanding-review-bodies positive-head [review]))))
+      (is (= 1 (positive-unanswered review positive-writer)))
+      (is (= 0 (positive-unanswered review fixed)))
+      (doseq [excluded [(str "```html\n" body "\n```")
+                        (str/join "\n" (map #(str "> " %) (str/split-lines body)))]]
+        (is (empty? (law/review-findings (assoc review :body excluded)))))))
+  (let [body (-> (positive-body positive-item)
+                 (str/replace "Additional comments (1)" "Additional comments (2)")
+                 (str/replace "src/example.cljc (1)" "src/example.cljc (2)")
+                 (str/replace positive-item (str positive-item "\n\n---\n\n" positive-item)))
+        review (assoc positive-review :body body)]
+    (is (= 1 (count (filter #(= :review-body (:kind %)) (law/review-findings review))))
+        "duplicate IDs cannot account for two declared items")
+    (is (not-any? :positive-body-item (law/review-findings review)))))
 
 (deftest positive-format-is-complete-and-item-scoped
   (let [item (first (law/review-findings positive-review))]
@@ -1160,7 +1363,7 @@
     (is (nil? (:positive-body-item finding)))
     (is (= 1 (positive-unanswered review positive-writer))))
   (let [review (update native-positive-review :body #(str "``\n" % "\n``"))]
-    (is (= (set (map :id (law/review-findings native-positive-review)))
+    (is (= (set (map :id (remove :kind (law/review-findings native-positive-review))))
            (set (map :id (law/review-findings review)))))
     (is (zero? (count (filter :positive-body-item (law/review-findings review)))))
     (is (= 33 (law/unanswered-review-count [review] [native-positive-writer] {:head positive-head})))))
