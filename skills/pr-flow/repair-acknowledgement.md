@@ -30,7 +30,10 @@ The separate `:repair-acknowledgement` proof requires all of the following:
   edit. The enclosing assessment review cannot have a later edit. The native
   and normalized thread must actually be resolved; no second human is required.
 - Independent reasoning of at least 40 characters and an immutable same-repo
-  current-head source URL. These are the Bot's own verification, never text an
+  current-head source URL with a nonempty repository-relative file path. Empty,
+traversal, query and fragment-only paths refuse. Reasons containing explicit
+defect, corrective or uncertain language also refuse even with a positive
+Verified line. These are the Bot's own verification, never text an
   operator publishes under a Bot label. Generic acknowledgements do not qualify.
 
 ```text

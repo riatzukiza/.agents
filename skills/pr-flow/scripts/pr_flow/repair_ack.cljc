@@ -33,6 +33,21 @@
             live))
         body))))
 
+(defn- affirmative-reason? [reason]
+  (and (str/starts-with? (or reason "") "Reason: ") (plain? reason)
+       (<= 48 (count reason))
+       ;; Contradictory/uncertain live judgments cannot be overwritten by the
+       ;; protocol's positive declaration. Unknown defect language stays out.
+       (not (re-find #"(?i)\b(?:bugs?|defects?|vulnerabilit(?:y|ies)|unsafe|uncertain|unsure|possibly|perhaps|might|may|should|must|please|outstanding|remaining|needs?|requires?|fix)\b" reason))))
+
+(defn- source-evidence? [evidence prefix]
+  (and (string? evidence) (str/starts-with? evidence prefix) (plain? evidence)
+       (let [path (subs evidence (count prefix))]
+         (and (not (str/blank? path))
+              (not (re-find #"[\s\\?#%:]" path))
+              (every? #(and (not (str/blank? %)) (not (#{"." ".."} %)))
+                      (str/split path #"/" -1))))))
+
 (defn proof
   "Return source provenance only for a resolved author repair independently
    verified by a configured native Bot. reviewer maps a native actor to the
@@ -95,9 +110,8 @@
                (= 5 (count lines)) (= header (str "Repair acknowledgement v1 for " head ":"))
                (= finding (str "Finding: " (:id t) " comment" (:root-comment-id t)))
                (= verified "Verified: complete-native-context/author-repair/no-unaddressed-finding")
-               (str/starts-with? (or reason "") "Reason: ") (plain? reason) (<= 48 (count reason))
-               (str/starts-with? (or evidence "") (str "Evidence: https://github.com/" (:nameWithOwner repository) "/blob/" head "/"))
-               (plain? evidence) (not (re-find #"\s" (subs evidence 10))))
+               (affirmative-reason? reason)
+               (source-evidence? evidence (str "Evidence: https://github.com/" (:nameWithOwner repository) "/blob/" head "/")))
       {:source-id (:databaseId assessment) :review-id (:databaseId r) :url (:url assessment)
        :head head :thread-id (:id t) :root-comment-id (:root-comment-id t)
        :reviewer (reviewer b)})))

@@ -186,3 +186,16 @@
                    (str/replace (:body fresh) "\n\n---\n\n<!-- This is an auto-generated comment: tweet message by coderabbit.ai -->"
                                 "\nThis still reproduces.\n\n---\n\n<!-- This is an auto-generated comment: tweet message by coderabbit.ai -->")]]
         (is (not (:repair-acknowledgement (classify (assoc-in readback [:comments :nodes 2 :body] body) []))))))))
+
+(deftest contradictory-reason-and-empty-or-invalid-source-path-refuse
+  (doseq [reason ["I found a security vulnerability in this repair; please fix it"
+                  "An outstanding defect remains in the implementation and requires correction"
+                  "The implementation might preserve the intended behavior but remains uncertain"]]
+    (let [bad (update fresh :body str/replace
+                      #"Reason: [^\n]+"
+                      (str "Reason: " reason))]
+      (is (not (admitted? (replace-nodes (conj prefix bad)))))))
+  (doseq [path ["" "/" "../src.clj" "dir/../src.clj" "src.clj?raw=1" "src.clj#L1" "dir//src.clj"]]
+    (let [bad (update fresh :body str/replace (str "/blob/" head "/src.clj")
+                      (str "/blob/" head "/" path))]
+      (is (not (admitted? (replace-nodes (conj prefix bad))))))))
