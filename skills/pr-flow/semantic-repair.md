@@ -54,3 +54,7 @@ Captured-native fixtures and adversarial tests are source preparation. A live
 captured-input evaluation on 2026-10-25 prepared the complete PR144 context but
 returned native provider429 with retry_after_ms33967000 before inference. No
 judgment, settlement, native-runtime qualification or paid fallback resulted.
+
+## Relationship to the accepted body-intent plan
+
+[Native review intent](native-review-intent-plan.md) specifies the separate NRI body-intent purpose and protected App publisher. This candidate does not implement that purpose, clear body items or enroll a new native assessor. Its narrower resolved-thread scope retains an already-published independent native Bot verification, with the model interpreting the full author-repair conversation and source. Body-intent publication and its nonce/generation/adoption requirements remain separate unfinished work. A generic informational label cannot enter this thread proof.
