@@ -81,17 +81,40 @@
            :binding (update input :source dissoc :body) :units parts}
           {:refusal :input-size})))))
 
+(def native-version "raw-review/v2")
+(def native-custody-keys
+  [:nonce :corpus-sha256 :history-sha256 :permissions-sha256 :policy-sha256])
+
+(defn prepare-native
+  "Bind one parent-generated challenge to complete native custody. This pure
+   shape check cannot establish freshness or consume a challenge; the owned
+   parent must collect, generate, recheck and consume it. V1 stays unchanged."
+  [input custody sha256]
+  (let [base (prepare input sha256)]
+    (cond
+      (:refusal base) base
+      (not (and (exact-keys? custody native-custody-keys)
+                (every? #(sha? (get custody %) 64) native-custody-keys)))
+      {:refusal :invalid-native-custody}
+      :else
+      (let [request-id (sha256 (pr-str [native-version (:request-id base) custody
+                                        (sha256 prompt) (sha256 (pr-str response-schema))]))
+            parts (second (reduce (fn [[offset acc] unit]
+                                    [(+ offset (count (:text unit)))
+                                     (conj acc (assoc unit :body-start offset))])
+                                  [0 []] (:units base)))]
+        (if (sha? request-id 64)
+          (assoc base :version native-version :source-request-id (:request-id base)
+                      :request-id request-id :custody custody :units parts)
+          {:refusal :invalid-native-custody})))))
+
 (defn- quote-start [text quote]
   (when (and (text? quote) (<= (count quote) 2048))
     (let [start (str/index-of text quote)]
       (when (and (some? start) (nil? (str/index-of text quote (inc start)))) start))))
 
-(defn validate-result
-  "Validate complete output against freshly recomputed input; no model-supplied
-   hash, verdict, actor, permission or approval is trusted. Invalid => uncertain."
-  [input output sha256]
-  (let [request (prepare input sha256)
-        rows (:units output)
+(defn- validate-prepared-result [request output sha256]
+  (let [rows (:units output)
         expected (:units request)
         valid-item? (fn [unit item]
                       (and (exact-keys? item [:classification :reason :quote])
@@ -111,13 +134,32 @@
        :request request
        :items (vec (mapcat (fn [unit row]
                             (map (fn [item]
-                                   (assoc item :unit-id (:id unit)
-                                          :quote-start (quote-start (:text unit) (:quote item))
-                                          :id (sha256 (pr-str [(:request-id request) (:id unit) (:quote item)]))))
+                                   (cond-> (assoc item :unit-id (:id unit)
+                                                      :quote-start (quote-start (:text unit) (:quote item))
+                                                      :id (sha256 (pr-str [(:request-id request) (:id unit) (:quote item)])))
+                                     (= native-version (:version request))
+                                     (assoc :source-address
+                                            {:body-sha256 (:body-sha256 request)
+                                             :offset-unit :utf16-code-unit
+                                             :start (+ (:body-start unit) (quote-start (:text unit) (:quote item)))
+                                             :end (+ (:body-start unit) (quote-start (:text unit) (:quote item))
+                                                     (count (:quote item)))})))
                                  (:items row))) expected rows))
        :authority :triage-only}
       {:status :uncertain :reason (or (:refusal request) :invalid-model-output)
        :authority :triage-only})))
+
+(defn validate-result
+  "Validate v1 captured output against freshly recomputed input. Captures do
+   not establish native freshness or replay resistance. Invalid => uncertain."
+  [input output sha256]
+  (validate-prepared-result (prepare input sha256) output sha256))
+
+(defn validate-native-result
+  "Validate the exact v2 challenge-bound response. Only the owned parent can
+   establish native freshness, exact transport custody and one-use consumption."
+  [input custody output sha256]
+  (validate-prepared-result (prepare-native input custody sha256) output sha256))
 
 (def systemone-criteria
   {:actionable "Any live corrective request, concern or unanswered question in this unit, even beside LGTM. Do not decide technical validity."
