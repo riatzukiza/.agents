@@ -56,7 +56,7 @@
        (<= 48 (count reason))
        ;; Contradictory/uncertain live judgments cannot be overwritten by the
        ;; protocol's positive declaration. Unknown defect language stays out.
-       (not (re-find #"(?i)\b(?:bugs?|defects?|vulnerabilit(?:y|ies)|unsafe|uncertain|unsure|possibly|perhaps|might|may|should|must|please|outstanding|remaining|needs?|requires?|fix(?:es|ed|ing)?|correct(?:ion|ive|ing))\b" reason))))
+       (not (re-find #"(?i)\b(?:bugs?|defects?|vulnerabilit(?:y|ies)|unsafe|uncertain|unsure|possibly|perhaps|might|may|should|must|please|outstanding|remaining|needs?|require(?:s|d)?|fix(?:es|ed|ing)?|correct(?:ion|ive|ing|ed))\b" reason))))
 
 (defn- source-evidence? [evidence prefix]
   (and (string? evidence) (str/starts-with? evidence prefix) (plain? evidence)
