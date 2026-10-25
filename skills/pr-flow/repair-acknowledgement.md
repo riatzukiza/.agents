@@ -57,11 +57,10 @@ mined from the shell carrier. All five live lines must immediately follow the
 recognized carrier and mention. Arbitrary HTML, quoted/fenced examples, extra
 live prose and mixed negatives do not supply a positive assessment.
 
-A Reason beginning exactly `The exact-head design requires ` or
-`Exact-head Line <digits> requires ` describes an existing source contract;
-that single anchored use of requires is not itself a corrective request.
-Further corrective, defect, uncertainty or negation language still refuses,
-including fixing and correction. Other uses of requires retain refusal. Raw bytes remain
+The transport extension does not relax reason semantics. Descriptive or
+corrective requires remains conservatively refused; the captured native
+reasons therefore remain unqualified. Tests isolate transport acceptance using
+explicitly synthetic affirmative prose, and do not claim runtime admission. Raw bytes remain
 stored; the parser only recognizes this bounded transport envelope.
 
 A later thread append, late edit, push, or root-bound issue reply at/after the

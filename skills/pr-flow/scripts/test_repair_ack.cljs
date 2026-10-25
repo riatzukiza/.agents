@@ -218,7 +218,12 @@
   (doseq [[_ c] envelope-capture]
     (let [body (fixture-body c)
           check (fn [b] (admitted? (input (conj prefix (assoc fresh :body b)))))]
-      (is (check body))
+      ;; Actual reasons retain requires and conservatively refuse. Separate
+      ;; synthetic affirmative prose isolates the native transport regression.
+      (is (not (check body)))
+      (let [affirmative (str/replace body #"Reason: [^\n]+"
+                                    "Reason: Independently verified the complete source and surviving repair statement against the current planning criteria.")]
+        (is (check affirmative)))
       (doseq [bad [(str/replace body "🧩 Analysis chain" "Example")
                    (str/replace body "```shell" "```text")
                    (str/replace body "`@writer`" "`@someone-else`")
@@ -233,7 +238,9 @@
         (is (not (check bad)))))))
 
 (deftest source-description-does-not-admit-corrective-requires
-  (doseq [reason ["The exact-head design requires fixing the unsafe actor binding"
+  (doseq [reason ["The exact-head design requires additional authorization checks before this repair is complete."
+                  "Exact-head Line 74 requires removal of the authorization bypass before acceptance."
+                  "The exact-head design requires fixing the unsafe actor binding"
                   "Exact-head Line 74 requires correction of the producer defect"
                   "The author requires source review before this can be verified"]]
     (is (not (admitted? (input (conj prefix (update fresh :body str/replace #"Reason: [^\n]+" (str "Reason: " reason)))))))))
