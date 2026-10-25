@@ -121,3 +121,7 @@ isolated signed-out profile returned429 `FreeUsageLimitError` with a
 64,490,000 ms retry interval. Local Proxx also returned429 for Sol/Luna and502
 for MiMo. These failures remain failures, and no paid fallback is automatic.
 The previous parser-format extension remains uninstalled.
+
+The [native integration design](native-review-intent-plan.md) separates fresh
+collection, independent native judgment/publication and revocable canonical
+consumption. It is planning source, with no installed gate or approval change.

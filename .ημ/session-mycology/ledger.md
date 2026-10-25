@@ -1018,6 +1018,29 @@
 
 Preserved both append-only branch histories and both contract invariants. Local law, policy and synthetic transport suites pass. Fresh review is required after the merge commit; no candidate installed. Friction: concurrent upstream merge invalidated otherwise qualified head. Existing merge workflow suffices; no new spore.
 
+- ts: 2026-10-25T11:53:24.667015+00:00
+  origin: native-review-intent-integration-design
+  p-efficiency: 0.8
+  p-friction: 0.55
+  p-skill-candidate: 0.43
+  receipt-refs: mergedclassifierPR45; native-review-intent-plan.md
+  note: A semantic classifier can help distinguish acknowledgements from correction requests, but fresh custody, independent judgment, native publication and revocable disposition are separate contracts. Plan these slices explicitly before enabling a label in the merge gate; classification never supplies a reviewer vote. No spore promoted.
+
+
+## 2026-10-25T13:07:05.805907+00:00 — make replay and revocation contracts testable
+
+- Receipt `9ac55f80-b420-4ba5-8a4d-e7e584091a27`; efficiency0.82, friction0.31, skill-candidate0.22.
+- Stable content digests are not one-use inference challenges. Specify a fresh parent-generated nonce bound into the request ID, consumption on success/failure and refusal after restart. Scope canonical custody-change observations through exact native/source/profile dependencies and retain revoked generations.
+- Native principal type validates a tuple; it does not distinguish two independent Bots. Matching numeric/node IDs or canonical logins collides, while matching only Bot type must not reject every Bot assessor. Unknown/contradictory identity still refuses.
+- Appended corrective planning attribution instead of rewriting the generic published receipt. Four local documentation links resolve and diff checks pass; no executable tests, installed behavior, approval or deployment claimed. No spore or promotion.
+
+
+## 2026-10-25T13:29:35.643340+00:00 — refresh the native base before diagnosing missing checks
+
+- Receipt: latest precise main-integration test-run; efficiency0.80, friction0.41, skill-candidate0.24.
+- Cached GraphQL/REST PR metadata advertised6eb while accepted main had already advanced through PR46 to4d493e7. Reopening the owned PR exposed that base; fetch and actual merge then reproduced exactly two ledger conflicts. Preserve main bytes as a full prefix and branch append bytes as an intact suffix, rather than sorting or deduplicating event history.
+- Combined law226/5562, policy71/1794 and raw6/57 PASS; scoped kondo0warnings/errors, flow/diffPASS. New head requires native full review/CI; stale approvals and the earlier clean merge against the advertised old base supply no admission. No spore or deployment claim.
+
 - ts: 2026-10-25T13:47:39.753386Z
   origin: typed-kimi-verdict-planning
   p-efficiency: 0.79
