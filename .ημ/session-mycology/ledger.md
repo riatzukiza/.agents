@@ -1009,3 +1009,11 @@
   p-skill-candidate: 0.3
   receipt-refs: shared-login-and-federation; native4370392414
   note: Native run and proof export must share an absolute monotonic lifecycle rather than independent timeouts. Reserve processing and finally-cleanup time and give the parent explicit startup/IPC margin. A virtual clock and actual subprocess boundaries verify shrinking budgets and cleanup without sleeping or calling a provider.
+
+### 2026-10-25T07:51:36.792751+00:00 — exact host metadata in repair verification
+
+- Efficiency 0.5; friction 0.8; candidate probability 0.3. Native CodeRabbit learning notices persist despite format-only requests. Preserve byte-faithful fixtures, qualify bounded transport upstream, and keep edited replies refused. No new spore or promotion. Evidence: `.ημ/receipts.edn`, native replies4370069695/4370069469.
+
+## 2026-10-25T11:16:49.379526+00:00 — Concurrent main integration for PR46
+
+Preserved both append-only branch histories and both contract invariants. Local law, policy and synthetic transport suites pass. Fresh review is required after the merge commit; no candidate installed. Friction: concurrent upstream merge invalidated otherwise qualified head. Existing merge workflow suffices; no new spore.
