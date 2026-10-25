@@ -1009,3 +1009,11 @@
   p-skill-candidate: 0.3
   receipt-refs: shared-login-and-federation; native4370392414
   note: Native run and proof export must share an absolute monotonic lifecycle rather than independent timeouts. Reserve processing and finally-cleanup time and give the parent explicit startup/IPC margin. A virtual clock and actual subprocess boundaries verify shrinking budgets and cleanup without sleeping or calling a provider.
+
+- ts: 2026-10-25T11:53:24.667015+00:00
+  origin: native-review-intent-integration-design
+  p-efficiency: 0.8
+  p-friction: 0.55
+  p-skill-candidate: 0.43
+  receipt-refs: mergedclassifierPR45; native-review-intent-plan.md
+  note: A semantic classifier can help distinguish acknowledgements from correction requests, but fresh custody, independent judgment, native publication and revocable disposition are separate contracts. Plan these slices explicitly before enabling a label in the merge gate; classification never supplies a reviewer vote. No spore promoted.
