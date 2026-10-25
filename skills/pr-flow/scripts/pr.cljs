@@ -40,7 +40,8 @@
             [pr-flow.native-context-law :as native-context-law]
             [pr-flow.permissions :as permissions]
             [pr-flow.kimi-native :as kimi-native]
-            [pr-flow.law :as law]))
+            [pr-flow.law :as law]
+            [pr-flow.semantic-runtime :as semantic-runtime]))
 
 (def here
   "This script's directory, captured while nbb loads the file."
@@ -112,6 +113,8 @@
 
 (declare authorized-author? reviewer-identities load-flow)
 
+(def ^:dynamic *semantic-model* nil)
+
 (defn fetch-threads
   "Collect native inputs, then retain canonical classification and observations.
    Incomplete nested comment pages still fail the gate closed. Native issue
@@ -129,6 +132,11 @@
                           (assoc % :actionability-policy policy
                                    :actionability-observations history :identities identities))
                        (:threads collected))
+         threads (if *semantic-model*
+                   (mapv #(semantic-runtime/assess gh-json
+                            (fn [a] (some? (law/trusted-reviewer
+                              {:user {:login (if (str/ends-with? (:login a) "[bot]") (:login a) (str (:login a) "[bot]")) :type (:__typename a)}}
+                              identities))) *semantic-model* %) threads) threads)
          observations (vec (distinct (mapcat #(concat (get-in % [:actionability :observations]) (get-in % [:preservation :observations])) threads)))
          _ (when (some? history)
              (append-actionability-observations! repo observations))
@@ -919,6 +927,7 @@
 
 (defn -main [& args]
   (let [[cmd repo n & more] args]
+    (binding [*semantic-model* (when (contains? #{"status" "gate" "threads"} cmd) (flag more "--semantic-model" nil))]
     (try
       (case cmd
         "flow" (show-flow repo)
@@ -935,6 +944,6 @@
         (do (println "usage: pr.cljs flow [STATE] | status|threads|wait|request|settle|resolve-informational|gate REPO PR ...") (js/process.exit 1)))
       (catch :default e
         (binding [*print-fn* *print-err-fn*] (println (ex-message e)))
-        (js/process.exit 1)))))
+        (js/process.exit 1))))))
 
 (apply -main *command-line-args*)

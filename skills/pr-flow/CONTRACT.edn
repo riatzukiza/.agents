@@ -1,7 +1,8 @@
 (skill-contract
   (name "pr-flow")
-  (v "ημ.skill/pr-flow@0.3.9")
+  (v "ημ.skill/pr-flow@0.3.10")
 
+  ;; Semantic assessment retains native custody and supplies scoped settlement only.
   (intent
     "Route every pull-request interaction through the pr-flow state machine (flow.edn): muse, plan, planning review, ready, red, green, code review, merge gate, merged, reflected. Ships an nbb CLI over pure .cljc laws for GitHub review mechanics.")
 

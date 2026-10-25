@@ -1017,3 +1017,7 @@
 ## 2026-10-25T11:16:49.379526+00:00 — Concurrent main integration for PR46
 
 Preserved both append-only branch histories and both contract invariants. Local law, policy and synthetic transport suites pass. Fresh review is required after the merge commit; no candidate installed. Friction: concurrent upstream merge invalidated otherwise qualified head. Existing merge workflow suffices; no new spore.
+
+## 2026-10-25T14:35:29.178229+00:00 — Semantic intent instead of reviewer presentation
+
+The strict root-prefix parser rejected a native User repair after CodeRabbit wrapped its body. PR45 classifier source existed but remained advisory. Prepared a purpose-specific semantic route retaining native custody and independent Bot/current-head verification; model output is not approval. Actual complete-input evaluation met provider429, so operational qualification remains pending. Friction high; no same-session skill promotion.
