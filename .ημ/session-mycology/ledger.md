@@ -993,3 +993,11 @@
   p-skill-candidate: 0.3
   receipt-refs: shared-login-and-federation; accepted-main-d9ce57a
   note: Missing synchronize workflows can follow a newly conflicting base. Check fresh mergeability before forcing event delivery. Keep accepted main and candidate laws, verify common ledger prefixes and both append suffixes without semantic deduplication, then requalify the combined source.
+
+- ts: 2026-10-25T09:41:14.773252+00:00
+  origin: shared-login-classifier-byte-custody
+  p-efficiency: 0.8
+  p-friction: 0.3
+  p-skill-candidate: 0.35
+  receipt-refs: shared-login-and-federation; native-review5642398855
+  note: Reproduce each native review premise independently. Buffer-to-string conversion loses split Unicode scalars; decode bounded bytes once and verify the child digest in the parent. The separate claimed exit-zero failure was not reproduced under pinned nbb, so retain that counterevidence while adding the requested explicit reporting hook.

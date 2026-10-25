@@ -42,6 +42,19 @@ native IDs, actor, source commit, latest edit, current head, body digest,
 prompt and response schema bind the request. Captured identity consistency
 is checked deterministically; a capture does not prove freshness or permission.
 
+Both transports collect bounded stdin bytes before strict UTF-8 decoding, so
+a pipe buffer boundary cannot change a multibyte character. The parent also
+compares the transport's payload digest with its own exact serialized payload
+before accepting any chat, System One or native-client result. A missing or
+different digest remains uncertain. Deterministic tests split 4-, 2- and 3-byte
+characters across buffers in an 81,000-byte payload and reject altered child
+digests on all three paths.
+
+The standalone law suite declares an explicit failing-process reporter, matching
+the existing suites. Its injected-failure subprocess test checks the actual exit
+code. The pinned nbb 1.3.204 baseline already exited 1 without this declaration;
+the explicit hook is consistency protection, not a reproduced exit-0 repair.
+
 Chat output must account for each unit in order, with exact unique source
 quotes and one of `actionable`, `informational`, `uncertain`. Unknown fields,
 missing or duplicate units, ambiguous quotes, invented text and truncated

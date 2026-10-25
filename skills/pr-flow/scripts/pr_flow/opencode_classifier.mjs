@@ -7,19 +7,23 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 const sha256 = text => createHash('sha256').update(text, 'utf8').digest('hex');
-let input = '';
-for await (const part of process.stdin) {
-  input += part;
-  if (Buffer.byteLength(input) > 262144) throw new Error('Classifier input too large');
-}
 let temp;
 let inference;
 let unvalidated;
-let phase = 'invalid-free-model';
+let phase = 'invalid-input';
 const started = Date.now();
 try {
+  const parts = [];
+  let bytes = 0;
+  for await (const part of process.stdin) {
+    bytes += part.length;
+    if (bytes > 262144) throw new Error('Classifier input too large');
+    parts.push(part);
+  }
+  const input = new TextDecoder('utf-8', { fatal: true }).decode(Buffer.concat(parts, bytes));
   const { payload } = JSON.parse(input);
   const { model } = payload;
+  phase = 'invalid-free-model';
   if (typeof model !== 'string' || !/^opencode\/[a-z0-9.-]+-free$/.test(model)) {
     throw new Error('Explicit free OpenCode model required');
   }

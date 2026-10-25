@@ -50,11 +50,18 @@
                                     :encoding "utf8" :timeout (if (= protocol "opencode") 85000 65000) :maxBuffer 2097152})
           response (when (seq (.-stdout result))
                      (js->clj (js/JSON.parse (.-stdout result)) :keywordize-keys true))
-          validated (if (and (= 0 (.-status result)) (:output response))
-                      (if (= protocol "systemone")
-                        (classifier/validate-systemone input payload (:output response) sha256)
-                        (classifier/validate-result input (:output response) sha256))
-                      {:status :uncertain :reason :inference-unavailable :authority :triage-only})]
+          validated (cond
+                      (not (and (= 0 (.-status result)) (:output response)))
+                      {:status :uncertain :reason :inference-unavailable :authority :triage-only}
+
+                      (not= (sha256 (js/JSON.stringify (clj->js payload)))
+                            (get-in response [:inference :request_sha256]))
+                      {:status :uncertain :reason :inference-request-mismatch :authority :triage-only}
+
+                      (= protocol "systemone")
+                      (classifier/validate-systemone input payload (:output response) sha256)
+
+                      :else (classifier/validate-result input (:output response) sha256))]
       (println (js/JSON.stringify (clj->js (assoc validated :inference (:inference response)
                                                :provider-status (:status response)
                                                :transport-error (:error response)

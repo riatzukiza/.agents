@@ -3,15 +3,19 @@
 import { createHash } from 'node:crypto';
 
 const sha256 = text => createHash('sha256').update(text, 'utf8').digest('hex');
-let input = '';
-for await (const part of process.stdin) {
-  input += part;
-  if (Buffer.byteLength(input) > 262144) throw new Error('Classifier request too large');
-}
 const started = Date.now();
-let phase = 'invalid-endpoint';
+let phase = 'invalid-input';
 try {
+  const parts = [];
+  let bytes = 0;
+  for await (const part of process.stdin) {
+    bytes += part.length;
+    if (bytes > 262144) throw new Error('Classifier request too large');
+    parts.push(part);
+  }
+  const input = new TextDecoder('utf-8', { fatal: true }).decode(Buffer.concat(parts, bytes));
   const { endpoint, payload, protocol = 'chat' } = JSON.parse(input);
+  phase = 'invalid-endpoint';
   const url = new URL(endpoint);
   if (url.username || url.password || url.search || url.hash ||
       !(url.protocol === 'https:' || (url.protocol === 'http:' &&

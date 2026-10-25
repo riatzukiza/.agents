@@ -90,4 +90,7 @@
     (is (= :uncertain (:status (classifier/validate-systemone (assoc input :head (apply str (repeat 40 "c"))) payload response sha))))
     (is (= :uncertain (:status (classifier/validate-systemone input (assoc-in payload [:state :review-units] []) response sha))))))
 
+(defmethod cljs.test/report [:cljs.test/default :end-run-tests] [m]
+  (when-not (cljs.test/successful? m) (set! (.-exitCode js/process) 1)))
+
 (run-tests)
