@@ -5,6 +5,7 @@ import { createHash } from 'node:crypto';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { performance } from 'node:perf_hooks';
 
 const sha256 = text => createHash('sha256').update(text, 'utf8').digest('hex');
 let temp;
@@ -12,6 +13,9 @@ let inference;
 let unvalidated;
 let phase = 'invalid-input';
 const started = Date.now();
+// One lifecycle for stdin, run, export, validation, output and owned cleanup.
+const deadline = performance.now() + 75000;
+const processingReserve = 5000;
 try {
   const parts = [];
   let bytes = 0;
@@ -56,9 +60,16 @@ try {
   const env = { ...process.env, XDG_CONFIG_HOME: join(temp, 'config') };
   for (const key of ['OPENCODE_CONFIG', 'OPENCODE_CONFIG_CONTENT', 'OPENCODE_CONFIG_DIR',
     'REVIEW_CLASSIFIER_API_KEY', 'PROXX_API_KEY']) delete env[key];
-  const run = args => spawnSync('opencode', args, {
-    cwd: temp, env, encoding: 'utf8', timeout: 75000, maxBuffer: 2097152,
-  });
+  const run = args => {
+    const remaining = Math.floor(deadline - performance.now() - processingReserve);
+    if (remaining <= 0) {
+      phase = 'opencode-deadline-exhausted';
+      throw new Error('No native-call budget remains');
+    }
+    return spawnSync('opencode', args, {
+      cwd: temp, env, encoding: 'utf8', timeout: remaining, maxBuffer: 2097152,
+    });
+  };
   phase = 'opencode-run-failed';
   const result = run(['run', '--standalone', '--agent', 'raw-review-classifier', '--model', model,
     '--format', 'json', '--file', file,

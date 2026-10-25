@@ -96,6 +96,12 @@ Invalid JSON remains unresolved and preserves the unvalidated model output
 and inference provenance for diagnosis; it is not repaired by extracting a
 fence or guessing omitted structure. Native client/provider internals may
 have their own retry behavior; the adapter does not submit a second run.
+Run and session export share one monotonic 75-second lifecycle, reserving five
+seconds for parsing, inference checks, output and cleanup. Export refuses to
+start when that reserve is exhausted. The parent allows 90 seconds for this
+lifecycle plus process startup and IPC; it does not give each native call a
+fresh timeout. A virtual-clock subprocess test checks shrinking budgets and
+owned-file cleanup without a long-running provider invocation.
 Only temporary files it creates are removed; no Docker artifacts are created.
 
 Following native review5641957517, the candidate now denies host read/glob/grep

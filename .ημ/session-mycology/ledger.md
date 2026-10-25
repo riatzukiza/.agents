@@ -1001,3 +1001,11 @@
   p-skill-candidate: 0.35
   receipt-refs: shared-login-and-federation; native-review5642398855
   note: Reproduce each native review premise independently. Buffer-to-string conversion loses split Unicode scalars; decode bounded bytes once and verify the child digest in the parent. The separate claimed exit-zero failure was not reproduced under pinned nbb, so retain that counterevidence while adding the requested explicit reporting hook.
+
+- ts: 2026-10-25T09:59:57.778477+00:00
+  origin: classifier-native-deadline-custody
+  p-efficiency: 0.85
+  p-friction: 0.25
+  p-skill-candidate: 0.3
+  receipt-refs: shared-login-and-federation; native4370392414
+  note: Native run and proof export must share an absolute monotonic lifecycle rather than independent timeouts. Reserve processing and finally-cleanup time and give the parent explicit startup/IPC margin. A virtual clock and actual subprocess boundaries verify shrinking budgets and cleanup without sleeping or calling a provider.

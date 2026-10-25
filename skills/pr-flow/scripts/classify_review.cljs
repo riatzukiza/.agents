@@ -47,7 +47,9 @@
                                #js [(path/join (path/dirname *file*) "pr_flow"
                                                (if (= protocol "opencode") "opencode_classifier.mjs" "classifier_transport.mjs"))]
                                #js {:input (js/JSON.stringify (clj->js {:endpoint endpoint :payload payload :protocol (or protocol "chat")}))
-                                    :encoding "utf8" :timeout (if (= protocol "opencode") 85000 65000) :maxBuffer 2097152})
+                                    ;; Native run+export share75s including5s processing/cleanup;
+                                    ;; leave15s for process startup and parent IPC.
+                                    :encoding "utf8" :timeout (if (= protocol "opencode") 90000 65000) :maxBuffer 2097152})
           response (when (seq (.-stdout result))
                      (js->clj (js/JSON.parse (.-stdout result)) :keywordize-keys true))
           validated (cond

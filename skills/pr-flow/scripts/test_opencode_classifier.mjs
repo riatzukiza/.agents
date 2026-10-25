@@ -101,3 +101,57 @@ test('actual nbb CLI dispatches opencode and validates the complete synthetic re
     assert.equal(readFileSync(calls, 'utf8').trim().split('\n').length, 2);
   } finally { rmSync(temp, { recursive: true }); }
 });
+
+for (const elapsed of [65000, 70000]) {
+  test(`native calls share one deadline after ${elapsed}ms; cleanup reserve survives`, () => {
+    const temp = mkdtempSync(join(tmpdir(), 'classifier-deadline-test-'));
+    try {
+      writeFileSync(join(temp, 'opencode'), fakeClient, { mode: 0o700 });
+      const clock = join(temp, 'clock');
+      const budgets = join(temp, 'budgets.jsonl');
+      const calls = join(temp, 'calls.jsonl');
+      writeFileSync(clock, '0');
+      const preload = join(temp, 'virtual-clock.cjs');
+      writeFileSync(preload, `
+        const fs=require('node:fs'), cp=require('node:child_process');
+        const {performance}=require('node:perf_hooks');
+        const {syncBuiltinESMExports}=require('node:module');
+        const now=()=>Number(fs.readFileSync(process.env.CLASSIFIER_CLOCK,'utf8'));
+        Date.now=now;
+        Object.defineProperty(performance,'now',{value:now});
+        const native=cp.spawnSync;
+        cp.spawnSync=(exe,args,options)=>{
+          if(exe!=='opencode')return native(exe,args,options);
+          fs.appendFileSync(process.env.CLASSIFIER_BUDGETS,JSON.stringify({command:args[0],timeout:options.timeout})+'\\n');
+          const result=native(exe,args,options);
+          if(args[0]==='run')fs.writeFileSync(process.env.CLASSIFIER_CLOCK,process.env.CLASSIFIER_ELAPSED);
+          return result;
+        };
+        syncBuiltinESMExports();
+      `);
+      const result = spawnSync(process.execPath, ['--require', preload, join(here, 'pr_flow/opencode_classifier.mjs')], {
+        input: JSON.stringify({ payload: { model: 'opencode/glm-5.3-flash-free',
+          instruction: 'Synthetic deadline test', request: {}, response_schema: {} } }),
+        env: { ...process.env, PATH: `${temp}:${process.env.PATH}`, CLASSIFIER_TEST_MODE: 'valid',
+          CLASSIFIER_TEST_CALLS: calls, CLASSIFIER_CLOCK: clock, CLASSIFIER_BUDGETS: budgets,
+          CLASSIFIER_ELAPSED: String(elapsed) }, encoding: 'utf8', timeout: 5000,
+      });
+      assert.equal(result.stderr, '');
+      const observed = readFileSync(budgets, 'utf8').trim().split('\n').map(JSON.parse);
+      assert.equal(observed[0].timeout, 70000, 'initial call reserves five seconds of the 75-second lifecycle');
+      const output = JSON.parse(result.stdout);
+      if (elapsed === 65000) {
+        assert.equal(result.status, 0);
+        assert.deepEqual(observed, [{ command: 'run', timeout: 70000 }, { command: 'session', timeout: 5000 }]);
+        assert.equal(output.inference.cost, 0);
+      } else {
+        assert.equal(result.status, 1);
+        assert.equal(output.error, 'opencode-deadline-exhausted');
+        assert.equal(observed.length, 1, 'export never starts without its cleanup reserve');
+      }
+      const invocation = JSON.parse(readFileSync(calls, 'utf8').split('\n')[0]);
+      const attachment = invocation[invocation.indexOf('--file') + 1];
+      assert.throws(() => readFileSync(attachment), { code: 'ENOENT' }, 'finally removed the owned attachment');
+    } finally { rmSync(temp, { recursive: true }); }
+  });
+}
