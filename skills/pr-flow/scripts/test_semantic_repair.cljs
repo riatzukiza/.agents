@@ -4,7 +4,8 @@
             ["node:crypto" :as crypto] ["fs" :as fs] ["path" :as path]
             [nbb.core :refer [*file*]] [clojure.edn :as edn]
             [test-repair-ack :as fixture]
-            [pr-flow.semantic-repair :as semantic]))
+            [pr-flow.semantic-repair :as semantic]
+            [pr-flow.law :as law]))
 
 (defn sha [s] (.digest (.update (crypto/createHash "sha256") s "utf8") "hex"))
 (def model "opencode/glm-5.3-flash-free")
@@ -147,6 +148,20 @@
         (is (= (:body root) (get-in r [:payload :native-context :thread :comments :nodes 0 :body])))
         (is (= :candidate (:status e)))
         (is (some? (semantic/proof t e)))))))
+
+(deftest canonical-consumer-preserves-other-gate-obligations
+  (let [classified (law/classify-thread (assoc t :semantic-repair-evidence (evidence input)))
+        gate {:head fixture/head :threads [classified] :rounds 5
+              :review-participants #{"mimo"} :approved-heads {"mimo" #{fixture/head}}
+              :checks [{:name "law" :required? true :state "SUCCESS"}]}]
+    (is (:settled? classified))
+    (is (= :fixed (:resolution classified)))
+    (is (= raw-root (get-in classified [:comments 0 :body])))
+    (is (:pass? (law/merge-gate gate)))
+    (doseq [bad [(assoc gate :approved-heads {}) (assoc gate :rounds 0)
+                 (assoc gate :required-reviewers #{"codex"})
+                 (assoc-in gate [:checks 0 :state] "FAILURE")]]
+      (is (not (:pass? (law/merge-gate bad)))))))
 
 (defmethod cljs.test/report [:cljs.test/default :end-run-tests] [m]
   (when (pos? (+ (:fail m) (:error m))) (set! (.-exitCode js/process) 1)))

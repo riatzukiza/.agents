@@ -137,6 +137,13 @@
                             (fn [a] (some? (law/trusted-reviewer
                               {:user {:login (if (str/ends-with? (:login a) "[bot]") (:login a) (str (:login a) "[bot]")) :type (:__typename a)}}
                               identities))) *semantic-model* %) threads) threads)
+         _ (when *semantic-model*
+             (let [fresh (native-context/collect-context
+                           {:read-json gh-json :authorized-author? authorized-author?
+                            :read-history actionability-observations} repo n)
+                   keys [:repository :pr :raw-threads :raw-issue-comments]]
+               (when-not (= (select-keys collected keys) (select-keys fresh keys))
+                 (throw (ex-info "Native semantic context changed during inference; no settlement admitted" {})))))
          observations (vec (distinct (mapcat #(concat (get-in % [:actionability :observations]) (get-in % [:preservation :observations])) threads)))
          _ (when (some? history)
              (append-actionability-observations! repo observations))

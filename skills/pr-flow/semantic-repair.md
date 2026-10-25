@@ -28,7 +28,7 @@ This source candidate is not installed or operationally qualified by its tests.
 The CLI owns native collection, canonical Bot allowlisting, Git-blob verification,
 model invocation and fresh source readback. It does not load assessment JSON from
 disk. Its in-process cache binds the full request digest and cannot survive a new
-CLI invocation. Existing final snapshot checks detect later context mutations.
+CLI invocation. Every semantic command recollects native context after inference and refuses any changed snapshot; existing status/gate final checks remain in force.
 The pure law retains native identities, authorization, resolved state, complete
 ordered context, immutable enclosing review commit, unedited final verification
 and chronology. Model output must account for exact unique quotes from the root,
