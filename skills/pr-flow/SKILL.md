@@ -22,6 +22,12 @@ metadata:
 
 ## Authority
 
+For experimental format-independent intent triage, see
+[raw review classifier](raw-review-classifier.md). This candidate reads the
+complete captured review and validates a model's JSON or typed decisions.
+Its output is advisory until the native assessment and gate integration is
+reviewed and qualified; it cannot clear existing review obligations.
+
 Routine git and GitHub actions are pre-authorized by the user: commit, push, fetch, pull, branch, opening PRs, commenting, replying, resolving threads, and requesting reviews. Merge and auto-merge require authorization for the active PR or stack, either in the current request or a standing instruction. A review-only, draft-only, or planning-only request does not imply merge authority. When authorized, act without asking again.
 
 Still confirm destructive actions: force-push, history rewrite, branch or tag deletion, and closing someone else's PR. Stage explicit paths and never sweep up unrelated dirt.

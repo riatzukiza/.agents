@@ -958,3 +958,12 @@
   spore: none
   receipt-refs: pr-flow-orphaned-threads test-run
   note: Missing original review roots must preserve surviving native provenance; independently verify repair statements rather than invent a second-human requirement.
+- ts: 2026-10-25T06:06:42.904978536Z
+  session: /home/err/.local/share/codex-work/axxium-sso/review-format-current
+  task: Replace volatile review-format semantics with a bounded raw-input classifier
+  p-efficiency: 0.6
+  p-friction: 0.8
+  p-skill-candidate: 0.5
+  spore: none
+  receipt-refs: raw-review-classifier; shared-login-and-federation
+  note: Use current v2 vendor docs and actual client: distinguish expired account credential from anonymous free quota. Preserve raw corpus and deterministic custody, classify intent with typed output, leave uncertainty unresolved. Candidate remains unadopted; no live review or deployment credit.
