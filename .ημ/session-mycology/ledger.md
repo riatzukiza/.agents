@@ -1017,3 +1017,11 @@
 ## 2026-10-25T11:16:49.379526+00:00 — Concurrent main integration for PR46
 
 Preserved both append-only branch histories and both contract invariants. Local law, policy and synthetic transport suites pass. Fresh review is required after the merge commit; no candidate installed. Friction: concurrent upstream merge invalidated otherwise qualified head. Existing merge workflow suffices; no new spore.
+
+- ts: 2026-10-25T13:47:39.753386Z
+  origin: typed-kimi-verdict-planning
+  p-efficiency: 0.79
+  p-friction: 0.44
+  p-skill-candidate: 0.40
+  receipt-refs: c0e9cd81-2a1c-4e16-b47e-de3a4ca82fbd; open-hax/proxx#445; native37208570573/3
+  note: Complete native publication and complete coverage do not make an untyped COMMENTED summary an approval. Put the actual full reviewer decision in a versioned response and qualified publisher/admission boundary. Do not expand prose parsing, turn advisory classification into approval, or rerun until wording matches. Planning only; no spore or installed rule.
