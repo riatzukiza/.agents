@@ -264,3 +264,34 @@
                   "Exact-head Line 74 requires correction of the producer defect"
                   "The author requires source review before this can be verified"]]
     (is (not (admitted? (input (conj prefix (update fresh :body str/replace #"Reason: [^\n]+" (str "Reason: " reason)))))))))
+
+(def learning-capture
+  (js->clj (js/JSON.parse (fs/readFileSync
+                          (path/join (path/dirname *file*) "fixtures/native-foresight144-learning-footer.json") "utf8"))
+           :keywordize-keys true))
+(def learning-notice
+  "---\n\n> 📝 I couldn't check this conversation for new learnings, so no new learning was saved.\n\n\n\n")
+(deftest exact-native-learning-status-is-transport-only
+  (doseq [thread (get-in learning-capture [:data :nodes])]
+    (let [c (get-in thread [:comments :nodes 0])
+          body (-> (:body c)
+                   (str/replace "b904196b16eb50a2bfe6856c825e9c6c07612c0d" head)
+                   (str/replace #"PRRT_kwDOT3TWPM6vcq(?:2j|20) comment[0-9]+" "PRRT_fixture comment10")
+                   (str/replace "`@riatzukiza`" "`@writer`")
+                   (str/replace "https://github.com/open-hax/foresight/blob/" "https://github.com/owner/repo/blob/"))
+          ;; Synthetic binding/time coordinates isolate the raw observed carrier.
+          ;; The raw capture is retained, including the first reply's late edit.
+          check (fn [b] (admitted? (input (conj prefix (assoc fresh :body b))))) ]
+      (is (check body) "exact fixed native trailer on independently qualified synthetic coordinates")
+      (let [t (input (conj prefix (assoc fresh :body body)))]
+        (is (not (admitted? (assoc-in t [:native-context :thread :comments :nodes 2 :updatedAt]
+                                    "2026-10-23T10:02:01Z"))))
+        (is (not (admitted? (assoc-in t [:native-context :thread :comments :nodes 2 :pullRequestReview :commit :oid] old-head)))))
+      (doseq [bad [(str/replace body "no new learning was saved." "the finding still reproduces.")
+                   (str/replace body learning-notice (str learning-notice learning-notice))
+                   (str/replace body learning-notice (str learning-notice "This still reproduces.\n\n"))
+                   (str/replace body learning-notice "---\n\n> Arbitrary quoted metadata.\n\n")
+                   (str/replace body "Reason: " "Reason: An outstanding defect remains. ")
+                   (str/replace body learning-notice (str "```\n" learning-notice "```\n"))
+                   (str/replace body "✅ Review thread resolved." "✅ Review thread unresolved.")]]
+        (is (not (check bad)))))))

@@ -968,3 +968,7 @@
   spore: none
   receipt-refs: 2026-10-25T04:35:10Z
   note: Native host wrappers recur despite authored-format requests; qualify captured transport with red regressions rather than repeated requests or live policy bypass.
+
+### 2026-10-25T07:51:36.792751+00:00 — exact host metadata in repair verification
+
+- Efficiency 0.5; friction 0.8; candidate probability 0.3. Native CodeRabbit learning notices persist despite format-only requests. Preserve byte-faithful fixtures, qualify bounded transport upstream, and keep edited replies refused. No new spore or promotion. Evidence: `.ημ/receipts.edn`, native replies4370069695/4370069469.

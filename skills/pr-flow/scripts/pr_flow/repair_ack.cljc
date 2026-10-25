@@ -47,7 +47,7 @@
               live (str/join "\n" (take 5 lines))
               suffix (str "\n" (str/join "\n" (drop 5 lines)))]
           (when (and (<= 5 (count lines))
-                     (re-matches #"\n{2,}(?:---\n\n<!-- This is an auto-generated comment: tweet message by coderabbit\.ai -->[\s\S]*?<!-- end of auto-generated comment: tweet message by coderabbit\.ai -->\n{2,})?(?:✅ Review thread resolved\.\n\n)?<sub><i>You are interacting with an AI system\.</i></sub>\n\n<!-- This is an auto-generated reply by CodeRabbit -->" suffix))
+                     (re-matches #"\n{2,}(?:---\n\n<!-- This is an auto-generated comment: tweet message by coderabbit\.ai -->[\s\S]*?<!-- end of auto-generated comment: tweet message by coderabbit\.ai -->\n{2,})?(?:---\n\n> 📝 I couldn't check this conversation for new learnings, so no new learning was saved\.\n\n\n\n)?(?:✅ Review thread resolved\.\n\n)?<sub><i>You are interacting with an AI system\.</i></sub>\n\n<!-- This is an auto-generated reply by CodeRabbit -->" suffix))
             live))
         body))))
 
