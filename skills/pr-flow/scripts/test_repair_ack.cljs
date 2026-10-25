@@ -235,12 +235,20 @@
                    (str/replace affirmative "Reason: " "Reason: This is not verified. ")
                    (str/replace affirmative "Reason: " "Reason: Fixing this remains necessary. ")
                    (str/replace affirmative "Reason: " "Reason: Additional authorization is required before acceptance. ")
+                   (str/replace affirmative "Reason: " "Reason: Additional authorization is needed before acceptance. ")
+                   (str/replace affirmative "Reason: " "Reason: The boundary is needing additional authorization. ")
+                   (str/replace affirmative "Reason: " "Reason: The boundary is requiring additional authorization. ")
+                   (str/replace affirmative "Reason: " "Reason: Additional authorization corrections precede acceptance. ")
                    (str/replace affirmative "Reason: " "Reason: The delegation boundary is to be corrected before acceptance. ")
                    (str/replace affirmative "Evidence: " "Extra live line\nEvidence: ")]]
         (is (not (check bad))))))))
 
 (deftest source-description-does-not-admit-corrective-requires
-  (doseq [reason ["Additional authorization is required before acceptance."
+  (doseq [reason ["The boundary is needing additional authorization."
+                  "Additional authorization is needed before acceptance."
+                  "The boundary is requiring additional authorization."
+                  "Additional authorization corrections precede acceptance."
+                  "Additional authorization is required before acceptance."
                   "The delegation boundary is to be corrected before acceptance."
                   "The exact-head design requires additional authorization checks before this repair is complete."
                   "Exact-head Line 74 requires removal of the authorization bypass before acceptance."
