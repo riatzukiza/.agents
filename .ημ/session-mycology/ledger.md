@@ -967,3 +967,11 @@
   spore: none
   receipt-refs: raw-review-classifier; shared-login-and-federation
   note: Use current v2 vendor docs and actual client: distinguish expired account credential from anonymous free quota. Preserve raw corpus and deterministic custody, classify intent with typed output, leave uncertainty unresolved. Candidate remains unadopted; no live review or deployment credit.
+
+- ts: 2026-10-25T07:47:27.360539+00:00
+  origin: shared-login-classifier-native-review-followup
+  p-efficiency: 0.8
+  p-friction: 0.3
+  p-skill-candidate: 0.4
+  receipt-refs: shared-login-and-federation; native-review5641957517
+  note: Raw review classification needs only its supplied corpus. Deny ambient file discovery before inference rather than relying on rejecting tool-bearing results afterward. Exercise actual CLI dispatch as well as the transport; retain provider429 as unqualified runtime evidence.

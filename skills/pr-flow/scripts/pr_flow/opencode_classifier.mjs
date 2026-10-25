@@ -36,9 +36,8 @@ try {
         system: payload.instruction,
         permissions: [
           { action: '*', resource: '*', effect: 'deny' },
-          { action: 'read', resource: '*', effect: 'allow' },
-          { action: 'glob', resource: '*', effect: 'allow' },
-          { action: 'grep', resource: '*', effect: 'allow' },
+          // Keep one harmless registered tool for the native client. The full
+          // review is supplied as an attachment; host files are never needed.
           { action: 'shell', resource: 'true', effect: 'allow' },
         ],
       },
@@ -81,6 +80,7 @@ try {
     const exported = run(['session', 'export', session]);
     if (exported.status !== 0) throw new Error('Native export unavailable');
     const native = JSON.parse(exported.stdout);
+    phase = 'opencode-inference-proof-mismatch';
     const assistants = native.messages.filter(message => message.type === 'assistant');
     const assistant = assistants[0];
     if (native.info.id !== session || native.info.outcome !== 'succeeded' || native.info.cost !== 0 ||

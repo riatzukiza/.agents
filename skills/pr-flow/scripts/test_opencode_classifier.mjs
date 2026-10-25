@@ -14,7 +14,20 @@ const args = process.argv.slice(2), mode = process.env.CLASSIFIER_TEST_MODE;
 fs.appendFileSync(process.env.CLASSIFIER_TEST_CALLS, JSON.stringify(args)+'\\n');
 const config = JSON.parse(fs.readFileSync(path.join(process.env.XDG_CONFIG_HOME,'opencode/opencode.json')));
 if (config.providers.opencode.models['glm-5.3-flash-free'].body.response_format.type !== 'json_object') process.exit(9);
-const text = mode === 'invalid-json' ? 'not JSON' : JSON.stringify({request_id:'synthetic-request',units:[]});
+if (JSON.stringify(config.agents['raw-review-classifier'].permissions) !== JSON.stringify([
+  {action:'*',resource:'*',effect:'deny'}, {action:'shell',resource:'true',effect:'allow'}
+])) process.exit(10);
+let text = mode === 'invalid-json' ? 'not JSON' : JSON.stringify({request_id:'synthetic-request',units:[]});
+const saved = path.join(process.env.XDG_CONFIG_HOME,'synthetic-response.json');
+if (mode === 'cli') {
+  if (args[0] === 'run') {
+    const payload = JSON.parse(fs.readFileSync(args[args.indexOf('--file')+1]));
+    text = JSON.stringify({request_id:payload.request['request-id'],units:payload.request.units.map(unit => ({
+      id:unit.id,items:[{classification:'uncertain',reason:'Synthetic transport test only.',quote:unit.text}]
+    }))});
+    fs.writeFileSync(saved,text);
+  } else text = fs.readFileSync(saved,'utf8');
+}
 if (args[0] === 'run') {
   console.log(JSON.stringify({type:'step_start',sessionID:'ses_synthetic'}));
   console.log(JSON.stringify({type:'text',sessionID:'ses_synthetic',part:{text}}));
@@ -60,3 +73,31 @@ for (const mode of ['valid', 'invalid-json', 'charged', 'tool-call', 'paid-model
     } finally { rmSync(temp, { recursive: true }); }
   });
 }
+
+test('actual nbb CLI dispatches opencode and validates the complete synthetic response', () => {
+  const temp = mkdtempSync(join(tmpdir(), 'classifier-cli-test-'));
+  try {
+    writeFileSync(join(temp, 'opencode'), fakeClient, { mode: 0o700 });
+    const fixture = join(here, 'fixtures/native-receipt4-dl-review.json');
+    const capture = JSON.parse(readFileSync(fixture, 'utf8'));
+    const calls = join(temp, 'calls.jsonl');
+    const result = spawnSync('nbb', ['-cp', here, join(here, 'classify_review.cljs'), fixture,
+      'open-hax/receipt-river', '4', capture.review.commit_id,
+      'opencode', 'opencode/glm-5.3-flash-free', 'opencode'], {
+      env: { ...process.env, PATH: `${temp}:${process.env.PATH}`,
+        CLASSIFIER_TEST_MODE: 'cli', CLASSIFIER_TEST_CALLS: calls },
+      encoding: 'utf8', timeout: 15000,
+    });
+    assert.equal(result.stderr, '');
+    assert.equal(result.status, 2, 'synthetic uncertainty cannot become success');
+    const output = JSON.parse(result.stdout);
+    assert.equal(output.status, 'uncertain');
+    assert.equal(output.authority, 'triage-only');
+    assert.equal(output.request.units.map(unit => unit.text).join(''), capture.review.body);
+    assert.equal(output.items.length, output.request.units.length);
+    assert.equal(output.inference.cost, 0);
+    assert.equal(output.approved, undefined);
+    assert.equal(output.settled, undefined);
+    assert.equal(readFileSync(calls, 'utf8').trim().split('\n').length, 2);
+  } finally { rmSync(temp, { recursive: true }); }
+});

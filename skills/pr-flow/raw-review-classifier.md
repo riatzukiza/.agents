@@ -85,6 +85,16 @@ fence or guessing omitted structure. Native client/provider internals may
 have their own retry behavior; the adapter does not submit a second run.
 Only temporary files it creates are removed; no Docker artifacts are created.
 
+Following native review5641957517, the candidate now denies host read/glob/grep
+as well as all other actions, with only the exact no-op shell command `true`
+registered for the native client. The complete review arrives as the supplied
+attachment; file discovery is unnecessary. Any actual tool call still refuses
+the result. A synthetic client checks this exact permission configuration, and
+the actual nbb CLI now has a complete opencode-dispatch/validation test.
+The first live call after this restriction returned429 before inference, so
+the two earlier successful native runs do not qualify the restricted runtime.
+No automatic retry or paid fallback was attempted.
+
 Account and signed-out routes have separate availability. An expired Console
 API key returned401; supported Console-account device login subsequently
 connected the existing workspace without copying credentials. A separately
