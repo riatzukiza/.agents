@@ -223,19 +223,19 @@
       (is (not (check body)))
       (let [affirmative (str/replace body #"Reason: [^\n]+"
                                     "Reason: Independently verified the complete source and surviving repair statement against the current planning criteria.")]
-        (is (check affirmative)))
-      (doseq [bad [(str/replace body "🧩 Analysis chain" "Example")
-                   (str/replace body "```shell" "```text")
-                   (str/replace body "`@writer`" "`@someone-else`")
-                   (str/replace body "</details>\n\n" "</details>\n\nStill broken.\n")
-                   (str/replace body "🏁 Script executed:" "Repair acknowledgement v1 for fake:")
-                   (str/replace body "Reason: " "Reason: Please fix this. ")
-                   (str/replace body "Reason: " "Reason: A defect requires correction. ")
-                   (str/replace body "Reason: " "Reason: This remains uncertain. ")
-                   (str/replace body "Reason: " "Reason: This is not verified. ")
-                   (str/replace body "Reason: " "Reason: Fixing this remains necessary. ")
-                   (str/replace body "Evidence: " "Extra live line\nEvidence: ")]]
-        (is (not (check bad)))))))
+        (is (check affirmative))
+      (doseq [bad [(str/replace affirmative "🧩 Analysis chain" "Example")
+                   (str/replace affirmative "```shell" "```text")
+                   (str/replace affirmative "`@writer`" "`@someone-else`")
+                   (str/replace affirmative "</details>\n\n" "</details>\n\nStill broken.\n")
+                   (str/replace affirmative "🏁 Script executed:" "Repair acknowledgement v1 for fake:")
+                   (str/replace affirmative "Reason: " "Reason: Please fix this. ")
+                   (str/replace affirmative "Reason: " "Reason: A defect requires correction. ")
+                   (str/replace affirmative "Reason: " "Reason: This remains uncertain. ")
+                   (str/replace affirmative "Reason: " "Reason: This is not verified. ")
+                   (str/replace affirmative "Reason: " "Reason: Fixing this remains necessary. ")
+                   (str/replace affirmative "Evidence: " "Extra live line\nEvidence: ")]]
+        (is (not (check bad))))))))
 
 (deftest source-description-does-not-admit-corrective-requires
   (doseq [reason ["The exact-head design requires additional authorization checks before this repair is complete."
