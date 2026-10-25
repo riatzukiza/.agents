@@ -240,11 +240,19 @@
                    (str/replace affirmative "Reason: " "Reason: The boundary is requiring additional authorization. ")
                    (str/replace affirmative "Reason: " "Reason: Additional authorization corrections precede acceptance. ")
                    (str/replace affirmative "Reason: " "Reason: The delegation boundary is to be corrected before acceptance. ")
+                   (str/replace affirmative "Reason: " "Reason: Correct the missing actor authorization before accepting this repair. ")
+                   (str/replace affirmative "Reason: " "Reason: Correct actor authorization before acceptance of this repair. ")
+                   (str/replace affirmative "Reason: " "Reason: Exact-head Line 74 corrects the authorization bypass before acceptance. ")
+                   (str/replace affirmative "Reason: " "Reason: The actor authorization is missing before acceptance. ")
                    (str/replace affirmative "Evidence: " "Extra live line\nEvidence: ")]]
         (is (not (check bad))))))))
 
 (deftest source-description-does-not-admit-corrective-requires
-  (doseq [reason ["The boundary is needing additional authorization."
+  (doseq [reason ["Correct the missing actor authorization before accepting this repair."
+                  "Correct actor authorization before acceptance of this repair."
+                  "Exact-head Line 74 corrects the authorization bypass before acceptance."
+                  "The actor authorization is missing before acceptance."
+                  "The boundary is needing additional authorization."
                   "Additional authorization is needed before acceptance."
                   "The boundary is requiring additional authorization."
                   "Additional authorization corrections precede acceptance."

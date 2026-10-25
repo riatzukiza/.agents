@@ -33,7 +33,8 @@ The separate `:repair-acknowledgement` proof requires all of the following:
   current-head source URL with a nonempty repository-relative file path. Empty,
 traversal, query and fragment-only paths refuse. Reasons containing explicit
 defect, corrective or uncertain language also refuse even with a positive
-Verified line. These are the Bot's own verification, never text an
+Verified line. The conservative refusal includes missing, bare correct and
+corrects; a descriptive use can also refuse and supplies no exception. These are the Bot's own verification, never text an
   operator publishes under a Bot label. Generic acknowledgements do not qualify.
 
 ```text
