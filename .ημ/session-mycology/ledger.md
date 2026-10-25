@@ -958,3 +958,13 @@
   spore: none
   receipt-refs: pr-flow-orphaned-threads test-run
   note: Missing original review roots must preserve surviving native provenance; independently verify repair statements rather than invent a second-human requirement.
+
+- ts: 2026-10-25T04:35:10Z
+  session: pr-flow-repair-native-envelope
+  task: Preserve native transport around independent repair evidence
+  p-efficiency: 0.7
+  p-friction: 0.9
+  p-skill-candidate: 0.5
+  spore: none
+  receipt-refs: 2026-10-25T04:35:10Z
+  note: Native host wrappers recur despite authored-format requests; qualify captured transport with red regressions rather than repeated requests or live policy bypass.

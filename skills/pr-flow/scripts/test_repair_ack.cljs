@@ -199,3 +199,68 @@
     (let [bad (update fresh :body str/replace (str "/blob/" head "/src.clj")
                       (str "/blob/" head "/" path))]
       (is (not (admitted? (replace-nodes (conj prefix bad))))))))
+
+(def envelope-capture
+  (js->clj (js/JSON.parse (fs/readFileSync
+                         (path/join (path/dirname *file*) "fixtures/native-foresight144-repair-envelope.json") "utf8"))
+           :keywordize-keys true))
+(defn fixture-body [c]
+  ;; Raw native carrier retained; only explicit synthetic binding coordinates
+  ;; are substituted for this lexical regression. This is no operational proof.
+  (-> (:body c)
+      (str/replace "186ad1468de761330ce3528146a21ad572265d00" head)
+      (str/replace "PRRT_kwDOT3TWPM6vcq2j comment4355453041" "PRRT_fixture comment10")
+      (str/replace "PRRT_kwDOT3TWPM6vcq20 comment4355453881" "PRRT_fixture comment10")
+      (str/replace "`@riatzukiza`" "`@writer`")
+      (str/replace "https://github.com/open-hax/foresight/blob/" "https://github.com/owner/repo/blob/")))
+
+(deftest observed-native-shell-carrier-and-author-mention
+  (doseq [[_ c] envelope-capture]
+    (let [body (fixture-body c)
+          check (fn [b] (admitted? (input (conj prefix (assoc fresh :body b)))))]
+      ;; Actual reasons retain requires and conservatively refuse. Separate
+      ;; synthetic affirmative prose isolates the native transport regression.
+      (is (not (check body)))
+      (let [affirmative (str/replace body #"Reason: [^\n]+"
+                                    "Reason: Independently verified the complete source and surviving repair statement against the current planning criteria.")]
+        (is (check affirmative))
+      (doseq [bad [(str/replace affirmative "🧩 Analysis chain" "Example")
+                   (str/replace affirmative "```shell" "```text")
+                   (str/replace affirmative "`@writer`" "`@someone-else`")
+                   (str/replace affirmative "</details>\n\n" "</details>\n\nStill broken.\n")
+                   (str/replace affirmative "🏁 Script executed:" "Repair acknowledgement v1 for fake:")
+                   (str/replace affirmative "Reason: " "Reason: Please fix this. ")
+                   (str/replace affirmative "Reason: " "Reason: A defect requires correction. ")
+                   (str/replace affirmative "Reason: " "Reason: This remains uncertain. ")
+                   (str/replace affirmative "Reason: " "Reason: This is not verified. ")
+                   (str/replace affirmative "Reason: " "Reason: Fixing this remains necessary. ")
+                   (str/replace affirmative "Reason: " "Reason: Additional authorization is required before acceptance. ")
+                   (str/replace affirmative "Reason: " "Reason: Additional authorization is needed before acceptance. ")
+                   (str/replace affirmative "Reason: " "Reason: The boundary is needing additional authorization. ")
+                   (str/replace affirmative "Reason: " "Reason: The boundary is requiring additional authorization. ")
+                   (str/replace affirmative "Reason: " "Reason: Additional authorization corrections precede acceptance. ")
+                   (str/replace affirmative "Reason: " "Reason: The delegation boundary is to be corrected before acceptance. ")
+                   (str/replace affirmative "Reason: " "Reason: Correct the missing actor authorization before accepting this repair. ")
+                   (str/replace affirmative "Reason: " "Reason: Correct actor authorization before acceptance of this repair. ")
+                   (str/replace affirmative "Reason: " "Reason: Exact-head Line 74 corrects the authorization bypass before acceptance. ")
+                   (str/replace affirmative "Reason: " "Reason: The actor authorization is missing before acceptance. ")
+                   (str/replace affirmative "Evidence: " "Extra live line\nEvidence: ")]]
+        (is (not (check bad))))))))
+
+(deftest source-description-does-not-admit-corrective-requires
+  (doseq [reason ["Correct the missing actor authorization before accepting this repair."
+                  "Correct actor authorization before acceptance of this repair."
+                  "Exact-head Line 74 corrects the authorization bypass before acceptance."
+                  "The actor authorization is missing before acceptance."
+                  "The boundary is needing additional authorization."
+                  "Additional authorization is needed before acceptance."
+                  "The boundary is requiring additional authorization."
+                  "Additional authorization corrections precede acceptance."
+                  "Additional authorization is required before acceptance."
+                  "The delegation boundary is to be corrected before acceptance."
+                  "The exact-head design requires additional authorization checks before this repair is complete."
+                  "Exact-head Line 74 requires removal of the authorization bypass before acceptance."
+                  "The exact-head design requires fixing the unsafe actor binding"
+                  "Exact-head Line 74 requires correction of the producer defect"
+                  "The author requires source review before this can be verified"]]
+    (is (not (admitted? (input (conj prefix (update fresh :body str/replace #"Reason: [^\n]+" (str "Reason: " reason)))))))))

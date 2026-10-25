@@ -1,0 +1,146 @@
+{
+  "4369604553": {
+    "url": "https://api.github.com/repos/open-hax/foresight/pulls/comments/4369604553",
+    "pull_request_review_id": 5641443135,
+    "id": 4369604553,
+    "node_id": "PRRC_kwDOT3TWPM8AAAABBHLfyQ",
+    "diff_hunk": "@@ -0,0 +1,84 @@\n+# Muse tools and harness actors across Knoxx instances\n+\n+- Status: proposed; 2026-10-22.\n+- Research: [inventory and sources](../../research/harness-actor-continuity.md).\n+- Extends [layered contracts](layered-operating-contracts.md); preserves contract-0.\n+- Epic: harness-actor-continuity.\n+\n+## Outcome\n+\n+Select one operating contract through .ημ layers, project its supported tools\n+into Codex, OpenCode, Claude and qualified Hermes contexts, and bind each active\n+context to its own Knoxx actor. Local and remote Knoxx instances retain scoped\n+memory and explicit authority over what crosses their boundary.\n+\n+## Ownership and interfaces\n+\n+Muse compiles declared tools, schemas, exposures and supported host adapters.\n+Reuse its existing MCP backend for Codex tools. Host lifecycle, task messages\n+and agent spawning require separate host adapters; MCP tool parity never implies\n+hook parity. Unsupported capabilities must be reported in the manifest.\n+Knoxx owns actors, mailboxes and admission. Axxium owns principal/authorization\n+contracts; Clio owns event identity/replay. Katamorph supplies portable shapes.\n+Epiphany supplies archaeological evidence, Rheos supplies work state.\n+\n+A binding identifies instance id, actor id, authenticated principal reference,\n+harness family, installation id, session/task id, parent context, capability\n+profile and effective-contract hash. Credentials stay in the runtime's secret\n+store; manifests contain references only. Each spawned context gets distinct\n+provenance and a bounded delegated grant. A verified resume may reuse a binding;\n+new tasks must not be silently aliased by model name or similar content.",
+    "path": "docs/notes/design/harness-actor-continuity.md",
+    "commit_id": "186ad1468de761330ce3528146a21ad572265d00",
+    "original_commit_id": "eeae0b77ba79b9ae024b9e398c0fc74f31daa7a0",
+    "user": {
+      "login": "coderabbitai[bot]",
+      "id": 136622811,
+      "node_id": "BOT_kgDOCCSy2w",
+      "avatar_url": "https://avatars.githubusercontent.com/in/347564?v=4",
+      "gravatar_id": "",
+      "url": "https://api.github.com/users/coderabbitai%5Bbot%5D",
+      "html_url": "https://github.com/apps/coderabbitai",
+      "followers_url": "https://api.github.com/users/coderabbitai%5Bbot%5D/followers",
+      "following_url": "https://api.github.com/users/coderabbitai%5Bbot%5D/following{/other_user}",
+      "gists_url": "https://api.github.com/users/coderabbitai%5Bbot%5D/gists{/gist_id}",
+      "starred_url": "https://api.github.com/users/coderabbitai%5Bbot%5D/starred{/owner}{/repo}",
+      "subscriptions_url": "https://api.github.com/users/coderabbitai%5Bbot%5D/subscriptions",
+      "organizations_url": "https://api.github.com/users/coderabbitai%5Bbot%5D/orgs",
+      "repos_url": "https://api.github.com/users/coderabbitai%5Bbot%5D/repos",
+      "events_url": "https://api.github.com/users/coderabbitai%5Bbot%5D/events{/privacy}",
+      "received_events_url": "https://api.github.com/users/coderabbitai%5Bbot%5D/received_events",
+      "type": "Bot",
+      "user_view_type": "public",
+      "site_admin": false
+    },
+    "body": "<!-- coderabbit-ai-generated:v1 -->\n\n<details>\n<summary>🧩 Analysis chain</summary>\n<dl>\n<dd>\n\n🏁 Script executed:\n\n```shell\n#!/bin/bash\nset -euo pipefail\nhead=186ad1468de761330ce3528146a21ad572265d00\ngh api repos/open-hax/foresight/pulls/144 --jq '{head:.head.sha,state}'\nprintf '\\n--- Applicable instructions ---\\n'\ngit ls-tree -r --name-only \"$head\" | grep -E '(^|/)AGENTS\\.md$'\ngit show \"$head:AGENTS.md\"\ngit show \"$head:docs/agile/AGENTS.md\"\nif test -f \"$HOME/.agents/skills/pr-flow/SKILL.md\"; then cat \"$HOME/.agents/skills/pr-flow/SKILL.md\"; fi\nfor path in docs/notes/design/harness-actor-continuity.md docs/agile/kanban/hac-02-actor-bindings.md docs/notes/promethean-review-and-promotion.md docs/notes/design/promethean-pr-process.edn; do\n  printf '\\n--- Map: %s ---\\n' \"$path\"\n  ast-grep outline \"$path\" || true\n  printf '\\n--- Immutable source: %s ---\\n' \"$path\"\n  git show \"$head:$path\" | nl -ba\ndone\nprintf '\\n--- Surviving author statement and thread metadata ---\\n'\ngh api graphql -f query='query { node(id:\"PRRT_kwDOT3TWPM6vcq20\") { ... on PullRequestReviewThread { id isResolved path comments(first:100) { pageInfo { hasNextPage endCursor } nodes { databaseId author { login } body pullRequestReview { databaseId state commit { oid } } } } } } }' --jq '.data.node | {id,isResolved,path,pageInfo:.comments.pageInfo,comments:[.comments.nodes[] | {databaseId,author,body,pullRequestReview}]}'\n```\n\nLength of output: 82917\n\n---\n\n</dd>\n</dl>\n</details>\n\n`@riatzukiza`\nRepair acknowledgement v1 for 186ad1468de761330ce3528146a21ad572265d00:\nFinding: PRRT_kwDOT3TWPM6vcq20 comment4355453881\nVerified: complete-native-context/author-repair/no-unaddressed-finding\nReason: The exact-head design requires child-grant subset and expiry limits, full delegation-chain validation, and principal, installation, context, expiry and revocation checks on every use and resume. HAC.02 supplies corresponding negative acceptance criteria. These planning requirements substantiate the surviving author repair statement.\nEvidence: https://github.com/open-hax/foresight/blob/186ad1468de761330ce3528146a21ad572265d00/docs/notes/design/harness-actor-continuity.md\n\n✅ Review thread resolved.\n\n<sub><i>You are interacting with an AI system.</i></sub>\n\n<!-- This is an auto-generated reply by CodeRabbit -->",
+    "created_at": "2026-10-25T04:08:34Z",
+    "updated_at": "2026-10-25T04:08:34Z",
+    "html_url": "https://github.com/open-hax/foresight/pull/144#discussion_r4369604553",
+    "pull_request_url": "https://api.github.com/repos/open-hax/foresight/pulls/144",
+    "_links": {
+      "self": {
+        "href": "https://api.github.com/repos/open-hax/foresight/pulls/comments/4369604553"
+      },
+      "html": {
+        "href": "https://github.com/open-hax/foresight/pull/144#discussion_r4369604553"
+      },
+      "pull_request": {
+        "href": "https://api.github.com/repos/open-hax/foresight/pulls/144"
+      }
+    },
+    "reactions": {
+      "url": "https://api.github.com/repos/open-hax/foresight/pulls/comments/4369604553/reactions",
+      "total_count": 0,
+      "+1": 0,
+      "-1": 0,
+      "laugh": 0,
+      "hooray": 0,
+      "confused": 0,
+      "heart": 0,
+      "rocket": 0,
+      "eyes": 0
+    },
+    "start_line": 25,
+    "original_start_line": 25,
+    "start_side": "RIGHT",
+    "line": 30,
+    "original_line": 30,
+    "side": "RIGHT",
+    "in_reply_to_id": 4355453881,
+    "author_association": "NONE",
+    "original_position": 30,
+    "position": 30,
+    "subject_type": "line",
+    "is_copilot_code_review": false,
+    "copilot_code_review_sources": []
+  },
+  "4369604696": {
+    "url": "https://api.github.com/repos/open-hax/foresight/pulls/comments/4369604696",
+    "pull_request_review_id": 5641443300,
+    "id": 4369604696,
+    "node_id": "PRRC_kwDOT3TWPM8AAAABBHLgWA",
+    "diff_hunk": "@@ -0,0 +1,54 @@\n+---\n+category: \"kanban\"\n+labels: \"muse, knoxx, harness, 5sp\"\n+type: \"story\"\n+story_id: \"HAC.02\"\n+points: \"5\"\n+title: \"HAC.02 — Specify portable harness actor bindings and message admission\"\n+priority: \"P1\"\n+status: \"incoming\"\n+uuid: \"hac-02-actor-bindings\"\n+epic: \"harness-actor-continuity\"\n+parent: \"harness-actor-continuity\"\n+---\n+\n+# HAC.02 — Specify portable harness actor bindings and message admission\n+\n+> Design: [harness actor continuity](../../notes/design/harness-actor-continuity.md)\n+> Research: [grounding](../../research/harness-actor-continuity.md)\n+> Target: knoxx, axxium, clio, katamorph\n+\n+## Context\n+\n+PR 141 provides the layered-contract plan. This slice connects its selected operating contract to host tools and Knoxx identity.\n+\n+## Outcome\n+\n+Specify portable harness actor bindings and message admission.\n+\n+## Scope\n+\n+Reuse actor/mailbox/event authority and specify identity, delegation, correlation, deduplication and revocation contracts before host adapters.\n+\n+## Non-goals\n+\n+No production cutover, broad credential copying, new board implementation or automatic memory lift.\n+\n+## Acceptance criteria\n+\n+- [ ] GIVEN two contexts with the same human/model WHEN bound THEN they have distinct context provenance and bounded grants.\n+- [ ] GIVEN a spoofed producer, expired grant or wrong tenant/audience WHEN a message is admitted THEN it is denied without creating a valid event.",
+    "path": "docs/agile/kanban/hac-02-actor-bindings.md",
+    "commit_id": "186ad1468de761330ce3528146a21ad572265d00",
+    "original_commit_id": "eeae0b77ba79b9ae024b9e398c0fc74f31daa7a0",
+    "user": {
+      "login": "coderabbitai[bot]",
+      "id": 136622811,
+      "node_id": "BOT_kgDOCCSy2w",
+      "avatar_url": "https://avatars.githubusercontent.com/in/347564?v=4",
+      "gravatar_id": "",
+      "url": "https://api.github.com/users/coderabbitai%5Bbot%5D",
+      "html_url": "https://github.com/apps/coderabbitai",
+      "followers_url": "https://api.github.com/users/coderabbitai%5Bbot%5D/followers",
+      "following_url": "https://api.github.com/users/coderabbitai%5Bbot%5D/following{/other_user}",
+      "gists_url": "https://api.github.com/users/coderabbitai%5Bbot%5D/gists{/gist_id}",
+      "starred_url": "https://api.github.com/users/coderabbitai%5Bbot%5D/starred{/owner}{/repo}",
+      "subscriptions_url": "https://api.github.com/users/coderabbitai%5Bbot%5D/subscriptions",
+      "organizations_url": "https://api.github.com/users/coderabbitai%5Bbot%5D/orgs",
+      "repos_url": "https://api.github.com/users/coderabbitai%5Bbot%5D/repos",
+      "events_url": "https://api.github.com/users/coderabbitai%5Bbot%5D/events{/privacy}",
+      "received_events_url": "https://api.github.com/users/coderabbitai%5Bbot%5D/received_events",
+      "type": "Bot",
+      "user_view_type": "public",
+      "site_admin": false
+    },
+    "body": "<!-- coderabbit-ai-generated:v1 -->\n\n<details>\n<summary>🧩 Analysis chain</summary>\n<dl>\n<dd>\n\n🏁 Script executed:\n\n```shell\n#!/bin/bash\nset -euo pipefail\nhead=186ad1468de761330ce3528146a21ad572265d00\ngh api repos/open-hax/foresight/pulls/144 --jq '{head:.head.sha,state}'\ntmp=$(mktemp)\ngh api graphql -f query='query {\n node(id:\"PRRT_kwDOT3TWPM6vcq2j\") {\n ... on PullRequestReviewThread {\n id isResolved path line originalLine\n comments(first:100) {\n pageInfo {hasNextPage endCursor}\n nodes {databaseId body author {login} diffHunk\n originalCommit {oid} commit {oid}\n pullRequestReview {databaseId body state commit {oid} author {login}}\n }\n }\n }\n }\n}' > \"$tmp\"\ncat \"$tmp\"\nfor review in $(jq -r '.data.node.comments.nodes[].pullRequestReview.databaseId // empty' \"$tmp\" | sort -u); do\n printf '\\n--- Enclosing review %s ---\\n' \"$review\"\n gh api \"repos/open-hax/foresight/pulls/144/reviews/$review\" --jq '{id,body,state,commit_id,user:.user.login}'\n gh api --paginate \"repos/open-hax/foresight/pulls/144/reviews/$review/comments\" --jq '.[] | {id,body,path,diff_hunk,in_reply_to_id}'\ndone\nprintf '\\n--- Instruction locations ---\\n'\ngit ls-tree -r --name-only \"$head\" | grep -E '(^|/)AGENTS\\.md$'\nfor path in AGENTS.md docs/AGENTS.md docs/agile/AGENTS.md docs/agile/kanban/AGENTS.md; do\n if git cat-file -e \"$head:$path\" 2>/dev/null; then\n  printf '\\n--- %s ---\\n' \"$path\"\n  git show \"$head:$path\"\n fi\ndone\nprintf '\\n--- Exact source ---\\n'\ngit show \"$head:docs/agile/kanban/hac-02-actor-bindings.md\" | nl -ba\nprintf '\\n--- Repair diff ---\\n'\ngit show af114f393049dfb1c931fd00d57283a9ca3f0a21 -- docs/agile/kanban/hac-02-actor-bindings.md\nprintf '\\n--- Review policy ---\\n'\ngit show \"$head:docs/notes/promethean-review-and-promotion.md\"\nprintf '\\n--- Process resolution rules ---\\n'\ngit show \"$head:docs/notes/design/promethean-pr-process.edn\" | rg -n -C3 'resolv|thread'\nif [ -f \"$HOME/.agents/skills/pr-flow/SKILL.md\" ]; then\n printf '\\n--- Canonical skill ---\\n'\n cat \"$HOME/.agents/skills/pr-flow/SKILL.md\"\nfi\nprintf '\\n--- Final head ---\\n'\ngh api repos/open-hax/foresight/pulls/144 --jq '.head.sha'\n```\n\nLength of output: 94419\n\n---\n\n🏁 Script executed:\n\n```shell\n#!/bin/bash\nset -euo pipefail\ngit show 186ad1468de761330ce3528146a21ad572265d00:docs/notes/design/promethean-pr-process.edn\nif [ -f \"$HOME/.agents/skills/pr-flow/SKILL.md\" ]; then\n cat \"$HOME/.agents/skills/pr-flow/SKILL.md\"\nelse\n printf '\\nCanonical pr-flow skill absent from sandbox.\\n'\nfi\ngh api repos/open-hax/foresight/pulls/144 --jq '.head.sha'\n```\n\nLength of output: 6532\n\n---\n\n</dd>\n</dl>\n</details>\n\n`@riatzukiza` Repair acknowledgement v1 for 186ad1468de761330ce3528146a21ad572265d00:\nFinding: PRRT_kwDOT3TWPM6vcq2j comment4355453041\nVerified: complete-native-context/author-repair/no-unaddressed-finding\nReason: Exact-head Line 74 requires denial for authenticated producers with the wrong role or missing capability and prevents valid-event creation. The repair diff and complete surviving native conversation establish this planning repair as complete.\nEvidence: https://github.com/open-hax/foresight/blob/186ad1468de761330ce3528146a21ad572265d00/docs/agile/kanban/hac-02-actor-bindings.md\n\n✅ Review thread resolved.\n\n<sub><i>You are interacting with an AI system.</i></sub>\n\n<!-- This is an auto-generated reply by CodeRabbit -->",
+    "created_at": "2026-10-25T04:08:37Z",
+    "updated_at": "2026-10-25T04:08:38Z",
+    "html_url": "https://github.com/open-hax/foresight/pull/144#discussion_r4369604696",
+    "pull_request_url": "https://api.github.com/repos/open-hax/foresight/pulls/144",
+    "_links": {
+      "self": {
+        "href": "https://api.github.com/repos/open-hax/foresight/pulls/comments/4369604696"
+      },
+      "html": {
+        "href": "https://github.com/open-hax/foresight/pull/144#discussion_r4369604696"
+      },
+      "pull_request": {
+        "href": "https://api.github.com/repos/open-hax/foresight/pulls/144"
+      }
+    },
+    "reactions": {
+      "url": "https://api.github.com/repos/open-hax/foresight/pulls/comments/4369604696/reactions",
+      "total_count": 0,
+      "+1": 0,
+      "-1": 0,
+      "laugh": 0,
+      "hooray": 0,
+      "confused": 0,
+      "heart": 0,
+      "rocket": 0,
+      "eyes": 0
+    },
+    "start_line": null,
+    "original_start_line": null,
+    "start_side": null,
+    "line": 40,
+    "original_line": 40,
+    "side": "RIGHT",
+    "in_reply_to_id": 4355453041,
+    "author_association": "NONE",
+    "original_position": 40,
+    "position": 40,
+    "subject_type": "line",
+    "is_copilot_code_review": false,
+    "copilot_code_review_sources": []
+  }
+}
