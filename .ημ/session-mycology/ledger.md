@@ -1017,3 +1017,11 @@
   p-skill-candidate: 0.43
   receipt-refs: mergedclassifierPR45; native-review-intent-plan.md
   note: A semantic classifier can help distinguish acknowledgements from correction requests, but fresh custody, independent judgment, native publication and revocable disposition are separate contracts. Plan these slices explicitly before enabling a label in the merge gate; classification never supplies a reviewer vote. No spore promoted.
+
+
+## 2026-10-25T13:07:05.805907+00:00 — make replay and revocation contracts testable
+
+- Receipt `9ac55f80-b420-4ba5-8a4d-e7e584091a27`; efficiency0.82, friction0.31, skill-candidate0.22.
+- Stable content digests are not one-use inference challenges. Specify a fresh parent-generated nonce bound into the request ID, consumption on success/failure and refusal after restart. Scope canonical custody-change observations through exact native/source/profile dependencies and retain revoked generations.
+- Native principal type validates a tuple; it does not distinguish two independent Bots. Matching numeric/node IDs or canonical logins collides, while matching only Bot type must not reject every Bot assessor. Unknown/contradictory identity still refuses.
+- Appended corrective planning attribution instead of rewriting the generic published receipt. Four local documentation links resolve and diff checks pass; no executable tests, installed behavior, approval or deployment claimed. No spore or promotion.
