@@ -1,7 +1,8 @@
 ;; SPDX-License-Identifier: GPL-3.0-or-later
 (ns test-fresh-review
-  (:require [cljs.test :refer [deftest is run-tests]]
+  (:require [cljs.test :refer [async deftest is run-tests]]
             ["node:crypto" :as crypto]
+            ["./pr_flow/await_transport.mjs" :as transport]
             [pr-flow.raw-review :as raw]
             [pr-flow.fresh-review :as fresh]
             [test-native-context :as fixture]))
@@ -134,14 +135,19 @@
     (reset! (:receipt-failure h) nil)
     (is (= :pending (:status (begin h))))))
 
-(deftest throwing-transport-is-consumed-without-retry
-  (let [h (host) calls (atom 0)
-        result (fresh/classify! (:parent h) selection "synthetic" :chat
-                               (fn [_] (swap! calls inc) (throw (ex-info "Synthetic transport failure" {}))))]
-    (is (= :uncertain (:status result)))
-    (is (= 1 @calls))
-    (is (= [:attempt :consumed] (mapv :phase @(:records h))))
-    (is (= :pending (:status (begin h))))))
+(deftest ^:async throwing-transport-is-consumed-without-retry
+  (async done
+    (let [h (host) calls (atom 0)]
+      (transport/consumeResponse
+        #(fresh/classify! (:parent h) selection "synthetic" :chat
+                          (fn [_] (swap! calls inc) (throw (ex-info "Synthetic transport failure" {}))))
+        (fn [result]
+          (is (= :uncertain (:status result)))
+          (is (= 1 @calls))
+          (is (= [:attempt :consumed] (mapv :phase @(:records h))))
+          (is (= :pending (:status (begin h))))
+          (done))
+        {:unexpected-rejection true}))))
 
 (deftest absolute-source-offsets-preserve-unicode-and-full-unit-coverage
   (let [source (assoc-in input [:source :body] (str (apply str (repeat 350 "😀 \n")) "Keep every request."))

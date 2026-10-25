@@ -32,6 +32,18 @@ test('fresh native parent consumes the actual bounded HTTP transport exactly onc
   const altered=await run(endpoint,'altered-digest');
   assert.equal(altered.result.status,'uncertain');assert.equal(altered.result.reason,'inference-request-mismatch');
   assert.equal(altered.repeated.reason,'challenge-consumed-or-foreign');assert.deepEqual(altered.phases,['attempt','consumed']);
-  assert.equal(calls,2,'one actual HTTP invocation for each independently started challenge');
+  const asynchronous=await run(endpoint,'async-valid');
+  assert.equal(asynchronous.result.status,'classified',JSON.stringify(asynchronous));
+  assert.equal(asynchronous.repeated.reason,'challenge-consumed-or-foreign');
+  assert.deepEqual(asynchronous.phases,['attempt','consumed']);
+  for(const mode of ['async-reject','sync-throw']){
+   const failed=await run(endpoint,mode);
+   assert.equal(failed.result.status,'uncertain',mode);
+   assert.equal(failed.result.reason,'inference-unavailable',mode);
+   assert.equal(failed.result['transport-error'],'transport-failed',mode);
+   assert.equal(failed.repeated.reason,'challenge-consumed-or-foreign',mode);
+   assert.deepEqual(failed.phases,['attempt','consumed'],mode);
+  }
+  assert.equal(calls,3,'one actual HTTP invocation per successful transport; rejected/throwing transports are not retried');
  }finally{await new Promise(resolve=>server.close(resolve))}
 });
