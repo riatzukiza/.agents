@@ -125,3 +125,7 @@ The previous parser-format extension remains uninstalled.
 The [native integration design](native-review-intent-plan.md) separates fresh
 collection, independent native judgment/publication and revocable canonical
 consumption. It is planning source, with no installed gate or approval change.
+
+The [NRI-1 source/parent API](native-review-custody.md) adds a separately reviewed
+v2 one-use native-custody path. It does not install a command, gate or independent
+assessment, and it leaves this capture-only v1 interface unchanged.
