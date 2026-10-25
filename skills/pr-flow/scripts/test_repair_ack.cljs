@@ -289,7 +289,18 @@
         (is (not (admitted? (input (conj prefix (assoc fresh :body body
                                                      :updatedAt "2026-10-23T10:02:01Z"))))))
         (is (not (admitted? (assoc-in t [:native-context :thread :comments :nodes 2 :pullRequestReview :commit :oid] old-head)))))
-      (doseq [bad [(str/replace body "no new learning was saved." "the finding still reproduces.")
+      (let [tweet-end "<!-- end of auto-generated comment: tweet message by coderabbit.ai -->"
+            tweet (str "---\n\n<!-- This is an auto-generated comment: tweet message by coderabbit.ai -->"
+                       "Native tweet metadata." tweet-end "\n\n")
+            combined (str/replace body learning-notice (str tweet learning-notice))]
+        (is (check combined) "Existing tweet carrier plus exact learning notice")
+        (doseq [gap ["\n\n\n" "\n\n\n\n"]]
+          (is (not (check (str/replace combined (str tweet-end "\n\n") (str tweet-end gap)))))))
+      (is (check (str/replace body (str "\n\n" learning-notice) "\n\n\n"))
+          "Legacy suffix spacing remains accepted when the learning notice is absent")
+      (doseq [bad [(str/replace body (str "\n\n" learning-notice) (str "\n\n\n" learning-notice))
+                   (str/replace body (str "\n\n" learning-notice) (str "\n\n\n\n" learning-notice))
+                   (str/replace body "no new learning was saved." "the finding still reproduces.")
                    (str/replace body learning-notice (str learning-notice learning-notice))
                    (str/replace body learning-notice (str learning-notice "This still reproduces.\n\n"))
                    (str/replace body learning-notice "---\n\n> Arbitrary quoted metadata.\n\n")
