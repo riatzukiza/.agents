@@ -199,3 +199,41 @@
     (let [bad (update fresh :body str/replace (str "/blob/" head "/src.clj")
                       (str "/blob/" head "/" path))]
       (is (not (admitted? (replace-nodes (conj prefix bad))))))))
+
+(def envelope-capture
+  (js->clj (js/JSON.parse (fs/readFileSync
+                         (path/join (path/dirname *file*) "fixtures/native-foresight144-repair-envelope.json") "utf8"))
+           :keywordize-keys true))
+(defn fixture-body [c]
+  ;; Raw native carrier retained; only explicit synthetic binding coordinates
+  ;; are substituted for this lexical regression. This is no operational proof.
+  (-> (:body c)
+      (str/replace "186ad1468de761330ce3528146a21ad572265d00" head)
+      (str/replace "PRRT_kwDOT3TWPM6vcq2j comment4355453041" "PRRT_fixture comment10")
+      (str/replace "PRRT_kwDOT3TWPM6vcq20 comment4355453881" "PRRT_fixture comment10")
+      (str/replace "`@riatzukiza`" "`@writer`")
+      (str/replace "https://github.com/open-hax/foresight/blob/" "https://github.com/owner/repo/blob/")))
+
+(deftest observed-native-shell-carrier-and-author-mention
+  (doseq [[_ c] envelope-capture]
+    (let [body (fixture-body c)
+          check (fn [b] (admitted? (input (conj prefix (assoc fresh :body b)))))]
+      (is (check body))
+      (doseq [bad [(str/replace body "🧩 Analysis chain" "Example")
+                   (str/replace body "```shell" "```text")
+                   (str/replace body "`@writer`" "`@someone-else`")
+                   (str/replace body "</details>\n\n" "</details>\n\nStill broken.\n")
+                   (str/replace body "🏁 Script executed:" "Repair acknowledgement v1 for fake:")
+                   (str/replace body "Reason: " "Reason: Please fix this. ")
+                   (str/replace body "Reason: " "Reason: A defect requires correction. ")
+                   (str/replace body "Reason: " "Reason: This remains uncertain. ")
+                   (str/replace body "Reason: " "Reason: This is not verified. ")
+                   (str/replace body "Reason: " "Reason: Fixing this remains necessary. ")
+                   (str/replace body "Evidence: " "Extra live line\nEvidence: ")]]
+        (is (not (check bad)))))))
+
+(deftest source-description-does-not-admit-corrective-requires
+  (doseq [reason ["The exact-head design requires fixing the unsafe actor binding"
+                  "Exact-head Line 74 requires correction of the producer defect"
+                  "The author requires source review before this can be verified"]]
+    (is (not (admitted? (input (conj prefix (update fresh :body str/replace #"Reason: [^\n]+" (str "Reason: " reason)))))))))

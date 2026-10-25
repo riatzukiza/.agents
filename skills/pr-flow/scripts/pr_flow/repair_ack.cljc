@@ -18,14 +18,32 @@
   ;; Do not mine quoted, generated or mixed-negative text for a positive token.
   (and (text? s) (not (re-find #"(?im)[`<>\r]|^\s*>|\b(?:not|cannot|can't|pending|unknown|unverified|retract|withdraw|unresolved|still fails|still reproduces)\b" s))))
 
-(defn- assessment-text [body coderabbit?]
+(defn- native-analysis-tail [text]
+  ;; Only the observed shell-execution carrier, never arbitrary details/prose.
+  ;; Fences are structural: embedded fences, extra blocks and live prose refuse.
+  (let [start "<details>\n<summary>🧩 Analysis chain</summary>\n<dl>\n<dd>\n\n"
+        end "</dd>\n</dl>\n</details>\n\n"]
+    (if (str/starts-with? text start)
+      (when-let [i (str/index-of text end)]
+        (let [carrier (subs text (count start) i)]
+          (when (re-matches #"(?:🏁 Script executed:\n\n```shell\n(?:(?!```)[\s\S])*?\n```\n\nLength of output: [0-9]+\n\n---\n\n)+" carrier)
+            (subs text (+ i (count end))))))
+      text)))
+
+(defn- assessment-text [body coderabbit? author-login]
   ;; Only the observed native envelope is transport. Never strip arbitrary
   ;; HTML/comments/details or mine examples for the live protocol. The five
-  ;; authored lines must be the very first content after the exact prefix.
+  ;; authored lines immediately follow only the recognized native carrier/mention.
   (when (string? body)
     (let [prefix "<!-- coderabbit-ai-generated:v1 -->\n\n"]
       (if (and coderabbit? (str/starts-with? body prefix))
-        (let [lines (str/split (subs body (count prefix)) #"\n" -1)
+        (let [tail (native-analysis-tail (subs body (count prefix)))
+              mention (str "`@" author-login "`")
+              tail (cond
+                     (and tail (str/starts-with? tail (str mention "\n"))) (subs tail (inc (count mention)))
+                     (and tail (str/starts-with? tail (str mention " "))) (subs tail (inc (count mention)))
+                     :else tail)
+              lines (str/split (or tail "") #"\n" -1)
               live (str/join "\n" (take 5 lines))
               suffix (str "\n" (str/join "\n" (drop 5 lines)))]
           (when (and (<= 5 (count lines))
@@ -34,11 +52,14 @@
         body))))
 
 (defn- affirmative-reason? [reason]
-  (and (str/starts-with? (or reason "") "Reason: ") (plain? reason)
+  (let [judgment (str/replace (or reason "")
+                            #"^Reason: (?:The exact-head design|Exact-head Line [0-9]+) requires "
+                            "Reason: Source contract states ")]
+    (and (str/starts-with? (or reason "") "Reason: ") (plain? reason)
        (<= 48 (count reason))
        ;; Contradictory/uncertain live judgments cannot be overwritten by the
        ;; protocol's positive declaration. Unknown defect language stays out.
-       (not (re-find #"(?i)\b(?:bugs?|defects?|vulnerabilit(?:y|ies)|unsafe|uncertain|unsure|possibly|perhaps|might|may|should|must|please|outstanding|remaining|needs?|requires?|fix)\b" reason))))
+       (not (re-find #"(?i)\b(?:bugs?|defects?|vulnerabilit(?:y|ies)|unsafe|uncertain|unsure|possibly|perhaps|might|may|should|must|please|outstanding|remaining|needs?|requires?|fix(?:es|ed|ing)?|correct(?:ion|ive|ing))\b" judgment)))))
 
 (defn- source-evidence? [evidence prefix]
   (and (string? evidence) (str/starts-with? evidence prefix) (plain? evidence)
@@ -59,7 +80,7 @@
         prefix (butlast nodes) a (:author pr) b (:author assessment)
         head (:head t) r (:pullRequestReview assessment)
         url-prefix (str "https://github.com/" (:nameWithOwner repository) "/pull/" (:number pr) "#discussion_r")
-        lines (str/split (or (assessment-text (:body assessment) (= "coderabbit" (reviewer b))) "") #"\n" -1)
+        lines (str/split (or (assessment-text (:body assessment) (= "coderabbit" (reviewer b)) (:login a)) "") #"\n" -1)
         [header finding verified reason evidence] lines
         valid-node? (fn [c]
                       (let [review (:pullRequestReview c)]

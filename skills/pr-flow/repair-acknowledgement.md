@@ -47,9 +47,21 @@ Evidence: https://github.com/OWNER/REPO/blob/FULL_CURRENT_HEAD/PATH
 Unwrapped replies must be exactly five lines. CodeRabbit may wrap those lines
 with the exact observed `<!-- coderabbit-ai-generated:v1 -->` plus two LF bytes,
 and its native sub/footer suffix, optionally including its known tweet block
-and `✅ Review thread resolved.` line. The protocol must be first after the
-prefix. Arbitrary HTML, analysis blocks, quoted/fenced examples, extra live
-prose and mixed negatives do not supply a positive assessment. Raw bytes remain
+and `✅ Review thread resolved.` line. Before the protocol, the observed native shell-only Analysis chain carrier may
+appear: exact details/summary/dl/dd tags, one or more fenced shell executions,
+each with its numeric output length and separator, and the matching closing
+tags. Fences must be structurally complete; arbitrary blocks or live prose
+inside that carrier refuse. One exact backticked mention of the native PR
+author may follow, either on its own line or before the header. No protocol is
+mined from the shell carrier. All five live lines must immediately follow the
+recognized carrier and mention. Arbitrary HTML, quoted/fenced examples, extra
+live prose and mixed negatives do not supply a positive assessment.
+
+A Reason beginning exactly `The exact-head design requires ` or
+`Exact-head Line <digits> requires ` describes an existing source contract;
+that single anchored use of requires is not itself a corrective request.
+Further corrective, defect, uncertainty or negation language still refuses,
+including fixing and correction. Other uses of requires retain refusal. Raw bytes remain
 stored; the parser only recognizes this bounded transport envelope.
 
 A later thread append, late edit, push, or root-bound issue reply at/after the
