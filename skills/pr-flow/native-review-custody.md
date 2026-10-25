@@ -32,8 +32,13 @@ One parent holds at most one active challenge. Its returned `consume!` function
 atomically consumes that exact challenge before validation/recollection, even
 on failure. A replay or second consumption refuses without consuming a newer
 challenge. No receipt/capture can restore an active challenge after restart.
-The convenience `classify!` calls the supplied bounded transport once and
-consumes a thrown/failed invocation too. There is no retry or fallback.
+The convenience `classify!` returns a Promise, calls the supplied bounded
+transport once and awaits either a response or Promise before consumption.
+Synchronous throws and asynchronous rejections both take the same consumed
+failure path. There is no retry or fallback. Its native JavaScript async/await
+interop supplies only runtime sequencing: NBB 1.3.204 does not implement the
+ClojureScript `await` form. Source `classify!` keeps `^:async` metadata and no
+Promise chain or domain policy is implemented in the JavaScript boundary.
 
 The parent uses `native-context/collect-context` with complete body collection
 before and after successful inference. It re-reads permissions and policy,
@@ -50,6 +55,10 @@ readers, an enrolled immutable policy/source identity, the existing bounded
 transport, and `record!`. Those are trusted effect boundaries, not fields read
 from a model or capture. A caller who replaces them with fabricated functions
 has not produced native evidence. The parent does not authenticate such a host.
+Canonical collection and `record!` are synchronous host callbacks. The host must
+complete and verify the owner append before returning from `record!`; starting
+an asynchronous append is not that contract. Only `classify!`'s `infer!` boundary
+supports either synchronous or Promise-returning transports.
 
 `record!` must call the Receipt River owner's event constructor/validator and
 append-only writer, throwing on an unavailable or uncertain append. The parent
@@ -77,6 +86,8 @@ transport and uncertain receipt callbacks, and full Unicode quote offsets.
 HTTP child against a synthetic local provider, verifying source-bound output,
 exact payload digest, one invocation and one consumption. No public native IDs
 or qualifying model judgments are manufactured by these fixtures.
+The same transport test covers promised responses, rejected Promises and
+synchronous throws without early consumption, unhandled rejection or retries.
 
 Run those alongside the existing raw classifier, law, policy, CLI and transport
 suites. CI registers both new suites. Required current-head code review and

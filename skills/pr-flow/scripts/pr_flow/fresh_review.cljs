@@ -2,6 +2,7 @@
 (ns pr-flow.fresh-review
   "Owned one-use advisory parent. Importing performs no reads, inference or writes."
   (:require ["node:crypto" :as crypto]
+            ["./await_transport.mjs" :as transport]
             [clojure.string :as str]
             [pr-flow.native-context :as native]
             [pr-flow.native-review :as source]
@@ -100,13 +101,14 @@
                  (uncertain :receipt-unavailable))))
            (catch :default _ (uncertain :native-collection-unavailable)))))}))
 
-(defn classify!
+(defn ^:async classify!
   "Own one bounded invocation and consume its challenge even when transport
-   throws. infer! is the host's existing bounded transport, not review data."
+   throws/rejects. Returns a Promise; infer! may return a response or a Promise.
+   Native async/await interop keeps this source usable in NBB, which does not
+   implement the CLJS await form. infer! is trusted bounded transport, not data."
   [controller selection model protocol infer!]
   (let [attempt ((:begin! controller) selection model protocol)]
     (if (not= :pending (:status attempt))
-      attempt
-      (let [response (try (infer! (:payload attempt))
-                          (catch :default _ {:error :transport-failed}))]
-        ((:consume! attempt) response)))))
+      (js/Promise.resolve attempt)
+      (transport/consumeResponse #(infer! (:payload attempt)) (:consume! attempt)
+                                 {:error :transport-failed}))))

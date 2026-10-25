@@ -1048,3 +1048,11 @@ Preserved both append-only branch histories and both contract invariants. Local 
 - Reuse complete canonical native collection rather than treating an HTML item selector or a repeatable capture hash as fresh custody. Separate historical reviewed commit, current head, complete principals, permissions, history and policy; retain all canonical obligations. Generate and consume a private parent challenge even on failure.
 - New parent8/76 and actual bounded synthetic HTTP child1 PASS, old raw/law/policy/transport suites PASS, scoped lint0/0. Full CLI still has local timeouts. The unchanged5000ms diagnostic reproduces ETIMEDOUT/SIGTERM on both accepted main and candidate; it supplies diagnosis, not a passing gate.
 - A large owner-bridge output failed before inference; preserve full source in a content-addressed artifact with a compact owner-built receipt reference. The subsequent single free invocation returned429 and was consumed; no inferred classification, native approval, independent assessment, installed gate or fleet adoption.
+
+
+## 2026-10-25T15:08:20.703847+00:00 — do not consume a Promise as its response
+
+- Efficiency0.84, friction0.33, skill-candidate0.27. Evidence: current native comment4371266891, RED6818572 and latest scoped async test-run receipt. No spore/promotion.
+- An injectable bounded transport can return a Promise even if the initial caller uses spawnSync. Await its response before consumption and map synchronous throws/asynchronous rejections to the same consumed failure. The real promised HTTP fixture reproduced the defect; success/rejection/throw/reuse/no-retry checks now pass.
+- NBB1.3.204 does not implement CLJS await, so native JavaScript async/await is a narrow runtime boundary; classify! retains ^:async, policy remains in ClojureScript, and no Promise chain or second domain implementation is introduced. Synchronous owner-record completion remains an explicit host obligation.
+- Parent8/76, actual bounded HTTP1 and scoped lint0/0 PASS. Full prior local CLI is NOT green (116/3219,66failures), and the earlier accepted-main timeout diagnostic waives nothing. New head needs fresh native CI/review; no installed authority or deployment claim.
