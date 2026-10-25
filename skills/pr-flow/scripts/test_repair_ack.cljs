@@ -284,8 +284,10 @@
           check (fn [b] (admitted? (input (conj prefix (assoc fresh :body b))))) ]
       (is (check body) "exact fixed native trailer on independently qualified synthetic coordinates")
       (let [t (input (conj prefix (assoc fresh :body body)))]
-        (is (not (admitted? (assoc-in t [:native-context :thread :comments :nodes 2 :updatedAt]
-                                    "2026-10-23T10:02:01Z"))))
+        ;; Normalize from the edited node too: rejection must exercise chronology,
+        ;; not merely native/normalized timestamp disagreement.
+        (is (not (admitted? (input (conj prefix (assoc fresh :body body
+                                                     :updatedAt "2026-10-23T10:02:01Z"))))))
         (is (not (admitted? (assoc-in t [:native-context :thread :comments :nodes 2 :pullRequestReview :commit :oid] old-head)))))
       (doseq [bad [(str/replace body "no new learning was saved." "the finding still reproduces.")
                    (str/replace body learning-notice (str learning-notice learning-notice))
