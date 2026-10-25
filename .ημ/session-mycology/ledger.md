@@ -968,3 +968,44 @@
   spore: none
   receipt-refs: 2026-10-25T04:35:10Z
   note: Native host wrappers recur despite authored-format requests; qualify captured transport with red regressions rather than repeated requests or live policy bypass.
+- ts: 2026-10-25T06:06:42.904978536Z
+  session: /home/err/.local/share/codex-work/axxium-sso/review-format-current
+  task: Replace volatile review-format semantics with a bounded raw-input classifier
+  p-efficiency: 0.6
+  p-friction: 0.8
+  p-skill-candidate: 0.5
+  spore: none
+  receipt-refs: raw-review-classifier; shared-login-and-federation
+  note: Use current v2 vendor docs and actual client: distinguish expired account credential from anonymous free quota. Preserve raw corpus and deterministic custody, classify intent with typed output, leave uncertainty unresolved. Candidate remains unadopted; no live review or deployment credit.
+
+- ts: 2026-10-25T07:47:27.360539+00:00
+  origin: shared-login-classifier-native-review-followup
+  p-efficiency: 0.8
+  p-friction: 0.3
+  p-skill-candidate: 0.4
+  receipt-refs: shared-login-and-federation; native-review5641957517
+  note: Raw review classification needs only its supplied corpus. Deny ambient file discovery before inference rather than relying on rejecting tool-bearing results afterward. Exercise actual CLI dispatch as well as the transport; retain provider429 as unqualified runtime evidence.
+
+- ts: 2026-10-25T07:55:49.268524+00:00
+  origin: shared-login-classifier-main-integration
+  p-efficiency: 0.65
+  p-friction: 0.5
+  p-skill-candidate: 0.3
+  receipt-refs: shared-login-and-federation; accepted-main-d9ce57a
+  note: Missing synchronize workflows can follow a newly conflicting base. Check fresh mergeability before forcing event delivery. Keep accepted main and candidate laws, verify common ledger prefixes and both append suffixes without semantic deduplication, then requalify the combined source.
+
+- ts: 2026-10-25T09:41:14.773252+00:00
+  origin: shared-login-classifier-byte-custody
+  p-efficiency: 0.8
+  p-friction: 0.3
+  p-skill-candidate: 0.35
+  receipt-refs: shared-login-and-federation; native-review5642398855
+  note: Reproduce each native review premise independently. Buffer-to-string conversion loses split Unicode scalars; decode bounded bytes once and verify the child digest in the parent. The separate claimed exit-zero failure was not reproduced under pinned nbb, so retain that counterevidence while adding the requested explicit reporting hook.
+
+- ts: 2026-10-25T09:59:57.778477+00:00
+  origin: classifier-native-deadline-custody
+  p-efficiency: 0.85
+  p-friction: 0.25
+  p-skill-candidate: 0.3
+  receipt-refs: shared-login-and-federation; native4370392414
+  note: Native run and proof export must share an absolute monotonic lifecycle rather than independent timeouts. Reserve processing and finally-cleanup time and give the parent explicit startup/IPC margin. A virtual clock and actual subprocess boundaries verify shrinking budgets and cleanup without sleeping or calling a provider.
