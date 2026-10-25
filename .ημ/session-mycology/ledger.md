@@ -1040,3 +1040,11 @@ Preserved both append-only branch histories and both contract invariants. Local 
 - Receipt: latest precise main-integration test-run; efficiency0.80, friction0.41, skill-candidate0.24.
 - Cached GraphQL/REST PR metadata advertised6eb while accepted main had already advanced through PR46 to4d493e7. Reopening the owned PR exposed that base; fetch and actual merge then reproduced exactly two ledger conflicts. Preserve main bytes as a full prefix and branch append bytes as an intact suffix, rather than sorting or deduplicating event history.
 - Combined law226/5562, policy71/1794 and raw6/57 PASS; scoped kondo0warnings/errors, flow/diffPASS. New head requires native full review/CI; stale approvals and the earlier clean merge against the advertised old base supply no admission. No spore or deployment claim.
+
+
+## 2026-10-25T14:45:56.418735+00:00 — bind an advisory result to one owned native attempt
+
+- Efficiency0.72, friction0.58, skill-candidate0.34; source evidence: latest NRI-1 scoped verification receipt and RED326907a. No spore or promotion.
+- Reuse complete canonical native collection rather than treating an HTML item selector or a repeatable capture hash as fresh custody. Separate historical reviewed commit, current head, complete principals, permissions, history and policy; retain all canonical obligations. Generate and consume a private parent challenge even on failure.
+- New parent8/76 and actual bounded synthetic HTTP child1 PASS, old raw/law/policy/transport suites PASS, scoped lint0/0. Full CLI still has local timeouts. The unchanged5000ms diagnostic reproduces ETIMEDOUT/SIGTERM on both accepted main and candidate; it supplies diagnosis, not a passing gate.
+- A large owner-bridge output failed before inference; preserve full source in a content-addressed artifact with a compact owner-built receipt reference. The subsequent single free invocation returned429 and was consumed; no inferred classification, native approval, independent assessment, installed gate or fleet adoption.
