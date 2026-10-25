@@ -958,6 +958,16 @@
   spore: none
   receipt-refs: pr-flow-orphaned-threads test-run
   note: Missing original review roots must preserve surviving native provenance; independently verify repair statements rather than invent a second-human requirement.
+
+- ts: 2026-10-25T04:35:10Z
+  session: pr-flow-repair-native-envelope
+  task: Preserve native transport around independent repair evidence
+  p-efficiency: 0.7
+  p-friction: 0.9
+  p-skill-candidate: 0.5
+  spore: none
+  receipt-refs: 2026-10-25T04:35:10Z
+  note: Native host wrappers recur despite authored-format requests; qualify captured transport with red regressions rather than repeated requests or live policy bypass.
 - ts: 2026-10-25T06:06:42.904978536Z
   session: /home/err/.local/share/codex-work/axxium-sso/review-format-current
   task: Replace volatile review-format semantics with a bounded raw-input classifier
@@ -975,3 +985,11 @@
   p-skill-candidate: 0.4
   receipt-refs: shared-login-and-federation; native-review5641957517
   note: Raw review classification needs only its supplied corpus. Deny ambient file discovery before inference rather than relying on rejecting tool-bearing results afterward. Exercise actual CLI dispatch as well as the transport; retain provider429 as unqualified runtime evidence.
+
+- ts: 2026-10-25T07:55:49.268524+00:00
+  origin: shared-login-classifier-main-integration
+  p-efficiency: 0.65
+  p-friction: 0.5
+  p-skill-candidate: 0.3
+  receipt-refs: shared-login-and-federation; accepted-main-d9ce57a
+  note: Missing synchronize workflows can follow a newly conflicting base. Check fresh mergeability before forcing event delivery. Keep accepted main and candidate laws, verify common ledger prefixes and both append suffixes without semantic deduplication, then requalify the combined source.

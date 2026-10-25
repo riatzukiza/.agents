@@ -33,7 +33,8 @@ The separate `:repair-acknowledgement` proof requires all of the following:
   current-head source URL with a nonempty repository-relative file path. Empty,
 traversal, query and fragment-only paths refuse. Reasons containing explicit
 defect, corrective or uncertain language also refuse even with a positive
-Verified line. These are the Bot's own verification, never text an
+Verified line. The conservative refusal includes missing, bare correct and
+corrects; a descriptive use can also refuse and supplies no exception. These are the Bot's own verification, never text an
   operator publishes under a Bot label. Generic acknowledgements do not qualify.
 
 ```text
@@ -47,9 +48,20 @@ Evidence: https://github.com/OWNER/REPO/blob/FULL_CURRENT_HEAD/PATH
 Unwrapped replies must be exactly five lines. CodeRabbit may wrap those lines
 with the exact observed `<!-- coderabbit-ai-generated:v1 -->` plus two LF bytes,
 and its native sub/footer suffix, optionally including its known tweet block
-and `✅ Review thread resolved.` line. The protocol must be first after the
-prefix. Arbitrary HTML, analysis blocks, quoted/fenced examples, extra live
-prose and mixed negatives do not supply a positive assessment. Raw bytes remain
+and `✅ Review thread resolved.` line. Before the protocol, the observed native shell-only Analysis chain carrier may
+appear: exact details/summary/dl/dd tags, one or more fenced shell executions,
+each with its numeric output length and separator, and the matching closing
+tags. Fences must be structurally complete; arbitrary blocks or live prose
+inside that carrier refuse. One exact backticked mention of the native PR
+author may follow, either on its own line or before the header. No protocol is
+mined from the shell carrier. All five live lines must immediately follow the
+recognized carrier and mention. Arbitrary HTML, quoted/fenced examples, extra
+live prose and mixed negatives do not supply a positive assessment.
+
+The transport extension does not relax reason semantics. Descriptive or
+corrective requires remains conservatively refused; the captured native
+reasons therefore remain unqualified. Tests isolate transport acceptance using
+explicitly synthetic affirmative prose, and do not claim runtime admission. Raw bytes remain
 stored; the parser only recognizes this bounded transport envelope.
 
 A later thread append, late edit, push, or root-bound issue reply at/after the
