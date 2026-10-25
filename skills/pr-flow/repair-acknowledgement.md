@@ -61,7 +61,12 @@ live prose and mixed negatives do not supply a positive assessment.
 The transport extension does not relax reason semantics. Descriptive or
 corrective requires remains conservatively refused; the captured native
 reasons therefore remain unqualified. Tests isolate transport acceptance using
-explicitly synthetic affirmative prose, and do not claim runtime admission. Raw bytes remain
+explicitly synthetic affirmative prose, and do not claim runtime admission. One exact observed learning-status trailer may precede the resolved/footer lines:
+`> 📝 I couldn't check this conversation for new learnings, so no new learning was saved.`
+Its fixed separator and spacing are part of the native transport; arbitrary quoted
+text, changed wording, duplicate notices or extra judgments refuse. This metadata
+supplies no positive evidence and never relaxes unedited assessment chronology.
+Raw bytes remain
 stored; the parser only recognizes this bounded transport envelope.
 
 A later thread append, late edit, push, or root-bound issue reply at/after the
