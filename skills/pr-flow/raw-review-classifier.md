@@ -21,6 +21,10 @@ nbb -cp skills/pr-flow/scripts skills/pr-flow/scripts/classify_review.cljs \
 nbb -cp skills/pr-flow/scripts skills/pr-flow/scripts/classify_review.cljs \
   CAPTURE.json OWNER/REPO PR CURRENT_FULL_HEAD \
   https://opencode.ai/inference/systemone/v1/systemone jev-1.13-free systemone
+
+nbb -cp skills/pr-flow/scripts skills/pr-flow/scripts/classify_review.cljs \
+  CAPTURE.json OWNER/REPO PR CURRENT_FULL_HEAD \
+  opencode opencode/glm-5.3-flash-free opencode
 ```
 
 For an explicit remote endpoint, provide its credential as
@@ -61,12 +65,30 @@ or tunnel that restriction through Proxx. Free-model availability can change.
 Consult the [typed Choice API](https://docs.typesafe.ai/primitives/choice) for
 the native System One response shape.
 
-Initial live qualification is incomplete: local Proxx returned 429 for
-GPT-6.1 Sol and GPT-6 Luna, and 502 for MiMo Flash; the local Gemma call produced no usable
-response. Actual OpenCode v2.1.3 reached the free-model provider but returned
-401 `api_key_expired`. A separately isolated signed-out OpenCode v2 profile
-reached the free provider but returned 429 `FreeUsageLimitError`, with a
-64,490,000 ms retry interval. An expired account key and anonymous quota are
-different failures. A new Console key is needed for account inference;
-signing in does not renew the expired key. No successful live classification
-is claimed. No parser-format patch was installed as a bypass.
+Live evaluation through the supported Console-account login and actual OpenCode
+v2.1.3 client succeeded on two captured native reviews. Receipt River review
+5641463808 retained its unmarked provenance request and six LGTM acknowledgements;
+Axxium review5641483869 retained its unmarked wording request and ten LGTM
+acknowledgements. The integrated runs took 15,993 ms and 39,400 ms. Native
+session exports confirm the selected free GLM model and cost 0 for both.
+These are two examples, not a measured accuracy claim or gate qualification.
+The Jev adapter has transport/schema tests but no successful live evaluation yet.
+
+The native-client adapter uses an isolated configuration/plugin directory,
+the existing native auth/session store, an explicit free model and active
+provider-model JSON-output settings. Paid model IDs are refused. It requires
+one successful native assistant result, no tool calls, the selected model,
+reported zero cost, matching event/export text and valid classifier JSON.
+Invalid JSON remains unresolved and preserves the unvalidated model output
+and inference provenance for diagnosis; it is not repaired by extracting a
+fence or guessing omitted structure. Native client/provider internals may
+have their own retry behavior; the adapter does not submit a second run.
+Only temporary files it creates are removed; no Docker artifacts are created.
+
+Account and signed-out routes have separate availability. An expired Console
+API key returned401; supported Console-account device login subsequently
+connected the existing workspace without copying credentials. A separately
+isolated signed-out profile returned429 `FreeUsageLimitError` with a
+64,490,000 ms retry interval. Local Proxx also returned429 for Sol/Luna and502
+for MiMo. These failures remain failures, and no paid fallback is automatic.
+The previous parser-format extension remains uninstalled.
