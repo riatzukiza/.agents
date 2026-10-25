@@ -51,8 +51,8 @@ truncated. The same isolated native client, zero reported cost, one assistant,
 no-tool execution and session/export digest checks from PR45 remain required.
 
 Captured-native fixtures and adversarial tests are source preparation. A live
-captured-input evaluation on 2026-10-25 prepared the complete PR144 context but
-returned native provider429 with retry_after_ms33967000 before inference. No
+captured-input evaluation on 2026-10-25 prepared the complete PR144 context. The
+native provider returned HTTP 429 with `retry_after_ms=33967000` before inference. No
 judgment, settlement, native-runtime qualification or paid fallback resulted.
 
 ## Relationship to the accepted body-intent plan

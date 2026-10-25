@@ -934,8 +934,8 @@
 
 (defn -main [& args]
   (let [[cmd repo n & more] args]
-    (binding [*semantic-model* (when (contains? #{"status" "gate" "threads"} cmd) (flag more "--semantic-model" nil))]
     (try
+      (binding [*semantic-model* (when (contains? #{"status" "gate" "threads"} cmd) (flag more "--semantic-model" nil))]
       (case cmd
         "flow" (show-flow repo)
         "status" (status repo n (reviewers-flag repo more))
@@ -948,9 +948,9 @@
                                   (prn r)
                                   (when (= :uncertain-native-outcome (:status r)) (js/process.exit 3)))
         "gate" (gate repo n (some #{"--apply"} more) (flag more "--method" "merge") (reviewers-flag repo more))
-        (do (println "usage: pr.cljs flow [STATE] | status|threads|wait|request|settle|resolve-informational|gate REPO PR ...") (js/process.exit 1)))
+        (do (println "usage: pr.cljs flow [STATE] | status|threads|wait|request|settle|resolve-informational|gate REPO PR ...") (js/process.exit 1))))
       (catch :default e
         (binding [*print-fn* *print-err-fn*] (println (ex-message e)))
-        (js/process.exit 1))))))
+        (js/process.exit 1)))))
 
 (apply -main *command-line-args*)

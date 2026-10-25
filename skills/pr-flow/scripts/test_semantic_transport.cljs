@@ -1,7 +1,8 @@
 ;; SPDX-License-Identifier: GPL-3.0-or-later
 (ns test-semantic-transport
   (:require [cljs.test :refer [deftest is run-tests]]
-            [pr-flow.semantic-transport :as transport]))
+            [pr-flow.semantic-transport :as transport]
+            [pr-flow.semantic-runtime :as runtime]))
 (deftest immutable-content-custody
   (let [body "λ source\n" bytes (js/Buffer.from body "utf8")
         crypto (js/require "crypto")
@@ -22,4 +23,11 @@
   (doseq [p ["../secret" "/absolute" "a//b" "a?ref=b" "a%2fb" "a\\b" "a b"]]
     (is (not (transport/source-path? p))))
   (is (thrown? js/Error (transport/infer "paid/model" {} "prompt" {}))))
+(deftest linked-immutable-sources
+  (let [head (apply str (repeat 40 "a"))
+        base (str "https://github.com/o/r/blob/" head "/")
+        t {:path "root.clj" :head head :native-context
+           {:repository {:nameWithOwner "o/r"} :thread {:comments {:nodes
+           [{:body (str base "docs/design.md#L10-L20, " base "src/plain.clj.")} ]}}}}]
+    (is (= ["root.clj" "docs/design.md" "src/plain.clj"] (runtime/paths t)))))
 (run-tests)

@@ -7,12 +7,12 @@
 (defonce owned-cache (atom {}))
 (defn- stamp [] (subs (.toISOString (js/Date.)) 0 19))
 (defn- utc-stamp [] (str (stamp) "Z"))
-(defn- paths [t]
+(defn paths [t]
   (let [repo (get-in t [:native-context :repository :nameWithOwner])
         prefix (str "https://github.com/" repo "/blob/" (:head t) "/")
         body [(last (get-in t [:native-context :thread :comments :nodes]))]
-        linked (mapcat #(map second (re-seq (re-pattern (str (str/replace prefix #"[.\[\]{}()*+?^$|\\]" "\\$0") "([^\\s<>`\"()\\[\\]]+)")) (:body %))) body)]
-    (vec (distinct (cons (:path t) linked)))))
+        linked (mapcat #(map second (re-seq (re-pattern (str (str/replace prefix #"[.\[\]{}()*+?^$|\\]" "\\$&") "([^\\s<>`\"()\\[\\]]+)")) (:body %))) body)]
+    (vec (distinct (cons (:path t) (map #(-> % (str/split #"#" 2) first (str/replace #"[.,;:!]+$" "")) linked))))))
 (defn assess [read-json trusted-bot? model t]
   (if (or (:settled? t) (not (true? (:resolved? t)))
           (not= (:pr-author t) (get-in t [:comments 0 :author]))) t
