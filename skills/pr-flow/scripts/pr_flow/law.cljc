@@ -89,7 +89,7 @@
   "A reviewer reply that accepts the settlement rather than disputing it."
   #"(?im)(?:^|[.!]\s*)(?:✅\s*)?review thread resolved[.!]?[ \t]*$|(?:^|[.!]\s*)verified(?: the fix)?[.!]?[ \t]*$|(?:^|[.!]\s*)this addresses (?:the|my) (?:finding|issue|comment)[.!]?[ \t]*$")
 
-(declare verdict-prose valid-head? default-reviewer-identities trusted-reviewer)
+(declare verdict-prose native-scope-prose valid-head? default-reviewer-identities trusted-reviewer)
 
 (defn- remove-matches [text pattern]
   ;; SCI/CLJS string replacement can discard inline regex flags. Match with
@@ -757,11 +757,21 @@
                             (reduce + (map #(number (or (nth % 2) (nth % 3))) groups)))))
             groups)))))))
 
+(defn- recognizable-native-additional? [body]
+  ;; Recognition only preserves a conservative obligation. It cannot admit a
+  ;; positive item or borrow authority from quoted, fenced or generated source.
+  (let [text (when-not (multiline-code-span? (str body))
+               (some-> body native-scope-prose verdict-prose))]
+    (boolean (and text
+                  (re-find #"(?m)^<details>\r?\n<summary>🔇 Additional comments(?:: [1-9][0-9]{0,3}| \([1-9][0-9]{0,3}\))</summary><blockquote>\s*<dl>\s*<dd>" text)))))
+
 (defn- unmarked-additional-finding? [body]
   ;; Declared native items without stable IDs cannot disappear when the
   ;; identified siblings settle. Duplicate IDs cannot fill a missing slot.
   (boolean
    (or
+    (and (recognizable-native-additional? body)
+         (not (native-additional-groups body)))
     ;; A structurally bounded section with irreconcilable declared totals is
     ;; not a valid positive envelope. Preserve a whole-body finding separately.
     (and (native-additional-groups body false)

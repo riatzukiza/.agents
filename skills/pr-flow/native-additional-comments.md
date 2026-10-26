@@ -17,6 +17,10 @@ File-group counts must match the section count, non-group source must be blank,
 and positive item contents still match the complete existing LGTM grammar.
 A structurally bounded section whose declared total does not reconcile retains
 a conservative whole-body finding; it never gains positive-item admission.
+A recognizable authored native DL opening whose structure fails parsing also
+retains that obligation. Quoted, fenced and generated examples are excluded
+from this conservative recognition; positive admission still requires the full
+strict parser.
 Unknown tags, attributes, mismatched wrappers, quoted/fenced source, duplicate
 IDs and corrective prose cannot acquire positive status.
 

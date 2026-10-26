@@ -23,6 +23,20 @@
                (str/replace-first (:body native-review) #"<img src=\"[^\"]+\"" "<img src=\"https://unknown.invalid/x\" alt=\"https://storage.googleapis.com/coderabbit_public_assets/x\"")
                (str/replace-first (:body native-review) "<img src=" "<img onerror=\"unknown\" src=")]]
     (is (empty? (filter :positive-body-item (law/review-findings (assoc native-review :body body)))))))
+(deftest malformed-native-envelope-keeps-unmarked-obligation
+  (doseq [body [(str/replace-first (:body native-review) "</dd>" "")
+               (str/replace-first (:body native-review) "</dl>" "")
+               (str/replace-first (:body native-review) "<img src=" "<img unknown=\"x\" src=")]]
+    (let [items (law/review-findings (assoc native-review :body body))]
+      (is (empty? (filter :positive-body-item items)))
+      (is (= 1 (count (filter #(= :review-body (:kind %)) items)))))))
+(deftest malformed-envelope-examples-do-not-create-whole-body-obligations
+  (let [broken (str/replace-first (:body native-review) "</dd>" "")]
+    (doseq [body [(str "```html\n" broken "\n```")
+                 (str "```html\n" broken)
+                 (str/join "\n" (map #(str "> " %) (str/split-lines broken)))
+                 (str "<!-- This is an auto-generated comment: tweet message by coderabbit.ai -->" broken "<!-- end of auto-generated comment: tweet message by coderabbit.ai -->")]]
+      (is (empty? (filter #(= :review-body (:kind %)) (law/review-findings (assoc native-review :body body))))))))
 (deftest native-dl-count-mismatch-keeps-whole-body-obligation
   (doseq [body [(str/replace-first (:body native-review) "Additional comments: 56" "Additional comments: 57")
                (str/replace-first (:body native-review) "Additional comments: 56" "Additional comments: 55")]]
