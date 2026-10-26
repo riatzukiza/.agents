@@ -37,7 +37,8 @@ examples are excluded before generated-region openers are recognized, so
 example comments cannot claim ownership of later authored prose. Closing fences use the opener's character and at least its length, with only
 whitespace afterward. Unmatched tails are masked before legacy scope scanning. Only zero-to-three-space
 Markdown fence indentation can own such a tail; code-indented literal delimiters
-cannot hide a later authored section.
+cannot hide a later authored section. Backtick-fence info must contain no
+backticks; the full opener line is validated before its tail is excluded.
 Unknown tags, attributes, mismatched wrappers, quoted/fenced source, duplicate
 IDs and corrective prose cannot acquire positive status.
 

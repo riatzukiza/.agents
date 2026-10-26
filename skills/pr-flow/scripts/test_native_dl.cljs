@@ -181,4 +181,12 @@
   (doseq [indent ["" " " "  " "   "] fence ["```text" "~~~text"]]
     (is (empty? (filter #(= :review-body (:kind %))
                         (law/review-findings (assoc native-review :body (str indent fence "\n\n" (:body native-review)))))))))
+(deftest invalid-backtick-info-cannot-mask-later-authored-findings
+  (doseq [opener ["```invalid`info" "````invalid`info" "```invalid``info" " ```text ` detail"]]
+    (is (= 1 (count (filter #(= :review-body (:kind %))
+                            (law/review-findings (assoc native-review :body (str opener "\n\n" (:body native-review))))))))))
+(deftest valid-fence-info-still-owns-an-unclosed-tail
+  (doseq [opener ["```text" "````text" "~~~invalid`info" "~~~~text ` detail"]]
+    (is (empty? (filter #(= :review-body (:kind %))
+                        (law/review-findings (assoc native-review :body (str opener "\n\n" (:body native-review)))))))))
 (run-tests 'test-native-dl)
