@@ -40,7 +40,9 @@ Markdown fence indentation can own such a tail; code-indented literal delimiters
 cannot hide a later authored section. Backtick-fence info must contain no
 backticks; the full opener line is validated before its tail is excluded. Complete ordinary comments, code fences and quote/code examples are selected
 by their earliest enclosing region in one discovery pass. Literal delimiters
-inside that region cannot consume later source. Indented Markdown code lines
+inside that region cannot consume later source. Multiline inline-code spans
+participate in the same earliest-region choice before generated discovery, while
+retaining the raw-native-block interruption rule for dangling delimiters. Indented Markdown code lines
 (four spaces or a tab reaching that column) cannot introduce generated markers. Generated-region markers remain
 until their enclosing generated regions are masked.
 Unknown tags, attributes, mismatched wrappers, quoted/fenced source, duplicate

@@ -205,4 +205,12 @@
     (let [body (str indent "<!-- This is an auto-generated comment: generic example -->\n\n" (:body native-review))]
       (is (= 1 (count (filter #(= :review-body (:kind %))
                               (law/review-findings (assoc native-review :body body)))))))))
+(deftest multiline-code-owns-literal-generated-openers
+  (let [broken (str/replace-first (:body native-review) "</dd>" "")]
+    (doseq [delimiter ["`" "``"] gap ["\n" "\n\n"]]
+      (let [body (str "Example: " delimiter "alpha" gap
+                      "<!-- This is an auto-generated comment: generic example -->"
+                      gap "beta" delimiter "\n" broken)]
+        (is (= 1 (count (filter #(= :review-body (:kind %))
+                                (law/review-findings (assoc native-review :body body))))))))))
 (run-tests 'test-native-dl)

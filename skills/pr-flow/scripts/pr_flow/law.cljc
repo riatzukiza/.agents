@@ -793,12 +793,21 @@
             groups)))))))
 
 (defn- mask-native-discovery-examples [body]
-  ;; Select the earliest enclosing complete comment/code/quote region in one
-  ;; pass. Literal delimiters inside that region cannot own later source.
+  ;; Select the earliest enclosing complete region, including multiline spans.
+  ;; The span scanner retains native-block interruption for dangling delimiters.
   ;; Keep genuine generated markers for the following generated-region pass.
-  (retain-excluded-regions
-   body
-   #"(?im)<!--(?!\s*(?:This is an auto-generated comment:|end of auto-generated comment:))[\s\S]*?-->|^(?:[ ]{4}|[ ]{0,3}\t)[^\r\n]*|^[ ]{0,3}<(pre|code|blockquote)\b[^>]*>[\s\S]*?</\1>|^[ ]{0,3}>[^\r\n]*(?:(?:\r\n|\r|\n)(?![ \t]*(?:\r\n|\r|\n|$)|[ ]{0,3}<details>[ \t]*(?:\r\n|\r|\n|$))[^\r\n]*)*|^[ ]{0,3}(`{3,})[^`\r\n]*(?:\r\n|\r|\n)[\s\S]*?^[ ]{0,3}\2`*[ \t]*(?:$|\r)|^[ ]{0,3}(~{3,})(?!~)[^\r\n]*(?:\r\n|\r|\n)[\s\S]*?^[ ]{0,3}\3~*[ \t]*(?:$|\r)|(?<!`)(`+)(?!`)[^\r\n]*?\4(?!`)"))
+  (let [pattern #"(?im)<!--(?!\s*(?:This is an auto-generated comment:|end of auto-generated comment:))[\s\S]*?-->|^(?:[ ]{4}|[ ]{0,3}\t)[^\r\n]*|^[ ]{0,3}<(pre|code|blockquote)\b[^>]*>[\s\S]*?</\1>|^[ ]{0,3}>[^\r\n]*(?:(?:\r\n|\r|\n)(?![ \t]*(?:\r\n|\r|\n|$)|[ ]{0,3}<details>[ \t]*(?:\r\n|\r|\n|$))[^\r\n]*)*|^[ ]{0,3}(`{3,})[^`\r\n]*(?:\r\n|\r|\n)[\s\S]*?^[ ]{0,3}\2`*[ \t]*(?:$|\r)|^[ ]{0,3}(~{3,})(?!~)[^\r\n]*(?:\r\n|\r|\n)[\s\S]*?^[ ]{0,3}\3~*[ \t]*(?:$|\r)|(?<!`)(`+)(?!`)[^\r\n]*?\4(?!`)"]
+    (loop [text body]
+      (if-let [[span-start span-end] (first (multiline-code-regions text true))]
+        (let [match (re-find pattern text)
+              example (when match (if (string? match) match (first match)))
+              example-start (when example (str/index-of text example))
+              region (if (or (nil? example-start) (< span-start example-start))
+                       (subs text span-start span-end)
+                       example)]
+          (recur (str/replace-first text region "[excluded non-authoritative source]")))
+        (retain-excluded-regions text pattern)))))
+
 
 (defn- recognizable-native-additional? [body]
   ;; Recognition only preserves a conservative obligation. It cannot admit a
