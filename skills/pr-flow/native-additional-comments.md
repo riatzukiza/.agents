@@ -44,7 +44,9 @@ inside that region cannot consume later source. Multiline inline-code spans
 participate in the same earliest-region choice before generated discovery, while
 retaining the raw-native-block interruption rule for dangling delimiters. Indented Markdown code lines
 (four spaces or a tab reaching that column) cannot introduce generated markers. Generated-region markers remain
-until their enclosing generated regions are masked.
+until their enclosing generated regions are masked. Complete generated regions
+also participate in earliest-enclosing selection, protecting their closing
+markers from enclosed quoted or code examples.
 Unknown tags, attributes, mismatched wrappers, quoted/fenced source, duplicate
 IDs and corrective prose cannot acquire positive status.
 

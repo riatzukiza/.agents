@@ -795,8 +795,9 @@
 (defn- mask-native-discovery-examples [body]
   ;; Select the earliest enclosing complete region, including multiline spans.
   ;; The span scanner retains native-block interruption for dangling delimiters.
-  ;; Keep genuine generated markers for the following generated-region pass.
-  (let [pattern #"(?im)<!--(?!\s*(?:This is an auto-generated comment:|end of auto-generated comment:))[\s\S]*?-->|^(?:[ ]{4}|[ ]{0,3}\t)[^\r\n]*|^[ ]{0,3}<(pre|code|blockquote)\b[^>]*>[\s\S]*?</\1>|^[ ]{0,3}>[^\r\n]*(?:(?:\r\n|\r|\n)(?![ \t]*(?:\r\n|\r|\n|$)|[ ]{0,3}<details>[ \t]*(?:\r\n|\r|\n|$))[^\r\n]*)*|^[ ]{0,3}(`{3,})[^`\r\n]*(?:\r\n|\r|\n)[\s\S]*?^[ ]{0,3}\2`*[ \t]*(?:$|\r)|^[ ]{0,3}(~{3,})(?!~)[^\r\n]*(?:\r\n|\r|\n)[\s\S]*?^[ ]{0,3}\3~*[ \t]*(?:$|\r)|(?<!`)(`+)(?!`)[^\r\n]*?\4(?!`)"]
+  ;; Complete generated regions own their inner examples and closing markers.
+  ;; Unclosed generated markers remain for the following tail-exclusion pass.
+  (let [pattern #"(?im)<!--\s*This is an auto-generated comment:[\s\S]*?-->[\s\S]*?<!--\s*end of auto-generated comment:[\s\S]*?-->|<!--(?!\s*(?:This is an auto-generated comment:|end of auto-generated comment:))[\s\S]*?-->|^(?:[ ]{4}|[ ]{0,3}\t)[^\r\n]*|^[ ]{0,3}<(pre|code|blockquote)\b[^>]*>[\s\S]*?</\1>|^[ ]{0,3}>[^\r\n]*(?:(?:\r\n|\r|\n)(?![ \t]*(?:\r\n|\r|\n|$)|[ ]{0,3}<details>[ \t]*(?:\r\n|\r|\n|$))[^\r\n]*)*|^[ ]{0,3}(`{3,})[^`\r\n]*(?:\r\n|\r|\n)[\s\S]*?^[ ]{0,3}\2`*[ \t]*(?:$|\r)|^[ ]{0,3}(~{3,})(?!~)[^\r\n]*(?:\r\n|\r|\n)[\s\S]*?^[ ]{0,3}\3~*[ \t]*(?:$|\r)|(?<!`)(`+)(?!`)[^\r\n]*?\4(?!`)"]
     (loop [text body]
       (if-let [[span-start span-end] (first (multiline-code-regions text true))]
         (let [match (re-find pattern text)

@@ -213,4 +213,11 @@
                       gap "beta" delimiter "\n" broken)]
         (is (= 1 (count (filter #(= :review-body (:kind %))
                                 (law/review-findings (assoc native-review :body body))))))))))
+(deftest generated-regions-own-their-enclosed-examples
+  (let [broken (str/replace-first (:body native-review) "</dd>" "")]
+    (doseq [example ["> example" "<pre>example</pre>" "```text\nexample\n```" "Example: `alpha\nbeta`"]]
+      (let [body (str "<!-- This is an auto-generated comment: generic example -->\n"
+                      example "\n<!-- end of auto-generated comment: generic example -->\n" broken)]
+        (is (= 1 (count (filter #(= :review-body (:kind %))
+                                (law/review-findings (assoc native-review :body body))))))))))
 (run-tests 'test-native-dl)
