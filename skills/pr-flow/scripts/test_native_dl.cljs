@@ -56,8 +56,12 @@
         (is (empty? (filter :positive-body-item items)))
         (is (= 1 (count (filter #(= :review-body (:kind %)) items))))))
     (doseq [delimiter ["`" "``"]]
-      (let [body (str delimiter "\n" broken "\n" delimiter)]
-        (is (empty? (filter #(= :review-body (:kind %)) (law/review-findings (assoc native-review :body body)))))))))
+      ;; A raw native HTML block interrupts a preceding inline paragraph;
+      ;; bare backticks around it cannot own the block as an inline example.
+      (let [body (str delimiter "\n" broken "\n" delimiter)
+            items (law/review-findings (assoc native-review :body body))]
+        (is (empty? (filter :positive-body-item items)))
+        (is (= 1 (count (filter #(= :review-body (:kind %)) items))))))))
 (deftest unterminated-fence-tail-cannot-hide-earlier-authored-findings
   (let [broken (str/replace-first (:body native-review) "</dd>" "")]
     (doseq [authored [(:body native-review) broken]
@@ -78,6 +82,26 @@
     (is (= #{"aaaaaaaaaaaaaaaaaaaaaaaa"} (set (map :id (filter :positive-body-item items)))))
     (is (nil? (:positive-body-item (first (filter #(= "bbbbbbbbbbbbbbbbbbbbbbbb" (:id %)) items)))))
     (is (= 1 (count (filter #(= :review-body (:kind %)) items))))))
+(deftest dangling-inline-delimiters-cannot-own-a-later-native-block
+  (doseq [[authored malformed?] [[(:body native-review) false] [(str/replace-first (:body native-review) "</dd>" "") true]]
+          [prefix baseline-positive-count] [["Unrelated paragraph `\n" 0] ["Unrelated paragraph ``\n" 55] ["Unrelated paragraph `\n\n" 0]]]
+    (let [items (law/review-findings (assoc native-review :body (str prefix authored)))]
+      ;; Immutable633c6b9 replay establishes these strict-admission counts.
+      (is (= (if malformed? 0 baseline-positive-count) (count (filter :positive-body-item items))))
+      (is (= 1 (count (filter #(= :review-body (:kind %)) items)))))))
+(deftest every-native-asset-url-must-be-allowlisted
+  (let [good "https://storage.googleapis.com/coderabbit_public_assets/a.svg"
+        bad "https://unknown.invalid/a.svg"
+        replace-tag #(str/replace-first (:body native-review) #"<img[^>]+>" %)]
+    (doseq [tag [(str "<img src=\"" bad "\" srcset=\"" good "\">")
+                 (str "<img src=\"" good "\" srcset=\"" bad "\">")
+                 (str "<source srcset=\"" good " 1x, " bad " 2x\">")
+                 (str "<img src=\"" good "\" src=\"" bad "\">")
+                 (str "<img srcset=\"" bad " 1x, " good " 2x\">")]]
+      (is (empty? (filter :positive-body-item (law/review-findings (assoc native-review :body (replace-tag tag)))))))
+    (doseq [tag [(str "<img src=\"" good "\" srcset=\"" good "\">")
+                 (str "<source srcset=\"" good " 1x, " good " 2x\">")]]
+      (is (= 55 (count (filter :positive-body-item (law/review-findings (assoc native-review :body (replace-tag tag))))))))))
 (deftest surplus-unmarked-group-item-cannot-disappear
   (let [item-a "`1-2`: LGTM!\n\n<!-- cr-comment:v1:aaaaaaaaaaaaaaaaaaaaaaaa -->"
         item-b "`1-2`: LGTM!\n\n<!-- cr-comment:v1:bbbbbbbbbbbbbbbbbbbbbbbb -->"

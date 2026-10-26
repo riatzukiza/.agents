@@ -26,6 +26,12 @@ A recognizable authored native DL opening whose structure fails parsing also
 retains that obligation. Quoted, fenced and generated examples are excluded
 from this conservative recognition; positive admission still requires the full
 strict parser.
+For conservative discovery, inline-code matching stops at raw native
+Additional-comment block openings: a dangling delimiter in an earlier paragraph
+cannot own that HTML block. The stricter positive-admission multiline-code veto
+is unchanged. Every present image/source `src` and every `srcset` candidate must
+use the constrained public-assets URL; one allowed attribute cannot conceal a
+foreign URL in another attribute.
 Unknown tags, attributes, mismatched wrappers, quoted/fenced source, duplicate
 IDs and corrective prose cannot acquire positive status.
 

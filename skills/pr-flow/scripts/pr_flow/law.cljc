@@ -625,18 +625,25 @@
 
 
 
-(defn- multiline-code-regions [text]
+(defn- multiline-code-regions
+  ([text] (multiline-code-regions text false))
+  ([text native-boundaries?]
   ;; Find raw equal backtick runs across lines, including blank paragraphs.
   ;; Positive admission denies them; conservative discovery masks only them.
   ;; Outside a code span, complete native comments/fences remain examples.
   ;; Inside one, backslashes, comments and fences cannot hide its delimiter.
   (let [matching-close
         (fn [cursor size]
-          (loop [cursor cursor]
-            (when-let [run (re-find #"`+" (subs text cursor))]
-              (let [start (+ cursor (str/index-of (subs text cursor) run))
-                    end (+ start (count run))]
-                (if (= size (count run)) [start end] (recur end))))))]
+          (let [remaining (subs text cursor)
+                native-opening (when native-boundaries?
+                                 (re-find #"(?m)^<details>\r?\n<summary>🔇 Additional comments" remaining))
+                boundary (when native-opening (+ cursor (str/index-of remaining native-opening)))]
+            (loop [cursor cursor]
+              (when-let [run (re-find #"`+" (subs text cursor))]
+                (let [start (+ cursor (str/index-of (subs text cursor) run))
+                      end (+ start (count run))]
+                  (when (or (nil? boundary) (< start boundary))
+                    (if (= size (count run)) [start end] (recur end))))))))]
     (loop [cursor 0 regions []]
       (if-let [token (re-find #"<!--[\s\S]*?-->|`+|~{3,}" (subs text cursor))]
         (let [start (+ cursor (str/index-of (subs text cursor) token))
@@ -659,7 +666,7 @@
                     (recur after (cond-> regions
                                    (re-find #"[\r\n]" (subs text end close)) (conj [start after])))
                     (recur end regions))))
-        regions))))
+        regions)))))
 
 (defn- multiline-code-span? [text]
   (boolean (seq (multiline-code-regions text))))
@@ -668,7 +675,7 @@
   ;; Reverse offsets preserve source coordinates and do not invent line starts.
   (reduce (fn [source [start end]]
             (str (subs source 0 start) "[excluded non-authoritative source]" (subs source end)))
-          text (reverse (multiline-code-regions text))))
+          text (reverse (multiline-code-regions text true))))
 
 (defn- retain-excluded-regions [text pattern]
   ;; Exclusion must not sanitize extra own-item source into an exact LGTM.
@@ -683,6 +690,19 @@
   ;; Retain indentation: four-space Markdown code is not live native prose.
   (-> text (str/replace #"^(?:[ \t]*\n)+" "")
       (str/replace #"(?:\n[ \t]*)+$" "")))
+
+(defn- native-public-asset-token? [token]
+  (let [attributes (re-seq #" (src|srcset)=\"([^\"]*)\"" token)
+        url #"https://storage\.googleapis\.com/coderabbit_public_assets/[^\s<>\"',]+"
+        candidate #"https://storage\.googleapis\.com/coderabbit_public_assets/[^\s<>\"',]+(?:[ \t]+(?:[1-9][0-9]*(?:\.[0-9]+)?x|[1-9][0-9]*w))?"]
+    (boolean
+     (and (re-matches #"<(?:img|source)(?: (?:src|srcset|width|height|align|alt|media)=\"[^\"<>\r\n]*\")+>" token)
+          (seq attributes)
+          (every? (fn [[_ attribute value]]
+                    (case attribute
+                      "src" (re-matches url value)
+                      "srcset" (every? #(re-matches candidate (str/trim %)) (str/split value #"," -1))
+                      false)) attributes)))))
 
 (defn- additional-comment-section
   ([body] (additional-comment-section body #"^<details>\n<summary>🔇 Additional comments(?:: [1-9][0-9]{0,3}| \([1-9][0-9]{0,3}\))</summary><blockquote>"))
@@ -709,8 +729,7 @@
               (str/starts-with? token "<!--") (recur tail end stack sections)
               (and native-dl?
                    (or (re-matches #"<https://[^<>\s]+>" token)
-                       (and (re-matches #"<(?:img|source)(?: (?:src|srcset|width|height|align|alt|media)=\"[^\"<>\r\n]*\")+>" token)
-                            (re-find #"(?:src|srcset)=\"https://storage.googleapis.com/coderabbit_public_assets/" token))))
+                       (native-public-asset-token? token)))
               (recur tail end stack sections)
               :else
               (when-let [[_ closing tag] (re-matches (if native-dl?
