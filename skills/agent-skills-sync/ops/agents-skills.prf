@@ -1,0 +1,37 @@
+# GPL-3.0-or-later. Stealth is the only coordinator; propagation is bidirectional.
+root = /home/err/.agents
+root = ssh://yoga-agent-codex//home/err/.agents
+path = skills
+path = skills.disabled
+path = docs/notes
+sshargs = -oBatchMode=yes -oConnectTimeout=10
+servercmd = sudo -n -u err -H /usr/bin/unison
+batch = true
+terse = true
+fastcheck = false
+perms = 0o111
+times = false
+nodeletion = /home/err/.agents
+nodeletion = yoga-agent-codex
+backup = Name *
+backuploc = central
+backupdir = /home/err/.local/state/agents-sync/unison-backups
+maxbackups = 10
+logfile = /home/err/.local/state/agents-sync/unison.log
+ignore = Path skills/synced
+ignore = Path skills/.trash
+ignore = Name .git
+ignore = Name node_modules
+ignore = Name __pycache__
+ignore = Name .runtime
+ignore = Name .cache
+ignore = Name *.pyc
+ignore = Name *.swp
+ignore = Name *.swo
+ignore = Name .#*
+ignore = Name .env
+ignore = Name .env.*
+ignore = Name *credential*.json
+ignore = Name *secret*.json
+ignore = Name *.pem
+ignore = Name *.key

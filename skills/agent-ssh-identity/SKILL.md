@@ -41,6 +41,14 @@ OpenPlanner graph (requires the read-only central reader credential at
 `/etc/audit-central-projector/config.json`, installed by
 `audit-central-projector/install-central-credential.py`).
 
+## Atlas management
+
+Use [atlas-cli](../atlas-cli/SKILL.md) for Atlas users, roles and cluster
+administration. Prefer an existing CLI login and native commands over walking
+the user through browser forms. Browser interaction is an authentication or
+capability fallback. Never sync CLI credentials with this skill repository;
+service database credentials remain separately scoped and installed.
+
 ## Connection contract
 
 On stealth, SSH aliases are `knoxx-agent-<harness>` and private keys live at `/home/err/.ssh/agent-identities/knoxx/<harness>`. Use explicit key selection, `IdentitiesOnly=yes`, and no SSH agent forwarding. Never copy private keys into repositories, prompts, logs, remote homes, or another agent's configuration. These unencrypted automation keys are mode 0600 inside a mode 0700 directory, accessible to local err; they distinguish remote login identity, not local harness security boundaries. A different source device needs a separately generated key, a public-key enrollment by an authorized administrator, and a new source-device manifest entry.

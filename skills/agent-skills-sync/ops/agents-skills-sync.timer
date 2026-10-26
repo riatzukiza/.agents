@@ -1,0 +1,11 @@
+[Unit]
+Description=Keep Stealth and Yoga shared agent skills synchronized
+
+[Timer]
+OnBootSec=2min
+OnUnitInactiveSec=2min
+RandomizedDelaySec=10
+Unit=agents-skills-sync.service
+
+[Install]
+WantedBy=timers.target
