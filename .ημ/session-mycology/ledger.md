@@ -1112,3 +1112,5 @@ The earlier shorthand provider429 denotes HTTP 429 from the provider before infe
 - 2026-10-26T22:56:28.739483+00:00 | unmatched fence indentation | four RED cases corrected, eight valid opener controls retained. Native21/126 law/policy GREEN. Friction0.4; candidate0.2; no promotion.
 
 - 2026-10-26T23:02:12.688578+00:00 | fence info grammar | full opener validation after four RED cases; native23/134 law/policy GREEN. Friction0.4, candidate0.2; no promotion.
+
+- 2026-10-26T23:18:35.654593+00:00 | comment/fence discovery order | RED4 then partial2 then GREEN native24/138 and final-source law/policy. Use unresolved native threads rather than timestamp cutoff. Friction0.5; candidate0.3; no promotion.

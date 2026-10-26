@@ -805,9 +805,13 @@
   ;; Mask generated regions locally: an unrelated footer must not erase an
   ;; independently authored malformed section. An unclosed opener owns its tail.
   (let [text (some-> (str body)
+                       ;; Ordinary comments cannot introduce fences; retain real
+                       ;; generated markers until their owning regions are masked.
+                       (retain-excluded-regions #"(?is)<!--(?!\s*(?:This is an auto-generated comment:|end of auto-generated comment:))[\s\S]*?-->")
                        mask-native-discovery-examples
                        (retain-excluded-regions #"(?is)<!--\s*This is an auto-generated comment:.*?-->.*?<!--\s*end of auto-generated comment:.*?-->")
                        (retain-excluded-regions #"(?is)<!--\s*This is an auto-generated comment:.*?-->.*$")
+                       (retain-excluded-regions #"<!--[\s\S]*?-->")
                        mask-multiline-code-regions
                        ;; Complete fences are already masked. Exclude unmatched
                        ;; tails before the legacy scope scanner can reinterpret them.

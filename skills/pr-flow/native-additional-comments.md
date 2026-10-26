@@ -38,7 +38,9 @@ example comments cannot claim ownership of later authored prose. Closing fences 
 whitespace afterward. Unmatched tails are masked before legacy scope scanning. Only zero-to-three-space
 Markdown fence indentation can own such a tail; code-indented literal delimiters
 cannot hide a later authored section. Backtick-fence info must contain no
-backticks; the full opener line is validated before its tail is excluded.
+backticks; the full opener line is validated before its tail is excluded. Ordinary complete
+HTML comments are excluded before fence discovery; generated-region markers
+remain until their enclosing generated regions are masked.
 Unknown tags, attributes, mismatched wrappers, quoted/fenced source, duplicate
 IDs and corrective prose cannot acquire positive status.
 

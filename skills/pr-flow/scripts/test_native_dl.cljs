@@ -189,4 +189,9 @@
   (doseq [opener ["```text" "````text" "~~~invalid`info" "~~~~text ` detail"]]
     (is (empty? (filter #(= :review-body (:kind %))
                         (law/review-findings (assoc native-review :body (str opener "\n\n" (:body native-review)))))))))
+(deftest complete-html-comments-cannot-create-unmatched-fence-tails
+  (doseq [delimiter ["~~~text" "```text" "   ~~~text" "   ```text"]]
+    (let [body (str "<!-- ordinary example\n" delimiter "\n-->\n" (:body native-review))]
+      (is (= 1 (count (filter #(= :review-body (:kind %))
+                              (law/review-findings (assoc native-review :body body)))))))))
 (run-tests 'test-native-dl)
