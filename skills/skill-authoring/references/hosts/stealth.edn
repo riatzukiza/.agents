@@ -1,0 +1,10 @@
+;; GPL-3.0-or-later. Observations only; not workload admission.
+{:host/id "stealth" :observed-at "2026-10-26T06:32:17.480140+00:00"
+ :evidence ["lscpu" "free -b" "lspci -nn" "nvidia-smi --query-gpu=name,memory.total" "dmidecode -t 17" "ls /dev/accel"]
+ :observed {:cpu {:vendor :intel :model "Core Ultra 9 185H" :logical-cpus 22}
+            :memory {:installed-bytes 34359738368 :kernel-total-bytes 33291157504}
+            :accelerators [{:kind :integrated-gpu :vendor :intel :name "Intel Arc / Meteor Lake-P" :memory-domain :shared-system}
+                           {:kind :npu :vendor :intel :name "Meteor Lake NPU" :device-node "/dev/accel/accel0"}
+                           {:kind :discrete-gpu :vendor :nvidia :name "GeForce RTX 4070 Laptop GPU" :reported-memory-mib 8188 :memory-domain :dedicated-device}]}
+ :workload-qualification :not-tested-in-this-observation
+ :live-resource-admission :fresh-probe-required}
