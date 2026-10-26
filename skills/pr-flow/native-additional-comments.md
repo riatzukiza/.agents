@@ -32,6 +32,8 @@ cannot own that HTML block. The stricter positive-admission multiline-code veto
 is unchanged. Every present image/source `src` and every `srcset` candidate must
 use the constrained public-assets URL; one allowed attribute cannot conceal a
 foreign URL in another attribute.
+Complete fenced examples are excluded before generated-region openers are
+recognized, so example comments cannot claim ownership of later authored prose.
 Unknown tags, attributes, mismatched wrappers, quoted/fenced source, duplicate
 IDs and corrective prose cannot acquire positive status.
 

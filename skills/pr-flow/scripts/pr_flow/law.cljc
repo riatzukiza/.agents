@@ -798,6 +798,8 @@
   ;; Mask generated regions locally: an unrelated footer must not erase an
   ;; independently authored malformed section. An unclosed opener owns its tail.
   (let [text (some-> (str body)
+                       ;; Example text cannot establish a generated-region boundary.
+                       (retain-excluded-regions #"(?ms)^[ \t]*(`{3,}|~{3,})[^\n]*\n.*?^[ \t]*\1[ \t]*$")
                        (retain-excluded-regions #"(?is)<!--\s*This is an auto-generated comment:.*?-->.*?<!--\s*end of auto-generated comment:.*?-->")
                        (retain-excluded-regions #"(?is)<!--\s*This is an auto-generated comment:.*?-->.*$")
                        mask-multiline-code-regions

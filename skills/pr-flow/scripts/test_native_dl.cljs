@@ -144,4 +144,10 @@
     (is (= 56 (law/unanswered-review-count [review] [writer] {:head (apply str (repeat 40 "a"))})))))
 (defmethod cljs.test/report [:cljs.test/default :end-run-tests] [m]
   (when-not (cljs.test/successful? m) (set! (.-exitCode js/process) 1)))
+(deftest generated-openers-in-fenced-examples-cannot-hide-authored-findings
+  (let [broken (str/replace-first (:body native-review) "</dd>" "")]
+    (doseq [fence ["```html" "~~~html"]]
+      (let [example (str fence "\n<!-- This is an auto-generated comment: generic example -->\n" (if (= fence "```html") "```" "~~~") "\n")
+            items (law/review-findings (assoc native-review :body (str example broken)))]
+        (is (= 1 (count (filter #(= :review-body (:kind %)) items))))))))
 (run-tests 'test-native-dl)
