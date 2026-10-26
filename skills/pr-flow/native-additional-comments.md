@@ -35,7 +35,9 @@ foreign URL in another attribute.
 Complete fenced, inline-code, quoted-paragraph and raw pre/code/blockquote
 examples are excluded before generated-region openers are recognized, so
 example comments cannot claim ownership of later authored prose. Closing fences use the opener's character and at least its length, with only
-whitespace afterward. Unmatched tails are masked before legacy scope scanning.
+whitespace afterward. Unmatched tails are masked before legacy scope scanning. Only zero-to-three-space
+Markdown fence indentation can own such a tail; code-indented literal delimiters
+cannot hide a later authored section.
 Unknown tags, attributes, mismatched wrappers, quoted/fenced source, duplicate
 IDs and corrective prose cannot acquire positive status.
 

@@ -811,7 +811,7 @@
                        mask-multiline-code-regions
                        ;; Complete fences are already masked. Exclude unmatched
                        ;; tails before the legacy scope scanner can reinterpret them.
-                       (retain-excluded-regions #"(?m)^[ \t]*(?:`{3,}|~{3,})[\s\S]*$")
+                       (retain-excluded-regions #"(?m)^[ ]{0,3}(?:`{3,}|~{3,})[\s\S]*$")
                        native-scope-prose)]
     (boolean (and text
                   (re-find #"(?m)^<details>\r?\n<summary>🔇 Additional comments(?:: [1-9][0-9]{0,3}| \([1-9][0-9]{0,3}\))</summary><blockquote>\s*<dl>\s*<dd>" text)))))

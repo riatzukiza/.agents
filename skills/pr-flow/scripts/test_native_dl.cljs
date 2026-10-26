@@ -173,4 +173,12 @@
       (let [body (str open "html\nexample\n" close "\n" broken)]
         (is (empty? (filter #(= :review-body (:kind %))
                             (law/review-findings (assoc native-review :body body)))))))))
+(deftest code-indented-fence-text-cannot-own-a-later-authored-section
+  (doseq [prefix ["    ~~~text\n\n" "    ```text\n\n" "\t~~~text\n\n" "\t```text\n\n"]]
+    (is (= 1 (count (filter #(= :review-body (:kind %))
+                            (law/review-findings (assoc native-review :body (str prefix (:body native-review))))))))))
+(deftest valid-unclosed-fence-indentation-still-owns-its-tail
+  (doseq [indent ["" " " "  " "   "] fence ["```text" "~~~text"]]
+    (is (empty? (filter #(= :review-body (:kind %))
+                        (law/review-findings (assoc native-review :body (str indent fence "\n\n" (:body native-review)))))))))
 (run-tests 'test-native-dl)
