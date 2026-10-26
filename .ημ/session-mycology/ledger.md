@@ -1106,3 +1106,5 @@ The earlier shorthand provider429 denotes HTTP 429 from the provider before infe
 - 2026-10-26T22:11:45.455601+00:00 | fenced generated-opener correction | RED reproduced two cases; native/law/policy GREEN. Friction 0.3; candidate 0.2; no new spore or active policy adoption.
 
 - 2026-10-26T22:21:19.168867+00:00 | example-region ordering | six RED regressions corrected before generated discovery; all focused/law/policy GREEN. Friction 0.5; spore probability 0.3; no promotion. Browser timeout retained as failed verification.
+
+- 2026-10-26T22:47:58.671634+00:00 | Markdown fence lengths | four longer-closer and six invalid-closer controls; RED5 corrected GREEN native19/114 law/policy. Friction0.5, candidate0.3; no promotion.

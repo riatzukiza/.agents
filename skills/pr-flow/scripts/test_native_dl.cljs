@@ -161,4 +161,16 @@
                      (str "<blockquote>" opener "</blockquote>\n")]]
       (is (= 1 (count (filter #(= :review-body (:kind %))
                               (law/review-findings (assoc native-review :body (str example broken))))))))))
+(deftest longer-closing-fences-cannot-hide-later-authored-findings
+  (let [broken (str/replace-first (:body native-review) "</dd>" "")]
+    (doseq [[open close] [["```" "````"] ["````" "``````"] ["~~~" "~~~~"] ["~~~~" "~~~~~~"]]]
+      (let [body (str open "html\nexample\n" close "\n" broken)]
+        (is (= 1 (count (filter #(= :review-body (:kind %))
+                                (law/review-findings (assoc native-review :body body))))))))))
+(deftest shorter-or-mismatched-closing-fences-do-not-expose-examples
+  (let [broken (str/replace-first (:body native-review) "</dd>" "")]
+    (doseq [[open close] [["````" "```"] ["~~~~" "~~~"] ["```" "~~~"] ["~~~" "```"] ["```" "```` trailing"] ["~~~" "~~~~ trailing"]]]
+      (let [body (str open "html\nexample\n" close "\n" broken)]
+        (is (empty? (filter #(= :review-body (:kind %))
+                            (law/review-findings (assoc native-review :body body)))))))))
 (run-tests 'test-native-dl)

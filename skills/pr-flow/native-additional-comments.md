@@ -34,7 +34,8 @@ use the constrained public-assets URL; one allowed attribute cannot conceal a
 foreign URL in another attribute.
 Complete fenced, inline-code, quoted-paragraph and raw pre/code/blockquote
 examples are excluded before generated-region openers are recognized, so
-example comments cannot claim ownership of later authored prose.
+example comments cannot claim ownership of later authored prose. Closing fences use the opener's character and at least its length, with only
+whitespace afterward. Unmatched tails are masked before legacy scope scanning.
 Unknown tags, attributes, mismatched wrappers, quoted/fenced source, duplicate
 IDs and corrective prose cannot acquire positive status.
 

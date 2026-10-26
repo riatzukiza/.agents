@@ -797,7 +797,7 @@
   ;; authored inside code or quotes before they can claim the remaining tail.
   (retain-excluded-regions
    body
-   #"(?im)^[ ]{0,3}<(pre|code|blockquote)\b[^>]*>[\s\S]*?</\1>|^[ ]{0,3}>[^\r\n]*(?:(?:\r\n|\r|\n)(?![ \t]*(?:\r\n|\r|\n|$)|[ ]{0,3}<details>[ \t]*(?:\r\n|\r|\n|$))[^\r\n]*)*|^[ ]{0,3}(`{3,})[^`\r\n]*(?:\r\n|\r|\n)[\s\S]*?^[ ]{0,3}\2[ \t]*(?:$|\r)|^[ ]{0,3}(~{3,})[^\r\n]*(?:\r\n|\r|\n)[\s\S]*?^[ ]{0,3}\3[ \t]*(?:$|\r)|(?<!`)(`+)(?!`)[^\r\n]*?\4(?!`)"))
+   #"(?im)^[ ]{0,3}<(pre|code|blockquote)\b[^>]*>[\s\S]*?</\1>|^[ ]{0,3}>[^\r\n]*(?:(?:\r\n|\r|\n)(?![ \t]*(?:\r\n|\r|\n|$)|[ ]{0,3}<details>[ \t]*(?:\r\n|\r|\n|$))[^\r\n]*)*|^[ ]{0,3}(`{3,})[^`\r\n]*(?:\r\n|\r|\n)[\s\S]*?^[ ]{0,3}\2`*[ \t]*(?:$|\r)|^[ ]{0,3}(~{3,})(?!~)[^\r\n]*(?:\r\n|\r|\n)[\s\S]*?^[ ]{0,3}\3~*[ \t]*(?:$|\r)|(?<!`)(`+)(?!`)[^\r\n]*?\4(?!`)"))
 
 (defn- recognizable-native-additional? [body]
   ;; Recognition only preserves a conservative obligation. It cannot admit a
@@ -809,10 +809,10 @@
                        (retain-excluded-regions #"(?is)<!--\s*This is an auto-generated comment:.*?-->.*?<!--\s*end of auto-generated comment:.*?-->")
                        (retain-excluded-regions #"(?is)<!--\s*This is an auto-generated comment:.*?-->.*$")
                        mask-multiline-code-regions
-                       native-scope-prose
-                       ;; Complete fences are already masked. Any remaining
-                       ;; fence owns only its tail, never earlier authored prose.
-                       (retain-excluded-regions #"(?m)^[ \t]*(?:`{3,}|~{3,})[\s\S]*$"))]
+                       ;; Complete fences are already masked. Exclude unmatched
+                       ;; tails before the legacy scope scanner can reinterpret them.
+                       (retain-excluded-regions #"(?m)^[ \t]*(?:`{3,}|~{3,})[\s\S]*$")
+                       native-scope-prose)]
     (boolean (and text
                   (re-find #"(?m)^<details>\r?\n<summary>🔇 Additional comments(?:: [1-9][0-9]{0,3}| \([1-9][0-9]{0,3}\))</summary><blockquote>\s*<dl>\s*<dd>" text)))))
 
