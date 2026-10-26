@@ -67,7 +67,22 @@ CLI token/config files between hosts or into `~/.agents` synchronization.
 For installation use the official `mongodb/mongodb-atlas-cli` release or the
 official MongoDB package repository. Match OS/architecture and verify published
 checksums. Prefer `~/.local/bin/atlas`; do not replace a working binary blindly.
-Stealth was verified with CLI 1.59.3 and UserAccount login on 2026-10-26.
+Stealth and Yoga were verified with CLI 1.59.3 and separate UserAccount logins
+on 2026-10-26. On these devices the authenticated profile belongs to `err`.
+Local harness processes running as `err` can call `atlas` directly. From a
+harness-specific SSH login, use the existing authorized owner context rather
+than starting another browser login or copying tokens:
+
+```sh
+# From an audited Yoga harness login, for the user's authorized Atlas task:
+sudo -n -u err -H /usr/local/bin/atlas auth whoami
+sudo -n -u err -H /usr/local/bin/atlas dbusers list
+```
+
+On Stealth the owner-installed binary is `/home/err/.local/bin/atlas`.
+This owner-context invocation preserves the SSH loginuid; it does not authorize
+unrelated account administration or grant the runtime services admin access.
+Never sign in a peer harness account or inspect the owner's credential store.
 
 For unattended administration, a separately authorized Atlas service account
 supports client ID/secret authentication. Do not introduce one merely to avoid
