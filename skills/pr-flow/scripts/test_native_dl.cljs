@@ -200,4 +200,9 @@
       (let [body (str open "html\n<!-- example\n" close "\n-->\n" broken)]
         (is (= 1 (count (filter #(= :review-body (:kind %))
                                 (law/review-findings (assoc native-review :body body))))))))))
+(deftest indented-code-cannot-introduce-generated-region-boundaries
+  (doseq [indent ["    " "\t" " \t" "  \t" "   \t"]]
+    (let [body (str indent "<!-- This is an auto-generated comment: generic example -->\n\n" (:body native-review))]
+      (is (= 1 (count (filter #(= :review-body (:kind %))
+                              (law/review-findings (assoc native-review :body body)))))))))
 (run-tests 'test-native-dl)

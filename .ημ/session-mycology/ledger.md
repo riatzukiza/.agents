@@ -1116,3 +1116,5 @@ The earlier shorthand provider429 denotes HTTP 429 from the provider before infe
 - 2026-10-26T23:18:35.654593+00:00 | comment/fence discovery order | RED4 then partial2 then GREEN native24/138 and final-source law/policy. Use unresolved native threads rather than timestamp cutoff. Friction0.5; candidate0.3; no promotion.
 
 - 2026-10-26T23:23:22.257012+00:00 | enclosing lexical context | combined leftmost complete-region discovery replaces swapping comment/fence passes. Both nesting directions tested. Native25/142 law/policy GREEN. Friction0.6; candidate0.4; no promotion.
+
+- 2026-10-26T23:35:24.561852+00:00 | indented code ownership | five RED indentation fixtures, native26/147 law/policy GREEN. Friction0.5; candidate0.3; no promotion.
