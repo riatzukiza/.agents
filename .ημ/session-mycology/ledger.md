@@ -1092,3 +1092,5 @@ The earlier shorthand provider429 denotes HTTP 429 from the provider before infe
 2026-10-26T19:10:56.407544+00:00 — Per-group reconciliation. Efficiency0.65, friction0.75, spore probability0.20. Aggregate declarations do not establish complete group coverage; reuse the existing item delimiter and preserve unknown obligations. Evidence4381361086 and matching RED/GREEN receipt. No new spore or promotion.
 
 - 2026-10-26T19:30:11.984533+00:00 — PR53 generic generated-wrapper veto: check raw source before comment-removing normalization. RED2failures; GREEN9/36, law226/5562, policy71/1794. Efficiency0.75 friction0.3 skillCandidate0.2; existing normalization lesson sufficient, no spore or promotion. Native source review5657820936; parser remains unadopted.
+
+- 2026-10-26T19:39:16.365020+00:00 — PR53 native-generated-region correction: global raw veto hid independent authored malformed findings; replace with local complete-region masks and unclosed-tail masking. Native10/44, law226/5562, policy71/1794 GREEN after RED sibling cases. Efficiency0.75 friction0.3 skillCandidate0.2; no spore or promotion. Native4381606114.

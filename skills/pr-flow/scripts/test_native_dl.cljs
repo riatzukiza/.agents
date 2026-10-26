@@ -39,6 +39,14 @@
                  (str/join "\n" (map #(str "> " %) (str/split-lines broken)))
                  (str "<!-- This is an auto-generated comment: tweet message by coderabbit.ai -->" broken "<!-- end of auto-generated comment: tweet message by coderabbit.ai -->")]]
       (is (empty? (filter #(= :review-body (:kind %)) (law/review-findings (assoc native-review :body body))))))))
+(deftest unrelated-generated-regions-cannot-hide-authored-malformed-findings
+  (let [broken (str/replace-first (:body native-review) "</dd>" "")]
+    (doseq [region ["<!-- This is an auto-generated comment: tweet message by coderabbit.ai -->footer<!-- end of auto-generated comment: tweet message by coderabbit.ai -->"
+                    "<!-- This is an auto-generated comment: generic example -->footer<!-- end of auto-generated comment: generic example -->"]
+            body [(str broken "\n" region) (str region "\n" broken)]]
+      (let [items (law/review-findings (assoc native-review :body body))]
+        (is (empty? (filter :positive-body-item items)))
+        (is (= 1 (count (filter #(= :review-body (:kind %)) items))))))))
 (deftest surplus-unmarked-group-item-cannot-disappear
   (let [item-a "`1-2`: LGTM!\n\n<!-- cr-comment:v1:aaaaaaaaaaaaaaaaaaaaaaaa -->"
         item-b "`1-2`: LGTM!\n\n<!-- cr-comment:v1:bbbbbbbbbbbbbbbbbbbbbbbb -->"

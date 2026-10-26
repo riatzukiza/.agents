@@ -765,10 +765,14 @@
 (defn- recognizable-native-additional? [body]
   ;; Recognition only preserves a conservative obligation. It cannot admit a
   ;; positive item or borrow authority from quoted, fenced or generated source.
+  ;; Mask generated regions locally: an unrelated footer must not erase an
+  ;; independently authored malformed section. An unclosed opener owns its tail.
   (let [text (when-not (multiline-code-span? (str body))
-               (some-> body native-scope-prose verdict-prose))]
+               (some-> (str body)
+                       (retain-excluded-regions #"(?is)<!--\s*This is an auto-generated comment:.*?-->.*?<!--\s*end of auto-generated comment:.*?-->")
+                       (retain-excluded-regions #"(?is)<!--\s*This is an auto-generated comment:.*?-->.*$")
+                       native-scope-prose verdict-prose))]
     (boolean (and text
-                  (not (re-find #"(?i)<!--\s*(?:This is an auto-generated comment:|end of auto-generated comment:)" (str body)))
                   (re-find #"(?m)^<details>\r?\n<summary>🔇 Additional comments(?:: [1-9][0-9]{0,3}| \([1-9][0-9]{0,3}\))</summary><blockquote>\s*<dl>\s*<dd>" text)))))
 
 (defn- unmarked-additional-finding? [body]
