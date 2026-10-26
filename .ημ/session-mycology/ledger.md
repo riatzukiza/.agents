@@ -1056,3 +1056,11 @@ Preserved both append-only branch histories and both contract invariants. Local 
 - An injectable bounded transport can return a Promise even if the initial caller uses spawnSync. Await its response before consumption and map synchronous throws/asynchronous rejections to the same consumed failure. The real promised HTTP fixture reproduced the defect; success/rejection/throw/reuse/no-retry checks now pass.
 - NBB1.3.204 does not implement CLJS await, so native JavaScript async/await is a narrow runtime boundary; classify! retains ^:async, policy remains in ClojureScript, and no Promise chain or second domain implementation is introduced. Synchronous owner-record completion remains an explicit host obligation.
 - Parent8/76, actual bounded HTTP1 and scoped lint0/0 PASS. Full prior local CLI is NOT green (116/3219,66failures), and the earlier accepted-main timeout diagnostic waives nothing. New head needs fresh native CI/review; no installed authority or deployment claim.
+
+- ts: 2026-10-25T13:47:39.753386Z
+  origin: typed-kimi-verdict-planning
+  p-efficiency: 0.79
+  p-friction: 0.44
+  p-skill-candidate: 0.40
+  receipt-refs: c0e9cd81-2a1c-4e16-b47e-de3a4ca82fbd; open-hax/proxx#445; native37208570573/3
+  note: Complete native publication and complete coverage do not make an untyped COMMENTED summary an approval. Put the actual full reviewer decision in a versioned response and qualified publisher/admission boundary. Do not expand prose parsing, turn advisory classification into approval, or rerun until wording matches. Planning only; no spore or installed rule.
