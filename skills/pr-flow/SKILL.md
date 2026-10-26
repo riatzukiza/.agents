@@ -289,3 +289,11 @@ failure. Collect a fresh qualifying review or repair the concrete read-access
 gap; never replace the proof with a pasted transcript or an identity alias.
 The reader needs `gh`, Node 22 and the platform `unzip` tool. Review and adopt
 the canonical source before operational use; no local fixture enables enrollment.
+
+### Semantic repair assessment (source candidate)
+
+The opt-in `--semantic-model opencode/glm-5.3-flash-free` route on `status`,
+`threads` and `gate` interprets complete raw author-repair conversations with
+current-head native Bot verification. It uses a purpose-specific assessment, not
+triage-only output or another presentation parser. Protected source review and
+actual runtime qualification precede adoption. See [semantic repair](semantic-repair.md).

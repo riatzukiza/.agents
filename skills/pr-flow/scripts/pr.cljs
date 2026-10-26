@@ -40,7 +40,9 @@
             [pr-flow.native-context-law :as native-context-law]
             [pr-flow.permissions :as permissions]
             [pr-flow.kimi-native :as kimi-native]
-            [pr-flow.law :as law]))
+            [pr-flow.law :as law]
+            [pr-flow.semantic-runtime :as semantic-runtime]
+            [pr-flow.semantic-transport :as semantic-transport]))
 
 (def here
   "This script's directory, captured while nbb loads the file."
@@ -112,6 +114,8 @@
 
 (declare authorized-author? reviewer-identities load-flow)
 
+(def ^:dynamic *semantic-model* nil)
+
 (defn fetch-threads
   "Collect native inputs, then retain canonical classification and observations.
    Incomplete nested comment pages still fail the gate closed. Native issue
@@ -129,6 +133,18 @@
                           (assoc % :actionability-policy policy
                                    :actionability-observations history :identities identities))
                        (:threads collected))
+         threads (if *semantic-model*
+                   (mapv #(semantic-runtime/assess gh-json
+                            (fn [a] (some? (law/trusted-reviewer
+                              {:user {:login (if (str/ends-with? (:login a) "[bot]") (:login a) (str (:login a) "[bot]")) :type (:__typename a)}}
+                              identities))) *semantic-model* %) threads) threads)
+         _ (when *semantic-model*
+             (let [fresh (native-context/collect-context
+                           {:read-json gh-json :authorized-author? authorized-author?
+                            :read-history actionability-observations} repo n)
+                   keys [:repository :pr :raw-threads :raw-issue-comments]]
+               (when-not (= (select-keys collected keys) (select-keys fresh keys))
+                 (throw (ex-info "Native semantic context changed during inference; no settlement admitted" {})))))
          observations (vec (distinct (mapcat #(concat (get-in % [:actionability :observations]) (get-in % [:preservation :observations])) threads)))
          _ (when (some? history)
              (append-actionability-observations! repo observations))
@@ -324,12 +340,14 @@
 
 (defn print-threads [threads]
   (doseq [{:keys [id path line severity resolved? resolution reviewer comments
-                 rejection-channel rejection-source-id rejection-url actionability opener-withdrawal preservation preservation-custody]} threads]
+                 rejection-channel rejection-source-id rejection-url actionability opener-withdrawal preservation preservation-custody semantic-diagnostic]} threads]
     (println (str (name severity) "  " (if resolved? "resolved  " "OPEN      ")
                   (if resolution (name resolution) "-unsettled-") "  " reviewer "  " path ":" line))
     (println (str "    id=" id))
     (println (str "    " (law/title-of (:body (first comments)))))
     (println (str "    " (:url (first comments))))
+    (when semantic-diagnostic
+      (println (str "    semantic: " (pr-str (select-keys semantic-diagnostic [:status :reason])))))
     (when rejection-channel
       (println (str "    rejection evidence: " (name rejection-channel) " id=" rejection-source-id " " rejection-url)))
     (when opener-withdrawal
@@ -379,6 +397,8 @@
     (println (str "  threads: " (count threads) " total, " (count (remove :resolved? threads)) " unresolved; by severity "
                   (pr-str (frequencies (map :severity (filter law/finding-obligation? (remove :resolved? threads)))))
                   "; informational " (count (remove law/finding-obligation? threads))))
+    (doseq [{:keys [id semantic-diagnostic]} threads :when semantic-diagnostic]
+      (println (str "  semantic id=" id " " (pr-str (select-keys semantic-diagnostic [:status :reason])))))
     (println (str "  exact-head approvals: " (pr-str (:approving-reviewers gate)) "  observed commit binding: " (pr-str (:reviewed-heads heads))))
     (println (str "  completed " (:stage progress) " rounds: " (:rounds progress)
                   " / soft minimum " (:min-review-rounds progress)
@@ -920,6 +940,9 @@
 (defn -main [& args]
   (let [[cmd repo n & more] args]
     (try
+      (binding [*semantic-model* (when (contains? #{"status" "gate" "threads"} cmd) (let [model (flag more "--semantic-model" nil)]
+          (when (and model (not (semantic-transport/free-model? model)))
+            (throw (ex-info "--semantic-model must name an opencode/*-free model" {}))) model))]
       (case cmd
         "flow" (show-flow repo)
         "status" (status repo n (reviewers-flag repo more))
@@ -932,7 +955,7 @@
                                   (prn r)
                                   (when (= :uncertain-native-outcome (:status r)) (js/process.exit 3)))
         "gate" (gate repo n (some #{"--apply"} more) (flag more "--method" "merge") (reviewers-flag repo more))
-        (do (println "usage: pr.cljs flow [STATE] | status|threads|wait|request|settle|resolve-informational|gate REPO PR ...") (js/process.exit 1)))
+        (do (println "usage: pr.cljs flow [STATE] | status|threads|wait|request|settle|resolve-informational|gate REPO PR ...") (js/process.exit 1))))
       (catch :default e
         (binding [*print-fn* *print-err-fn*] (println (ex-message e)))
         (js/process.exit 1)))))

@@ -21,11 +21,15 @@ try {
   let bytes = 0;
   for await (const part of process.stdin) {
     bytes += part.length;
-    if (bytes > 262144) throw new Error('Classifier input too large');
+    if (bytes > 1048576) throw new Error('Classifier input too large');
     parts.push(part);
   }
   const input = new TextDecoder('utf-8', { fatal: true }).decode(Buffer.concat(parts, bytes));
   const { payload } = JSON.parse(input);
+  // Semantic settlement assessment supplies the complete native conversation,
+  // issue context and immutable sources; raw triage keeps its original budget.
+  const semantic = payload?.request?.purpose === "semantic-repair/v1";
+  if (bytes > (semantic ? 1048576 : 262144)) throw new Error("Classifier input too large");
   const { model } = payload;
   phase = 'invalid-free-model';
   if (typeof model !== 'string' || !/^opencode\/[a-z0-9.-]+-free$/.test(model)) {

@@ -4,7 +4,8 @@
    already decoded into Clojure maps."
   (:require [clojure.string :as str] [pr-flow.actionability :as actionability] [pr-flow.positive-thread :as positive-thread]
             [pr-flow.kimi-publication :as publication]
-            [pr-flow.repair-ack :as repair-ack]))
+            [pr-flow.repair-ack :as repair-ack]
+            [pr-flow.semantic-repair :as semantic-repair]))
 
 (def default-min-review-rounds 5)
 
@@ -556,12 +557,13 @@
                                                 [(:id thread) (str (:root-comment-id thread))]))))))
         withdrawal (when (and (= :handled settlement) (not contested?))
                      (opener-withdrawal thread (inc settle-idx)))
-        acknowledgement (repair-ack/proof thread
+        semantic (semantic-repair/proof thread (:semantic-repair-evidence thread))
+        acknowledgement (or semantic (repair-ack/proof thread
                           (fn [a] (trusted-reviewer
                                     {:user {:type (:__typename a)
                                             :login (if (str/ends-with? (str (:login a)) "[bot]")
                                                      (:login a) (str (:login a) "[bot]"))}}
-                                    (or identities default-reviewer-identities))))]
+                                    (or identities default-reviewer-identities)))))]
     (assoc thread
            :actionability (actionability/disposition thread)
            :preservation (positive-thread/proof thread)

@@ -1073,3 +1073,11 @@ Preserved both append-only branch histories and both contract invariants. Local 
   spore: none
   receipt-refs: heartbeat15-kimi-verdict-red-final.log,heartbeat15-kimi-verdict-green.log
   note: Use explicit versioned model verdict and coverage decisions rather than summary prose. Source-only proposal laws are distinct from actual protected invocation, publication and canonical admission. No spore or global memory update.
+
+## 2026-10-25T14:35:29.178229+00:00 — Semantic intent instead of reviewer presentation
+
+The strict root-prefix parser rejected a native User repair after CodeRabbit wrapped its body. PR45 classifier source existed but remained advisory. Prepared a purpose-specific semantic route retaining native custody and independent Bot/current-head verification; model output is not approval. Actual complete-input evaluation met provider429, so operational qualification remains pending. Friction high; no same-session skill promotion.
+
+## 2026-10-26T02:14:19.004973+00:00 — Clarification of prior evaluation wording
+
+The earlier shorthand provider429 denotes HTTP 429 from the provider before inference. No judgment, runtime qualification or settlement resulted. The historical entry remains unchanged.
