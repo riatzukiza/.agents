@@ -26,6 +26,19 @@ Create or revise repo skills so they are reusable, scoped, and load correctly in
 2. A project-local OpenCode-visible link at `.opencode/skill/<name>/SKILL.md`.
 3. A short update in `AGENTS.md` that tells when to use the new skill.
 
+## Host and capability applicability (proposal)
+
+For a skill that depends on a host, device, backend, account or memory budget,
+consult [the placement proposal](references/placement.md). Record distribution,
+execution location and workload requirements independently in an optional
+`placement` form. Shared source can carry host-specific templates; installed
+state and credentials remain local. Missing requirements stop execution rather
+than authorizing an implicit remote run or provider/backend substitution.
+
+These annotations are agent-readable guidance, not an implemented loader or
+scheduler feature. Never claim that adding a contract field changes Unison.
+Existing unannotated skills retain their existing meaning.
+
 ## OpenCode Compatibility Checklist
 - `SKILL.md` begins with YAML frontmatter.
 - `name` matches folder and matches `^[a-z0-9]+(-[a-z0-9]+)*$`.

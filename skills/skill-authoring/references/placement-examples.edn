@@ -1,0 +1,36 @@
+;; GPL-3.0-or-later. Proposed annotations, not an executable admission policy.
+{:schema "skill-placement/v1"
+ :examples
+ {:portable-atlas
+  {:execution {:hosts :any
+               :requires-all [{:capability :cli/atlas :evidence :command-succeeded}
+                              {:capability :auth/atlas :evidence :authenticated-on-target}]
+               :on-unknown :stop-and-report}
+   :files [{:path "SKILL.md" :distribution :shared}
+           {:path "CONTRACT.edn" :distribution :shared}
+           {:path "<host-native-atlas-credential-store>"
+            :distribution :host-local :owner :executing-host}]}
+
+  :touchscreen-profile
+  {:execution {:hosts #{"yoga"}
+               :requires-all [{:capability :input/touchscreen
+                               :evidence :device-observed-on-target}]
+               :on-unknown :stop-and-report}
+   :files [{:path "profiles/yoga.edn" :distribution :shared
+            :applies-to {:hosts #{"yoga"}}}
+           {:path "~/.local/state/agent-skills/touchscreen/"
+            :distribution :host-local :owner :executing-host}]}
+
+  :cuda-workload
+  {:execution {:hosts :any
+               :requires-all
+               [{:capability :compute/cuda
+                 :evidence :qualified-for-requested-workload}
+                {:resource :dedicated-device-memory/free-bytes
+                 :minimum :workload-derived-budget
+                 :evidence :fresh-target-probe}]
+               :on-unknown :stop-and-report}
+   :files [{:path "profiles/stealth.edn" :distribution :shared
+            :applies-to {:hosts #{"stealth"}}}
+           {:path "~/.local/state/agent-skills/ml-workload/"
+            :distribution :host-local :owner :executing-host}]}}}

@@ -1,0 +1,9 @@
+;; GPL-3.0-or-later. Observations only; not workload admission.
+{:host/id "yoga" :observed-at "2026-10-26T06:32:17.480140+00:00"
+ :evidence ["yoga-agent-codex SSH uid/loginuid1002" "lscpu" "free -b" "lspci -nn" "dmidecode -t 17" "udevadm ID_INPUT_TOUCHSCREEN=1"]
+ :observed {:cpu {:vendor :amd :model "Ryzen 7 7735U" :logical-cpus 16}
+            :memory {:installed-bytes 17179869184 :kernel-total-bytes 14316310528}
+            :accelerators [{:kind :integrated-gpu :vendor :amd :name "Radeon 680M / Rembrandt" :memory-domain :shared-system}]
+            :input {:touchscreen {:present true :name "Wacom HID 5365 Finger"}}}
+ :workload-qualification :not-tested-in-this-observation
+ :live-resource-admission :fresh-probe-required}
