@@ -53,5 +53,20 @@
   (is (some? (:refusal (verdict/publication-intent expected (dissoc response :version)))))
   (is (some? (:refusal (verdict/publication-intent expected (assoc response :classification "informational"))))))
 
+(deftest schema-and-bounds
+  (let [schema (verdict/response-schema expected)]
+    (is (false? (:additionalProperties schema)))
+    (is (= {:const 2 :type "integer"} (get-in schema [:properties :version])))
+    (is (= (:coveredFiles expected) (get-in schema [:properties :coveredFiles :const])))
+    (is (= (set (map name (keys response))) (set (:required schema))))
+    (is (nil? (verdict/response-schema (assoc expected :head "bad")))))
+  (doseq [path ["/absolute" "a/../b" "a//b" "./a" "a:b" "a\\b"]]
+    (is (= :invalid-context
+           (:refusal (verdict/publication-intent (assoc expected :coveredFiles [path]) response)))))
+  (doseq [bad [(assoc response :verdict "comment" :comments (vec (repeat 101 finding)))
+               (assoc response :verdict "comment" :summary (apply str (repeat 50000 "a"))
+                      :comments (vec (repeat 3 (assoc finding :body (apply str (repeat 4000 "b"))))))]]
+    (is (= :invalid-response (:refusal (verdict/publication-intent expected bad))))))
+
 (let [result (run-tests 'test-kimi-verdict)]
   (when (pos? (+ (:fail result) (:error result))) (js/process.exit 1)))
