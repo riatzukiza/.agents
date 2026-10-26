@@ -733,7 +733,9 @@
                  (every? (fn [[a b]] (<= a b)) ranges))
         {:id id :format :native-additional-lgtm :file file :ranges ranges :source (trim-blank-lines item)}))))
 
-(defn- native-additional-groups [body]
+(defn- native-additional-groups
+  ([body] (native-additional-groups body true))
+  ([body reconcile-counts?]
   (when-let [section (or (additional-comment-section body)
                         (additional-comment-section body
                           #"^<details>\n<summary>🔇 Additional comments(?:: [1-9][0-9]{0,3}| \([1-9][0-9]{0,3}\))</summary><blockquote>\s*<dl>\s*<dd>"
@@ -750,19 +752,25 @@
               remainder (reduce #(str/replace-first %1 (first %2) "") inner groups)
               number (fn [n] #?(:clj (Long/parseLong n) :cljs (js/parseInt n 10)))]
           (when (and (str/blank? remainder)
-                     (= (number (or total-colon total-paren))
-                        (reduce + (map #(number (or (nth % 2) (nth % 3))) groups))))
-            groups))))))
+                     (or (not reconcile-counts?)
+                         (= (number (or total-colon total-paren))
+                            (reduce + (map #(number (or (nth % 2) (nth % 3))) groups)))))
+            groups)))))))
 
 (defn- unmarked-additional-finding? [body]
   ;; Declared native items without stable IDs cannot disappear when the
   ;; identified siblings settle. Duplicate IDs cannot fill a missing slot.
   (boolean
-   (some (fn [[_ _ count-colon count-paren content]]
+   (or
+    ;; A structurally bounded section with irreconcilable declared totals is
+    ;; not a valid positive envelope. Preserve a whole-body finding separately.
+    (and (native-additional-groups body false)
+         (not (native-additional-groups body)))
+    (some (fn [[_ _ count-colon count-paren content]]
            (> #?(:clj (Long/parseLong (or count-colon count-paren))
                  :cljs (js/parseInt (or count-colon count-paren) 10))
               (count (set (map second (re-seq #"<!-- cr-comment:v1:([a-z0-9]+) -->" content))))))
-         (native-additional-groups body))))
+         (native-additional-groups body)))))
 
 (defn- native-positive-body-items [body]
   (when-let [groups (native-additional-groups body)]

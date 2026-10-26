@@ -23,6 +23,12 @@
                (str/replace-first (:body native-review) #"<img src=\"[^\"]+\"" "<img src=\"https://unknown.invalid/x\" alt=\"https://storage.googleapis.com/coderabbit_public_assets/x\"")
                (str/replace-first (:body native-review) "<img src=" "<img onerror=\"unknown\" src=")]]
     (is (empty? (filter :positive-body-item (law/review-findings (assoc native-review :body body)))))))
+(deftest native-dl-count-mismatch-keeps-whole-body-obligation
+  (doseq [body [(str/replace-first (:body native-review) "Additional comments: 56" "Additional comments: 57")
+               (str/replace-first (:body native-review) "Additional comments: 56" "Additional comments: 55")]]
+    (let [items (law/review-findings (assoc native-review :body body))]
+      (is (empty? (filter :positive-body-item items)))
+      (is (= 1 (count (filter #(= :review-body (:kind %)) items)))))))
 (deftest native-dl-corrective-prose-and-duplicate-ids-remain-blocking
   (let [changed (str/replace-first (:body native-review) "LGTM!" "LGTM! Fix the broken behavior.")
         ids (map second (re-seq #"<!-- cr-comment:v1:([a-z0-9]+) -->" (:body native-review)))

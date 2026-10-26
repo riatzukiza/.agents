@@ -1084,3 +1084,5 @@ The earlier shorthand provider429 denotes HTTP 429 from the provider before infe
 
 
 2026-10-26T16:55:17.165392+00:00 — Proxx native envelope compatibility. Efficiency0.70, friction0.75, reusable-spore probability0.20. Existing canonical law required a bounded native presentation adapter; complete count reconciliation exposed an unmarked corrective sibling beside55positive notes. Preserve raw source and unknown obligations rather than strip HTML or label acknowledgments as fixes. Evidence: captured review5649047508 and preceding receipt. No new spore or promotion.
+
+2026-10-26T17:25:08.423232+00:00 — Native count mismatch must preserve an independent whole-body obligation while denying positive admission. Efficiency0.65, friction0.70, spore probability0.20. Hosted/local child-process termination needs explicit error/signal diagnostics; bounded timeout change does not waive gate assertions. Evidence: review4380143755 and matching receipt. No spore or promotion.
