@@ -29,7 +29,7 @@
 (defn- positive-safe? [value]
   (and (integer? value) (pos? value) (<= value 9007199254740991)))
 (defn- source-path? [value]
-  (and (text? value 1024) (not (str/starts-with? value "/"))
+  (and (text? value 1024) (not (str/starts-with? value "/")) (not (str/ends-with? value "/"))
        (not (str/includes? value "\\")) (not (re-find #"[\x00-\x1f\x7f:]" value))
        (every? #(not (contains? #{"" "." ".."} %)) (str/split value #"/"))))
 (defn- context? [value]

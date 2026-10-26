@@ -60,7 +60,7 @@
     (is (= (:coveredFiles expected) (get-in schema [:properties :coveredFiles :const])))
     (is (= (set (map name (keys response))) (set (:required schema))))
     (is (nil? (verdict/response-schema (assoc expected :head "bad")))))
-  (doseq [path ["/absolute" "a/../b" "a//b" "./a" "a:b" "a\\b"]]
+  (doseq [path ["/absolute" "a/" "a/../b" "a//b" "./a" "a:b" "a\\b"]]
     (is (= :invalid-context
            (:refusal (verdict/publication-intent (assoc expected :coveredFiles [path]) response)))))
   (doseq [bad [(assoc response :verdict "comment" :comments (vec (repeat 101 finding)))
