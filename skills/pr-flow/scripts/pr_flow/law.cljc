@@ -676,7 +676,8 @@
 
 (defn- additional-comment-section
   ([body] (additional-comment-section body #"^<details>\n<summary>🔇 Additional comments(?:: [1-9][0-9]{0,3}| \([1-9][0-9]{0,3}\))</summary><blockquote>"))
-  ([body section-header]
+  ([body section-header] (additional-comment-section body section-header false))
+  ([body section-header native-dl?]
   ;; Only the observed complete, top-level native section is a candidate.
   ;; Quotes/fences/generated share examples are not authored LGTM evidence.
   ;; A deliberately small balanced tag grammar rejects unfamiliar HTML rather
@@ -694,9 +695,17 @@
           (let [start (+ offset (str/index-of remaining token))
                 end (+ start (count token))
                 tail (subs text end)]
-            (if (str/starts-with? token "<!--")
+            (cond
+              (str/starts-with? token "<!--") (recur tail end stack sections)
+              (and native-dl?
+                   (or (re-matches #"<https://[^<>\s]+>" token)
+                       (and (re-matches #"<(?:img|source)(?: (?:src|srcset|width|height|align|alt|media)=\"[^\"<>\r\n]*\")+>" token)
+                            (re-find #"(?:src|srcset)=\"https://storage.googleapis.com/coderabbit_public_assets/" token))))
               (recur tail end stack sections)
-              (when-let [[_ closing tag] (re-matches #"<(\/?)(details|summary|blockquote)>" token)]
+              :else
+              (when-let [[_ closing tag] (re-matches (if native-dl?
+                                                      #"<(\/?)(details|summary|blockquote|dl|dd|picture)>"
+                                                      #"<(\/?)(details|summary|blockquote)>") token)]
                 (when-not (re-matches #"(?: {4}| {0,3}\t)[ \t]*"
                                       (last (str/split (subs text 0 start) #"\n" -1)))
                   (if (= closing "/")
@@ -725,16 +734,25 @@
         {:id id :format :native-additional-lgtm :file file :ranges ranges :source (trim-blank-lines item)}))))
 
 (defn- native-additional-groups [body]
-  (when-let [section (additional-comment-section body)]
-    (when-let [[_ total-colon total-paren inner]
-               (re-matches #"<details>\n<summary>🔇 Additional comments(?:: ([1-9][0-9]{0,3})| \(([1-9][0-9]{0,3})\))</summary><blockquote>([\s\S]*)</blockquote></details>" section)]
-      (let [groups (re-seq #"<details>\n<summary>([^<\n]+?)(?:: ([1-9][0-9]{0,3})| \(([1-9][0-9]{0,3})\))</summary><blockquote>([\s\S]*?)</blockquote></details>" inner)
-            remainder (reduce #(str/replace-first %1 (first %2) "") inner groups)
-            number (fn [n] #?(:clj (Long/parseLong n) :cljs (js/parseInt n 10)))]
-        (when (and (str/blank? remainder)
-                   (= (number (or total-colon total-paren))
-                      (reduce + (map #(number (or (nth % 2) (nth % 3))) groups))))
-          groups)))))
+  (when-let [section (or (additional-comment-section body)
+                        (additional-comment-section body
+                          #"^<details>\n<summary>🔇 Additional comments(?:: [1-9][0-9]{0,3}| \([1-9][0-9]{0,3}\))</summary><blockquote>\s*<dl>\s*<dd>"
+                          true))]
+    (let [dl? (boolean (re-find #"^<details>\n<summary>[^\n]+</summary><blockquote>\s*<dl>" section))
+          outer (if dl?
+                  #"<details>\n<summary>🔇 Additional comments(?:: ([1-9][0-9]{0,3})| \(([1-9][0-9]{0,3})\))</summary><blockquote>\s*<dl>\s*<dd>([\s\S]*)</dd>\s*</dl>\s*</blockquote>\s*</details>"
+                  #"<details>\n<summary>🔇 Additional comments(?:: ([1-9][0-9]{0,3})| \(([1-9][0-9]{0,3})\))</summary><blockquote>([\s\S]*)</blockquote></details>")
+          group (if dl?
+                  #"<details>\n<summary>([^<\n]+?)(?:: ([1-9][0-9]{0,3})| \(([1-9][0-9]{0,3})\))</summary><blockquote>\s*<dl>\s*<dd>([\s\S]*?)</dd>\s*</dl>\s*</blockquote>\s*</details>"
+                  #"<details>\n<summary>([^<\n]+?)(?:: ([1-9][0-9]{0,3})| \(([1-9][0-9]{0,3})\))</summary><blockquote>([\s\S]*?)</blockquote></details>")]
+      (when-let [[_ total-colon total-paren inner] (re-matches outer section)]
+        (let [groups (re-seq group inner)
+              remainder (reduce #(str/replace-first %1 (first %2) "") inner groups)
+              number (fn [n] #?(:clj (Long/parseLong n) :cljs (js/parseInt n 10)))]
+          (when (and (str/blank? remainder)
+                     (= (number (or total-colon total-paren))
+                        (reduce + (map #(number (or (nth % 2) (nth % 3))) groups))))
+            groups))))))
 
 (defn- unmarked-additional-finding? [body]
   ;; Declared native items without stable IDs cannot disappear when the

@@ -1081,3 +1081,6 @@ The strict root-prefix parser rejected a native User repair after CodeRabbit wra
 ## 2026-10-26T02:14:19.004973+00:00 — Clarification of prior evaluation wording
 
 The earlier shorthand provider429 denotes HTTP 429 from the provider before inference. No judgment, runtime qualification or settlement resulted. The historical entry remains unchanged.
+
+
+2026-10-26T16:55:17.165392+00:00 — Proxx native envelope compatibility. Efficiency0.70, friction0.75, reusable-spore probability0.20. Existing canonical law required a bounded native presentation adapter; complete count reconciliation exposed an unmarked corrective sibling beside55positive notes. Preserve raw source and unknown obligations rather than strip HTML or label acknowledgments as fixes. Evidence: captured review5649047508 and preceding receipt. No new spore or promotion.

@@ -1,0 +1,36 @@
+# Native Additional-comment envelopes
+
+Source candidate for the presentation emitted in
+[Proxx review 5649047508](https://github.com/open-hax/proxx/pull/464#pullrequestreview-5649047508).
+The captured REST review remains unchanged in
+`scripts/fixtures/proxx-native-dl-review-5649047508.json`.
+
+The report declares 56 additional items: 55 unique affirmative LGTM notes and
+one unmarked performance concern. Treating all of it as positive would lose a
+real obligation. Treating its 55 positive IDs as unknown corrections prevents
+the existing native `Handled` rule from applying.
+
+The compatibility branch accepts the observed balanced `dl`/`dd` containers,
+known native picture wrappers and constrained native asset tags, plus passive
+HTTPS autolinks outside the item content. The legacy branch remains unchanged.
+File-group counts must match the section count, non-group source must be blank,
+and positive item contents still match the complete existing LGTM grammar.
+Unknown tags, attributes, mismatched wrappers, quoted/fenced source, duplicate
+IDs and corrective prose cannot acquire positive status.
+
+Recognition preserves raw review data and does not alter identity, timestamps,
+severity, current-head binding, writer permission, outstanding unmarked items,
+review approval, cohort, CI or merge rules. Recognition alone has no GitHub
+effect. Synthetic writer tests are fixtures, not native settlement evidence.
+
+Validation:
+
+```sh
+nbb -cp skills/pr-flow/scripts skills/pr-flow/scripts/test_native_dl.cljs
+nbb -cp skills/pr-flow/scripts skills/pr-flow/scripts/test_law.cljs
+nbb -cp skills/pr-flow/scripts skills/pr-flow/scripts/test_policy.cljs
+nbb -cp skills/pr-flow/scripts skills/pr-flow/scripts/test_cli.cljs
+```
+
+This source is not installed in the active global skill directory. Protected
+review and adoption precede operational use.
