@@ -68,5 +68,7 @@
                       :comments (vec (repeat 3 (assoc finding :body (apply str (repeat 4000 "b"))))))]]
     (is (= :invalid-response (:refusal (verdict/publication-intent expected bad))))))
 
-(let [result (run-tests 'test-kimi-verdict)]
-  (when (pos? (+ (:fail result) (:error result))) (js/process.exit 1)))
+(defmethod cljs.test/report [:cljs.test/default :end-run-tests] [m]
+  (when-not (cljs.test/successful? m) (set! (.-exitCode js/process) 1)))
+
+(run-tests 'test-kimi-verdict)
