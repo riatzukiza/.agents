@@ -1,0 +1,7 @@
+(skill-contract
+  (name "agent-skills-sync")
+  (v "ημ.skill/agent-skills-sync@0.1.0")
+  (intent "Operate native two-way Unison skill synchronization while preserving device state and unresolved conflicts.")
+  (activation (explicit ["skill:agent-skills-sync"])(priority 50))
+  (governance (touch-layer :mutable) (requires-user-approval false)
+    (non-override [:mission :directives :safety :license :output-shape])))
