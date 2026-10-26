@@ -24,11 +24,14 @@
     (let [text (.decode (js/TextDecoder. "utf-8" #js {:fatal true}) bytes)]
       {:path p :revision head :blob (:sha r) :text text :sha256 (sha256 text)})))
 
+(defn free-model? [model]
+  (and (string? model) (boolean (re-matches #"opencode/[a-z0-9.-]+-free" model))))
+
 (defn infer
   "Single explicit free native-client invocation, preserving actual provenance.
    Model success is transport evidence only; purpose law validates semantics."
   [model request instruction schema]
-  (when-not (and (string? model) (re-matches #"opencode/[a-z0-9.-]+-free" model))
+  (when-not (free-model? model)
     (throw (ex-info "Explicit supported free semantic model required" {})))
   (let [payload {:model model :request request :instruction instruction :response_schema schema}
         serialized (js/JSON.stringify (clj->js payload))
