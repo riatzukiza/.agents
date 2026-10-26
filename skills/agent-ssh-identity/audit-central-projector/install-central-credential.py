@@ -20,7 +20,7 @@ if not password:
     raise SystemExit('Empty password; nothing changed.')
 config = {'uri': 'mongodb+srv://cluster0.abpqhln.mongodb.net/?tls=true',
           'username': 'central_audit_reader', 'password': password}
-remote = '''import json,os,tempfile
+remote = '''import json,os,sys,tempfile
 if os.geteuid()!=0: raise SystemExit('must run as root')
 c=json.load(sys.stdin)
 c['uri']='mongodb+srv://cluster0.abpqhln.mongodb.net/?tls=true'

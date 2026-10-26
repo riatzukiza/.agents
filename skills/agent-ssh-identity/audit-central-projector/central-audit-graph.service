@@ -5,7 +5,7 @@ After=docker.service
 
 [Service]
 Type=oneshot
-ExecStart=/usr/bin/python3 /usr/local/lib/audit-forwarder/central_audit_graph_projector.py
+ExecStart=/usr/bin/python3 /usr/local/lib/knoxx-audit-forwarder/central_audit_graph_projector.py
 TimeoutStartSec=110
 UMask=0077
 NoNewPrivileges=yes
@@ -17,7 +17,7 @@ ProtectKernelTunables=yes
 ProtectKernelModules=yes
 ProtectControlGroups=yes
 RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
-ReadOnlyPaths=/etc/audit-central-projector /usr/local/lib/audit-forwarder
+ReadOnlyPaths=/etc/audit-central-projector /usr/local/lib/knoxx-audit-forwarder
 
 [Install]
 WantedBy=multi-user.target

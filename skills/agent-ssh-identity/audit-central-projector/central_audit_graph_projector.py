@@ -9,6 +9,7 @@ The configured Atlas credential must be read-only on linux_audit.events
 ascending by event_epoch; a sliding overlap window re-reads late inserts and
 the processed table deduplicates by _id."""
 import json
+from itertools import islice
 import sqlite3
 import subprocess
 import sys
@@ -53,6 +54,19 @@ class State:
                             ('watermark', f'{watermark:.3f}'))
 
 
+def select_unseen(records, state, limit=BATCH):
+    """Bound delivery after deduplication, so overlap cannot starve new rows."""
+    records = iter(records)
+    fresh = []
+    while len(fresh) < limit:
+        batch = list(islice(records, limit - len(fresh)))
+        if not batch:
+            break
+        seen = state.seen([str(r['_id']) for r in batch])
+        fresh.extend(r for r in batch if str(r['_id']) not in seen)
+    return fresh
+
+
 def main():
     from pymongo import MongoClient
     config = json.loads(Path(CONFIG_PATH).read_text())
@@ -68,11 +82,8 @@ def main():
              'event_epoch': {'$gte': max(0.0, watermark - OVERLAP_SECONDS)}}
     cursor = events.find(query, {'raw': 0, 'raw_b64': 0},
                          sort=[('event_epoch', 1), ('serial', 1)]
-                         ).limit(BATCH)
-    raw = []
-    for record in cursor:
-        raw.append(record)
-    fresh = [r for r in raw if str(r['_id']) not in state.seen([str(r['_id']) for r in raw])]
+                         ).batch_size(BATCH)
+    fresh = select_unseen(cursor, state)
     if not fresh:
         print('graph_delivery_ok batch=0')
         return
@@ -90,7 +101,7 @@ def main():
     if len(replies) != 1 or set(replies[0]['audit_graph_ack']) != \
             {str(r['_id']) for r in fresh}:
         raise SystemExit('graph_delivery_failed invalid acknowledgment')
-    new_watermark = max(r.get('event_epoch', watermark) for r in fresh)
+    new_watermark = max(watermark, max(r.get('event_epoch', watermark) for r in fresh))
     state.mark([str(r['_id']) for r in fresh], new_watermark)
     print(f'graph_delivery_ok batch={len(fresh)} watermark={new_watermark:.3f}')
     client.close()
