@@ -1,0 +1,23 @@
+[Unit]
+Description=Project shared Atlas Linux audit observations into the OpenPlanner graph
+ConditionPathExists=/etc/audit-central-projector/config.json
+After=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /usr/local/lib/audit-forwarder/central_audit_graph_projector.py
+TimeoutStartSec=110
+UMask=0077
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ReadWritePaths=/var/lib/audit-central-projector
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+ReadOnlyPaths=/etc/audit-central-projector /usr/local/lib/audit-forwarder
+
+[Install]
+WantedBy=multi-user.target

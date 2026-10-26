@@ -1,0 +1,11 @@
+[Unit]
+Description=Continuously drain the acknowledged audit graph outbox
+
+[Timer]
+OnBootSec=30
+OnUnitInactiveSec=5
+AccuracySec=1
+Unit=knoxx-audit-graph.service
+
+[Install]
+WantedBy=timers.target

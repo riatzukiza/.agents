@@ -1,0 +1,35 @@
+[Unit]
+Description=Forward Knoxx Linux audit records to MongoDB Atlas (insert only)
+After=network-online.target auditd.service
+Wants=network-online.target
+Requires=auditd.service
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=knoxx-audit-shipper
+Group=knoxx-audit-shipper
+SupplementaryGroups=adm
+ExecStart=/usr/local/lib/knoxx-audit-forwarder/venv/bin/python /usr/local/lib/knoxx-audit-forwarder/audit_forwarder.py
+Restart=on-failure
+RestartSec=5
+StateDirectory=knoxx-audit-forwarder
+StateDirectoryMode=0700
+UMask=0077
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+RestrictNamespaces=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+CapabilityBoundingSet=
+LockPersonality=yes
+ReadOnlyPaths=/var/log/audit /etc/knoxx-audit-forwarder
+
+[Install]
+WantedBy=multi-user.target

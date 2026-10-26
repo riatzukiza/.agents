@@ -1,0 +1,11 @@
+[Unit]
+Description=Continuously drain the shared Atlas audit graph projector backlog
+
+[Timer]
+OnBootSec=60
+OnUnitInactiveSec=60
+AccuracySec=5
+Unit=central-audit-graph.service
+
+[Install]
+WantedBy=timers.target
