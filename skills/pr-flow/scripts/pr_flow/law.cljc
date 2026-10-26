@@ -765,11 +765,12 @@
                      (or (not reconcile-counts?)
                          (and (= (number (or total-colon total-paren))
                                  (reduce + (map #(number (or (nth % 2) (nth % 3))) groups)))
-                              (every? (fn [[_ _ count-colon count-paren content]]
-                                        (= (number (or count-colon count-paren))
-                                           (count (str/split (trim-blank-lines content)
-                                                             #"\n[ \t]*\n---\n[ \t]*\n"))))
-                                      groups))))
+                              (or (not dl?)
+                                  (every? (fn [[_ _ count-colon count-paren content]]
+                                            (= (number (or count-colon count-paren))
+                                               (count (str/split (trim-blank-lines content)
+                                                                 #"\n[ \t]*\n---\n[ \t]*\n"))))
+                                          groups)))))
             groups)))))))
 
 (defn- recognizable-native-additional? [body]

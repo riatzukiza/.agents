@@ -1098,3 +1098,5 @@ The earlier shorthand provider429 denotes HTTP 429 from the provider before infe
 - 2026-10-26T19:55:04.930237+00:00 — PR53 multiline-code scope: whole-body positive-admission guard cannot control conservative obligation discovery. Shared scanner retains positive Boolean veto and masks only code regions for discovery. RED8 then GREEN11/62, law226/5562, policy71/1794. Efficiency0.75 friction0.3 skillCandidate0.2; no spore/promotion. Root4381773151.
 
 - 2026-10-26T20:01:38.113335+00:00 — PR53 conservative fence-tail correction: verdict-prose passing-evidence veto cannot suppress earlier authored obligations. RED4cases, GREENnative12/72 law226/5562 policy71/1794. Efficiency0.8 friction0.2 skillCandidate0.2; existing local-exclusion pattern, no new spore or promotion. Root4381830123.
+
+- 2026-10-26T20:11:21.423787+00:00 — PR53 native-only count reconciliation: actual immutable-base replay confirmed valid legacy sibling admission must remain independent. RED then GREENnative13/75 law226/5562 policy71/1794. Efficiency0.8 friction0.2 skillCandidate0.2; no new spore/promotion. Native4381928696. Baseline replay scratch retained active.

@@ -68,6 +68,16 @@
     (doseq [fence ["```html" "~~~text"]]
       (is (empty? (filter #(= :review-body (:kind %))
                          (law/review-findings (assoc native-review :body (str fence "\n" broken)))))))))
+(deftest legacy-positive-groups-retain-their-existing-independent-admission
+  (let [item-a "`1-2`: LGTM!\n\n<!-- cr-comment:v1:aaaaaaaaaaaaaaaaaaaaaaaa -->"
+        item-b "`1-2`: LGTM!\n\n<!-- cr-comment:v1:bbbbbbbbbbbbbbbbbbbbbbbb -->"
+        group (fn [file count content] (str "<details>\n<summary>" file ": " count "</summary><blockquote>\n" content "\n</blockquote></details>"))
+        body (str "<details>\n<summary>🔇 Additional comments: 3</summary><blockquote>\n"
+                  (group "a.cljs" 1 item-a) "\n" (group "b.cljs" 2 item-b) "\n</blockquote></details>")
+        items (law/review-findings (assoc native-review :body body))]
+    (is (= #{"aaaaaaaaaaaaaaaaaaaaaaaa"} (set (map :id (filter :positive-body-item items)))))
+    (is (nil? (:positive-body-item (first (filter #(= "bbbbbbbbbbbbbbbbbbbbbbbb" (:id %)) items)))))
+    (is (= 1 (count (filter #(= :review-body (:kind %)) items))))))
 (deftest surplus-unmarked-group-item-cannot-disappear
   (let [item-a "`1-2`: LGTM!\n\n<!-- cr-comment:v1:aaaaaaaaaaaaaaaaaaaaaaaa -->"
         item-b "`1-2`: LGTM!\n\n<!-- cr-comment:v1:bbbbbbbbbbbbbbbbbbbbbbbb -->"
