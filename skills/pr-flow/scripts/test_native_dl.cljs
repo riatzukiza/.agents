@@ -194,4 +194,10 @@
     (let [body (str "<!-- ordinary example\n" delimiter "\n-->\n" (:body native-review))]
       (is (= 1 (count (filter #(= :review-body (:kind %))
                               (law/review-findings (assoc native-review :body body)))))))))
+(deftest enclosing-fences-own-literal-html-comment-openers
+  (let [broken (str/replace-first (:body native-review) "</dd>" "")]
+    (doseq [[open close] [["~~~" "~~~"] ["```" "```"] ["~~~" "~~~~"] ["```" "````"]]]
+      (let [body (str open "html\n<!-- example\n" close "\n-->\n" broken)]
+        (is (= 1 (count (filter #(= :review-body (:kind %))
+                                (law/review-findings (assoc native-review :body body))))))))))
 (run-tests 'test-native-dl)

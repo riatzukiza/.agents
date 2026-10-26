@@ -793,11 +793,12 @@
             groups)))))))
 
 (defn- mask-native-discovery-examples [body]
-  ;; Keep genuine generated markers for the next pass, but exclude markers
-  ;; authored inside code or quotes before they can claim the remaining tail.
+  ;; Select the earliest enclosing complete comment/code/quote region in one
+  ;; pass. Literal delimiters inside that region cannot own later source.
+  ;; Keep genuine generated markers for the following generated-region pass.
   (retain-excluded-regions
    body
-   #"(?im)^[ ]{0,3}<(pre|code|blockquote)\b[^>]*>[\s\S]*?</\1>|^[ ]{0,3}>[^\r\n]*(?:(?:\r\n|\r|\n)(?![ \t]*(?:\r\n|\r|\n|$)|[ ]{0,3}<details>[ \t]*(?:\r\n|\r|\n|$))[^\r\n]*)*|^[ ]{0,3}(`{3,})[^`\r\n]*(?:\r\n|\r|\n)[\s\S]*?^[ ]{0,3}\2`*[ \t]*(?:$|\r)|^[ ]{0,3}(~{3,})(?!~)[^\r\n]*(?:\r\n|\r|\n)[\s\S]*?^[ ]{0,3}\3~*[ \t]*(?:$|\r)|(?<!`)(`+)(?!`)[^\r\n]*?\4(?!`)"))
+   #"(?im)<!--(?!\s*(?:This is an auto-generated comment:|end of auto-generated comment:))[\s\S]*?-->|^[ ]{0,3}<(pre|code|blockquote)\b[^>]*>[\s\S]*?</\1>|^[ ]{0,3}>[^\r\n]*(?:(?:\r\n|\r|\n)(?![ \t]*(?:\r\n|\r|\n|$)|[ ]{0,3}<details>[ \t]*(?:\r\n|\r|\n|$))[^\r\n]*)*|^[ ]{0,3}(`{3,})[^`\r\n]*(?:\r\n|\r|\n)[\s\S]*?^[ ]{0,3}\2`*[ \t]*(?:$|\r)|^[ ]{0,3}(~{3,})(?!~)[^\r\n]*(?:\r\n|\r|\n)[\s\S]*?^[ ]{0,3}\3~*[ \t]*(?:$|\r)|(?<!`)(`+)(?!`)[^\r\n]*?\4(?!`)"))
 
 (defn- recognizable-native-additional? [body]
   ;; Recognition only preserves a conservative obligation. It cannot admit a
@@ -805,9 +806,6 @@
   ;; Mask generated regions locally: an unrelated footer must not erase an
   ;; independently authored malformed section. An unclosed opener owns its tail.
   (let [text (some-> (str body)
-                       ;; Ordinary comments cannot introduce fences; retain real
-                       ;; generated markers until their owning regions are masked.
-                       (retain-excluded-regions #"(?is)<!--(?!\s*(?:This is an auto-generated comment:|end of auto-generated comment:))[\s\S]*?-->")
                        mask-native-discovery-examples
                        (retain-excluded-regions #"(?is)<!--\s*This is an auto-generated comment:.*?-->.*?<!--\s*end of auto-generated comment:.*?-->")
                        (retain-excluded-regions #"(?is)<!--\s*This is an auto-generated comment:.*?-->.*$")
