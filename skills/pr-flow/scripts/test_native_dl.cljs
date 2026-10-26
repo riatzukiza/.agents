@@ -150,4 +150,15 @@
       (let [example (str fence "\n<!-- This is an auto-generated comment: generic example -->\n" (if (= fence "```html") "```" "~~~") "\n")
             items (law/review-findings (assoc native-review :body (str example broken)))]
         (is (= 1 (count (filter #(= :review-body (:kind %)) items))))))))
+(deftest generated-openers-in-other-examples-cannot-hide-authored-findings
+  (let [broken (str/replace-first (:body native-review) "</dd>" "")
+        opener "<!-- This is an auto-generated comment: generic example -->"]
+    (doseq [example [(str "Example: `" opener "`\n")
+                     (str "Example: ``" opener "``\n")
+                     (str "> " opener "\n\n")
+                     (str "<pre>" opener "</pre>\n")
+                     (str "<code>" opener "</code>\n")
+                     (str "<blockquote>" opener "</blockquote>\n")]]
+      (is (= 1 (count (filter #(= :review-body (:kind %))
+                              (law/review-findings (assoc native-review :body (str example broken))))))))))
 (run-tests 'test-native-dl)

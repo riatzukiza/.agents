@@ -1104,3 +1104,5 @@ The earlier shorthand provider429 denotes HTTP 429 from the provider before infe
 - 2026-10-26T21:58:52.253901+00:00 — PR53 native raw-block boundary/all-URL corrections: bounded conservative scanner must respect raw HTML block interruption, while strict positive guard stays unchanged; validate every asset URL instead of existential allowlisting. Immutable baseline replay corrected a too-strict test expectation. RED10, GREEN15/96 law226/5562 policy71/1794. Efficiency0.75 friction0.35 skillCandidate0.2; existing bounded-parser lesson, no new spore/promotion. Roots4382890404/4382890420.
 
 - 2026-10-26T22:11:45.455601+00:00 | fenced generated-opener correction | RED reproduced two cases; native/law/policy GREEN. Friction 0.3; candidate 0.2; no new spore or active policy adoption.
+
+- 2026-10-26T22:21:19.168867+00:00 | example-region ordering | six RED regressions corrected before generated discovery; all focused/law/policy GREEN. Friction 0.5; spore probability 0.3; no promotion. Browser timeout retained as failed verification.
