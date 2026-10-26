@@ -37,6 +37,19 @@
                  (str/join "\n" (map #(str "> " %) (str/split-lines broken)))
                  (str "<!-- This is an auto-generated comment: tweet message by coderabbit.ai -->" broken "<!-- end of auto-generated comment: tweet message by coderabbit.ai -->")]]
       (is (empty? (filter #(= :review-body (:kind %)) (law/review-findings (assoc native-review :body body))))))))
+(deftest surplus-unmarked-group-item-cannot-disappear
+  (let [item-a "`1-2`: LGTM!\n\n<!-- cr-comment:v1:aaaaaaaaaaaaaaaaaaaaaaaa -->"
+        item-b "`1-2`: LGTM!\n\n<!-- cr-comment:v1:bbbbbbbbbbbbbbbbbbbbbbbb -->"
+        group (fn [file content] (str "<details>\n<summary>" file ": 1</summary><blockquote>\n<dl>\n<dd>\n" content "\n</dd>\n</dl>\n</blockquote>\n</details>"))
+        body (fn [a] (str "<details>\n<summary>🔇 Additional comments: 2</summary><blockquote>\n<dl>\n<dd>\n"
+                         (group "a.cljs" a) "\n" (group "b.cljs" item-b)
+                         "\n</dd>\n</dl>\n</blockquote>\n</details>"))
+        valid (law/review-findings (assoc native-review :body (body item-a)))
+        surplus (law/review-findings (assoc native-review :body (body (str item-a "\n\n---\n\n`3-4`: Fix the unmarked defect."))))]
+    (is (= 2 (count (filter :positive-body-item valid))))
+    (is (empty? (filter #(= :review-body (:kind %)) valid)))
+    (is (empty? (filter :positive-body-item surplus)))
+    (is (= 1 (count (filter #(= :review-body (:kind %)) surplus))))))
 (deftest native-dl-count-mismatch-keeps-whole-body-obligation
   (doseq [body [(str/replace-first (:body native-review) "Additional comments: 56" "Additional comments: 57")
                (str/replace-first (:body native-review) "Additional comments: 56" "Additional comments: 55")]]

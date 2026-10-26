@@ -1088,3 +1088,5 @@ The earlier shorthand provider429 denotes HTTP 429 from the provider before infe
 2026-10-26T17:25:08.423232+00:00 — Native count mismatch must preserve an independent whole-body obligation while denying positive admission. Efficiency0.65, friction0.70, spore probability0.20. Hosted/local child-process termination needs explicit error/signal diagnostics; bounded timeout change does not waive gate assertions. Evidence: review4380143755 and matching receipt. No spore or promotion.
 
 2026-10-26T18:09:24.786875+00:00 — Malformed native envelope preservation. Efficiency0.65, friction0.70, spore probability0.20. Strict positive admission and conservative unmarked-obligation recognition need separate paths; both exclude non-authoritative examples. Evidence4380747136 and matching RED/GREEN receipt. No spore or promotion.
+
+2026-10-26T19:10:56.407544+00:00 — Per-group reconciliation. Efficiency0.65, friction0.75, spore probability0.20. Aggregate declarations do not establish complete group coverage; reuse the existing item delimiter and preserve unknown obligations. Evidence4381361086 and matching RED/GREEN receipt. No new spore or promotion.

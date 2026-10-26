@@ -13,7 +13,9 @@ the existing native `Handled` rule from applying.
 The compatibility branch accepts the observed balanced `dl`/`dd` containers,
 known native picture wrappers and constrained native asset tags, plus passive
 HTTPS autolinks outside the item content. The legacy branch remains unchanged.
-File-group counts must match the section count, non-group source must be blank,
+File-group counts must match the section count and each group’s actual item-part
+count must match its declaration. Surplus unmarked parts retain a whole-body
+obligation and deny positive admission. Non-group source must be blank,
 and positive item contents still match the complete existing LGTM grammar.
 A structurally bounded section whose declared total does not reconcile retains
 a conservative whole-body finding; it never gains positive-item admission.

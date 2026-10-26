@@ -753,8 +753,13 @@
               number (fn [n] #?(:clj (Long/parseLong n) :cljs (js/parseInt n 10)))]
           (when (and (str/blank? remainder)
                      (or (not reconcile-counts?)
-                         (= (number (or total-colon total-paren))
-                            (reduce + (map #(number (or (nth % 2) (nth % 3))) groups)))))
+                         (and (= (number (or total-colon total-paren))
+                                 (reduce + (map #(number (or (nth % 2) (nth % 3))) groups)))
+                              (every? (fn [[_ _ count-colon count-paren content]]
+                                        (= (number (or count-colon count-paren))
+                                           (count (str/split (trim-blank-lines content)
+                                                             #"\n[ \t]*\n---\n[ \t]*\n"))))
+                                      groups))))
             groups)))))))
 
 (defn- recognizable-native-additional? [body]
