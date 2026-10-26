@@ -768,6 +768,7 @@
   (let [text (when-not (multiline-code-span? (str body))
                (some-> body native-scope-prose verdict-prose))]
     (boolean (and text
+                  (not (re-find #"(?i)<!--\s*(?:This is an auto-generated comment:|end of auto-generated comment:)" (str body)))
                   (re-find #"(?m)^<details>\r?\n<summary>🔇 Additional comments(?:: [1-9][0-9]{0,3}| \([1-9][0-9]{0,3}\))</summary><blockquote>\s*<dl>\s*<dd>" text)))))
 
 (defn- unmarked-additional-finding? [body]

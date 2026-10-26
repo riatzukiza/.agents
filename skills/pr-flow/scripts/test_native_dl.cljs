@@ -34,6 +34,8 @@
   (let [broken (str/replace-first (:body native-review) "</dd>" "")]
     (doseq [body [(str "```html\n" broken "\n```")
                  (str "```html\n" broken)
+                 (str "<!-- This is an auto-generated comment: generic example -->\n" broken "\n<!-- end of auto-generated comment: generic example -->")
+                 (str "<!-- THIS IS AN AUTO-GENERATED COMMENT: generic example -->\n" broken)
                  (str/join "\n" (map #(str "> " %) (str/split-lines broken)))
                  (str "<!-- This is an auto-generated comment: tweet message by coderabbit.ai -->" broken "<!-- end of auto-generated comment: tweet message by coderabbit.ai -->")]]
       (is (empty? (filter #(= :review-body (:kind %)) (law/review-findings (assoc native-review :body body))))))))
