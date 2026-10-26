@@ -21,6 +21,11 @@ nbb -cp ~/.agents/skills/pr-flow/scripts ~/.agents/skills/pr-flow/scripts/pr.clj
   status OWNER/REPO PR --semantic-model opencode/glm-5.3-flash-free
 ```
 
+Opting in sends all raw thread comments, enclosing review bodies, PR issue
+comments, and the contents of up to eight repository files at the PR head to
+the external OpenCode model provider. This data leaves the local environment;
+the provider's retention policy is outside this repository's control.
+
 `gate` and `threads` accept the same flag. Default behavior is unchanged. Only
 an explicit supported free native model is accepted; there is no paid fallback.
 This source candidate is not installed or operationally qualified by its tests.
