@@ -625,9 +625,9 @@
 
 
 
-(defn- multiline-code-span? [text]
-  ;; Positive admission alone denies raw equal backtick runs across lines,
-  ;; including blank paragraphs; this is a conservative native-format guard.
+(defn- multiline-code-regions [text]
+  ;; Find raw equal backtick runs across lines, including blank paragraphs.
+  ;; Positive admission denies them; conservative discovery masks only them.
   ;; Outside a code span, complete native comments/fences remain examples.
   ;; Inside one, backslashes, comments and fences cannot hide its delimiter.
   (let [matching-close
@@ -637,7 +637,7 @@
               (let [start (+ cursor (str/index-of (subs text cursor) run))
                     end (+ start (count run))]
                 (if (= size (count run)) [start end] (recur end))))))]
-    (loop [cursor 0]
+    (loop [cursor 0 regions []]
       (if-let [token (re-find #"<!--[\s\S]*?-->|`+|~{3,}" (subs text cursor))]
         (let [start (+ cursor (str/index-of (subs text cursor) token))
               end (+ start (count token))
@@ -651,14 +651,24 @@
                                (if (and (>= index 0) (= "\\" (subs text index (inc index))))
                                  (recur (dec index) (inc n)) n)))]
           (cond
-            (str/starts-with? token "<!--") (recur end)
-            fence (recur (+ line-start (count fence)))
-            (str/starts-with? token "~") (recur end)
-            escaped? (recur (inc start))
+            (str/starts-with? token "<!--") (recur end regions)
+            fence (recur (+ line-start (count fence)) regions)
+            (str/starts-with? token "~") (recur end regions)
+            escaped? (recur (inc start) regions)
             :else (if-let [[close after] (matching-close end (count token))]
-                    (if (re-find #"[\r\n]" (subs text end close)) true (recur after))
-                    (recur end))))
-        false))))
+                    (recur after (cond-> regions
+                                   (re-find #"[\r\n]" (subs text end close)) (conj [start after])))
+                    (recur end regions))))
+        regions))))
+
+(defn- multiline-code-span? [text]
+  (boolean (seq (multiline-code-regions text))))
+
+(defn- mask-multiline-code-regions [text]
+  ;; Reverse offsets preserve source coordinates and do not invent line starts.
+  (reduce (fn [source [start end]]
+            (str (subs source 0 start) "[excluded non-authoritative source]" (subs source end)))
+          text (reverse (multiline-code-regions text))))
 
 (defn- retain-excluded-regions [text pattern]
   ;; Exclusion must not sanitize extra own-item source into an exact LGTM.
@@ -767,11 +777,11 @@
   ;; positive item or borrow authority from quoted, fenced or generated source.
   ;; Mask generated regions locally: an unrelated footer must not erase an
   ;; independently authored malformed section. An unclosed opener owns its tail.
-  (let [text (when-not (multiline-code-span? (str body))
-               (some-> (str body)
+  (let [text (some-> (str body)
                        (retain-excluded-regions #"(?is)<!--\s*This is an auto-generated comment:.*?-->.*?<!--\s*end of auto-generated comment:.*?-->")
                        (retain-excluded-regions #"(?is)<!--\s*This is an auto-generated comment:.*?-->.*$")
-                       native-scope-prose verdict-prose))]
+                       mask-multiline-code-regions
+                       native-scope-prose verdict-prose)]
     (boolean (and text
                   (re-find #"(?m)^<details>\r?\n<summary>🔇 Additional comments(?:: [1-9][0-9]{0,3}| \([1-9][0-9]{0,3}\))</summary><blockquote>\s*<dl>\s*<dd>" text)))))
 

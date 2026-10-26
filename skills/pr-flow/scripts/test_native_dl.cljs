@@ -47,6 +47,17 @@
       (let [items (law/review-findings (assoc native-review :body body))]
         (is (empty? (filter :positive-body-item items)))
         (is (= 1 (count (filter #(= :review-body (:kind %)) items))))))))
+(deftest unrelated-multiline-code-cannot-hide-authored-findings
+  (let [broken (str/replace-first (:body native-review) "</dd>" "")]
+    (doseq [authored [(:body native-review) broken]
+            span ["Unrelated example: `alpha\nbeta`" "Unrelated example: ``alpha\nbeta``"]
+            body [(str authored "\n" span) (str span "\n" authored)]]
+      (let [items (law/review-findings (assoc native-review :body body))]
+        (is (empty? (filter :positive-body-item items)))
+        (is (= 1 (count (filter #(= :review-body (:kind %)) items))))))
+    (doseq [delimiter ["`" "``"]]
+      (let [body (str delimiter "\n" broken "\n" delimiter)]
+        (is (empty? (filter #(= :review-body (:kind %)) (law/review-findings (assoc native-review :body body)))))))))
 (deftest surplus-unmarked-group-item-cannot-disappear
   (let [item-a "`1-2`: LGTM!\n\n<!-- cr-comment:v1:aaaaaaaaaaaaaaaaaaaaaaaa -->"
         item-b "`1-2`: LGTM!\n\n<!-- cr-comment:v1:bbbbbbbbbbbbbbbbbbbbbbbb -->"
