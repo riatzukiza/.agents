@@ -781,7 +781,10 @@
                        (retain-excluded-regions #"(?is)<!--\s*This is an auto-generated comment:.*?-->.*?<!--\s*end of auto-generated comment:.*?-->")
                        (retain-excluded-regions #"(?is)<!--\s*This is an auto-generated comment:.*?-->.*$")
                        mask-multiline-code-regions
-                       native-scope-prose verdict-prose)]
+                       native-scope-prose
+                       ;; Complete fences are already masked. Any remaining
+                       ;; fence owns only its tail, never earlier authored prose.
+                       (retain-excluded-regions #"(?m)^[ \t]*(?:`{3,}|~{3,})[\s\S]*$"))]
     (boolean (and text
                   (re-find #"(?m)^<details>\r?\n<summary>🔇 Additional comments(?:: [1-9][0-9]{0,3}| \([1-9][0-9]{0,3}\))</summary><blockquote>\s*<dl>\s*<dd>" text)))))
 
