@@ -5,7 +5,16 @@
   (:require [clojure.string :as str] [pr-flow.actionability :as actionability] [pr-flow.positive-thread :as positive-thread]
             [pr-flow.kimi-publication :as publication]
             [pr-flow.repair-ack :as repair-ack]
-            [pr-flow.semantic-repair :as semantic-repair]))
+            [pr-flow.semantic-repair :as semantic-repair]
+            [pr-flow.inventory :as inv]))
+
+;; Reviewers are data (pr_flow/reviewers.edn). Code refers to formats only:
+(defn- emits? [p detector] (boolean (and p (inv/has? p detector))))
+(defn- coverage-reviewer [] (inv/with-detector :risk-coverage-comment))
+(defn- check-state-names [] (set (map str/lower-case (inv/check-names (inv/with-detector :native-check-state)))))
+(defn- check-state-name [] (inv/primary-check-name (inv/with-detector :native-check-state)))
+(defn- publication-reviewer [] (inv/with-detector :native-publication))
+
 
 (def default-min-review-rounds 5)
 
@@ -83,7 +92,7 @@
     (keyword (str/lower-case verb))))
 
 (defn bot? [login]
-  (boolean (and login (re-find #"(?i)\[bot\]$|coderabbit|copilot|kimi|codex|opencode|github-actions" login))))
+  (boolean (and login (or (re-find #"(?i)\[bot\]$|github-actions" login) (contains? inv/all-logins (str/lower-case login))))))
 
 (def ^:private confirmation
   "A reviewer reply that accepts the settlement rather than disputing it."
@@ -113,7 +122,7 @@
           (remove-matches #"(?m)^_You are interacting with an AI system\._[ \t]*$|^[ \t]*---[ \t]*$")
           (str/replace #"\[([^\]]*)\]\([^\s)]*\)" "$1")))
 
-(defn codex-positive-body?
+(defn receipt-positive-body?
   "Recognize only the native positive prefix, legacy or receipt-v1 wrapped.
    This lexical predicate supplies no identity, commit, scope or gate proof."
   [body]
@@ -200,8 +209,8 @@
         matches (for [[provider logins] identities
                       :when (contains? (set logins) login)] provider)]
     (when (and (= "Bot" (:type user)) (= login (str/lower-case (str (:login user))))
-               (= 1 (count matches)) (not= "coderabbit" (first matches))
-               (not (contains? (set (get identities "coderabbit")) login)))
+               (= 1 (count matches)) (not (emits? (first matches) :needs-independent-agreement))
+               (not (some #(and (emits? % :needs-independent-agreement) (contains? (set (get identities %)) login)) (keys identities))))
       (first matches))))
 
 (defn- withdrawal-prose [body]
@@ -411,7 +420,7 @@
                           (let [r (actionability/protocol c)]
                             (and (assessor? c) (= :assessment (:kind r)) (= (:head thread) (:head r))
                                  (= (actionability/target thread) (vec (take 5 (:payload r))))))) issue-comments)
-        identities {"opencode" (set (map :login (:identities actionability-policy)))}
+        identities {(first (keys (:non-reviewer-identities inv/data))) (set (map :login (:identities actionability-policy)))}
         withdrawn (mapcat (fn [c]
                            (when (assessor? c)
                              (let [ids (withdrawn-sources c sources identities)]
@@ -1157,7 +1166,7 @@
     (boolean
      (and (= :native-additional-lgtm (get-in finding [:positive-body-item :format]))
           (some? prose)
-          (= "coderabbit" (trusted-reviewer review (or (:identities context) default-reviewer-identities)))
+          (emits? (trusted-reviewer review (or (:identities context) default-reviewer-identities)) :risk-coverage-comment)
           (= "COMMENTED" (:state review)) (valid-head? (:commit_id review))
           (integer? (:id review)) (pos? (:id review)) submitted review-updated
           (not (neg? (compare review-updated submitted)))
@@ -1274,14 +1283,11 @@
 
 ;; --- trusted hosted review evidence ---------------------------------------
 
-(def eligible-reviewers #{"coderabbit" "codex" "mimo" "kimi"})
+(def eligible-reviewers inv/eligible)
 (def default-reviewer-identities
   ;; GitHub REST identities observed in this workflow. Kimi must be bound to
   ;; its verified GitHub App identity by reviewed repository configuration.
-  {"coderabbit" #{"coderabbitai[bot]"}
-   "codex" #{"chatgpt-codex-connector[bot]"}
-   "mimo" #{"eta-mu-ai[bot]"}
-   "kimi" #{}})
+  inv/identities)
 
 (defn valid-head? [head]
   (boolean (and (string? head) (re-matches #"[0-9a-f]{40}" head))))
@@ -1294,16 +1300,16 @@
         matches (for [[reviewer logins] identities
                       :when (and (eligible-reviewers reviewer)
                                  (contains? (set logins) login))] reviewer)]
-    (if (= "opencode-agent[bot]" login)
+    (if (= (get-in inv/reviewers [(publication-reviewer) :publication-login]) login)
       ;; The same physical App remains rejection-only in the global map.
       ;; Only verified Proxx publication facts admit its Kimi review role.
       (when (and (empty? matches) (publication/admitted? review)
-                 (or (nil? provider) (= "kimi" provider))) "kimi")
+                 (or (nil? provider) (= (publication-reviewer) provider))) (publication-reviewer))
       (when (and (= "Bot" (:type user)) (= 1 (count matches))
                  (or (nil? provider) (= provider (first matches))))
         (first matches)))))
 
-(defn coderabbit-covered-heads
+(defn risk-coverage-heads
   "Decode only the observed final_review_risk_coverage fields. This marker
    establishes coverage, never APPROVED state. Duplicated fields fail closed."
   [body]
@@ -1396,18 +1402,18 @@
                 (re-seq #"(?i)\breviewed (?:only )?([0-9]+) of ([0-9]+) (?:changed )?files\b" prose)))
       :unreviewed-input)))
 
-(declare latest-checks coderabbit-state)
+(declare latest-checks native-check-state)
 
-(defn- completed-coderabbit-check?
+(defn- completed-native-check?
   "Only an unambiguous successful native CodeRabbit check on this exact head
    corroborates an issue completion. Unknown head binding is not evidence."
   [head checks]
-  (let [current (filter #(and (= "CodeRabbit" (:name %)) (= head (:headSha %)))
+  (let [current (filter #(and (contains? (check-state-names) (str/lower-case (str (:name %)))) (= head (:headSha %)))
                         (latest-checks head checks))]
     (and (valid-head? head) (seq current)
-         (every? #(= :completed (coderabbit-state [%])) current))))
+         (every? #(= :completed (native-check-state [%])) current))))
 
-(defn- kimi-passing-verdict?
+(defn- publication-passing-verdict?
   "The observed explicit passing sentence is eligible only inside an admitted
    finding-free publication. Quoted/examples, reversals and incomplete scope
    remain nonpassing; summary text alone is never admission authority."
@@ -1447,7 +1453,7 @@
                                  (and (= "COMMENTED" (:state r)) (:kimi-publication r))
                                  ;; A later full nonpassing publication cannot leave
                                  ;; this same principal's prior passing verdict alive.
-                                 (let [passing? (kimi-passing-verdict? r)]
+                                 (let [passing? (publication-passing-verdict? r)]
                                    (assoc r :positive? passing? :channel
                                           (if passing? :explicit-review-verdict :publication-nonpassing)))
                                  (and (= "COMMENTED" (:state r))
@@ -1459,18 +1465,18 @@
                       body (str (:body c))
                       incomplete (incomplete-review-reason body)
                       recent (second (re-find #"(?s)<!--\s*recent_review_start\s*-->(.*?)<!--\s*recent_review_end\s*-->" body))
-                      passing? (case p
-                                 "coderabbit" (and ((coderabbit-covered-heads body) head)
+                      passing? (cond
+                                 (emits? p :risk-coverage-comment) (and ((risk-coverage-heads body) head)
                                                    recent (str/includes? recent head)
                                                    (re-find #"(?m)^No actionable comments were generated in the recent review\." (or (reviewer-prose recent) "")))
-                                 "codex" (and (= head (:resolved-commit-id c))
-                                              (codex-positive-body? body))
-                                 false)]
+                                 (emits? p :review-receipt-comment) (and (= head (:resolved-commit-id c))
+                                              (receipt-positive-body? body))
+                                 :else false)]
                   (when (and (valid-head? head) passing?
                              ;; Incomplete native verdicts still revoke prior
                              ;; approval; a missing check cannot hide pushback.
-                             (or incomplete (not= "coderabbit" p)
-                                 (completed-coderabbit-check? head checks))
+                             (or incomplete (not (emits? p :native-check-state))
+                                 (completed-native-check? head checks))
                              (string? (or (:updated_at c) (:created_at c))))
                     (cond-> (assoc c :reviewer p :positive? (nil? incomplete) :channel :explicit-issue-verdict
                                    :submitted_at (or (:updated_at c) (:created_at c)))
@@ -1479,15 +1485,15 @@
                          (sort-by (juxt :submitted_at :id) (concat review-verdicts comment-verdicts)))
         approved (into {} (for [[p r] decisive :when (:positive? r)] [p #{head}]))
         covered (reduce (fn [m r]
-                          (if (and (not= "coderabbit" (:reviewer r))
+                          (if (and (not (emits? (:reviewer r) :risk-coverage-comment))
                                    (or (not (str/blank? (:body r)))
                                        (#{"APPROVED" "CHANGES_REQUESTED"} (:state r))))
                             (update m (:reviewer r) (fnil conj #{}) head) m)) {} trusted)
         covered (reduce (fn [m c]
                           (if (and (valid-head? head)
-                                   (= "coderabbit" (trusted-reviewer c identities))
-                                   ((coderabbit-covered-heads (:body c)) head))
-                            (update m "coderabbit" (fnil conj #{}) head) m)) covered comments)]
+                                   (emits? (trusted-reviewer c identities) :risk-coverage-comment)
+                                   ((risk-coverage-heads (:body c)) head))
+                            (update m (trusted-reviewer c identities) (fnil conj #{}) head) m)) covered comments)]
     {:approved-heads approved :reviewed-heads covered
      :incomplete-evidence (into {} (for [[p r] decisive :when (:incomplete-reason r)]
                                     [p {:head head :channel (:channel r) :id (:id r) :reason (:incomplete-reason r)}]))
@@ -1499,13 +1505,7 @@
    This is not review identity or approval evidence. Requiredness and explicit
    mandatory reviewers still override optional classification in merge-gate."
   [check]
-  (or (get {["Review pull request with OpenCode" "OpenCode Kimi PR Review"] "kimi"
-            ["Produce exact-head Kimi review" "OpenCode Kimi PR Review"] "kimi"
-            ["Evidence-first review (eta-mu) / Review pull request with OpenCode MiMo"
-             "eta-mu evidence review"] "mimo"}
-           [(:name check) (:workflow check)])
-      (get {"CodeRabbit" "coderabbit" "Codex" "codex" "MiMo" "mimo" "Kimi" "kimi"}
-           (:name check))))
+  (inv/check-reviewer check))
 
 (defn cooldown-ms
   "Parse a wait/retry duration from a rate-limit reply, not allowance counts.
@@ -1534,18 +1534,18 @@
   (verdict-prose (str/join "\n" (map #(str/replace % #"^[ \t]*(?:>[ \t]*)+" "")
                                      (str/split-lines (str body))))))
 
-(defn- codex-account-quota? [body]
+(defn- account-quota? [body]
   (re-find #"(?m)^You have reached your Codex usage limits for code reviews\." (or (quota-prose body) "")))
 
 (defn- quota-notice? [provider body]
   (let [prose (or (quota-prose body) "")]
     (or (re-find #"(?im)^[ \t>]*(?:#+[ \t]*)?(?:\*\*)?(?:review limit reached|rate limit (?:reached|exceeded)|review rate[ -]limited|(?:review )?quota (?:reached|exceeded)|your included review limit is currently reached)\b" prose)
-        (and (= "coderabbit" provider)
+        (and (emits? provider :info-paragraph-cooldown)
              ;; Native info, not walkthrough/quoted examples. Recognize malformed
              ;; durations as notices too: they retain nil/UNKNOWN, never zero.
              (re-matches #"(?:Your plan includes PR reviews subject to rate limits\. (?:More reviews will be available in\b[^\n]*|Reviews are available now\b[^\n]*)|You're currently rate limited under our Fair Usage Limits Policy\. Your current included review allowance is based on your included PR review attempts over the past 7 days\. Your next review will be available in\b[^\n]*)"
                          (str/trim (or (reviewer-prose body) ""))))
-        (and (= "codex" provider) (codex-account-quota? body)))))
+        (and (emits? provider :account-quota-notice) (account-quota? body)))))
 
 (defn full-review?
   "Formal verdicts and recognizable full-review outputs are completions;
@@ -1558,7 +1558,7 @@
          (or (publication/admitted? review)
              (#{"APPROVED" "CHANGES_REQUESTED"} (:state review))
              (and (= "COMMENTED" (:state review))
-                  (if (= "coderabbit" provider)
+                  (if (emits? provider :risk-coverage-comment)
                     (re-find #"(?i)actionable comments posted:\s*[0-9]+|no actionable comments (?:were generated|posted|found)" (or prose ""))
                     (re-find #"(?im)^Full review finished\.[ \t]*$|^Review complete(?:d)?[.!]?[ \t]*$|^Confirmed findings:[ \t]*(?:none(?:[.—-]|$)|\n[ \t]*[1-9][0-9]*\.)|^No confirmed findings(?:[.—-]|$)|^No issues found(?:[.—-]|$)|^Here are some automated review suggestions for this pull request" (or prose ""))))))))
 
@@ -1567,25 +1567,25 @@
   (let [requests (sort-by :created_at (filter :trusted? comments))
         provider-request? (fn [c p]
                             (or (str/includes? (str (:body c)) (str "pr-flow-reviewer:" p " -->"))
-                                (and (= "coderabbit" p)
+                                (and (emits? p :risk-coverage-comment) (inv/request-pattern p)
                                      (not (str/includes? (str (:body c)) "pr-flow-reviewer:"))
-                                     (re-find #"@coderabbitai (?:full )?review" (str (:body c))))))
+                                     (re-find (inv/request-pattern p) (str (:body c))))))
         issue-rounds (keep (fn [c]
                              (let [provider (trusted-reviewer c identities)
                                    completed (assoc c :submitted_at (or (:updated_at c) (:created_at c)) :round-source :issue)]
-                               (case provider
-                                 "coderabbit"
-                                 (let [coverage (coderabbit-covered-heads (:body c))]
+                               (cond
+                                 (emits? provider :risk-coverage-comment)
+                                 (let [coverage (risk-coverage-heads (:body c))]
                                    ;; A checked coverage marker is input binding,
                                    ;; not a native completion of the request.
                                    (when (re-find #"(?m)^Full review finished\.[ \t]*$"
                                                   (or (reviewer-prose (:body c)) ""))
                                      (cond-> completed (= 1 (count coverage)) (assoc :commit_id (first coverage)))))
-                                 "codex"
+                                 (emits? provider :review-receipt-comment)
                                  (when (and (valid-head? (:resolved-commit-id c))
-                                            (codex-positive-body? (:body c)))
+                                            (receipt-positive-body? (:body c)))
                                    (assoc completed :commit_id (:resolved-commit-id c)))
-                                 nil))) comments)
+                                 :else nil))) comments)
         rounds (keep (fn [r]
                        (when-let [p (trusted-reviewer r identities)]
                          (let [at (:submitted_at r)
@@ -1609,11 +1609,11 @@
                                (assoc :commit_id completion-head)))))) (concat reviews issue-rounds))]
     rounds))
 
-(defn coderabbit-issue-completion-heads
+(defn risk-coverage-issue-completion-heads
   "Only authenticated complete Bot replies matched to trusted exact-head
    writer requests identify commits whose native check evidence may be read."
   [comments identities]
-  (set (keep #(when (and (= "coderabbit" (:reviewer %)) (= :issue (:round-source %))
+  (set (keep #(when (and (emits? (:reviewer %) :native-check-state) (= :issue (:round-source %))
                         (valid-head? (:commit_id %))) (:commit_id %))
              (review-round-candidates [] comments identities))))
 
@@ -1624,8 +1624,8 @@
   ([reviews comments identities]
    (completed-review-rounds reviews comments identities []))
   ([reviews comments identities checks]
-   (let [rounds (filter #(or (not= :issue (:round-source %)) (not= "coderabbit" (:reviewer %))
-                            (completed-coderabbit-check? (:commit_id %) checks))
+   (let [rounds (filter #(or (not= :issue (:round-source %)) (not (emits? (:reviewer %) :native-check-state))
+                            (completed-native-check? (:commit_id %) checks))
                         (review-round-candidates reviews comments identities))]
      (mapv #(first (sort-by :submitted_at %)) (vals (group-by :round-key rounds))))))
 
@@ -1638,9 +1638,9 @@
         requests (filter #(and (:trusted? %)
                                (str/includes? (str (:body %)) (str "pr-flow-review:" head " -->"))
                                (or (str/includes? (str (:body %)) (str "pr-flow-reviewer:" reviewer " -->"))
-                                   (and (= "coderabbit" reviewer)
+                                   (and (emits? reviewer :risk-coverage-comment) (inv/request-pattern reviewer)
                                         (not (str/includes? (str (:body %)) "pr-flow-reviewer:"))
-                                        (re-find #"(?i)@coderabbitai (?:full )?review" (str (:body %)))))) comments)
+                                        (re-find (inv/request-pattern reviewer) (str (:body %)))))) comments)
         request (last (sort-by :created_at requests))
         request-round (some-> (second (re-find #"<!--\s*pr-flow-round:([1-9][0-9]*)\s*-->" (str (:body request))))
                               #?(:clj Long/parseLong :cljs js/parseInt))
@@ -1653,14 +1653,14 @@
         replies (filter #(= reviewer (trusted-reviewer % identities)) comments)
         completion-at (last (sort (keep #(when (and (= head (:commit_id %)) (= reviewer (:reviewer %)))
                                           (instant-ms (:submitted_at %))) all-completions)))
-        account-completion-at (when (= "codex" reviewer)
+        account-completion-at (when (emits? reviewer :account-quota-notice)
                                 (last (sort (keep #(when (= reviewer (:reviewer %))
                                                     (instant-ms (:submitted_at %))) all-completions))))
         request-at (instant-ms (:created_at request))
         limit (->> replies
                    (filter #(quota-notice? reviewer (:body %)))
                    (filter #(let [at (instant-ms (or (:updated_at %) (:created_at %)))
-                                  recovery-at (if (and (= "codex" reviewer) (codex-account-quota? (:body %)))
+                                  recovery-at (if (and (emits? reviewer :account-quota-notice) (account-quota? (:body %)))
                                                 account-completion-at completion-at)]
                               (or (nil? at)
                                   (and (or (nil? request-at) (>= at request-at))
@@ -1676,7 +1676,7 @@
         pending? (some #(and (= reviewer (reviewer-check %))
                             (#{"PENDING" "QUEUED" "IN_PROGRESS"} (str/upper-case (str (:state %))))) checks)
         ended? (some #(and request (= head (:headSha %)) (= reviewer (reviewer-check %))
-                           (#{:failed :skipped} (coderabbit-state [(assoc % :name "CodeRabbit")]))
+                           (#{:failed :skipped} (native-check-state [(assoc % :name (check-state-name))]))
                            (instant-ms (:completedAt %)) (instant-ms (:created_at request))
                            (> (instant-ms (:completedAt %)) (instant-ms (:created_at request)))) checks)]
     (cond
@@ -1708,7 +1708,7 @@
     :or {identities default-reviewer-identities mandatory #{}}}]
   (let [configured (cond-> (into (set mandatory)
                                 (for [[p logins] identities :when (and (eligible-reviewers p) (seq logins))] p))
-                     (publication/applicable? repository publication-profile) (conj "kimi"))
+                     (publication/applicable? repository publication-profile) (conj (publication-reviewer)))
         completed (completed-review-rounds reviews comments identities checks)
         observations
         (into {}
@@ -1726,7 +1726,7 @@
                           notice (last (sort-by #(or (:updated_at %) (:created_at %))
                                                (filter #(quota-notice? p (:body %)) replies)))
                           notice-at (instant-ms (or (:updated_at notice) (:created_at notice)))
-                          account? (and (= "codex" p) (codex-account-quota? (:body notice)))
+                          account? (and (emits? p :account-quota-notice) (account-quota? (:body notice)))
                           verdict (request-verdict {:head head :reviewer p :comments (cond-> (vec replies) request (conj request))
                                                     :checks checks :identities identities :now-ms now-ms})
                           recovered? (some #(and notice-at (= p (:reviewer %))
@@ -1784,11 +1784,11 @@
 
 ;; --- review state ---------------------------------------------------------
 
-(defn coderabbit-state
+(defn native-check-state
   "From PR check rows [{:name :state :description}] derive CodeRabbit's state:
    :absent :pending :completed :rate-limited :skipped :failed."
   [checks]
-  (if-let [{:keys [state description]} (first (filter #(= "coderabbit" (str/lower-case (str (:name %)))) checks))]
+  (if-let [{:keys [state description]} (first (filter #(contains? (check-state-names) (str/lower-case (str (:name %)))) checks))]
     (let [d (str/lower-case (str description))
           s (str/lower-case (str state))]
       (cond
@@ -1846,16 +1846,52 @@
        (map #(assoc % :required? required?) picked)))
    (group-by (juxt :name :workflow) checks)))
 
+;; --- review artifacts (:check-artifact detector) ---------------------------
+
+(defn artifact-verdict
+  "Decode one exact-head review artifact (review.json). Positive only when it
+   is bound to `head`, reports complete scope, status \"clean\" and no findings.
+   Anything else is a nonpassing verdict; missing/foreign artifacts are nil."
+  [head artifact]
+  (when (and (map? artifact) (valid-head? head) (= head (:head artifact)))
+    (let [findings (:findings artifact)
+          clean? (and (= "clean" (:status artifact)) (true? (:scope_complete artifact))
+                      (vector? findings) (empty? findings))]
+      {:head head :positive? clean? :channel :review-artifact
+       :findings (if (sequential? findings) (count findings) 0)
+       :reason (cond clean? nil
+                     (not (true? (:scope_complete artifact))) :incomplete-scope
+                     (seq findings) :findings
+                     :else :not-clean)})))
+
+(defn merge-artifact-evidence
+  "Fold artifact verdicts {reviewer verdict} into review-evidence output. An
+   artifact verdict is that reviewer's decisive exact-head verdict."
+  [evidence verdicts]
+  (reduce (fn [e [p v]]
+            (cond-> (update e :reviewed-heads update p (fnil conj #{}) (:head v))
+              (:positive? v) (-> (assoc-in [:approved-heads p] #{(:head v)})
+                                 (assoc-in [:approval-evidence p] {:head (:head v) :channel :review-artifact}))
+              (not (:positive? v)) (-> (update :approved-heads dissoc p)
+                                       (update :approval-evidence dissoc p)
+                                       (assoc-in [:artifact-findings p] v))))
+          evidence (filter (fn [[_ v]] (some? v)) verdicts)))
+
 (defn merge-gate
   "One positive exact-head hosted review is the default quorum. Mandatory
    reviewer overrides remain all-of; all deterministic checks and findings
    remain obligations. Observed coverage is never approval."
   [{:keys [threads checks review-bodies-unanswered head snapshot-head
            required-reviewers approved-heads incomplete? approval-quorum
-           rounds review-participants min-review-rounds]
+           rounds review-participants min-review-rounds waived artifact-findings]
     :or {approval-quorum 1}}]
-  (let [checks (latest-checks head checks)
-        cr (coderabbit-state checks)
+  ;; A waiver removes obligations (checks, participation, mandatory status,
+  ;; artifact blocks); a positive exact-head approval it does give still counts.
+  (let [waived (set waived)
+        checks (remove #(waived (reviewer-check %)) (latest-checks head checks))
+        review-participants (remove waived review-participants)
+        required-reviewers (when required-reviewers (set (remove waived required-reviewers)))
+        cr (native-check-state checks)
         mandatory (or required-reviewers #{})
         approved (set (for [[p heads] approved-heads
                             :when (and (eligible-reviewers p) (contains? (set heads) head))] p))
@@ -1888,12 +1924,16 @@
                   incomplete? (conj "Review data was truncated; refusing a partial view")
                   (and valid-quorum? (< (count approved) approval-quorum)) (conj "No trusted exact-head APPROVED review meets the quorum")
                   (seq missing) (conj (str "Missing exact-head approval from mandatory reviewers: " (str/join ", " missing)))
-                  (some #(and (reviewer-check %) (not= :completed (coderabbit-state [(assoc % :name "CodeRabbit")]))) obligations)
+                  (some #(and (reviewer-check %) (not= :completed (native-check-state [(assoc % :name (check-state-name))]))) obligations)
                   (conj "A required reviewer/check is pending, skipped, failed or rate-limited")
                   (pos? (get sums :fail 0)) (conj (str (get sums :fail) " failing deterministic/required check(s)"))
                   (pos? (get sums :pending 0)) (conj (str (get sums :pending) " pending deterministic/required check(s)"))
                   (some #(and (:required? %) (#{"skipped" "skipping" "cancelled"} (str/lower-case (str (:state %))))) checks)
                   (conj "A required check was skipped or cancelled")
+                  (seq (remove (comp waived key) artifact-findings))
+                  (conj (str "Review artifact not clean on this head: "
+                             (str/join ", " (for [[p v] (sort-by key artifact-findings) :when (not (waived p))]
+                                              (str p " (" (name (:reason v)) (when (pos? (:findings v)) (str ", " (:findings v) " finding(s)")) ")")))))
                   (seq blockers) (conj (str (count blockers) " P0/P1 thread(s) not fixed"))
                   (seq early-deferrals) (conj (str "Verified findings cannot be deferred during the first " min-rounds " review rounds"))
                   (seq contested) (conj (str (count contested) " disputed settlement(s)"))
@@ -1904,3 +1944,9 @@
     {:pass? (empty? reasons) :head head :reasons reasons :coderabbit cr :checks sums
      :approving-reviewers approved :approval-quorum approval-quorum
      :review-rounds rounds :unanimous-approval? (boolean unanimous?) :loop-verdict loop-state}))
+
+;; Compatibility names (callers written before the reviewer inventory).
+(def coderabbit-state native-check-state)
+(def coderabbit-covered-heads risk-coverage-heads)
+(def codex-positive-body? receipt-positive-body?)
+(def coderabbit-issue-completion-heads risk-coverage-issue-completion-heads)

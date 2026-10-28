@@ -125,6 +125,35 @@ adopted before use; no settlement, approval or round credit is supplied.
 
 `pr-muse-connect`, `pr-sprint-planning`, `pr-review-settlement`, `pr-red-green`, `pr-review-to-merge`, `receipt-river`, `session-mycology`, `eta-mu-kanban`, `ultra-code` (review waves), `staging-promotion-gate-navigation`.
 
+## Reviewer inventory (source-agnostic)
+
+The skill code names no review source. Every reviewer — identity logins,
+which check rows are its output, how its verdict is detected, how (and
+whether) it can be requested, and the repos where it is waived — lives in
+`scripts/pr_flow/reviewers.edn`, loaded by `pr_flow/inventory.cljc`. Code
+dispatches only on *detector* keywords that name a verdict format
+(`:native-check-state`, `:risk-coverage-comment`, `:review-receipt-comment`,
+`:native-publication`, `:check-artifact`, ...). Adding a reviewer is a data
+edit; a new verdict format is a new detector.
+
+- Every inventory reviewer with `:counts true` counts toward quorum and
+  unanimity equally. No reviewer is advisory.
+- `:waived-in` (owner/name, or a bare repo name matching any owner) removes
+  that reviewer's obligations in that repo: its failing/pending checks,
+  mandatory status, participation and artifact blocks. An approval it does
+  give there still counts. Current waivers: Kimi on `open-hax/proxx`; MiMo
+  on `axxium`, `riatzukiza/foresight`, `riatzukiza/epiphany`.
+- `:check-artifact` reviewers (Antigravity) never post reviews. The gate
+  downloads the exact-head run artifact (`:artifact :name-prefix`/`:file`,
+  i.e. `antigravity-review-*` / `review.json`) and approves only when `head`
+  matches, `scope_complete` is true, `status` is `clean` and `findings` is
+  empty; findings block until a clean run on a newer head or a waiver. A
+  green check alone is never approval. Repos without the workflow simply
+  never see that reviewer.
+
+Where sections below name a specific reviewer, they describe that
+reviewer's current inventory entry, not code behavior.
+
 ## Coverage, approvals and execution boundaries
 
 The [prospective publication source API](actionability.md) reuses canonical

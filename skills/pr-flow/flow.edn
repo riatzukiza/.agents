@@ -20,9 +20,9 @@
  ;; - Positive evidence channels emitted by law/review-evidence are
  ;;   :github-approved, :explicit-review-verdict and :explicit-issue-verdict.
  ;;   These are output names, not an editable channel allowlist here.
- ;; - CodeRabbit, Codex, MiMo and Kimi are intended invitation targets. The
- ;;   operator must use their respective request/hosted-workflow surfaces;
- ;;   this data does not dispatch invitations or prove provider availability.
+ ;; - Review sources (who they are, how they are requested, which repos waive
+ ;;   them) are listed in scripts/pr_flow/reviewers.edn. That inventory does
+ ;;   not dispatch invitations or prove provider availability.
  :flow/defaults {:review/min-rounds 5       ; soft minimum, user correction 2026-10-03
                  :review/approval-quorum 1
                  :review/required #{}
@@ -71,11 +71,9 @@
                   :root-identities #{["github-actions" 41898282 "MDM6Qm90NDE4OTgyODI=" "Bot"]}
                   :assessor-identities #{["opencode-agent[bot]" 219766164 "BOT_kgDODRldlA" "Bot"]
                                          ["eta-mu-ai[bot]" 270021952 "BOT_kgDOEBg1QA" "Bot"]}}
-                 :review/identities {"coderabbit" #{"coderabbitai[bot]"}
-                                     "codex" #{"chatgpt-codex-connector[bot]"}
-                                     "mimo" #{"eta-mu-ai[bot]"}
-                                     "kimi" #{}
-                                     "opencode" #{"opencode-agent[bot]"}}}
+                 ;; Reviewer identities live only in scripts/pr_flow/reviewers.edn.
+                 ;; This map adds non-reviewer Apps (rejection corroboration only).
+                 :review/identities {"opencode" #{"opencode-agent[bot]"}}}
 
  :flow/states
  {:muse

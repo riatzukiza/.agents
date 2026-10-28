@@ -1,0 +1,86 @@
+;; pr-flow reviewer inventory — the only place review sources are named.
+;;
+;; The gate, the CLI and SKILL.md read every reviewer from this file. Adding a
+;; review source means adding an entry here; no code names a reviewer.
+;;
+;; Entry keys
+;;   :identities   exact GitHub Bot logins whose reviews/comments are this reviewer
+;;   :checks       check rows that are this reviewer's output: bare check names
+;;                 (:names) and exact [check-name workflow-name] tuples (:tuples)
+;;   :detectors    which verdict/notice formats this reviewer emits. Each keyword
+;;                 names a parser in law.cljc (a format, not a reviewer):
+;;                   :risk-coverage-comment  final_review_risk_coverage marker +
+;;                                           "No actionable comments" recent review
+;;                   :native-check-state     exact-head check/commit status whose
+;;                                           description reports completion/rate limit
+;;                   :info-paragraph-cooldown exact native rate-limit information paragraph
+;;                   :review-receipt-comment  "Reviewed commit" receipt comment
+;;                   :account-quota-notice    account-level usage-limit notice
+;;                   :native-publication      verified hosted publication profile
+;;                   :generated-reply-suffix  native auto-generated reply envelope
+;;                   :needs-independent-agreement  its rejection agreement does not
+;;                                           count as independent
+;;                   :check-artifact          exact-head review.json artifact
+;;   :request      how to ask for a review: {:mention "..." :pattern "regex"}
+;;                 (absent = requested by its workflow/app, not by comment)
+;;   :artifact     for :check-artifact: {:name-prefix "..." :file "review.json"}
+;;   :counts       true: counts toward quorum/unanimity like every other reviewer
+;;   :waived-in    repos where this reviewer is not required and does not count:
+;;                 "owner/name" or a bare repo name (matches any owner)
+{:reviewers
+ {"coderabbit"
+  {:identities #{"coderabbitai[bot]"}
+   :checks {:names #{"CodeRabbit"}}
+   :detectors #{:risk-coverage-comment :native-check-state :info-paragraph-cooldown
+                :generated-reply-suffix :needs-independent-agreement}
+   :request {:mention "@coderabbitai full review" :pattern "@coderabbitai (?:full )?review" :default true}
+   :counts true
+   :waived-in #{}}
+
+  "codex"
+  {:identities #{"chatgpt-codex-connector[bot]"}
+   :checks {:names #{"Codex"}}
+   :detectors #{:review-receipt-comment :account-quota-notice}
+   :request {:mention "@codex review" :pattern "@codex review"}
+   :counts true
+   :waived-in #{}}
+
+  "mimo"
+  {:identities #{"eta-mu-ai[bot]"}
+   :checks {:names #{"MiMo"}
+            :tuples #{["Evidence-first review (eta-mu) / Review pull request with OpenCode MiMo"
+                       "eta-mu evidence review"]}}
+   :detectors #{}
+   :counts true
+   ;; Err: MiMo is waived on axxium, riatzukiza/foresight, riatzukiza/epiphany.
+   :waived-in #{"axxium" "riatzukiza/foresight" "riatzukiza/epiphany"}}
+
+  "kimi"
+  ;; Bound to its GitHub App only through :review/kimi-publication in flow.edn.
+  {:identities #{}
+   :publication-login "opencode-agent[bot]"
+   :checks {:names #{"Kimi"}
+            :tuples #{["Review pull request with OpenCode" "OpenCode Kimi PR Review"]
+                      ["Produce exact-head Kimi review" "OpenCode Kimi PR Review"]}}
+   :detectors #{:native-publication}
+   :counts true
+   ;; Err: waive Kimi on proxx for now so the HS256 login can ship.
+   :waived-in #{"open-hax/proxx"}}
+
+  "antigravity"
+  ;; open-hax/eta-mu#364 workflow. It never posts GitHub reviews: its job
+  ;; succeeds whether or not it found problems, and the verdict is the
+  ;; review.json in the run's artifact (status "clean" or "findings").
+  ;; Counts like every other reviewer (Err, 2026-10-28) wherever its
+  ;; workflow runs; repos without the workflow simply never see its check.
+  {:identities #{}
+   :checks {:names #{"Antigravity"}
+            :tuples #{["review / review" "Antigravity evidence review"]
+                      ["review / preflight" "Antigravity evidence review"]}}
+   :detectors #{:check-artifact}
+   :artifact {:name-prefix "antigravity-review-" :file "review.json"}
+   :counts true
+   :waived-in #{}}}
+
+ ;; Not a reviewer: a classifier App whose comments are rejection-only.
+ :non-reviewer-identities {"opencode" #{"opencode-agent[bot]"}}}

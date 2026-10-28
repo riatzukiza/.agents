@@ -604,7 +604,8 @@
 (def the-flow (edn/read-string (str (fs/readFileSync (path/join skill-root "flow.edn") "utf8"))))
 
 (deftest verified-opencode-identity-is-rejection-only
-  (let [identities (get-in the-flow [:flow/defaults :review/identities])
+  (let [flow-identities (get-in the-flow [:flow/defaults :review/identities])
+        identities (merge law/default-reviewer-identities flow-identities)
         user {:login "opencode-agent[bot]" :type "Bot"}
         review {:id 9001 :user user :state "APPROVED" :commit_id gate-head
                 :submitted_at "2026-10-03T01:00:00Z" :body "No issues found."}
@@ -613,8 +614,8 @@
                    (assoc-in [:comments 2 :author] (:login user))
                    (assoc-in [:comments 2 :user] user))]
     (is (= #{"opencode-agent[bot]"} (get identities "opencode")))
-    (is (= law/default-reviewer-identities
-           (select-keys identities ["coderabbit" "codex" "mimo" "kimi"])))
+    ;; Reviewer identities have one home (reviewers.edn); flow.edn adds none.
+    (is (empty? (select-keys flow-identities (keys law/default-reviewer-identities))))
     (is (= #{"coderabbit" "codex" "mimo"}
            (set (for [[provider logins] identities
                       :when (and (law/eligible-reviewers provider) (seq logins))] provider))))
