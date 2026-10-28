@@ -15,6 +15,8 @@ These instructions apply to the entire repository.
 
 Do not load the entire skill corpus by default. Prefer targeted discovery from task language, referenced files, and explicit skill invocations.
 
+For OpenHAX Services operations, follow the Services repository’s current instructions, deployment definitions, workflows, and live runtime evidence.
+
 ## Core skills
 
 The following skills are part of the repository's operating substrate:
