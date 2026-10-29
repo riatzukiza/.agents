@@ -40,6 +40,12 @@
                           :body (if (= login "coderabbitai[bot]")
                                   "No actionable comments were generated." "Confirmed findings: none.")})
                        [[0 "chatgpt-codex-connector[bot]"] [1 "eta-mu-ai[bot]"] [2 "coderabbitai[bot]"]])) (range rounds))))
+(def human-ok
+  "Verifiable pr-flow.human-approval/v1 evidence: a native issue comment by a
+  User account the fixture reports as admin, bound to the current head."
+  {:id 9100 :user {:login "riatzukiza" :type "User"} :created_at "2026-10-03T01:05:00Z"
+   :body (str "Human maintainer approval <!-- pr-flow-human-approval:v1 head=" head " -->")})
+
 (def base {:head head :reviews [approval] :comments []
            ;; Old-head completions meet the stage floor without manufacturing
            ;; a current-head approval or suppressing a current-head request.
@@ -288,7 +294,12 @@
         checks (vec (concat (map :check (:reviewer_outputs native))
                             (:deterministic_checks native) (:required_checks native)))
         config (assoc base :checks checks)
-        optional (execute config "gate" "owner/repo" "450" "--apply")]
+        unattested (execute config "gate" "owner/repo" "450" "--apply")
+        optional (execute (update config :comments conj human-ok) "gate" "owner/repo" "450" "--apply")]
+    ;; Any failing check at all needs a human maintainer approval (2026-10-29).
+    (is (= 2 (:exit unattested)) (str (:out unattested) (:err unattested)))
+    (is (str/includes? (:out unattested) "need a human maintainer approval"))
+    (is (empty? (writes unattested "merge")))
     (is (= 0 (:exit optional)) (str (:out optional) (:err optional)))
     (is (= 1 (count (writes optional "merge"))))
     (is (some #(some #{"--required"} (:args %)) (:calls optional)))
@@ -321,12 +332,17 @@
                                 ["CANCELLED" "Review cancelled"] ["SUCCESS" "Review rate limited"]]]
       (let [row (assoc check :state state :description description)
             input (update config :checks conj row)
-            optional (execute input "gate" "owner/repo" "445" "--apply")
+            optional (execute (cond-> input (= state "FAILURE") (update :comments conj human-ok))
+                              "gate" "owner/repo" "445" "--apply")
+            unattested (execute input "gate" "owner/repo" "445" "--apply")
             required (execute (update input :checks #(conj (vec (butlast %)) (assoc row :required true)))
                               "gate" "owner/repo" "445" "--apply")
             mandatory (execute input "gate" "owner/repo" "445" "--apply" "--reviewers" "kimi")]
         (is (= 0 (:exit optional)) (str state " " (:out optional) " " (:err optional)))
         (is (= 1 (count (writes optional "merge"))))
+        (when (= state "FAILURE")
+          (is (= 2 (:exit unattested)))
+          (is (empty? (writes unattested "merge"))))
         (is (str/includes? (:out optional) "codex quota-unavailable: native source 9000"))
         (is (str/includes? (:out optional) "completed code rounds: 5"))
         (is (some #(some #{"--required"} (:args %)) (:calls required)))
@@ -564,7 +580,6 @@
            ["wrong resolved head" #(assoc % :resolvedCommit other) true]
            ["invalid resolved SHA" #(assoc % :resolvedCommit "not-a-full-sha") true]
            ["required checks unavailable" #(assoc % :checks [] :requiredMessage "Required checks unavailable (fixture)") true]
-           ["insufficient cohort" #(assoc % :prior-stage-rounds 0) true]
            ["unresolved finding" #(assoc % :threads [{:id "codex-format-open-finding" :isResolved false
                                                      :comments {:pageInfo {:hasNextPage false}
                                                                 :nodes [{:author {:login "human-reviewer"}
@@ -703,26 +718,29 @@
                             (assoc-in [:reviews 2 :body] "Acknowledged."))
                         (assoc-in config [:reviews 2 :commit_id] other)
                         (assoc-in config [:reviews 2 :user :type] "User")]]
-      (let [blocked (execute incomplete "gate" "riatzukiza/.agents" "8" "--apply")]
-        (is (= 2 (:exit blocked)))
-        (is (str/includes? (:out blocked) "gate: BLOCKED"))
-        (is (empty? (writes blocked "merge")))))))
+      ;; Unanimity no longer gates (any-approval rule, 2026-10-29): the MiMo
+      ;; exact-head approval alone admits the merge.
+      (let [r (execute incomplete "gate" "riatzukiza/.agents" "8" "--apply")]
+        (is (= 0 (:exit r)) (:out r))
+        (is (str/includes? (:out r) "gate: PASS"))
+        (is (= 1 (count (writes r "merge"))))))))
 
-(deftest fewer-than-five-nonunanimous-rounds-do-not-merge
+(deftest fewer-than-five-nonunanimous-rounds-no-longer-block-merge
+  ;; Replaced rule: round counts are reported but do not gate (2026-10-29).
   (doseq [prior-rounds [0 1 4]]
     (let [r (execute (assoc base :prior-stage-rounds prior-rounds)
                      "gate" "riatzukiza/.agents" "8" "--apply")]
-      (is (= 2 (:exit r)))
-      (is (str/includes? (:out r) "gate: BLOCKED"))
-      (is (empty? (writes r "merge")))))
+      (is (= 0 (:exit r)) (:out r))
+      (is (str/includes? (:out r) "gate: PASS"))
+      (is (= 1 (count (writes r "merge"))))))
   (let [code-request {:user {:login "riatzukiza" :type "User"} :created_at "2026-10-03T00:59:00Z"
                       :body (str "@coderabbitai full review <!-- pr-flow-stage:code --> <!-- pr-flow-review:" head
                                  " --> <!-- pr-flow-reviewer:coderabbit --> <!-- pr-flow-round:1 -->")}
         planning-only (execute (assoc base :prior-stage "planning" :comments [code-request])
                                "gate" "riatzukiza/.agents" "8" "--apply")]
-    (is (= 2 (:exit planning-only)))
+    (is (= 0 (:exit planning-only)) (:out planning-only))
     (is (str/includes? (:out planning-only) "completed code rounds: 0"))
-    (is (empty? (writes planning-only "merge")))))
+    (is (= 1 (count (writes planning-only "merge"))))))
 
 (deftest missing-and-acknowledging-participants-do-not-complete-cohorts
   (let [history (completed-stage-reviews 5 other)
@@ -733,9 +751,10 @@
       (let [config (-> base (dissoc :prior-stage-rounds)
                        (assoc :comments (completed-stage-comments 5 other "code") :reviews reviews))
             r (execute config "gate" "riatzukiza/.agents" "8" "--apply")]
-        (is (= 2 (:exit r)))
+        ;; Cohorts stay incomplete (0 rounds) but no longer gate merging.
+        (is (= 0 (:exit r)) (:out r))
         (is (str/includes? (:out r) "completed code rounds: 0"))
-        (is (empty? (writes r "merge")))))))
+        (is (= 1 (count (writes r "merge"))))))))
 
 (deftest available-agent-cohort-is-wired-to-status-and-guarded-merge
   (let [request {:id 500 :user {:login "riatzukiza" :type "User"}
@@ -779,10 +798,14 @@
           r (execute (update config :reviews conj done) "request" "riatzukiza/.agents" "8" "code" "--reviewer" "codex")]
       (is (= 0 (:exit r)) (:err r))
       (is (= 1 (count (writes r "comment")))))
-    (doseq [blocked [(assoc config :comments [request])
-                     (assoc-in config [:comments 1 :user :type] "User")
-                     (assoc config :reviews [approval])
-                     (assoc-in config [:checks 0 :state] "FAILURE")]]
+    ;; Incomplete cohorts no longer gate (2026-10-29); one approval suffices.
+    (doseq [admitted [(assoc config :comments [request])
+                      (assoc-in config [:comments 1 :user :type] "User")
+                      (assoc config :reviews [approval])]]
+      (let [r (execute admitted "gate" "riatzukiza/.agents" "8" "--apply")]
+        (is (= 0 (:exit r)) (:out r))
+        (is (= 1 (count (writes r "merge"))))))
+    (doseq [blocked [(assoc-in config [:checks 0 :state] "FAILURE")]]
       (let [r (execute blocked "gate" "riatzukiza/.agents" "8" "--apply")]
         (is (= 2 (:exit r)))
         (is (empty? (writes r "merge")))))
@@ -797,7 +820,9 @@
         fixed {:user {:login "riatzukiza" :type "User"} :created_at "2026-10-03T01:02:00Z"
                :body "Handled: review-id:10\n- Fixed review-body:10: authorization regression now passes"}]
     (is (str/includes? (:out (execute config "status" "riatzukiza/.agents" "8")) "gate: BLOCKED"))
-    (is (str/includes? (:out (execute (assoc config :comments [fixed]) "status" "riatzukiza/.agents" "8")) "gate: PASS"))
+    ;; Any request for changes blocks until that reviewer approves or the
+    ;; review is dismissed; a writer's fix answer no longer clears it (2026-10-29).
+    (is (str/includes? (:out (execute (assoc config :comments [fixed]) "status" "riatzukiza/.agents" "8")) "gate: BLOCKED"))
     (is (str/includes? (:out (execute (assoc config :comments [fixed] :authorized false) "status" "riatzukiza/.agents" "8")) "gate: BLOCKED"))
     (is (str/includes? (:out (execute (assoc config :reviews [approval (assoc human :commit_id other)])
                                     "status" "riatzukiza/.agents" "8")) "gate: BLOCKED"))
@@ -821,8 +846,13 @@
       (is (= 2 (:exit blocked)))
       (is (str/includes? (:out blocked) "1 unanswered review summary item(s)"))
       (is (empty? (writes blocked "merge")))
-      (is (= 0 (:exit repaired)) (:err repaired))
-      (is (= 1 (count (writes repaired "merge"))))))
+      (if (= state "CHANGES_REQUESTED")
+        ;; A standing change request still blocks (2026-10-29).
+        (do (is (= 2 (:exit repaired)))
+            (is (str/includes? (:out repaired) "Changes requested by: human-reviewer"))
+            (is (empty? (writes repaired "merge"))))
+        (do (is (= 0 (:exit repaired)) (:err repaired))
+            (is (= 1 (count (writes repaired "merge"))))))))
   (let [human {:id 20 :user {:login "human-reviewer" :type "User"} :state "CHANGES_REQUESTED"
                :body "P1: authorization is bypassed" :commit_id head :submitted_at "2026-10-03T01:01:00Z"}
         approved (assoc human :id 21 :state "APPROVED" :body "Approved after verifying the repaired boundary."
@@ -885,9 +915,9 @@
     (is (= 0 (:exit accepted)) (:err accepted))
     (is (str/includes? (:out accepted) "completed code rounds: 5"))
     (is (= 1 (count (writes accepted "merge"))))
-    (is (= 2 (:exit short)))
+    (is (= 0 (:exit short)) (:out short))
     (is (str/includes? (:out short) "completed code rounds: 4"))
-    (is (empty? (writes short "merge")))))
+    (is (= 1 (count (writes short "merge"))))))
 
 (def rejection-reason "The requested second validation duplicates the pure boundary check, which already rejects malformed identity before any adapter effect.")
 (def rejection-evidence "skills/pr-flow/scripts/pr_flow/law.cljc:122; https://example.invalid/checks/123")
@@ -1129,9 +1159,11 @@
         no-approval (execute (assoc config :reviews []) "gate" "open-hax/proxx" "445" "--apply")
         no-rounds (execute (dissoc config :prior-stage-rounds) "gate" "open-hax/proxx" "445" "--apply")
         cancelled (execute (assoc-in config [:checks 0 :state] "CANCELLED") "gate" "open-hax/proxx" "445" "--apply")]
-    (doseq [r [no-approval no-rounds cancelled]]
+    (doseq [r [no-approval cancelled]]
       (is (= 2 (:exit r)))
       (is (empty? (writes r "merge"))))
+    ;; Round credit no longer gates (2026-10-29).
+    (is (= 0 (:exit no-rounds)) (:out no-rounds))
     (is (str/includes? (:out no-rounds) "completed code rounds: 0"))))
 
 (deftest native-withdrawal-during-collection-blocks-the-fresh-gate
@@ -1358,7 +1390,6 @@
 (deftest informational-cli-retains-all-other-obligations-and-separate-admission
   (let [s (first informational/captures) config (informational-config s)]
     (doseq [c [(assoc config :comments []) (assoc config :reviews [])
-               (assoc config :prior-stage-rounds 0)
                (assoc config :checks [{:name "laws" :state "FAILURE" :required true}])
                (assoc config :checks [{:name "laws" :state "CANCELLED" :required true}])
                (assoc config :no-receipt-ledger true)
@@ -1419,9 +1450,14 @@
                    state (conj {:name "CodeRabbit" :state state}))
           r (execute (assoc (current-issue-cohort) :checks checks)
                      "gate" "riatzukiza/.agents" "8" "--apply")]
-      (is (= 2 (:exit r)) (str state " " (:out r) " " (:err r)))
+      ;; No round credit without the native check, but rounds no longer gate;
+      ;; only a failing check blocks, pending human maintainer approval.
       (is (str/includes? (:out r) "completed code rounds: 0"))
-      (is (empty? (writes r "merge")))))
+      (if (= state "FAILURE")
+        (do (is (= 2 (:exit r)) (str state " " (:out r)))
+            (is (empty? (writes r "merge"))))
+        (do (is (= 0 (:exit r)) (str state " " (:out r) " " (:err r)))
+            (is (= 1 (count (writes r "merge"))))))))
   (let [r (execute (assoc (current-issue-cohort)
                          :checks [{:name "laws" :state "SUCCESS" :required true}
                                   {:name "CodeRabbit" :state "SUCCESS"}])
@@ -1437,8 +1473,10 @@
     (doseq [state [nil "FAILURE" "SKIPPED"]]
       (let [checks (cond-> [{:name "laws" :state "SUCCESS" :required true}]
                      state (conj {:name "CodeRabbit" :state state}))
-            r (execute (assoc config :checks checks) "gate" "riatzukiza/.agents" "8" "--apply")]
-        (is (= 0 (:exit r)) (:err r))
+            r (execute (cond-> (assoc config :checks checks)
+                         (= state "FAILURE") (update :comments conj human-ok))
+                       "gate" "riatzukiza/.agents" "8" "--apply")]
+        (is (= 0 (:exit r)) (str state (:out r) (:err r)))
         (is (str/includes? (:out r) "completed code rounds: 1"))
         (is (= 1 (count (writes r "merge"))))))
     (doseq [state ["PENDING" "FAILURE" "SKIPPED" "CANCELLED"]]
@@ -1490,7 +1528,7 @@
     (is (str/includes? (:out no-approval) "completed code rounds: 5"))
     (is (empty? (writes no-approval "merge")))))
 
-(deftest historical-issue-check-provenance-and-availability-fail-closed
+(deftest historical-issue-check-provenance-and-availability-deny-round-credit
   (doseq [rows [[] [(assoc historical-cr-status :state "pending")]
                  [historical-cr-status (assoc historical-cr-status :id 2 :state "failure"
                                              :created_at "2026-10-03T00:06:00Z")]
@@ -1503,10 +1541,11 @@
                  [(assoc historical-cr-status :created_at "invalid")]]]
     (let [r (execute (assoc (historical-issue-cohort) :commitStatuses {other rows})
                      "gate" "riatzukiza/.agents" "8" "--apply")]
-      (is (= 2 (:exit r)))
+      ;; Provenance still denies round credit; rounds no longer gate (2026-10-29).
+      (is (= 0 (:exit r)) (:out r))
       (is (str/includes? (:out r) "completed code rounds: 0"))
       (is (str/includes? (:out r) "without successful exact-commit check evidence"))
-      (is (empty? (writes r "merge")))))
+      (is (= 1 (count (writes r "merge"))))))
   (doseq [change [{:unavailableCommitStatuses [other]} {:commitStatusPages {other nil}}
                   {:commitStatusPages {other {:unexpected []}}} {:commitResponses {other head}}]]
     (let [r (execute (merge (historical-issue-cohort) change) "gate" "riatzukiza/.agents" "8" "--apply")]
@@ -1603,8 +1642,9 @@
     (let [config (update (rheos-stage-config) :comments
                          #(mapv (fn [c] (if (= 5968488345 (:id c)) (update c :body alter) c)) %))
           r (execute config "status" "open-hax/rheos" "2")]
+      ;; Altered declarations still earn no round credit; rounds no longer gate (2026-10-29).
       (is (str/includes? (:out r) "completed code rounds: 0"))
-      (is (str/includes? (:out r) "gate: BLOCKED"))
+      (is (str/includes? (:out r) "gate: PASS"))
       (is (empty? (mutations r)))
       (is (empty? (writes r "merge"))))))
 

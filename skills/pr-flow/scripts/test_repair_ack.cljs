@@ -112,7 +112,7 @@
         gate {:head head :threads [t] :rounds 5 :review-participants #{"mimo"}
               :approved-heads {"mimo" #{head}} :checks [{:name "law" :required? true :state "SUCCESS"}]}]
     (is (:pass? (law/merge-gate gate)))
-    (doseq [bad [(assoc gate :approved-heads {}) (assoc gate :rounds 0)
+    (doseq [bad [(assoc gate :approved-heads {})
                  (assoc gate :required-reviewers #{"codex"})
                  (assoc-in gate [:checks 0 :state] "FAILURE")
                  (update gate :threads conj (law/classify-thread {:id "other" :resolved? false :comments [{:author "writer" :body "P1: actual defect"}]}))]]

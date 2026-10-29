@@ -330,6 +330,24 @@
       (catch :default e
         (if (re-find #"HTTP 404|Not Found" (ex-message e)) false (throw e))))))
 
+(defn- human-approval-context
+  "Inputs for the any-approval gate: native human-approval evidence parsed from
+   issue comments, and the observed repository role of every human login that
+   approved or published evidence. Roles are read from GitHub, never claimed."
+  [repo {:keys [reviews raw-comments]}]
+  (let [evidence (vec (keep law/human-approval-comment->evidence raw-comments))
+        logins (distinct (concat (keep #(when (and (= "User" (get-in % [:user :type]))
+                                                   (= "APPROVED" (str/upper-case (str (:state %)))))
+                                          (get-in % [:user :login])) reviews)
+                                 (map :approver evidence)))
+        role (fn [login]
+               (when (and login (not (law/bot? login)))
+                 (try (:permission (gh-json "api" (str "repos/" repo "/collaborators/" login "/permission")))
+                      (catch :default e
+                        (if (re-find #"HTTP 404|Not Found" (ex-message e)) nil (throw e))))))]
+    {:human-approval-evidence evidence
+     :maintainers (into {} (keep (fn [l] (when-let [r (role l)] [l r]))) logins)}))
+
 (defn review-bodies-unanswered
   "Every provider's identified or body-only findings need authorized,
    itemized settlements, using the same review snapshot as approval evidence."
@@ -418,9 +436,10 @@
                            (select-keys final-progress [:rounds :stage :review-participants :review-availability]))
                      (not= (select-keys heads [:head :reviews :comments :checks :completion-checks])
                            (select-keys final-snapshot [:head :reviews :comments :checks :completion-checks])))
-        gate (assoc (law/merge-gate (merge heads progress
+        gate (assoc (law/merge-gate (merge heads progress (human-approval-context repo heads)
                                     {:threads threads :checks checks :incomplete? incomplete?
                                      :required-reviewers reviewers
+                                     :pr-author (:pr-author thread-snapshot)
                                      :waived (inv/waived-for repo)
                                      :snapshot-head (:head final-snapshot)
                                      :approval-quorum (get-in (load-flow) [:flow/defaults :review/approval-quorum] 1)
@@ -437,6 +456,7 @@
     (doseq [{:keys [id semantic-diagnostic]} threads :when semantic-diagnostic]
       (println (str "  semantic id=" id " " (pr-str (select-keys semantic-diagnostic [:status :reason])))))
     (println (str "  exact-head approvals: " (pr-str (:approving-reviewers gate)) "  observed commit binding: " (pr-str (:reviewed-heads heads))))
+    (println (str "  failing checks: " (pr-str (:failing-checks gate)) "  human maintainer approval on head: " (:human-approved? gate)))
     (println (str "  completed " (:stage progress) " rounds: " (:rounds progress)
                   " / soft minimum " (:min-review-rounds progress)
                   "  participants: " (pr-str (:review-participants progress))))

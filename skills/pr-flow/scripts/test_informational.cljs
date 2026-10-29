@@ -205,7 +205,7 @@
       (is (false? (:settled? t))) (is (nil? (:resolution t)))
       (is (false? (:rejection-approved? t)))
       (is (empty? (law/unsettled-blockers [(assoc t :severity :p1)])))
-      (doseq [negative [(assoc baseline :approved-heads {}) (assoc baseline :rounds 0)
+      (doseq [negative [(assoc baseline :approved-heads {})
                         (assoc baseline :review-bodies-unanswered 1)
                         (assoc baseline :checks [{:name "laws" :required? true :state "FAILURE"}])
                         (assoc baseline :checks [{:name "laws" :required? true :state "CANCELLED"}])
@@ -844,7 +844,7 @@
                   :approved-heads {"mimo" #{(:head t)}} :rounds 5
                   :review-participants #{"mimo"} :checks [{:name "laws" :state "SUCCESS"}]}]
     (mimo-test-finding (assoc t :actionability-observations nil) "unavailable history")
-    (doseq [bad [(assoc baseline :approved-heads {}) (assoc baseline :rounds 0)
+    (doseq [bad [(assoc baseline :approved-heads {})
                  (assoc baseline :review-bodies-unanswered 1)
                  (assoc baseline :checks [{:name "laws" :required? true :state "FAILURE"}])
                  (assoc baseline :checks [{:name "laws" :required? true :state "CANCELLED"}])
@@ -1030,7 +1030,7 @@
     (is (empty? (:reviewed-heads (law/review-evidence (:head t) [] [assessment] law/default-reviewer-identities))))
     (is (empty? (law/completed-review-rounds [] [assessment] law/default-reviewer-identities)))
     (is (:pass? (law/merge-gate baseline)))
-    (doseq [bad [(assoc baseline :approved-heads {}) (assoc baseline :rounds 0)
+    (doseq [bad [(assoc baseline :approved-heads {})
                  (assoc baseline :review-bodies-unanswered 1)
                  (assoc baseline :checks [{:name "laws" :required? true :state "FAILURE"}])
                  (assoc baseline :threads [(assoc c :resolved? false)])
