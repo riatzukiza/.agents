@@ -89,7 +89,7 @@
   "A reviewer reply that accepts the settlement rather than disputing it."
   #"(?im)(?:^|[.!]\s*)(?:✅\s*)?review thread resolved[.!]?[ \t]*$|(?:^|[.!]\s*)verified(?: the fix)?[.!]?[ \t]*$|(?:^|[.!]\s*)this addresses (?:the|my) (?:finding|issue|comment)[.!]?[ \t]*$")
 
-(declare verdict-prose valid-head? default-reviewer-identities trusted-reviewer)
+(declare verdict-prose native-scope-prose valid-head? default-reviewer-identities trusted-reviewer)
 
 (defn- remove-matches [text pattern]
   ;; SCI/CLJS string replacement can discard inline regex flags. Match with
@@ -625,19 +625,26 @@
 
 
 
-(defn- multiline-code-span? [text]
-  ;; Positive admission alone denies raw equal backtick runs across lines,
-  ;; including blank paragraphs; this is a conservative native-format guard.
+(defn- multiline-code-regions
+  ([text] (multiline-code-regions text false))
+  ([text native-boundaries?]
+  ;; Find raw equal backtick runs across lines, including blank paragraphs.
+  ;; Positive admission denies them; conservative discovery masks only them.
   ;; Outside a code span, complete native comments/fences remain examples.
   ;; Inside one, backslashes, comments and fences cannot hide its delimiter.
   (let [matching-close
         (fn [cursor size]
-          (loop [cursor cursor]
-            (when-let [run (re-find #"`+" (subs text cursor))]
-              (let [start (+ cursor (str/index-of (subs text cursor) run))
-                    end (+ start (count run))]
-                (if (= size (count run)) [start end] (recur end))))))]
-    (loop [cursor 0]
+          (let [remaining (subs text cursor)
+                native-opening (when native-boundaries?
+                                 (re-find #"(?m)^<details>\r?\n<summary>🔇 Additional comments" remaining))
+                boundary (when native-opening (+ cursor (str/index-of remaining native-opening)))]
+            (loop [cursor cursor]
+              (when-let [run (re-find #"`+" (subs text cursor))]
+                (let [start (+ cursor (str/index-of (subs text cursor) run))
+                      end (+ start (count run))]
+                  (when (or (nil? boundary) (< start boundary))
+                    (if (= size (count run)) [start end] (recur end))))))))]
+    (loop [cursor 0 regions []]
       (if-let [token (re-find #"<!--[\s\S]*?-->|`+|~{3,}" (subs text cursor))]
         (let [start (+ cursor (str/index-of (subs text cursor) token))
               end (+ start (count token))
@@ -651,14 +658,24 @@
                                (if (and (>= index 0) (= "\\" (subs text index (inc index))))
                                  (recur (dec index) (inc n)) n)))]
           (cond
-            (str/starts-with? token "<!--") (recur end)
-            fence (recur (+ line-start (count fence)))
-            (str/starts-with? token "~") (recur end)
-            escaped? (recur (inc start))
+            (str/starts-with? token "<!--") (recur end regions)
+            fence (recur (+ line-start (count fence)) regions)
+            (str/starts-with? token "~") (recur end regions)
+            escaped? (recur (inc start) regions)
             :else (if-let [[close after] (matching-close end (count token))]
-                    (if (re-find #"[\r\n]" (subs text end close)) true (recur after))
-                    (recur end))))
-        false))))
+                    (recur after (cond-> regions
+                                   (re-find #"[\r\n]" (subs text end close)) (conj [start after])))
+                    (recur end regions))))
+        regions)))))
+
+(defn- multiline-code-span? [text]
+  (boolean (seq (multiline-code-regions text))))
+
+(defn- mask-multiline-code-regions [text]
+  ;; Reverse offsets preserve source coordinates and do not invent line starts.
+  (reduce (fn [source [start end]]
+            (str (subs source 0 start) "[excluded non-authoritative source]" (subs source end)))
+          text (reverse (multiline-code-regions text true))))
 
 (defn- retain-excluded-regions [text pattern]
   ;; Exclusion must not sanitize extra own-item source into an exact LGTM.
@@ -674,9 +691,23 @@
   (-> text (str/replace #"^(?:[ \t]*\n)+" "")
       (str/replace #"(?:\n[ \t]*)+$" "")))
 
+(defn- native-public-asset-token? [token]
+  (let [attributes (re-seq #" (src|srcset)=\"([^\"]*)\"" token)
+        url #"https://storage\.googleapis\.com/coderabbit_public_assets/[^\s<>\"',]+"
+        candidate #"https://storage\.googleapis\.com/coderabbit_public_assets/[^\s<>\"',]+(?:[ \t]+(?:[1-9][0-9]*(?:\.[0-9]+)?x|[1-9][0-9]*w))?"]
+    (boolean
+     (and (re-matches #"<(?:img|source)(?: (?:src|srcset|width|height|align|alt|media)=\"[^\"<>\r\n]*\")+>" token)
+          (seq attributes)
+          (every? (fn [[_ attribute value]]
+                    (case attribute
+                      "src" (re-matches url value)
+                      "srcset" (every? #(re-matches candidate (str/trim %)) (str/split value #"," -1))
+                      false)) attributes)))))
+
 (defn- additional-comment-section
   ([body] (additional-comment-section body #"^<details>\n<summary>🔇 Additional comments(?:: [1-9][0-9]{0,3}| \([1-9][0-9]{0,3}\))</summary><blockquote>"))
-  ([body section-header]
+  ([body section-header] (additional-comment-section body section-header false))
+  ([body section-header native-dl?]
   ;; Only the observed complete, top-level native section is a candidate.
   ;; Quotes/fences/generated share examples are not authored LGTM evidence.
   ;; A deliberately small balanced tag grammar rejects unfamiliar HTML rather
@@ -694,9 +725,16 @@
           (let [start (+ offset (str/index-of remaining token))
                 end (+ start (count token))
                 tail (subs text end)]
-            (if (str/starts-with? token "<!--")
+            (cond
+              (str/starts-with? token "<!--") (recur tail end stack sections)
+              (and native-dl?
+                   (or (re-matches #"<https://[^<>\s]+>" token)
+                       (native-public-asset-token? token)))
               (recur tail end stack sections)
-              (when-let [[_ closing tag] (re-matches #"<(\/?)(details|summary|blockquote)>" token)]
+              :else
+              (when-let [[_ closing tag] (re-matches (if native-dl?
+                                                      #"<(\/?)(details|summary|blockquote|dl|dd|picture)>"
+                                                      #"<(\/?)(details|summary|blockquote)>") token)]
                 (when-not (re-matches #"(?: {4}| {0,3}\t)[ \t]*"
                                       (last (str/split (subs text 0 start) #"\n" -1)))
                   (if (= closing "/")
@@ -724,27 +762,88 @@
                  (every? (fn [[a b]] (<= a b)) ranges))
         {:id id :format :native-additional-lgtm :file file :ranges ranges :source (trim-blank-lines item)}))))
 
-(defn- native-additional-groups [body]
-  (when-let [section (additional-comment-section body)]
-    (when-let [[_ total-colon total-paren inner]
-               (re-matches #"<details>\n<summary>🔇 Additional comments(?:: ([1-9][0-9]{0,3})| \(([1-9][0-9]{0,3})\))</summary><blockquote>([\s\S]*)</blockquote></details>" section)]
-      (let [groups (re-seq #"<details>\n<summary>([^<\n]+?)(?:: ([1-9][0-9]{0,3})| \(([1-9][0-9]{0,3})\))</summary><blockquote>([\s\S]*?)</blockquote></details>" inner)
-            remainder (reduce #(str/replace-first %1 (first %2) "") inner groups)
-            number (fn [n] #?(:clj (Long/parseLong n) :cljs (js/parseInt n 10)))]
-        (when (and (str/blank? remainder)
-                   (= (number (or total-colon total-paren))
-                      (reduce + (map #(number (or (nth % 2) (nth % 3))) groups))))
-          groups)))))
+(defn- native-additional-groups
+  ([body] (native-additional-groups body true))
+  ([body reconcile-counts?]
+  (when-let [section (or (additional-comment-section body)
+                        (additional-comment-section body
+                          #"^<details>\n<summary>🔇 Additional comments(?:: [1-9][0-9]{0,3}| \([1-9][0-9]{0,3}\))</summary><blockquote>\s*<dl>\s*<dd>"
+                          true))]
+    (let [dl? (boolean (re-find #"^<details>\n<summary>[^\n]+</summary><blockquote>\s*<dl>" section))
+          outer (if dl?
+                  #"<details>\n<summary>🔇 Additional comments(?:: ([1-9][0-9]{0,3})| \(([1-9][0-9]{0,3})\))</summary><blockquote>\s*<dl>\s*<dd>([\s\S]*)</dd>\s*</dl>\s*</blockquote>\s*</details>"
+                  #"<details>\n<summary>🔇 Additional comments(?:: ([1-9][0-9]{0,3})| \(([1-9][0-9]{0,3})\))</summary><blockquote>([\s\S]*)</blockquote></details>")
+          group (if dl?
+                  #"<details>\n<summary>([^<\n]+?)(?:: ([1-9][0-9]{0,3})| \(([1-9][0-9]{0,3})\))</summary><blockquote>\s*<dl>\s*<dd>([\s\S]*?)</dd>\s*</dl>\s*</blockquote>\s*</details>"
+                  #"<details>\n<summary>([^<\n]+?)(?:: ([1-9][0-9]{0,3})| \(([1-9][0-9]{0,3})\))</summary><blockquote>([\s\S]*?)</blockquote></details>")]
+      (when-let [[_ total-colon total-paren inner] (re-matches outer section)]
+        (let [groups (re-seq group inner)
+              remainder (reduce #(str/replace-first %1 (first %2) "") inner groups)
+              number (fn [n] #?(:clj (Long/parseLong n) :cljs (js/parseInt n 10)))]
+          (when (and (str/blank? remainder)
+                     (or (not reconcile-counts?)
+                         (and (= (number (or total-colon total-paren))
+                                 (reduce + (map #(number (or (nth % 2) (nth % 3))) groups)))
+                              (or (not dl?)
+                                  (every? (fn [[_ _ count-colon count-paren content]]
+                                            (= (number (or count-colon count-paren))
+                                               (count (str/split (trim-blank-lines content)
+                                                                 #"\n[ \t]*\n---\n[ \t]*\n"))))
+                                          groups)))))
+            groups)))))))
+
+(defn- mask-native-discovery-examples [body]
+  ;; Select the earliest enclosing complete region, including multiline spans.
+  ;; The span scanner retains native-block interruption for dangling delimiters.
+  ;; Complete generated regions own their inner examples and closing markers.
+  ;; Unclosed generated markers remain for the following tail-exclusion pass.
+  (let [pattern #"(?im)<!--\s*This is an auto-generated comment:[\s\S]*?-->[\s\S]*?<!--\s*end of auto-generated comment:[\s\S]*?-->|<!--(?!\s*(?:This is an auto-generated comment:|end of auto-generated comment:))[\s\S]*?-->|^(?:[ ]{4}|[ ]{0,3}\t)[^\r\n]*|^[ ]{0,3}<(pre|code|blockquote)\b[^>]*>[\s\S]*?</\1>|^[ ]{0,3}>[^\r\n]*(?:(?:\r\n|\r|\n)(?![ \t]*(?:\r\n|\r|\n|$)|[ ]{0,3}<details>[ \t]*(?:\r\n|\r|\n|$))[^\r\n]*)*|^[ ]{0,3}(`{3,})[^`\r\n]*(?:\r\n|\r|\n)[\s\S]*?^[ ]{0,3}\2`*[ \t]*(?:$|\r)|^[ ]{0,3}(~{3,})(?!~)[^\r\n]*(?:\r\n|\r|\n)[\s\S]*?^[ ]{0,3}\3~*[ \t]*(?:$|\r)|(?<!`)(`+)(?!`)[^\r\n]*?\4(?!`)"]
+    (loop [text body]
+      (if-let [[span-start span-end] (first (multiline-code-regions text true))]
+        (let [match (re-find pattern text)
+              example (when match (if (string? match) match (first match)))
+              example-start (when example (str/index-of text example))
+              region (if (or (nil? example-start) (< span-start example-start))
+                       (subs text span-start span-end)
+                       example)]
+          (recur (str/replace-first text region "[excluded non-authoritative source]")))
+        (retain-excluded-regions text pattern)))))
+
+
+(defn- recognizable-native-additional? [body]
+  ;; Recognition only preserves a conservative obligation. It cannot admit a
+  ;; positive item or borrow authority from quoted, fenced or generated source.
+  ;; Mask generated regions locally: an unrelated footer must not erase an
+  ;; independently authored malformed section. An unclosed opener owns its tail.
+  (let [text (some-> (str body)
+                       mask-native-discovery-examples
+                       (retain-excluded-regions #"(?is)<!--\s*This is an auto-generated comment:.*?-->.*?<!--\s*end of auto-generated comment:.*?-->")
+                       (retain-excluded-regions #"(?is)<!--\s*This is an auto-generated comment:.*?-->.*$")
+                       (retain-excluded-regions #"<!--[\s\S]*?-->")
+                       mask-multiline-code-regions
+                       ;; Complete fences are already masked. Exclude unmatched
+                       ;; tails before the legacy scope scanner can reinterpret them.
+                       (retain-excluded-regions #"(?m)^[ ]{0,3}(?:`{3,}[^`\r\n]*(?:\r?\n|$)|~{3,}[^\r\n]*(?:\r?\n|$))[\s\S]*$")
+                       native-scope-prose)]
+    (boolean (and text
+                  (re-find #"(?m)^<details>\r?\n<summary>🔇 Additional comments(?:: [1-9][0-9]{0,3}| \([1-9][0-9]{0,3}\))</summary><blockquote>\s*<dl>\s*<dd>" text)))))
 
 (defn- unmarked-additional-finding? [body]
   ;; Declared native items without stable IDs cannot disappear when the
   ;; identified siblings settle. Duplicate IDs cannot fill a missing slot.
   (boolean
-   (some (fn [[_ _ count-colon count-paren content]]
+   (or
+    (and (recognizable-native-additional? body)
+         (not (native-additional-groups body)))
+    ;; A structurally bounded section with irreconcilable declared totals is
+    ;; not a valid positive envelope. Preserve a whole-body finding separately.
+    (and (native-additional-groups body false)
+         (not (native-additional-groups body)))
+    (some (fn [[_ _ count-colon count-paren content]]
            (> #?(:clj (Long/parseLong (or count-colon count-paren))
                  :cljs (js/parseInt (or count-colon count-paren) 10))
               (count (set (map second (re-seq #"<!-- cr-comment:v1:([a-z0-9]+) -->" content))))))
-         (native-additional-groups body))))
+         (native-additional-groups body)))))
 
 (defn- native-positive-body-items [body]
   (when-let [groups (native-additional-groups body)]

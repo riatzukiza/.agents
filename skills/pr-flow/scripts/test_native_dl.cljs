@@ -1,0 +1,223 @@
+(ns test-native-dl
+  (:require ["fs" :as fs] ["path" :as path]
+            [nbb.core :refer [*file*]]
+            [cljs.test :refer [deftest is run-tests]]
+            [clojure.string :as str]
+            [pr-flow.law :as law]))
+(def native-review
+  (js->clj (js/JSON.parse (fs/readFileSync
+    (path/join (path/dirname *file*) "fixtures/proxx-native-dl-review-5649047508.json") "utf8")) :keywordize-keys true))
+(deftest native-dl-retains-marked-and-unmarked-items
+  (let [items (law/review-findings native-review)]
+    (is (= 55 (count (filter :positive-body-item items))))
+    (is (= 1 (count (filter #(= :review-body (:kind %)) items))))
+    (is (= 56 (count items)))))
+(deftest native-dl-rejects-unbalanced-or-foreign-envelopes
+  (doseq [body [(str/replace-first (:body native-review) "</dd>" "")
+               (str "<div>\n" (:body native-review) "\n</div>")
+               (str "> quoted\n" (:body native-review))]]
+    (is (empty? (filter :positive-body-item (law/review-findings (assoc native-review :body body)))))))
+(deftest native-dl-does-not-normalize-unknown-source
+  (doseq [body [(str/replace-first (:body native-review) "Additional comments: 56" "Additional comments: 57")
+               (str "```html\n" (:body native-review) "\n```")
+               (str/replace-first (:body native-review) #"<img src=\"[^\"]+\"" "<img src=\"https://unknown.invalid/x\" alt=\"https://storage.googleapis.com/coderabbit_public_assets/x\"")
+               (str/replace-first (:body native-review) "<img src=" "<img onerror=\"unknown\" src=")]]
+    (is (empty? (filter :positive-body-item (law/review-findings (assoc native-review :body body)))))))
+(deftest malformed-native-envelope-keeps-unmarked-obligation
+  (doseq [body [(str/replace-first (:body native-review) "</dd>" "")
+               (str/replace-first (:body native-review) "</dl>" "")
+               (str/replace-first (:body native-review) "<img src=" "<img unknown=\"x\" src=")]]
+    (let [items (law/review-findings (assoc native-review :body body))]
+      (is (empty? (filter :positive-body-item items)))
+      (is (= 1 (count (filter #(= :review-body (:kind %)) items)))))))
+(deftest malformed-envelope-examples-do-not-create-whole-body-obligations
+  (let [broken (str/replace-first (:body native-review) "</dd>" "")]
+    (doseq [body [(str "```html\n" broken "\n```")
+                 (str "```html\n" broken)
+                 (str "<!-- This is an auto-generated comment: generic example -->\n" broken "\n<!-- end of auto-generated comment: generic example -->")
+                 (str "<!-- THIS IS AN AUTO-GENERATED COMMENT: generic example -->\n" broken)
+                 (str/join "\n" (map #(str "> " %) (str/split-lines broken)))
+                 (str "<!-- This is an auto-generated comment: tweet message by coderabbit.ai -->" broken "<!-- end of auto-generated comment: tweet message by coderabbit.ai -->")]]
+      (is (empty? (filter #(= :review-body (:kind %)) (law/review-findings (assoc native-review :body body))))))))
+(deftest unrelated-generated-regions-cannot-hide-authored-malformed-findings
+  (let [broken (str/replace-first (:body native-review) "</dd>" "")]
+    (doseq [region ["<!-- This is an auto-generated comment: tweet message by coderabbit.ai -->footer<!-- end of auto-generated comment: tweet message by coderabbit.ai -->"
+                    "<!-- This is an auto-generated comment: generic example -->footer<!-- end of auto-generated comment: generic example -->"]
+            body [(str broken "\n" region) (str region "\n" broken)]]
+      (let [items (law/review-findings (assoc native-review :body body))]
+        (is (empty? (filter :positive-body-item items)))
+        (is (= 1 (count (filter #(= :review-body (:kind %)) items))))))))
+(deftest unrelated-multiline-code-cannot-hide-authored-findings
+  (let [broken (str/replace-first (:body native-review) "</dd>" "")]
+    (doseq [authored [(:body native-review) broken]
+            span ["Unrelated example: `alpha\nbeta`" "Unrelated example: ``alpha\nbeta``"]
+            body [(str authored "\n" span) (str span "\n" authored)]]
+      (let [items (law/review-findings (assoc native-review :body body))]
+        (is (empty? (filter :positive-body-item items)))
+        (is (= 1 (count (filter #(= :review-body (:kind %)) items))))))
+    (doseq [delimiter ["`" "``"]]
+      ;; A raw native HTML block interrupts a preceding inline paragraph;
+      ;; bare backticks around it cannot own the block as an inline example.
+      (let [body (str delimiter "\n" broken "\n" delimiter)
+            items (law/review-findings (assoc native-review :body body))]
+        (is (empty? (filter :positive-body-item items)))
+        (is (= 1 (count (filter #(= :review-body (:kind %)) items))))))))
+(deftest unterminated-fence-tail-cannot-hide-earlier-authored-findings
+  (let [broken (str/replace-first (:body native-review) "</dd>" "")]
+    (doseq [authored [(:body native-review) broken]
+            fence ["```html" "~~~text"]]
+      (let [items (law/review-findings (assoc native-review :body (str authored "\n" fence "\nUnrelated example")))]
+        (is (empty? (filter :positive-body-item items)))
+        (is (= 1 (count (filter #(= :review-body (:kind %)) items))))))
+    (doseq [fence ["```html" "~~~text"]]
+      (is (empty? (filter #(= :review-body (:kind %))
+                         (law/review-findings (assoc native-review :body (str fence "\n" broken)))))))))
+(deftest legacy-positive-groups-retain-their-existing-independent-admission
+  (let [item-a "`1-2`: LGTM!\n\n<!-- cr-comment:v1:aaaaaaaaaaaaaaaaaaaaaaaa -->"
+        item-b "`1-2`: LGTM!\n\n<!-- cr-comment:v1:bbbbbbbbbbbbbbbbbbbbbbbb -->"
+        group (fn [file count content] (str "<details>\n<summary>" file ": " count "</summary><blockquote>\n" content "\n</blockquote></details>"))
+        body (str "<details>\n<summary>🔇 Additional comments: 3</summary><blockquote>\n"
+                  (group "a.cljs" 1 item-a) "\n" (group "b.cljs" 2 item-b) "\n</blockquote></details>")
+        items (law/review-findings (assoc native-review :body body))]
+    (is (= #{"aaaaaaaaaaaaaaaaaaaaaaaa"} (set (map :id (filter :positive-body-item items)))))
+    (is (nil? (:positive-body-item (first (filter #(= "bbbbbbbbbbbbbbbbbbbbbbbb" (:id %)) items)))))
+    (is (= 1 (count (filter #(= :review-body (:kind %)) items))))))
+(deftest dangling-inline-delimiters-cannot-own-a-later-native-block
+  (doseq [[authored malformed?] [[(:body native-review) false] [(str/replace-first (:body native-review) "</dd>" "") true]]
+          [prefix baseline-positive-count] [["Unrelated paragraph `\n" 0] ["Unrelated paragraph ``\n" 55] ["Unrelated paragraph `\n\n" 0]]]
+    (let [items (law/review-findings (assoc native-review :body (str prefix authored)))]
+      ;; Immutable633c6b9 replay establishes these strict-admission counts.
+      (is (= (if malformed? 0 baseline-positive-count) (count (filter :positive-body-item items))))
+      (is (= 1 (count (filter #(= :review-body (:kind %)) items)))))))
+(deftest every-native-asset-url-must-be-allowlisted
+  (let [good "https://storage.googleapis.com/coderabbit_public_assets/a.svg"
+        bad "https://unknown.invalid/a.svg"
+        replace-tag #(str/replace-first (:body native-review) #"<img[^>]+>" %)]
+    (doseq [tag [(str "<img src=\"" bad "\" srcset=\"" good "\">")
+                 (str "<img src=\"" good "\" srcset=\"" bad "\">")
+                 (str "<source srcset=\"" good " 1x, " bad " 2x\">")
+                 (str "<img src=\"" good "\" src=\"" bad "\">")
+                 (str "<img srcset=\"" bad " 1x, " good " 2x\">")]]
+      (is (empty? (filter :positive-body-item (law/review-findings (assoc native-review :body (replace-tag tag)))))))
+    (doseq [tag [(str "<img src=\"" good "\" srcset=\"" good "\">")
+                 (str "<source srcset=\"" good " 1x, " good " 2x\">")]]
+      (is (= 55 (count (filter :positive-body-item (law/review-findings (assoc native-review :body (replace-tag tag))))))))))
+(deftest surplus-unmarked-group-item-cannot-disappear
+  (let [item-a "`1-2`: LGTM!\n\n<!-- cr-comment:v1:aaaaaaaaaaaaaaaaaaaaaaaa -->"
+        item-b "`1-2`: LGTM!\n\n<!-- cr-comment:v1:bbbbbbbbbbbbbbbbbbbbbbbb -->"
+        group (fn [file content] (str "<details>\n<summary>" file ": 1</summary><blockquote>\n<dl>\n<dd>\n" content "\n</dd>\n</dl>\n</blockquote>\n</details>"))
+        body (fn [a] (str "<details>\n<summary>🔇 Additional comments: 2</summary><blockquote>\n<dl>\n<dd>\n"
+                         (group "a.cljs" a) "\n" (group "b.cljs" item-b)
+                         "\n</dd>\n</dl>\n</blockquote>\n</details>"))
+        valid (law/review-findings (assoc native-review :body (body item-a)))
+        surplus (law/review-findings (assoc native-review :body (body (str item-a "\n\n---\n\n`3-4`: Fix the unmarked defect."))))]
+    (is (= 2 (count (filter :positive-body-item valid))))
+    (is (empty? (filter #(= :review-body (:kind %)) valid)))
+    (is (empty? (filter :positive-body-item surplus)))
+    (is (= 1 (count (filter #(= :review-body (:kind %)) surplus))))))
+(deftest native-dl-count-mismatch-keeps-whole-body-obligation
+  (doseq [body [(str/replace-first (:body native-review) "Additional comments: 56" "Additional comments: 57")
+               (str/replace-first (:body native-review) "Additional comments: 56" "Additional comments: 55")]]
+    (let [items (law/review-findings (assoc native-review :body body))]
+      (is (empty? (filter :positive-body-item items)))
+      (is (= 1 (count (filter #(= :review-body (:kind %)) items)))))))
+(deftest native-dl-corrective-prose-and-duplicate-ids-remain-blocking
+  (let [changed (str/replace-first (:body native-review) "LGTM!" "LGTM! Fix the broken behavior.")
+        ids (map second (re-seq #"<!-- cr-comment:v1:([a-z0-9]+) -->" (:body native-review)))
+        duplicate (str/replace-first (:body native-review) (second ids) (first ids))]
+    (is (= 54 (count (filter :positive-body-item (law/review-findings (assoc native-review :body changed))))))
+    (is (< (count (filter :positive-body-item (law/review-findings (assoc native-review :body duplicate)))) 55))))
+(deftest native-dl-acknowledgments-do-not-clear-the-unmarked-finding
+  ;; Synthetic writer metadata exercises unchanged native admission; this test
+  ;; creates no real review, comment, assessment or settlement evidence.
+  (let [head "b3d8cc6c099e8aadbef2ac9804736a3d76a2e410"
+        review (assoc native-review :updated_at (:submitted_at native-review))
+        ids (map :id (filter :positive-body-item (law/review-findings review)))
+        writer {:id 1 :authorized? true :user {:login "fixture-writer" :type "User"}
+                :created_at "2026-10-27T00:00:00Z" :updated_at "2026-10-27T00:00:00Z"
+                :body (str "review-id:" (:id review) "\n"
+                           (str/join "\n" (map #(str "- Handled cr-comment:v1:" % ": affirmative item on " head) ids)))}
+        context {:head head}]
+    (is (= 1 (law/unanswered-review-count [review] [writer] context)))
+    (is (= 56 (law/unanswered-review-count [review] [(assoc writer :authorized? false)] context)))
+    (is (= 56 (law/unanswered-review-count [(assoc-in review [:user :login] "unknown[bot]")] [writer] context)))
+    (is (= 56 (law/unanswered-review-count [review] [writer] {:head (apply str (repeat 40 "a"))})))))
+(defmethod cljs.test/report [:cljs.test/default :end-run-tests] [m]
+  (when-not (cljs.test/successful? m) (set! (.-exitCode js/process) 1)))
+(deftest generated-openers-in-fenced-examples-cannot-hide-authored-findings
+  (let [broken (str/replace-first (:body native-review) "</dd>" "")]
+    (doseq [fence ["```html" "~~~html"]]
+      (let [example (str fence "\n<!-- This is an auto-generated comment: generic example -->\n" (if (= fence "```html") "```" "~~~") "\n")
+            items (law/review-findings (assoc native-review :body (str example broken)))]
+        (is (= 1 (count (filter #(= :review-body (:kind %)) items))))))))
+(deftest generated-openers-in-other-examples-cannot-hide-authored-findings
+  (let [broken (str/replace-first (:body native-review) "</dd>" "")
+        opener "<!-- This is an auto-generated comment: generic example -->"]
+    (doseq [example [(str "Example: `" opener "`\n")
+                     (str "Example: ``" opener "``\n")
+                     (str "> " opener "\n\n")
+                     (str "<pre>" opener "</pre>\n")
+                     (str "<code>" opener "</code>\n")
+                     (str "<blockquote>" opener "</blockquote>\n")]]
+      (is (= 1 (count (filter #(= :review-body (:kind %))
+                              (law/review-findings (assoc native-review :body (str example broken))))))))))
+(deftest longer-closing-fences-cannot-hide-later-authored-findings
+  (let [broken (str/replace-first (:body native-review) "</dd>" "")]
+    (doseq [[open close] [["```" "````"] ["````" "``````"] ["~~~" "~~~~"] ["~~~~" "~~~~~~"]]]
+      (let [body (str open "html\nexample\n" close "\n" broken)]
+        (is (= 1 (count (filter #(= :review-body (:kind %))
+                                (law/review-findings (assoc native-review :body body))))))))))
+(deftest shorter-or-mismatched-closing-fences-do-not-expose-examples
+  (let [broken (str/replace-first (:body native-review) "</dd>" "")]
+    (doseq [[open close] [["````" "```"] ["~~~~" "~~~"] ["```" "~~~"] ["~~~" "```"] ["```" "```` trailing"] ["~~~" "~~~~ trailing"]]]
+      (let [body (str open "html\nexample\n" close "\n" broken)]
+        (is (empty? (filter #(= :review-body (:kind %))
+                            (law/review-findings (assoc native-review :body body)))))))))
+(deftest code-indented-fence-text-cannot-own-a-later-authored-section
+  (doseq [prefix ["    ~~~text\n\n" "    ```text\n\n" "\t~~~text\n\n" "\t```text\n\n"]]
+    (is (= 1 (count (filter #(= :review-body (:kind %))
+                            (law/review-findings (assoc native-review :body (str prefix (:body native-review))))))))))
+(deftest valid-unclosed-fence-indentation-still-owns-its-tail
+  (doseq [indent ["" " " "  " "   "] fence ["```text" "~~~text"]]
+    (is (empty? (filter #(= :review-body (:kind %))
+                        (law/review-findings (assoc native-review :body (str indent fence "\n\n" (:body native-review)))))))))
+(deftest invalid-backtick-info-cannot-mask-later-authored-findings
+  (doseq [opener ["```invalid`info" "````invalid`info" "```invalid``info" " ```text ` detail"]]
+    (is (= 1 (count (filter #(= :review-body (:kind %))
+                            (law/review-findings (assoc native-review :body (str opener "\n\n" (:body native-review))))))))))
+(deftest valid-fence-info-still-owns-an-unclosed-tail
+  (doseq [opener ["```text" "````text" "~~~invalid`info" "~~~~text ` detail"]]
+    (is (empty? (filter #(= :review-body (:kind %))
+                        (law/review-findings (assoc native-review :body (str opener "\n\n" (:body native-review)))))))))
+(deftest complete-html-comments-cannot-create-unmatched-fence-tails
+  (doseq [delimiter ["~~~text" "```text" "   ~~~text" "   ```text"]]
+    (let [body (str "<!-- ordinary example\n" delimiter "\n-->\n" (:body native-review))]
+      (is (= 1 (count (filter #(= :review-body (:kind %))
+                              (law/review-findings (assoc native-review :body body)))))))))
+(deftest enclosing-fences-own-literal-html-comment-openers
+  (let [broken (str/replace-first (:body native-review) "</dd>" "")]
+    (doseq [[open close] [["~~~" "~~~"] ["```" "```"] ["~~~" "~~~~"] ["```" "````"]]]
+      (let [body (str open "html\n<!-- example\n" close "\n-->\n" broken)]
+        (is (= 1 (count (filter #(= :review-body (:kind %))
+                                (law/review-findings (assoc native-review :body body))))))))))
+(deftest indented-code-cannot-introduce-generated-region-boundaries
+  (doseq [indent ["    " "\t" " \t" "  \t" "   \t"]]
+    (let [body (str indent "<!-- This is an auto-generated comment: generic example -->\n\n" (:body native-review))]
+      (is (= 1 (count (filter #(= :review-body (:kind %))
+                              (law/review-findings (assoc native-review :body body)))))))))
+(deftest multiline-code-owns-literal-generated-openers
+  (let [broken (str/replace-first (:body native-review) "</dd>" "")]
+    (doseq [delimiter ["`" "``"] gap ["\n" "\n\n"]]
+      (let [body (str "Example: " delimiter "alpha" gap
+                      "<!-- This is an auto-generated comment: generic example -->"
+                      gap "beta" delimiter "\n" broken)]
+        (is (= 1 (count (filter #(= :review-body (:kind %))
+                                (law/review-findings (assoc native-review :body body))))))))))
+(deftest generated-regions-own-their-enclosed-examples
+  (let [broken (str/replace-first (:body native-review) "</dd>" "")]
+    (doseq [example ["> example" "<pre>example</pre>" "```text\nexample\n```" "Example: `alpha\nbeta`"]]
+      (let [body (str "<!-- This is an auto-generated comment: generic example -->\n"
+                      example "\n<!-- end of auto-generated comment: generic example -->\n" broken)]
+        (is (= 1 (count (filter #(= :review-body (:kind %))
+                                (law/review-findings (assoc native-review :body body))))))))))
+(run-tests 'test-native-dl)
