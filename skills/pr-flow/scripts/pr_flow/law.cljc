@@ -1197,9 +1197,8 @@
                             (case (str/lower-case verb)
                               "fixed" true
                               "handled" (or (not (blocking? severity)) (positive-handled? review writer finding context))
-                              "deferred" (and (not (blocking? severity))
-                                              (integer? (:rounds context))
-                                              (> (:rounds context) (or (:min-review-rounds context) default-min-review-rounds)))
+                              ;; Any round (Err 2026-10-29): non-blocking items may be deferred.
+                              "deferred" (not (blocking? severity))
                               "rejected" (some? (rejection-evidence (:head context)
                                                                    (or (:identities context) default-reviewer-identities)
                                                                    (:pr-author context) (vec comments) settlement-index
@@ -1995,18 +1994,17 @@
    review); any change request, unresolved thread or failing required check
    blocks; any failing check at all needs a human maintainer approval or valid
    human-approval evidence on the current head. Mandatory reviewer overrides
-   remain all-of; findings remain obligations. Review rounds and unanimity
-   are reported but no longer gate. Observed coverage is never approval."
+   remain all-of; findings remain obligations (fix or defer, any round).
+   Review rounds are reported only; they never gate. Observed coverage is never approval."
   [{:keys [threads checks review-bodies-unanswered head snapshot-head
            required-reviewers approved-heads incomplete? approval-quorum
-           rounds review-participants min-review-rounds waived artifact-findings
+           rounds waived artifact-findings
            reviews maintainers pr-author human-approval-evidence]
     :or {approval-quorum 1}}]
   ;; A waiver removes obligations (checks, participation, mandatory status,
   ;; artifact blocks); a positive exact-head approval it does give still counts.
   (let [waived (set waived)
         checks (remove #(waived (reviewer-check %)) (latest-checks head checks))
-        review-participants (remove waived review-participants)
         required-reviewers (when required-reviewers (set (remove waived required-reviewers)))
         cr (native-check-state checks)
         mandatory (or required-reviewers #{})
@@ -2025,19 +2023,6 @@
         unsettled (remove :settled? findings)
         contested (filter :contested? findings)
         unresolved (remove :resolved? threads)
-        min-rounds (or min-review-rounds default-min-review-rounds)
-        ;; Settlement rule retained (not part of the replaced round/unanimity exit):
-        ;; verified findings are fixed, not deferred, during the first min-rounds.
-        early-deferrals (when (or (not (integer? rounds)) (<= rounds min-rounds))
-                          (filter #(= :deferred (:resolution %)) findings))
-        unanimous? (and (seq review-participants) (every? approved review-participants))
-        open-findings (+ (count (filter #(or (not (:settled? %)) (not (:resolved? %))
-                                             (:contested? %) (some #{%} blockers)
-                                             (some #{%} early-deferrals)) findings))
-                         (or review-bodies-unanswered 0))
-        loop-state (loop-verdict {:rounds rounds :open-findings open-findings
-                                 :unanimous-approval? (boolean unanimous?)
-                                 :min-review-rounds min-rounds})
         valid-quorum? (and (integer? approval-quorum) (<= 1 approval-quorum))
         reasons (cond-> []
                   (not valid-quorum?)
@@ -2063,14 +2048,13 @@
                              (str/join ", " (for [[p v] (sort-by key artifact-findings) :when (not (waived p))]
                                               (str p " (" (name (:reason v)) (when (pos? (:findings v)) (str ", " (:findings v) " finding(s)")) ")")))))
                   (seq blockers) (conj (str (count blockers) " P0/P1 thread(s) not fixed"))
-                  (seq early-deferrals) (conj (str "Verified findings cannot be deferred during the first " min-rounds " review rounds"))
                   (seq contested) (conj (str (count contested) " disputed settlement(s)"))
                   (seq unsettled) (conj (str (count unsettled) " thread(s) without a settlement reply"))
                   (seq unresolved) (conj (str (count unresolved) " unresolved thread(s)"))
                   (pos? (or review-bodies-unanswered 0)) (conj (str review-bodies-unanswered " unanswered review summary item(s)")))]
     {:pass? (empty? reasons) :head head :reasons reasons :coderabbit cr :checks sums
      :approving-reviewers approved :approval-quorum approval-quorum
-     :review-rounds rounds :unanimous-approval? (boolean unanimous?) :loop-verdict loop-state
+     :review-rounds rounds
      :failing-checks (:failing any-gate) :human-approved? (:human-approved? any-gate)
      :change-requesters (:change-requesters any-gate)}))
 

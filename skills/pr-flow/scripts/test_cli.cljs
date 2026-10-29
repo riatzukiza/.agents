@@ -259,8 +259,9 @@
                  :body "<summary><em>🟡 Minor</em> · Follow-up · <code>x:1</code></summary><!-- cr-comment:v1:abc123 -->"}
         answer {:user {:login "riatzukiza" :type "User"} :created_at "2026-10-03T01:02:00Z"
                 :body "Handled: review-id:20\n- Deferred cr-comment:v1:abc123: issue https://github.com/owner/repo/issues/9"}]
+    ;; Err 2026-10-29: round counts never restrict deferral of non-blocking items.
     (doseq [[minimum rounds] [[2 2] [2 3] [7 6] [7 7] [7 8]]]
-      (let [allowed? (> rounds minimum)
+      (let [allowed? true
             config (assoc base :prior-stage-rounds rounds :allowMutations true
                           :flow-data (assoc-in the-flow [:flow/defaults :review/min-rounds] minimum))
             settle (execute (assoc config :threads [thread]) "settle" "riatzukiza/.agents" "8" "deferred-thread" body)

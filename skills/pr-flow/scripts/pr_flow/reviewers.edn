@@ -42,6 +42,10 @@
    :checks {:names #{"Codex"}}
    :detectors #{:review-receipt-comment :account-quota-notice}
    :request {:mention "@codex review" :pattern "@codex review"}
+   ;; Err 2026-10-29: auto-review on push is off; Codex reviews only when
+   ;; directly requested. Never required or awaited unless named via
+   ;; --reviewers / repo policy; its approval still counts when given.
+   :on-request-only true
    :counts true
    :waived-in #{}}
 

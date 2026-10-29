@@ -58,7 +58,7 @@ pass(h) ⇔ |A(h)| ≥ q            (q = :review/approval-quorum, default 1)
         ∧ (F = ∅ ∨ H(h))
         ∧ G_existing(h)          (exact head, settled findings, mandatory reviewers,
                                   no pending/skipped required checks, artifacts,
-                                  review bodies answered, early-deferral rule)
+                                  review bodies answered)
 ```
 
 As a fold over the evidence stream: each observation contributes a monoid
@@ -107,7 +107,14 @@ flowchart TD
   approver must not be the PR author.
 - **L7 Evidence is verifiable.** Wrong head, schema, approver type, role or
   source, or a missing source id, invalidates `e`.
-- **L8 Rounds and unanimity no longer gate** (reported as `:loop-verdict`).
+- **L8 No round limit, no early-fix obligation.** Round count, unanimity and
+  `:review/min-rounds` never affect the verdict; a non-blocking (P2/P3) item
+  may be deferred in any round. P0/P1 still need a fix or an independently
+  corroborated rejection (severity rule, not a round rule).
+- **L10 Unrequested reviewers are never awaited.** A reviewer outside the
+  mandatory set (e.g. Codex, which runs only on direct request since
+  2026-10-29) that is absent, pending or skipped never blocks; its approval
+  still counts when given.
 - **L9 Purity.** The gate is a deterministic function of its inputs and is
   independent of review order.
 
@@ -143,6 +150,10 @@ qualify. Evidence binds to one head; a push invalidates it.
   non-required check (deterministic or optional reviewer job) now requires
   `H(h)` instead of being ignored (optional reviewer) or unconditionally
   blocking (non-required deterministic).
-- Retained deliberately: the early-deferral settlement rule (verified findings
-  are fixed, not deferred, during the first `:review/min-rounds` rounds). It is
-  a settlement rule, not the convergence exit; flag for Err if it should go too.
+- Removed (Err, 2026-10-29 follow-up): the round limit entirely
+  (`:review/min-rounds`, `loop-verdict` in the gate output, the CLI refusal to
+  send a deferral in early rounds) and the early-round fix-over-defer
+  obligation. Rounds are still counted and printed by `status` for information.
+- Codex: auto-review on push is off; `reviewers.edn` marks it
+  `:on-request-only`. Nothing waits on Codex unless it is named in
+  `--reviewers` or repo policy.

@@ -88,8 +88,32 @@
         (is (:pass? (g e)))
         (is (nil? (law/human-approval-comment->evidence {:id 8 :user (user "err") :body "lgtm"})))))))
 
-(deftest L8-rounds-and-unanimity-no-longer-gate
-  (is (:pass? (gate {:approved-heads {"mimo" #{h}} :rounds 0 :review-participants #{"mimo" "codex"}}))))
+(def deferred-p3 {:id "t" :severity :p3 :resolution :deferred :settled? true :resolved? true
+                  :comments [{:author "x" :body "P3"}]})
+
+(deftest L8-no-round-limit-and-no-early-fix-obligation
+  (doseq [rounds [nil 0 1 4 5 6 50]]
+    (let [g (gate {:approved-heads {"mimo" #{h}} :rounds rounds
+                   :review-participants #{"mimo" "codex"} :min-review-rounds 5})]
+      (is (:pass? g) (pr-str (:reasons g)))
+      (is (not (contains? g :loop-verdict)))))
+  (is (= 0 (law/unanswered-review-count
+            [{:id 5 :user (user "r") :state "COMMENTED" :submitted_at "2026-10-29T01:00:00Z"
+              :body "<summary><em>🟡 Minor</em> · x · <code>x:1</code></summary><!-- cr-comment:v1:m1 -->"}]
+            [{:user (user "w") :created_at "2026-10-29T01:01:00Z"
+              :body "Handled: review-id:5\n- Deferred cr-comment:v1:m1: issue https://github.com/o/r/issues/1"}]
+            {:rounds 0}))
+      "a non-blocking body item may be deferred in round 0"))
+
+(deftest L10-unrequested-reviewer-is-never-awaited
+  ;; Err 2026-10-29: Codex auto-review is off; it runs only when requested.
+  (doseq [checks [green
+                  (conj green {:name "Codex" :state "PENDING" :headSha h})
+                  (conj green {:name "Codex" :state "SKIPPED" :headSha h})]]
+    (is (:pass? (gate {:approved-heads {"mimo" #{h}} :checks checks
+                       :review-participants #{"mimo" "codex"}}))))
+  (is (not (:pass? (gate {:approved-heads {"mimo" #{h}} :required-reviewers #{"codex"}})))
+      "only an explicit request/override makes Codex mandatory"))
 
 (deftest L9-gate-is-a-pure-fold
   (let [in {:reviews [(review (user "err") "APPROVED" h)]}]
