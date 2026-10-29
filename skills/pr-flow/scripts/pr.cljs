@@ -4,13 +4,14 @@
 ;;   nbb -cp <skill>/scripts <skill>/scripts/pr.cljs <command> <owner/repo> <pr> [...]
 ;;
 ;; Commands
-;;   status  REPO PR [--reviewers coderabbit,codex]
-;;                              gate summary: draft, checks, CodeRabbit, threads by severity
+;;   status  REPO PR [--reviewers A,B]   (reviewer ids from pr_flow/reviewers.edn)
+;;                              gate summary: draft, checks, reviewer checks, threads by severity
 ;;   threads REPO PR [--all]    review threads (unresolved by default) with id, severity, settlement
 ;;   wait    REPO PR [--timeout S] [--interval S]
-;;                              poll until CodeRabbit is no longer pending; exit 0 done, 3 rate-limited, 4 timeout
-;;   request REPO PR planning|code [--note TEXT] [--reviewer coderabbit|codex]
-;;                              post an @coderabbitai review request with the matching brief
+;;                              poll until the native-check-state reviewer is no longer pending; exit 0 done, 3 rate-limited, 4 timeout
+;;   request REPO PR planning|code [--note TEXT] [--reviewer ID]
+;;                              post the reviewer's :request :mention with the matching brief
+;;                              (ID must have a :request in reviewers.edn; default is the :default one)
 ;;   settle  REPO PR THREAD-ID BODY
 ;;                              reply to a thread, then resolve it; BODY must open with
 ;;                              Fixed|Deferred|Rejected|Handled (or "-" to read stdin)
@@ -18,7 +19,7 @@
 ;;                              fixed-auth native User + canonical independent Bot evidence;
 ;;                              one resolve POST, no reply, fresh readback/assessment required
 ;;   flow [STATE]               validate flow.edn; print the states, or one state's skill, exit and next states
-;;   gate    REPO PR [--apply] [--method merge|squash|rebase] [--reviewers coderabbit,codex]   (default merge: the user wants merge commits)
+;;   gate    REPO PR [--apply] [--method merge|squash|rebase] [--reviewers A,B]   (default merge: the user wants merge commits)
 ;;                              evaluate the merge gate; with --apply and a pass, mark ready + enable auto-merge
 ;;
 ;; gh auth: runs gh as-is first; if GitHub answers "Resource not accessible by
@@ -39,6 +40,7 @@
             [pr-flow.native-context :as native-context]
             [pr-flow.native-context-law :as native-context-law]
             [pr-flow.permissions :as permissions]
+            [pr-flow.inventory :as inv]
             [pr-flow.kimi-native :as kimi-native]
             [pr-flow.law :as law]
             [pr-flow.semantic-runtime :as semantic-runtime]
@@ -181,12 +183,12 @@
     (when-not (and (vector? pages) (every? vector? pages) (every? map? (mapcat identity pages)))
       (throw (ex-info "Historical CodeRabbit check history unavailable or incomplete" {:head head})))
     (mapv (fn [s]
-            {:name "CodeRabbit" :state (str/upper-case (str (:state s))) :headSha (:sha commit)
+            {:name (inv/primary-check-name (inv/with-detector :native-check-state)) :state (str/upper-case (str (:state s))) :headSha (:sha commit)
              :workflow "" :description (:description s) :startedAt (:created_at s)
              :completedAt (when-not (= "pending" (:state s)) (:updated_at s))
              :native-id (:id s) :source-channel :github-commit-status :source-url (:url s)})
-          (filter #(and (= "CodeRabbit" (:context %))
-                        (= "coderabbit" (law/trusted-reviewer {:user (:creator %)} (reviewer-identities)))
+          (filter #(and (contains? (inv/check-names (inv/with-detector :native-check-state)) (:context %))
+                        (= (inv/with-detector :native-check-state) (law/trusted-reviewer {:user (:creator %)} (reviewer-identities)))
                         (integer? (:id %)) (pos? (:id %))
                         (string? (:created_at %)) (string? (:updated_at %))
                         (not (js/isNaN (js/Date.parse (:created_at %))))
@@ -218,11 +220,44 @@
   "Bind the latest native body edit to the same REST positive review. Missing
    or changed source custody cannot fall back to submission-only settlement."
   [review]
-  (if (and (= "coderabbit" (law/trusted-reviewer review (reviewer-identities)))
+  (if (and (inv/has? (law/trusted-reviewer review (reviewer-identities)) :risk-coverage-comment)
            (= "COMMENTED" (:state review))
            (some :positive-body-item (law/review-findings review)))
     (native-context/hydrate-review-update gh-json review)
     review))
+
+;; --- review artifacts ------------------------------------------------------
+
+(defn- run-id-of [check]
+  (second (re-find #"/actions/runs/([0-9]+)(?:/|$)" (str (:link check)))))
+
+(defn fetch-artifact-verdicts
+  "For every inventory reviewer with the :check-artifact detector, read the
+   exact-head review artifact of its completed check run. Absent artifacts
+   yield no verdict (never approval); unreadable ones fail closed as nil."
+  [repo head checks]
+  (into {}
+        (for [[id r] inv/reviewers
+              :when (inv/has? id :check-artifact)
+              :let [{:keys [name-prefix file]} (:artifact r)
+                    runs (distinct (keep #(when (and (= id (inv/check-reviewer %)) (= head (:headSha %))) (run-id-of %)) checks))
+                    verdict (last (keep (fn [run]
+                                          (try
+                                            (let [arts (:artifacts (gh-json "api" (str "repos/" repo "/actions/runs/" run "/artifacts")))
+                                                  art (last (sort-by :created_at (filter #(and (str/starts-with? (str (:name %)) name-prefix) (not (:expired %))) arts)))]
+                                              (when art
+                                                (let [dir (fs/mkdtempSync (path/join (.tmpdir (js/require "os")) "pr-flow-artifact-"))]
+                                                  (try
+                                                    (gh! "run" "download" (str run) "-R" repo "-n" (:name art) "-D" dir)
+                                                    (let [found (->> (fs/readdirSync dir #js {:recursive true})
+                                                                     (map str) (filter #(= file (path/basename %))) first)]
+                                                      (when found
+                                                        (law/artifact-verdict head (js->clj (js/JSON.parse (str (fs/readFileSync (path/join dir found) "utf8"))) :keywordize-keys true))))
+                                                    (finally (fs/rmSync dir #js {:recursive true :force true}))))))
+                                            (catch :default _ nil)))
+                                        runs))]
+              :when verdict]
+          [id verdict])))
 
 (defn fetch-heads
   "Collect hosted approval, commit binding and incomplete scope separately."
@@ -236,7 +271,7 @@
         raw-comments (fetch-issue-comments repo n)
         comments (mapv
                   (fn [c]
-                    (if (and (= "codex" (law/trusted-reviewer c (reviewer-identities)))
+                    (if (and (inv/has? (law/trusted-reviewer c (reviewer-identities)) :review-receipt-comment)
                              (law/codex-positive-body? (:body c)))
                       (let [markers (map second (re-seq #"(?m)^\*\*Reviewed commit:\*\* `([0-9a-f]{10,40})`\s*$" (str (:body c))))]
                         (if (= 1 (count markers))
@@ -251,7 +286,8 @@
                                                      (authorized? (get-in % [:user :login])))) comments)
         historical (sort (disj (law/coderabbit-issue-completion-heads round-comments (reviewer-identities)) head))
         completion-checks (into checks (mapcat #(fetch-historical-coderabbit-checks repo %) historical))]
-    (assoc (law/review-evidence head reviews comments (reviewer-identities) checks) :head head
+    (assoc (law/merge-artifact-evidence (law/review-evidence head reviews comments (reviewer-identities) checks)
+                                        (fetch-artifact-verdicts repo head checks)) :head head
            :reviews reviews :comments comments :raw-comments raw-comments :checks checks
            :completion-checks completion-checks)))
 
@@ -294,6 +330,24 @@
       (catch :default e
         (if (re-find #"HTTP 404|Not Found" (ex-message e)) false (throw e))))))
 
+(defn- human-approval-context
+  "Inputs for the any-approval gate: native human-approval evidence parsed from
+   issue comments, and the observed repository role of every human login that
+   approved or published evidence. Roles are read from GitHub, never claimed."
+  [repo {:keys [reviews raw-comments]}]
+  (let [evidence (vec (keep law/human-approval-comment->evidence raw-comments))
+        logins (distinct (concat (keep #(when (and (= "User" (get-in % [:user :type]))
+                                                   (= "APPROVED" (str/upper-case (str (:state %)))))
+                                          (get-in % [:user :login])) reviews)
+                                 (map :approver evidence)))
+        role (fn [login]
+               (when (and login (not (law/bot? login)))
+                 (try (:permission (gh-json "api" (str "repos/" repo "/collaborators/" login "/permission")))
+                      (catch :default e
+                        (if (re-find #"HTTP 404|Not Found" (ex-message e)) nil (throw e))))))]
+    {:human-approval-evidence evidence
+     :maintainers (into {} (keep (fn [l] (when-let [r (role l)] [l r]))) logins)}))
+
 (defn review-bodies-unanswered
   "Every provider's identified or body-only findings need authorized,
    itemized settlements, using the same review snapshot as approval evidence."
@@ -327,14 +381,14 @@
                                                 :identities identities :now-ms (js/Date.now)})
         participants (:review-participants availability)
         completed (law/completed-review-rounds (filter full-review? reviews) comments identities completion-checks)
-        proven-issue-heads (set (keep #(when (and (= "coderabbit" (:reviewer %)) (= :issue (:round-source %)))
+        proven-issue-heads (set (keep #(when (and (inv/has? (:reviewer %) :native-check-state) (= :issue (:round-source %)))
                                         (:commit_id %))
                                      (law/completed-review-rounds [] comments identities completion-checks)))]
     {:rounds (law/available-review-rounds completed markers stage configured participants head)
      :review-participants participants :stage stage
      :review-availability (:review-availability availability)
      :unverified-issue-completion-heads (remove proven-issue-heads (law/coderabbit-issue-completion-heads comments identities))
-     :min-review-rounds (get-in (load-flow) [:flow/defaults :review/min-rounds] 5)}))
+     }))
 
 ;; --- output ---------------------------------------------------------------
 
@@ -382,9 +436,11 @@
                            (select-keys final-progress [:rounds :stage :review-participants :review-availability]))
                      (not= (select-keys heads [:head :reviews :comments :checks :completion-checks])
                            (select-keys final-snapshot [:head :reviews :comments :checks :completion-checks])))
-        gate (assoc (law/merge-gate (merge heads progress
+        gate (assoc (law/merge-gate (merge heads progress (human-approval-context repo heads)
                                     {:threads threads :checks checks :incomplete? incomplete?
                                      :required-reviewers reviewers
+                                     :pr-author (:pr-author thread-snapshot)
+                                     :waived (inv/waived-for repo)
                                      :snapshot-head (:head final-snapshot)
                                      :approval-quorum (get-in (load-flow) [:flow/defaults :review/approval-quorum] 1)
                                      :review-bodies-unanswered summary-items})) :draft? draft?)
@@ -393,15 +449,16 @@
     (println (str repo "#" n (when draft? "  [draft]") "  head " (subs (:head heads) 0 7)))
     (when-not (:actionability-history-available? thread-snapshot)
       (println "  actionability history: UNAVAILABLE; threads retain finding obligations"))
-    (println (str "  coderabbit: " (name (:coderabbit gate)) "   checks: " (pr-str (:checks gate))))
+    (println (str "  " (inv/with-detector :native-check-state) ": " (name (:coderabbit gate)) "   checks: " (pr-str (:checks gate))))
     (println (str "  threads: " (count threads) " total, " (count (remove :resolved? threads)) " unresolved; by severity "
                   (pr-str (frequencies (map :severity (filter law/finding-obligation? (remove :resolved? threads)))))
                   "; informational " (count (remove law/finding-obligation? threads))))
     (doseq [{:keys [id semantic-diagnostic]} threads :when semantic-diagnostic]
       (println (str "  semantic id=" id " " (pr-str (select-keys semantic-diagnostic [:status :reason])))))
     (println (str "  exact-head approvals: " (pr-str (:approving-reviewers gate)) "  observed commit binding: " (pr-str (:reviewed-heads heads))))
+    (println (str "  failing checks: " (pr-str (:failing-checks gate)) "  human maintainer approval on head: " (:human-approved? gate)))
     (println (str "  completed " (:stage progress) " rounds: " (:rounds progress)
-                  " / soft minimum " (:min-review-rounds progress)
+                  " (informational; rounds never gate)"
                   "  participants: " (pr-str (:review-participants progress))))
     (doseq [[provider observation] (sort-by key (:review-availability progress))
             :when (not (:available? observation))]
@@ -410,12 +467,12 @@
                     " retry-at-ms " (or (:retry-at-ms observation) "UNKNOWN")
                     (when (:mandatory? observation) " [mandatory; still required]"))))
     (when (seq (:unverified-issue-completion-heads progress))
-      (println (str "  CodeRabbit issue completions without successful exact-commit check evidence: "
+      (println (str "  " (inv/with-detector :native-check-state) " issue completions without successful exact-commit check evidence: "
                     (pr-str (sort (:unverified-issue-completion-heads progress))))))
     (when (seq (:incomplete-evidence heads))
       (println (str "  incomplete review scope: " (pr-str (:incomplete-evidence heads)))))
     (doseq [r (:reviews heads) :when (:kimi-publication-error r)]
-      (println (str "  Kimi publication proof: " (name (:kimi-publication-error r)) " native review " (:id r))))
+      (println (str "  " (str/capitalize (inv/with-detector :native-publication)) " publication proof: " (name (:kimi-publication-error r)) " native review " (:id r))))
     (doseq [r (:reviews heads) :when (:positive-review-update-error r)]
       (println (str "  positive review edit custody: " (name (:positive-review-update-error r)) " native review " (:id r))))
     (println (str "  gate: " (if (:pass? gate) "PASS" "BLOCKED")))
@@ -425,22 +482,22 @@
 ;; --- writes ---------------------------------------------------------------
 
 (def briefs
-  {"planning" (str "@coderabbitai full review\n\n"
+  {"planning" (str "{mention}\n\n"
                    "This PR carries agile artifacts. Review it like sprint planning: "
                    "(1) is the outcome and scope clear, (2) are acceptance criteria testable, "
                    "(3) is each estimate fair or should a card split into substories, "
                    "(4) are epic/parent/blocked_by links correct and complete, "
                    "(5) what risks or non-goals are missing. Label each finding P0-P3.")
-   "code" (str "@coderabbitai full review\n\n"
+   "code" (str "{mention}\n\n"
                "Review the implementation against the card's laws and acceptance criteria. "
                "Label each finding P0-P3. During the first five rounds we prefer verified fixes of every priority. "
-               "An outright rejection requires detailed reasoning and independent agreement by another agent besides CodeRabbit.")})
+               "An outright rejection requires detailed reasoning and independent agreement by another agent besides {non-independent}.")})
 
 (declare load-flow)
 
 (defn request [repo n kind note reviewer]
-  (when-not (#{"coderabbit" "codex"} reviewer)
-    (throw (ex-info "MiMo/Kimi must use their configured hosted workflows; CLI evidence cannot impersonate a GitHub review" {:reviewer reviewer})))
+  (when-not (inv/requestable reviewer)
+    (throw (ex-info "This reviewer has no :request in reviewers.edn; it must use its configured hosted workflow. CLI evidence cannot impersonate a GitHub review" {:reviewer reviewer})))
   (let [heads (fetch-heads repo n)
         head (:head heads)
         comments (mapv (fn [c]
@@ -455,7 +512,10 @@
                                       :round (inc rounds) :stage kind
                                       :now-ms (js/Date.now) :identities (reviewer-identities)})
         brief (or (get briefs kind) (throw (ex-info "kind must be planning|code" {:kind kind})))
-        brief (if (= reviewer "codex") (str/replace brief "@coderabbitai full review" "@codex review") brief)
+        brief (-> brief
+                  (str/replace "{mention}" (inv/request-mention reviewer))
+                  (str/replace "{non-independent}"
+                               (str/join " or " (sort (filter #(inv/has? % :needs-independent-agreement) (keys inv/reviewers))))))
         body (str brief (when note (str "\n\n" note))
                   "\n\n<!-- pr-flow-stage:" kind " --> <!-- pr-flow-round:" (inc rounds)
                   " --> <!-- pr-flow-review:" head " --> <!-- pr-flow-reviewer:" reviewer " -->")]
@@ -480,13 +540,6 @@
         (throw (ex-info "Thread does not belong to the requested PR" {:repo repo :pr n :thread-id thread-id})))
       (when (:incomplete? snapshot)
         (throw (ex-info "Thread comments were truncated; no settlement sent" {})))
-      (when (= :deferred (law/resolution-of body))
-        (let [heads (fetch-heads repo n)
-              progress (review-progress repo heads
-                                        (law/required-reviewers-for (:flow/defaults (load-flow)) repo nil))]
-          (when (<= (:rounds progress) (:min-review-rounds progress))
-            (throw (ex-info (str "During the first " (:min-review-rounds progress)
-                                 " rounds verified findings should be fixed or independently rejected; no deferral sent") {})))))
       (when (= :rejected (law/resolution-of body))
         (let [author (str/trim (gh! "api" "user" "--jq" ".login"))
               now (.toISOString (js/Date.))
@@ -497,7 +550,7 @@
                                   :created-at now :updated-at now}))]
           (when-not (and (:settled? candidate) (:rejection-approved? candidate)
                          (empty? (law/unsettled-blockers [candidate])))
-            (throw (ex-info "Rejection needs detailed reasoning/evidence and current-head independent non-CodeRabbit agreement; no reply or resolution sent" {})))
+            (throw (ex-info (str "Rejection needs detailed reasoning/evidence and current-head independent agreement from a reviewer other than " (str/join " or " (sort (filter #(inv/has? % :needs-independent-agreement) (keys inv/reviewers)))) "; no reply or resolution sent") {})))
           (when-not (= (:head thread)
                        (str/trim (gh! "pr" "view" (str n) "-R" repo "--json" "headRefOid" "-q" ".headRefOid")))
             (throw (ex-info "PR head changed before rejection; no settlement sent" {})))
@@ -539,15 +592,17 @@
     (when (and apply? (not (:pass? g)))
       (js/process.exit 2))))
 
+(defn- cs [] (inv/with-detector :native-check-state))
+
 (defn wait [repo n timeout interval]
   (let [deadline (+ (js/Date.now) (* 1000 timeout))]
     (letfn [(tick []
               (let [checks (fetch-checks repo n)
                     st (law/coderabbit-state (law/latest-checks (:headSha (first checks)) checks))]
                 (cond
-                  (#{:completed :skipped :failed} st) (do (println (str "coderabbit " (name st))) (js/process.exit 0))
-                  (= st :rate-limited) (do (println "coderabbit rate-limited") (js/process.exit 3))
-                  (> (js/Date.now) deadline) (do (println (str "timeout; coderabbit " (name st))) (js/process.exit 4))
+                  (#{:completed :skipped :failed} st) (do (println (str (cs) " " (name st))) (js/process.exit 0))
+                  (= st :rate-limited) (do (println (str (cs) " rate-limited")) (js/process.exit 3))
+                  (> (js/Date.now) deadline) (do (println (str "timeout; " (cs) " " (name st))) (js/process.exit 4))
                   :else (js/setTimeout tick (* 1000 interval)))))]
       (tick))))
 
@@ -949,7 +1004,7 @@
         "threads" (let [{:keys [threads]} (fetch-threads repo n)]
                     (print-threads (if (some #{"--all"} more) threads (remove :resolved? threads))))
         "wait" (wait repo n (timing-flag more "--timeout" "1800") (timing-flag more "--interval" "30"))
-        "request" (request repo n (first more) (flag more "--note" nil) (flag more "--reviewer" "coderabbit"))
+        "request" (request repo n (first more) (flag more "--note" nil) (flag more "--reviewer" inv/default-request))
         "settle" (settle repo n (first more) (second more))
         "resolve-informational" (let [r (resolve-informational repo n (first more) (second more) (drop 2 more))]
                                   (prn r)

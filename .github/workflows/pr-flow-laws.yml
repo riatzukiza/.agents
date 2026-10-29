@@ -39,8 +39,10 @@ jobs:
       - name: Run pure laws and isolated CLI boundary tests
         run: |
           npm exec --yes --package=nbb@1.3.204 -- nbb -cp skills/pr-flow/scripts skills/pr-flow/scripts/test_law.cljs
+          npm exec --yes --package=nbb@1.3.204 -- nbb -cp skills/pr-flow/scripts skills/pr-flow/scripts/test_inventory.cljs
           npm exec --yes --package=nbb@1.3.204 -- nbb -cp skills/pr-flow/scripts skills/pr-flow/scripts/test_native_dl.cljs
           npm exec --yes --package=nbb@1.3.204 -- nbb -cp skills/pr-flow/scripts skills/pr-flow/scripts/test_policy.cljs
+          npm exec --yes --package=nbb@1.3.204 -- nbb -cp skills/pr-flow/scripts skills/pr-flow/scripts/test_any_approval.cljs
           npm exec --yes --package=nbb@1.3.204 -- nbb -cp skills/pr-flow/scripts skills/pr-flow/scripts/test_raw_review.cljs
           npm exec --yes --package=nbb@1.3.204 -- nbb -cp skills/pr-flow/scripts skills/pr-flow/scripts/test_semantic_repair.cljs
           npm exec --yes --package=nbb@1.3.204 -- nbb -cp skills/pr-flow/scripts skills/pr-flow/scripts/test_semantic_transport.cljs

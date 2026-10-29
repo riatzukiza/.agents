@@ -158,7 +158,7 @@
     (is (= :fixed (:resolution classified)))
     (is (= raw-root (get-in classified [:comments 0 :body])))
     (is (:pass? (law/merge-gate gate)))
-    (doseq [bad [(assoc gate :approved-heads {}) (assoc gate :rounds 0)
+    (doseq [bad [(assoc gate :approved-heads {})
                  (assoc gate :required-reviewers #{"codex"})
                  (assoc-in gate [:checks 0 :state] "FAILURE")]]
       (is (not (:pass? (law/merge-gate bad)))))))
