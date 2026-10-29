@@ -23,8 +23,7 @@
  ;; - Review sources (who they are, how they are requested, which repos waive
  ;;   them) are listed in scripts/pr_flow/reviewers.edn. That inventory does
  ;;   not dispatch invitations or prove provider availability.
- :flow/defaults {:review/min-rounds 5       ; soft minimum, user correction 2026-10-03
-                 :review/approval-quorum 1
+ :flow/defaults {:review/approval-quorum 1
                  :review/required #{}
                  :review/by-repo-name {}
                  ;; Source preparation: one observed route, not global Kimi identity.
@@ -100,7 +99,7 @@
    :inputs [:card/plan]
    :outputs [:pr/open-no-automerge :review/rounds]
    :cli ["pr.cljs request REPO PR planning" "pr.cljs wait REPO PR" "pr.cljs threads REPO PR"]
-   :exit "Every planning finding settled and resolved; at least five completed review rounds or unanimous current-head approval. Five is not a stopping cap."}
+   :exit "Every planning finding settled and resolved. No round minimum or cap (Err 2026-10-29)."}
 
   :card-ready
   {:skill "pr-sprint-planning"
@@ -125,13 +124,13 @@
 
   :code-review
   {:skill "pr-review-settlement"
-   :doc "Continue review until all findings are settled and at least five review rounds have completed, or available agents unanimously approve the current head. In the first five rounds prefer verified fixes of every priority; rejection needs detailed evidence and independent non-CodeRabbit agreement."
+   :doc "Continue review until all findings are settled and resolved; round counts no longer gate merging (any-approval rule, 2026-10-29). Non-blocking findings may be fixed or deferred in any round; rejection needs detailed evidence and independent non-CodeRabbit agreement."
    :cli ["pr.cljs request REPO PR code" "pr.cljs wait REPO PR" "pr.cljs threads REPO PR" "pr.cljs settle REPO PR THREAD BODY"]
-   :exit "All findings settled and resolved, review-body items answered, and law/loop-verdict converged; at least five completed review rounds or unanimous current-head approval."}
+   :exit "All findings settled and resolved and review-body items answered. Round counts and law/loop-verdict are reported but no longer gate (any-approval rule, 2026-10-29; see merge-gate.md)."}
 
   :merge-gate
   {:skill "pr-review-to-merge"
-   :doc "One trusted exact-head approval or verified completed passing verdict, mandatory overrides, passing deterministic/required CI and settled findings → authorized exact-head merge."
+   :doc "Any-approval rule (2026-10-29, merge-gate.md): ≥1 approval on the exact head from any reviewer (trusted bot evidence or any human, Err included); no standing CHANGES_REQUESTED; no unresolved thread; no failing required check; any failing check at all needs a human maintainer (admin/maintain) approval or pr-flow.human-approval/v1 evidence on the head; mandatory overrides and settled findings still apply → authorized exact-head merge."
    :cli ["pr.cljs gate REPO PR --apply"]
    :exit "Auto-merge enabled, or a direct merge performed, on the exact head that passed the gate."}
 

@@ -420,10 +420,14 @@
     (is (:pass? (gated {:threads [settled] :checks done})))
     (is (not (:pass? (gated {:threads [(assoc (law/classify-thread (thread "_🟡 Minor_")) :resolved? true)] :checks done}))))
     (doseq [check [{:name "CodeRabbit" :state "SUCCESS" :description "Review rate limited"}
-                   {:name "CodeRabbit" :state "SUCCESS" :description "Review skipped"}
-                   {:name "CodeRabbit" :state "FAILURE" :description "Review failed"}]]
+                   {:name "CodeRabbit" :state "SUCCESS" :description "Review skipped"}]]
       (is (:pass? (gated {:checks [check]})))
       (is (not (:pass? (gated {:checks [check] :required-reviewers #{"coderabbit"}})))))
+    ;; 2026-10-29: any failing check, even an optional reviewer's, needs a human maintainer.
+    (let [failed {:name "CodeRabbit" :state "FAILURE" :description "Review failed"}]
+      (is (not (:pass? (gated {:checks [failed]}))))
+      (is (:pass? (gated {:checks [failed] :maintainers {"err" "admin"}
+                          :reviews [{:user {:login "err" :type "User"} :state "APPROVED" :commit_id gate-head}]}))))
     (is (not (:pass? (gated {:checks (conj done {:name "lint" :state "FAILURE"})}))))
     (is (not (:pass? (gated {:checks done :approved-heads {"mimo" #{(apply str (repeat 40 "b"))}}}))))
     (is (not (:pass? (gated {:checks done :required-reviewers #{"coderabbit" "codex"}}))))
@@ -446,19 +450,14 @@
   (is (= :iterate (law/loop-verdict {})))
   (is (= :iterate (law/loop-verdict {:rounds 5 :open-findings 0 :min-review-rounds 6}))))
 
-(deftest merge-gate-enforces-rounds-or-current-head-unanimity
-  (let [participants #{"coderabbit" "codex" "mimo"}
-        approvals (zipmap participants (repeat #{gate-head}))
-        early {:rounds 1 :review-participants participants :approved-heads approvals}]
-    (is (:pass? (gated early)))
-    (is (not (:pass? (gated (assoc early :rounds 0)))))
-    (is (not (:pass? (gated (assoc early :review-participants #{})))))
-    (is (not (:pass? (gated (dissoc early :review-participants)))))
-    (is (not (:pass? (gated (assoc early :approved-heads {"mimo" #{gate-head}})))))
-    (is (not (:pass? (gated (assoc-in early [:approved-heads "codex"] #{(apply str (repeat 40 "b"))})))))
-    (is (not (:pass? (gated (assoc early :review-bodies-unanswered 1)))))
-    (is (:pass? (gated {:rounds 5 :review-participants participants})))
-    (is (not (:pass? (law/merge-gate {:head gate-head :approved-heads {"mimo" #{gate-head}}}))))))
+(deftest merge-gate-no-longer-requires-rounds-or-unanimity
+  ;; Replaced 2026-10-29 by the any-approval rule: one exact-head approval
+  ;; suffices; rounds/unanimity are reported, never gating.
+  (let [participants #{"coderabbit" "codex" "mimo"}]
+    (doseq [rounds [nil 0 1 4]]
+      (is (:pass? (gated {:rounds rounds :review-participants participants}))))
+    (is (not (contains? (gated {:rounds 0 :review-participants participants}) :loop-verdict)))
+    (is (not (:pass? (law/merge-gate {:head gate-head :approved-heads {"mimo" #{(apply str (repeat 40 "b"))}}}))))))
 
 (def rejection-details
   "Reason: Admission rejects nil before this branch, so the proposed guard changes no reachable behavior.\nEvidence: src/domain/shape.cljc:42")
@@ -523,37 +522,30 @@
         (is (:rejection-approved? (law/classify-thread open-code)))
         (is (= "opencode" (:rejection-reviewer (law/classify-thread open-code))))))))
 
-(deftest first-five-rounds-do-not-clear-verified-findings-by-deferral
+(deftest non-blocking-findings-may-be-deferred-in-any-round
+  ;; Err 2026-10-29: no obligation to fix rather than defer in early rounds.
   (let [deferred (assoc (law/classify-thread (thread "P3: docstring correction" "Deferred to issue https://github.com/owner/repo/issues/9")) :resolved? true)]
-    (doseq [rounds [1 4 5]]
-      (is (not (:pass? (gated {:threads [deferred] :rounds rounds
-                              :review-participants #{"mimo"}})))))
-    (is (:pass? (gated {:threads [deferred] :rounds 6})))
+    (doseq [rounds [nil 0 1 4 5 6]]
+      (is (:pass? (gated {:threads [deferred] :rounds rounds :review-participants #{"mimo"}}))))
     (is (not (:pass? (gated {:threads [(assoc deferred :severity :p1)] :rounds 6}))))))
 
-(deftest configured-minimum-governs-thread-and-body-deferrals
+(deftest round-count-never-governs-thread-or-body-deferrals
   (let [deferred (assoc (law/classify-thread (thread "P3: docstring correction" "Deferred to issue https://github.com/owner/repo/issues/9")) :resolved? true)
         review {:id 505 :user {:login "human-reviewer" :type "User"} :state "COMMENTED"
                 :submitted_at "2026-10-03T01:00:00Z"
                 :body "<summary><em>🟡 Minor</em> · Follow-up · <code>x:1</code></summary><!-- cr-comment:v1:abc123 -->"}
         answer {:user {:login "different-writer" :type "User"} :created_at "2026-10-03T01:01:00Z"
                 :body "Handled: review-id:505\n- Deferred cr-comment:v1:abc123: issue https://github.com/owner/repo/issues/9"}]
-    (doseq [minimum [2 5 7] rounds [(dec minimum) minimum (inc minimum)]]
-      (let [allowed? (> rounds minimum)
-            context {:rounds rounds :min-review-rounds minimum}
+    (doseq [minimum [nil 2 5 7] rounds [nil 0 1 5 8]]
+      (let [context {:rounds rounds :min-review-rounds minimum}
             body-count (law/unanswered-review-count [review] [answer] context)]
-        (is (= allowed? (:pass? (gated (assoc context :threads [deferred]
-                                                    :review-participants #{"mimo"})))))
-        (is (= (if allowed? 0 1) body-count))
-        (is (= allowed? (:pass? (gated (assoc context :review-bodies-unanswered body-count
-                                                    :review-participants #{"mimo"})))))
+        (is (:pass? (gated (assoc context :threads [deferred] :review-participants #{"mimo"}))))
+        (is (= 0 body-count))
+        (is (:pass? (gated (assoc context :review-bodies-unanswered body-count))))
         (is (not (:pass? (gated (assoc context :threads [(assoc deferred :severity :p1)])))))))
-    (is (= 1 (law/unanswered-review-count [review] [answer] {:rounds 5})))
-    (is (= 0 (law/unanswered-review-count [review] [answer] {:rounds 6})))
-    (is (= 1 (law/unanswered-review-count [review] [answer] {:min-review-rounds 2})))
     (is (= 1 (law/unanswered-review-count
               [(update review :body #(str/replace % "🟡 Minor" "🟠 Major"))]
-              [answer] {:rounds 8 :min-review-rounds 7})))))
+              [answer] {:rounds 8})))))
 
 (deftest completed-rounds-require-the-whole-configured-cohort
   (let [participants #{"coderabbit" "codex" "mimo"}
@@ -733,10 +725,9 @@
           ;; Test-only approval isolates quorum from the already admitted settlement.
           approved-context (assoc gate-context :approved-heads {"mimo" #{positive-head}})]
       (is (not (:pass? gate)))
-      (is (= ["No trusted exact-head APPROVED review meets the quorum"] (:reasons gate)))
+      (is (= ["No exact-head approval meets the quorum"] (:reasons gate)))
       (is (:pass? (law/merge-gate approved-context)))
-      (is (= ["35 unanswered review summary item(s)"
-              "Review loop requires 5 completed rounds or unanimous current-head approval, with every finding settled"]
+      (is (= ["35 unanswered review summary item(s)"]
              (:reasons (law/merge-gate
                         (assoc approved-context :review-bodies-unanswered
                                (law/unanswered-review-count [native-positive-review] []

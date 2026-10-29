@@ -85,11 +85,12 @@
                                                    ": verified fix or scoped follow-up https://example.invalid/issues/9")))))}
         comments (conj corroboration answer)]
     (is (= 49 (law/unanswered-review-count [review] [])))
-    (is (= 16 (law/unanswered-review-count [review] comments)))
+    ;; Err 2026-10-29: P2 deferrals count in any round (no early-fix obligation).
+    (is (= 2 (law/unanswered-review-count [review] comments)))
     (is (= 2 (law/unanswered-review-count [review] [answer] context)))
     (is (= 0 (law/unanswered-review-count [review] comments context)))
-    (doseq [rounds [1 4 5]]
-      (is (= 14 (law/unanswered-review-count [review] comments (assoc context :rounds rounds)))))
+    (doseq [rounds [nil 0 1 4 5]]
+      (is (= 0 (law/unanswered-review-count [review] comments (assoc context :rounds rounds)))))
     (is (= 33 (law/unanswered-review-count [review]
                                           (conj corroboration (update answer :body str/replace "Fixed" "Deferred")) context)))
     (is (= 49 (law/unanswered-review-count [review]

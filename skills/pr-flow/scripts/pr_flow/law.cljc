@@ -1197,9 +1197,8 @@
                             (case (str/lower-case verb)
                               "fixed" true
                               "handled" (or (not (blocking? severity)) (positive-handled? review writer finding context))
-                              "deferred" (and (not (blocking? severity))
-                                              (integer? (:rounds context))
-                                              (> (:rounds context) (or (:min-review-rounds context) default-min-review-rounds)))
+                              ;; Any round (Err 2026-10-29): non-blocking items may be deferred.
+                              "deferred" (not (blocking? severity))
                               "rejected" (some? (rejection-evidence (:head context)
                                                                    (or (:identities context) default-reviewer-identities)
                                                                    (:pr-author context) (vec comments) settlement-index
@@ -1877,24 +1876,144 @@
                                        (assoc-in [:artifact-findings p] v))))
           evidence (filter (fn [[_ v]] (some? v)) verdicts)))
 
+
+;; --- any-approval gate (Err, 2026-10-29) -----------------------------------
+;; Objects: head h; reviews R; checks C; threads T; maintainers M (login->role);
+;; human-approval evidence E. See SKILL.md "Merge gate (any-approval rule)".
+
+(def human-approval-schema "pr-flow.human-approval/v1")
+(def maintainer-roles #{"admin" "maintain"})
+(def ^:private decisive-states #{"APPROVED" "CHANGES_REQUESTED" "DISMISSED"})
+
+(defn- review-login [r] (or (get-in r [:user :login]) (:login r)))
+(defn- account-type [r] (or (get-in r [:user :type]) (:type r)))
+(defn- upper [x] (str/upper-case (str x)))
+
+(defn human-account?
+  "A native GitHub User (not Bot, not github-actions, not an inventory bot login)."
+  [login type]
+  (and (string? login) (= "User" type) (not (bot? login))))
+
+(defn decisive-reviews
+  "Fold native reviews to each login's latest decisive state. COMMENTED and
+   PENDING never change standing; DISMISSED clears it. Ties keep input order."
+  [reviews]
+  (into {}
+        (keep (fn [[login rs]]
+                (let [latest (last (sort-by (fn [[i r]] [(or (instant-ms (:submitted_at r)) 0) i])
+                                            (map-indexed vector (filter #(decisive-states (upper (:state %))) rs))))]
+                  (when (and latest (not= "DISMISSED" (upper (:state (second latest)))))
+                    [login (second latest)]))))
+        (group-by review-login (filter review-login reviews))))
+
+(defn current-head-approvers
+  "Human logins whose standing is APPROVED on exactly `head`. Bot approvals
+   enter only through trusted review evidence (`approved-heads`), which keeps
+   scope/incomplete-review revocation; a raw Bot APPROVED adds nothing here."
+  [head reviews]
+  (set (for [[login r] (decisive-reviews reviews)
+             :when (and (= "APPROVED" (upper (:state r))) (valid-head? head) (= head (:commit_id r))
+                        (human-account? login (account-type r)))]
+         login)))
+
+(defn change-requesters
+  "Logins whose standing is CHANGES_REQUESTED, on any head (sticky until the
+   same reviewer approves or the review is dismissed)."
+  [reviews]
+  (set (for [[login r] (decisive-reviews reviews) :when (= "CHANGES_REQUESTED" (upper (:state r)))] login)))
+
+(defn human-approval-comment->evidence
+  "Parse the minimal verifiable approval form from a native issue comment:
+   `<!-- pr-flow-human-approval:v1 head=<40-hex> -->`. GitHub authenticates the
+   author; the gate re-checks the author's role. Returns nil when absent."
+  [comment]
+  (when-let [[_ h] (re-find #"<!--\s*pr-flow-human-approval:v1\s+head=([0-9a-f]{40})\s*-->" (str (:body comment)))]
+    {:schema human-approval-schema :head h
+     :approver (review-login comment) :approver-type (account-type comment)
+     :source {:kind :issue-comment :id (:id comment) :url (:html_url comment)}
+     :at (:created_at comment)}))
+
+(defn human-approval-evidence-valid?
+  "E is valid on h iff schema matches, it binds exactly h, the approver is a
+   native User with observed admin/maintain role, is not the PR author, and
+   the record names a native source (issue comment, review or environment
+   approval) with an id the CLI read from GitHub."
+  [{:keys [head maintainers pr-author]} e]
+  (boolean
+   (and (map? e) (= human-approval-schema (:schema e))
+        (valid-head? head) (= head (:head e))
+        (human-account? (:approver e) (:approver-type e))
+        (maintainer-roles (get maintainers (:approver e)))
+        (not= (some-> pr-author str/lower-case) (str/lower-case (:approver e)))
+        (#{:issue-comment :review :environment-approval} (get-in e [:source :kind]))
+        (some? (get-in e [:source :id])))))
+
+(defn human-maintainer-approved?
+  "A human maintainer's native APPROVED review on h, or valid evidence E on h."
+  [{:keys [head reviews maintainers pr-author human-approval-evidence] :as ctx}]
+  (let [types (into {} (map (juxt review-login account-type) reviews))]
+    (boolean
+     (or (some (fn [login]
+                 (and (human-account? login (types login))
+                      (maintainer-roles (get maintainers login))
+                      (not= (some-> pr-author str/lower-case) (str/lower-case login))))
+               (current-head-approvers head reviews))
+         (some #(human-approval-evidence-valid? ctx %) human-approval-evidence)))))
+
+(defn- failing-state? [c]
+  (#{"failure" "fail" "error" "timed_out" "action_required" "startup_failure"}
+   (str/lower-case (str (:state c)))))
+
+(defn any-approval-gate
+  "pass(h) ⇔ |A(h)| ≥ 1 ∧ X = ∅ ∧ U = ∅ ∧ F_req = ∅ ∧ (F = ∅ ∨ H(h)).
+   A(h): approvers on h (native reviews ∪ trusted bot evidence);
+   X: change requesters; U: unresolved threads; F: failing latest checks;
+   F_req ⊆ F the required ones; H(h): human-maintainer approval/evidence on h.
+   Returns {:pass? :reasons :approvers :failing :human-approved?}."
+  [{:keys [head reviews threads checks bot-approvers] :as ctx}]
+  (let [latest (latest-checks head checks)
+        approvers (into (current-head-approvers head reviews) bot-approvers)
+        blockers (change-requesters reviews)
+        unresolved (remove :resolved? threads)
+        failing (filter failing-state? latest)
+        failing-required (filter :required? failing)
+        human? (human-maintainer-approved? ctx)
+        reasons (cond-> []
+                  (empty? approvers) (conj "No approval on the current head")
+                  (seq blockers) (conj (str "Changes requested by: " (str/join ", " (sort blockers))))
+                  (seq unresolved) (conj (str (count unresolved) " unresolved review thread(s)"))
+                  (seq failing-required) (conj (str (count failing-required) " failing required check(s)"))
+                  (and (seq failing) (not human?))
+                  (conj (str (count failing) " failing check(s) need a human maintainer approval or verifiable human-approval evidence on the current head")))]
+    {:pass? (empty? reasons) :reasons reasons :approvers approvers
+     :change-requesters blockers :failing (mapv :name failing) :human-approved? human?}))
+
 (defn merge-gate
-  "One positive exact-head hosted review is the default quorum. Mandatory
-   reviewer overrides remain all-of; all deterministic checks and findings
-   remain obligations. Observed coverage is never approval."
+  "Any-approval rule (2026-10-29), extending the trusted-evidence gate: any
+   exact-head approval counts (trusted bot evidence or any native APPROVED
+   review); any change request, unresolved thread or failing required check
+   blocks; any failing check at all needs a human maintainer approval or valid
+   human-approval evidence on the current head. Mandatory reviewer overrides
+   remain all-of; findings remain obligations (fix or defer, any round).
+   Review rounds are reported only; they never gate. Observed coverage is never approval."
   [{:keys [threads checks review-bodies-unanswered head snapshot-head
            required-reviewers approved-heads incomplete? approval-quorum
-           rounds review-participants min-review-rounds waived artifact-findings]
+           rounds waived artifact-findings
+           reviews maintainers pr-author human-approval-evidence]
     :or {approval-quorum 1}}]
   ;; A waiver removes obligations (checks, participation, mandatory status,
   ;; artifact blocks); a positive exact-head approval it does give still counts.
   (let [waived (set waived)
         checks (remove #(waived (reviewer-check %)) (latest-checks head checks))
-        review-participants (remove waived review-participants)
         required-reviewers (when required-reviewers (set (remove waived required-reviewers)))
         cr (native-check-state checks)
         mandatory (or required-reviewers #{})
-        approved (set (for [[p heads] approved-heads
-                            :when (and (eligible-reviewers p) (contains? (set heads) head))] p))
+        bot-approved (set (for [[p heads] approved-heads
+                                :when (and (eligible-reviewers p) (contains? (set heads) head))] p))
+        any-gate (any-approval-gate {:head head :reviews reviews :threads threads :checks checks
+                                     :bot-approvers bot-approved :maintainers maintainers
+                                     :pr-author pr-author :human-approval-evidence human-approval-evidence})
+        approved (:approvers any-gate)
         missing (sort (remove approved mandatory))
         obligations (filter #(or (:required? %) (nil? (reviewer-check %))
                                  (mandatory (reviewer-check %))) checks)
@@ -1904,29 +2023,23 @@
         unsettled (remove :settled? findings)
         contested (filter :contested? findings)
         unresolved (remove :resolved? threads)
-        min-rounds (or min-review-rounds default-min-review-rounds)
-        early-deferrals (when (or (not (integer? rounds)) (<= rounds min-rounds))
-                          (filter #(= :deferred (:resolution %)) findings))
-        unanimous? (and (seq review-participants) (every? approved review-participants))
-        open-findings (+ (count (filter #(or (not (:settled? %)) (not (:resolved? %))
-                                             (:contested? %) (some #{%} blockers)
-                                             (some #{%} early-deferrals)) findings))
-                         (or review-bodies-unanswered 0))
-        loop-state (loop-verdict {:rounds rounds :open-findings open-findings
-                                 :unanimous-approval? (boolean unanimous?)
-                                 :min-review-rounds min-rounds})
-        valid-quorum? (and (integer? approval-quorum) (<= 1 approval-quorum (count eligible-reviewers)))
+        valid-quorum? (and (integer? approval-quorum) (<= 1 approval-quorum))
         reasons (cond-> []
                   (not valid-quorum?)
                   (conj "Invalid approval quorum")
                   (not (valid-head? head)) (conj "Missing or invalid exact PR head")
                   (and snapshot-head (not= head snapshot-head)) (conj "PR head changed while collecting evidence")
                   incomplete? (conj "Review data was truncated; refusing a partial view")
-                  (and valid-quorum? (< (count approved) approval-quorum)) (conj "No trusted exact-head APPROVED review meets the quorum")
+                  (and valid-quorum? (< (count approved) approval-quorum)) (conj "No exact-head approval meets the quorum")
                   (seq missing) (conj (str "Missing exact-head approval from mandatory reviewers: " (str/join ", " missing)))
                   (some #(and (reviewer-check %) (not= :completed (native-check-state [(assoc % :name (check-state-name))]))) obligations)
                   (conj "A required reviewer/check is pending, skipped, failed or rate-limited")
-                  (pos? (get sums :fail 0)) (conj (str (get sums :fail) " failing deterministic/required check(s)"))
+                  (seq (:change-requesters any-gate))
+                  (conj (str "Changes requested by: " (str/join ", " (sort (:change-requesters any-gate)))))
+                  (some #(and (:required? %) (failing-state? %)) checks)
+                  (conj (str (count (filter #(and (:required? %) (failing-state? %)) checks)) " failing required check(s)"))
+                  (and (seq (:failing any-gate)) (not (:human-approved? any-gate)))
+                  (conj (str (count (:failing any-gate)) " failing check(s) need a human maintainer approval or verifiable human-approval evidence on the current head"))
                   (pos? (get sums :pending 0)) (conj (str (get sums :pending) " pending deterministic/required check(s)"))
                   (some #(and (:required? %) (#{"skipped" "skipping" "cancelled"} (str/lower-case (str (:state %))))) checks)
                   (conj "A required check was skipped or cancelled")
@@ -1935,15 +2048,15 @@
                              (str/join ", " (for [[p v] (sort-by key artifact-findings) :when (not (waived p))]
                                               (str p " (" (name (:reason v)) (when (pos? (:findings v)) (str ", " (:findings v) " finding(s)")) ")")))))
                   (seq blockers) (conj (str (count blockers) " P0/P1 thread(s) not fixed"))
-                  (seq early-deferrals) (conj (str "Verified findings cannot be deferred during the first " min-rounds " review rounds"))
                   (seq contested) (conj (str (count contested) " disputed settlement(s)"))
                   (seq unsettled) (conj (str (count unsettled) " thread(s) without a settlement reply"))
                   (seq unresolved) (conj (str (count unresolved) " unresolved thread(s)"))
-                  (pos? (or review-bodies-unanswered 0)) (conj (str review-bodies-unanswered " unanswered review summary item(s)"))
-                  (not= :converged loop-state) (conj (str "Review loop requires " min-rounds " completed rounds or unanimous current-head approval, with every finding settled")))]
+                  (pos? (or review-bodies-unanswered 0)) (conj (str review-bodies-unanswered " unanswered review summary item(s)")))]
     {:pass? (empty? reasons) :head head :reasons reasons :coderabbit cr :checks sums
      :approving-reviewers approved :approval-quorum approval-quorum
-     :review-rounds rounds :unanimous-approval? (boolean unanimous?) :loop-verdict loop-state}))
+     :review-rounds rounds
+     :failing-checks (:failing any-gate) :human-approved? (:human-approved? any-gate)
+     :change-requesters (:change-requesters any-gate)}))
 
 ;; Compatibility names (callers written before the reviewer inventory).
 (def coderabbit-state native-check-state)
