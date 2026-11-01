@@ -32,6 +32,55 @@ Routine git and GitHub actions are pre-authorized by the user: commit, push, fet
 
 Still confirm destructive actions: force-push, history rewrite, branch or tag deletion, and closing someone else's PR. Stage explicit paths and never sweep up unrelated dirt.
 
+## Author walkthrough self-review
+
+For every PR you author, after publication and after any substantive revision
+that changes the walkthrough, inspect the exact current head and publish or
+refresh an author self-review. Do this even for drafts; do not wait for a
+reviewer request. First read the existing review, inline threads and overview
+to avoid duplicates. If the head changed during inspection or publication,
+re-read it and reconcile the walkthrough against the new diff before claiming
+coverage. If publication or readback is uncertain, inspect the native PR before
+retrying; do not blindly repost.
+
+When an authorized comment is allowed, submit a **COMMENT** review, not an
+approval, with a concise overview and a
+small number of meaningful inline comments grouped around related changes.
+Navigate from destination/outcome to the parent epic and story/card when these
+exist, with links; otherwise say the work is standalone or the relationship is
+unknown rather than inventing a hierarchy. Describe what actually changed and
+why, key design choices, invariants and risks, verification commands and their
+results for the exact head, and deliberate gaps or follow-ups. Distinguish
+passed, failed, pending, blocked and not-run checks; green checks do not prove
+correctness. Do not expose private information, credentials, or exploit details
+in a public PR. Use the repository's appropriate private security channel when
+needed.
+
+Anchor each inline comment to a relevant changed location and explain a
+non-obvious decision, invariant, risk, or test; avoid a comment on every line.
+If the host cannot anchor a meaningful inline comment, say so in the overview
+and use a precise file/line reference instead. On later heads, inspect existing
+comments first: update your own overview or comments when supported, or add a
+concise correction/follow-up identifying the new head and what changed. Preserve
+history and do not edit others' comments. If nothing relevant changed, do not
+repost unchanged commentary; still verify and report current-head checks and any
+new gaps.
+
+This is author context, **not** formal approval, independent review, finding
+settlement, review-round credit, or permission to merge. An inline author
+walkthrough may create a review thread that the existing gate treats as a
+finding or unresolved blocker. Do not self-resolve it or label it informational
+to bypass that gate; follow [the existing independent disposition
+boundary](actionability.md) and settlement rules. If a separate review is blocked by an existing pending review, never submit,
+discard or edit an existing pending review without explicit authorization.
+Instead, when authorized, use a clearly labeled author-walkthrough overview
+comment with source links to the relevant exact-head locations; report the
+inline-review limitation. Separate informational navigation from discovered
+findings, which retain the normal finding process. If publication is unavailable,
+report the blocker and leave the PR's review and merge gates intact. This skill
+does not itself grant publication or merge permission in a more restrictive
+harness or engagement.
+
 ## The graph
 
 `flow.edn` is the source of truth for the state graph and consumed CLI defaults.

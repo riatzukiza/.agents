@@ -1081,3 +1081,13 @@ The strict root-prefix parser rejected a native User repair after CodeRabbit wra
 ## 2026-10-26T02:14:19.004973+00:00 — Clarification of prior evaluation wording
 
 The earlier shorthand provider429 denotes HTTP 429 from the provider before inference. No judgment, runtime qualification or settlement resulted. The historical entry remains unchanged.
+
+- ts: 2026-11-01T15:45:06Z
+  session: author-walkthrough-workflow
+  task: Extend pr-flow with author self-review walkthroughs
+  p-efficiency: 0.8
+  p-friction: 0.3
+  p-skill-candidate: 0.2
+  spore: none
+  receipt-refs: 2026-11-01T15:45:06Z
+  note: Extend the existing PR skill and keep explanatory author threads separate from independent review and settlement.
