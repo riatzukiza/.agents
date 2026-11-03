@@ -1,19 +1,39 @@
 ---
 name: pr-flow
-description: Entry point for every pull-request interaction. A state machine (flow.edn) that routes muse → standalone card or epic/stories → PR (ready, auto-merge off) with CodeRabbit planning review → ready cards → red (laws, tests) → green (domain, infra) → iterative code review → an exact-head approval quorum → authorized merge, naming the skill, inputs, outputs and exit for each state, with an nbb CLI for the GitHub mechanics.
+description: "Route PR work through native parallel implementation and independent reviewer/skeptic contexts when the harness supports them. Preserve exact-revision evidence, finding settlement, required GitHub checks and authorized merge. Retain the hosted-provider CLI as an explicit compatibility profile."
 license: GPL-3.0-or-later
-metadata:
-  tier: provisional
-  origin: User request 2026-10-01 (foresight session); distilled from Claude Code/OpenCode session logs, receipts and session-mycology spores across ~/spaces.
 ---
 
 # PR flow
+
+Provenance and maturity are retained in [configs/provenance.edn](configs/provenance.edn).
+
+## Default profile: native agent swarms
+
+The user's 2026-11-03 direction makes native harness subagents the preferred
+execution path. Read [native swarm review](native-swarm.md), then use
+`ultra-code` for immutable plans, bounded parallel dispatch, fresh reviewer and
+skeptic contexts, repair and final integration review. The profile is recorded
+in [configs/native-swarm.edn](configs/native-swarm.edn).
+
+Independent PRs run concurrently. One coordinator owns each PR or dependent
+stack, and one writer owns each branch or shared resource. Provider-specific
+planning requests, five-round minimums and global one-active-PR instructions
+in the retained graph or its child skills apply only to the explicitly selected
+hosted-provider profile. Native work uses complete scoped review and evidence
+instead of a fixed provider roster. All actual required GitHub checks/reviews,
+finding dispositions and merge authorization still apply.
+
+The existing `pr.cljs gate` consumes hosted-provider evidence; it cannot consume
+native receipts. Do not manufacture provider approvals to satisfy it. Native
+evidence qualification, actual GitHub requirements and publication are separate
+observations. See [execution instructions](references/INSTRUCTIONS.md).
 
 ## Use this skill when
 
 - You create, review, reply on, update, or merge **any** pull request.
 - The user muses about work that will become cards and PRs.
-- You resume PR work from a previous session (run `pr.cljs status` first).
+- You resume PR work from a previous session (inspect the selected profile's retained run and the current PR head; use `pr.cljs status` for the hosted profile).
 
 ## Do not use this skill when
 
@@ -32,7 +52,7 @@ Routine git and GitHub actions are pre-authorized by the user: commit, push, fet
 
 Still confirm destructive actions: force-push, history rewrite, branch or tag deletion, and closing someone else's PR. Stage explicit paths and never sweep up unrelated dirt.
 
-## The graph
+## Hosted-provider graph (explicit compatibility profile)
 
 `flow.edn` is the source of truth for the state graph and consumed CLI defaults.
 Run `pr.cljs flow` to print it, or `pr.cljs flow <state>` for one state's skill,
@@ -96,7 +116,12 @@ POST, retains actual outcome/readback and revocation observations, and requires
 a new resolved-scope assessment. Source preparation must be protected and
 adopted before use; no settlement, approval or round credit is supplied.
 
-## Hard-won rules
+## Hosted-provider rules and shared publication safeguards
+
+Provider identities, invitations, availability cohorts and round counts below
+describe the legacy CLI profile. Integrity, authorization, required checks,
+finding settlement and truthful publication apply to both profiles. The native
+profile is governed by [native-swarm.md](native-swarm.md).
 
 - **gh auth.** A fine-grained `GH_TOKEN` can push but may fail `createPullRequest` with "Resource not accessible by personal access token". The CLI retries with the token unset so gh uses its keyring login. For raw `gh`, use `env -u GH_TOKEN -u GITHUB_TOKEN gh …`.
 - **Approval quorum.** After the review minimum is reached, one trusted exact-head GitHub `APPROVED` review or explicit completed passing/no-issues verdict from CodeRabbit, Codex, MiMo or Kimi satisfies the default approval quorum. Before that minimum, the loop can exit early only when at least one round has completed, every available review agent approves the current head, and every finding is settled. A COMMENTED state alone, coverage alone, `CHANGES_REQUESTED`, acknowledgements and stale reviews do not qualify. All four remain invited. All findings from every reviewer must be settled; required CI and evidence gates must pass.

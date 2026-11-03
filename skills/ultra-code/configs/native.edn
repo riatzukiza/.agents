@@ -1,0 +1,14 @@
+{:profile/id :ultra-code/native-swarm-v1
+ :execution/preference [:native-background :native-foreground :explicit-legacy]
+ :execution/discovery :actual-session-capabilities
+ :review/context :fresh
+ :review/expected-roster :fixed-before-dispatch
+ :review/skeptic-scope :each-reviewer-including-empty-findings
+ :review/provider-roster :not-required
+ :review/fixed-minimum-rounds nil
+ :repair/default-max-rounds 3
+ :repair/exhaustion :replan-or-record-concrete-blocker
+ :writes/ownership :one-writer-per-resource
+ :integration/review :fresh-final-snapshot
+ :publication/authority :actual-repository-policy
+ :configuration/status :coordinator-policy-data}

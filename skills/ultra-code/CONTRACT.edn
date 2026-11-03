@@ -1,0 +1,26 @@
+{:contract/version 2
+ :contract/id :ultra-code/native-swarm
+ :origin :user-request-2026-11-03
+ :execution/default :native-harness
+ :execution/fallback :explicit-qualified-adapter
+ :workflow/data :immutable-edn
+ :workflow/dispatch :actual-host-capabilities
+ :workflow/expected-jobs :explicit-fixed-roster
+ :workflow/readiness :successful-dependencies-and-capacity
+ :review/context :fresh-separate-from-implementation
+ :review/roles [:reviewer :skeptic]
+ :review/evidence :source-and-plan-bound
+ :review/unknown :incomplete
+ :review/round-count :no-fixed-minimum
+ :review/repair :bounded-with-unresolved-exit
+ :writes/authority :one-writer-per-resource
+ :integration/qualification :final-combined-snapshot
+ :publication/principal :observed-authenticated-account
+ :publication/approval :actual-repository-policy
+ :validator/scope :supplied-evidence-not-authentication
+ :legacy {:source-preserved true :default false :qualification :not-established}
+ :requirements ["Honor active user instructions and applicable repository rules"
+                "Do not erase failed, skipped, cancelled, incomplete or stale attempts"
+                "Do not fabricate host execution, read-only enforcement or GitHub approval"
+                "Keep current required checks, findings settlement and protected publication"
+                "Preserve historical evidence and immutable source inputs"]}

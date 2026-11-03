@@ -1,0 +1,22 @@
+{:profile/id :pr-flow/native-swarm-v1
+ :profile/decision-source "User request 2026-11-03"
+ :profile/default-when :native-subagents-observed
+ :profile/implementation :assistant-coordinated
+ :profile/dispatch-skill "ultra-code"
+ :profile/legacy-cli "flow.edn and scripts/pr.cljs"
+ :profile/native-receipt-cli-import false
+ :ownership/coordinator :per-pr-or-dependent-stack
+ :ownership/writer :per-branch-or-shared-resource
+ :parallelism :independent-ready-jobs
+ :review/roles [:reviewer :skeptic]
+ :review/context :fresh
+ :review/fixed-minimum-rounds nil
+ :review/required-coverage :all-declared-jobs-and-findings
+ :review/repair-boundary :new-immutable-input
+ :integration/review :final-combined-snapshot
+ :github/requirements :actual-required-checks-and-approvals
+ :github/local-context-is-principal false
+ :merge/authorization :separate-user-scope
+ :merge/head-binding :exact-current-head
+ :unknown/status :unresolved}
+

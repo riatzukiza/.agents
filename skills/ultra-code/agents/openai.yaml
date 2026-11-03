@@ -1,0 +1,4 @@
+interface:
+  display_name: "UltraCode"
+  short_description: "Parallel agents with independent review and evidence"
+  default_prompt: "Use $ultra-code to coordinate native agents, independent reviews and verification for this change."

@@ -30,7 +30,13 @@ The repository is not a bag of prompts. It is an operating substrate:
 | [`grok-intention`](skills/grok-intention/SKILL.md) | Recover compressed intent from prompts, notes, and repository context. |
 | [`sing-the-songs-of-your-people`](skills/sing-the-songs-of-your-people/SKILL.md) | Produce truthful synthesis in the native voice of the corpus. |
 | [`skill-authoring`](skills/skill-authoring/SKILL.md) | Create and revise scoped, reusable skills. |
-| [`pr-flow`](skills/pr-flow/SKILL.md) | Route every pull-request interaction through one state machine: muse, plan, planning review, red, green, code review, merge. |
+| [`pr-flow`](skills/pr-flow/SKILL.md) | Route PR work through native swarm review or the explicit hosted-provider profile, with exact-head evidence and authorized merge. |
+| [`ultra-code`](skills/ultra-code/SKILL.md) | Execute native parallel agents with independent reviewer/skeptic contexts and durable, revision-bound evidence. |
+
+For concurrent agent work, use PR flow's [native swarm profile](skills/pr-flow/native-swarm.md).
+It permits independent PRs to progress together and keeps one writer per shared
+resource. The hosted-provider CLI remains an explicit compatibility profile;
+actual required GitHub checks and approvals continue to govern publication.
 
 These are substrate skills, not a mandatory bundle to load on every turn. Explicit invocation wins; otherwise the active agent should select the smallest relevant set.
 
@@ -146,3 +152,4 @@ Under the global contract:
 - services and standalone applications are released under GNU GPL v3 or later.
 
 Individual imported skills may retain their upstream license metadata.
+

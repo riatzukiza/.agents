@@ -1,70 +1,81 @@
 ---
-name: ultra-code
-description: Evidence-gated dynamic workflows for opencode. EDN-defined orchestration executed out-of-conversation by scripts/ultra.bb with content-hash journaled, resumable subagent fan-out. Use for adversarial review waves, multi-card audits, and any task needing plan -> fan-out -> skeptic-verify -> verdict topology. Self-contained global port of the eta-mu ultracode skill.
+name: "ultra-code"
+description: "Coordinate parallel implementation, independent review and skeptic subagents using the active harness. Persist EDN plans and revision-bound evidence, validate completeness, and review the integrated result. Prefer native foreground or background agents; use the legacy OpenCode/Babashka runner only when explicitly selected."
 ---
 
-# ultra-code
+# UltraCode
 
-Dynamic workflows are DATA, not prompting theater. The durable orchestration plan lives in an EDN workflow file; execution lives in `scripts/ultra.bb` (babashka); every agent dispatch is journaled by content hash so interrupted runs resume exactly where they stopped.
+Use the active harness to execute an explicit dependency graph. Keep the plan and evidence durable; let the harness own spawning, concurrency, notification, waiting and cancellation. Native subagents do not require a second OpenCode process, a background shell workaround, a hosted reviewer, or a separate service.
 
-## Layout of this pack
+Read [execution instructions](references/INSTRUCTIONS.md) and the [native evidence format](references/native-schema.md). Use [harness adapters](references/harness-adapters.md) only for the current host. The operating contract is [CONTRACT.edn](CONTRACT.edn); [qualification configuration](configs/qualification.edn) distinguishes native evidence checks from the retained legacy runner.
 
-- `scripts/ultra.bb` — the orchestrator (plan/run). Repo-agnostic; invoke from the target repo root.
-- `agents/ultra-reviewer.md`, `agents/ultra-skeptic.md`, `agents/ultra-implementer.md` — the opencode agent definitions the workflows dispatch to. Installed globally to `~/.config/opencode/agents/`; the copies here are the canonical source.
-- `workflows/template-review.edn` — generic cards × lenses review workflow. Copy it into `<repo>/.ημ/workflows/<id>.edn` and edit.
+## Select execution by observed capability
 
-## Prerequisites
+1. Discover the actual spawn, result, wait, cancel and capacity surfaces exposed in this session. Record harness/version where available, context inheritance, write controls and the selected model. A product name or a documented feature is not evidence that this session exposes it.
+2. Prefer native agents. Use native background execution and notifications when available. If agents are foreground-only or capacity is one, use the same plan with bounded sequential dispatch; preserve independent contexts.
+3. If no native dispatch exists, record the limitation. An explicitly selected external adapter may execute the plan. Read [legacy qualification](references/legacy-qualification.md) before using `scripts/ultra.bb`; its historical result is not a qualified native result.
+4. Honor the user's model/cost choices. Resolve actual model IDs from the host; do not assume a named provider, free tier or model exists. Do not elevate model cost or use paid fallback without applicable authorization.
 
-- `bb` (babashka) on PATH.
-- `opencode` CLI on PATH; agents dispatch via `opencode run --format json --agent <name>`.
-- The three `ultra-*` agents registered in the opencode config scope you run from (they are installed globally; re-copy from `agents/` here if they drift).
+The reference profiles in [configs/native.edn](configs/native.edn) are policy data for the coordinator. They do not install tools or configure a host automatically.
 
-## When to use
+## Plan independent work
 
-- Adversarial review of one or more kanban cards / change sets before promotion.
-- Any fan-out where findings must survive independent skeptic votes before they count.
-- Bounded-write implementation waves with gates (`:implement` stages — see below).
+Write a user story with the outcome, why it matters and observable acceptance criteria. Record the relevant contract and a failing behavior test before domain changes. For documentation-only changes, use meaningful source and link verification.
 
-## Running
+Create a run directory under the target repository's `.ημ/runs/<unique-run-id>/`. Persist an immutable source manifest and EDN plan before dispatch. The manifest identifies repository, base/head/tree and any dirty or untracked bytes under review. Pin prompts, role instructions, schemas, write packets, gates, model selection and dependency inputs. Hash the exact plan bytes.
 
-Run from the target repo root so artifacts land in that repo's `.ημ/`:
+Split work by independently testable contracts. Give each writer an owned worktree or branch and a declared path/resource packet. In a shared tree, use disjoint write ownership and a single integrator; serialize overlapping files, generated outputs, lockfiles, migrations, shared ports and deployment targets. A fresh context is a review boundary, not an automatic filesystem sandbox.
 
+Use one coordinator per run and one writer for each branch/ref. Independent PRs may have different coordinators and proceed together. Serialize only real dependencies or contested resources. Keep operational card state in the existing board owner; the workflow is execution evidence, not a replacement board or event system.
+
+## Execute the graph
+
+- Dispatch ready jobs up to the observed capacity. A job is ready only after its required inputs and successful dependencies exist.
+- Give implementers the story, exact source inputs, contract, tests and owned packet. Keep their changes bounded; preserve unrelated work.
+- Freeze a concrete candidate before review. A review plan is immutable and does not include writing to that same reviewed snapshot. Implementation waves and review waves have separate snapshot identities.
+- Start reviewer contexts without the implementer's conversation, preferred answer or prior verdict. Supply the story, baseline, candidate, relevant source and verification results. Use the [reviewer role](references/native-reviewer.md).
+- Predeclare one or more skeptic jobs for each reviewer, including reviews that may return no findings. Each skeptic depends on its reviewer and receives the exact returned artifact plus the underlying source. Use the [skeptic role](references/native-skeptic.md). Review-wide skeptic jobs avoid changing the plan after findings arrive.
+- Record the host's returned context/task IDs, spawn observations, lifecycle, actual output, scope and artifact hashes. Keep role/context identity distinct from the connector principal and from GitHub approval identity.
+- On completion, validate output before counting it. Missing, truncated, failed, timed-out, cancelled, malformed or uncertain jobs remain visible and cannot supply clean evidence.
+- Reuse a completed job only when its immutable inputs and dependencies still match. Reattach to an observed running native task where supported; do not redispatch merely because a tool call yielded. After ambiguous completion, reconcile the original handle before retrying.
+
+Independent review and skepticism are work roles, not a required brand roster. Additional specialist review is chosen from the change's risks. Ordinary review does not require five provider rounds or approval from every available model.
+
+## Collect, repair and integrate
+
+Give every finding a stable ID, evidence, scope and a disposition. Treat skeptic outcomes as confirmed, refuted with evidence, or uncertain. Uncertainty is not refutation. A clean result requires completed declared coverage, successful required gates and all findings resolved or independently refuted. Do not turn an empty result caused by failure into a no-findings review.
+
+Fix warranted findings and add regression evidence. Start a new immutable round after candidate changes; old reviews remain historical. Use a declared per-wave repair budget to bound repeated attempts. At exhaustion, reassess the cause, change the plan or reviewer lens, or preserve a concrete external blocker; do not impose a lifetime round cap or ask again for work already authorized. Exhausting a wave never accepts unresolved work. Continue independent jobs while a different packet is blocked.
+
+The integrator combines qualified packets in dependency order, runs the affected cross-package checks, and commissions fresh reviewer/skeptic contexts on the final combined tree. Per-packet success does not qualify the combined result. Recheck the current base and tested merge candidate before publication or an authorized merge.
+
+## Validate native evidence
+
+The deterministic helper reads EDN and evaluates supplied receipts. It does not launch models, infer missing outcomes, authenticate a reviewer, enforce a sandbox, post a GitHub review, or authorize a merge.
+
+From this skill directory:
+
+```sh
+nbb -cp src scripts/native.cljs sha256 PLAN.edn
+nbb -cp src scripts/native.cljs check PLAN.edn RECEIPTS.edn RESULT.edn
+nbb -cp src:tests tests/native_test.cljs
+node tests/source-integrity.js
 ```
-bb ~/.agents/skills/ultra-code/scripts/ultra.bb plan <workflow.edn>          # dry-run: job inventory + first prompt
-bb ~/.agents/skills/ultra-code/scripts/ultra.bb run  <workflow.edn>          # execute (resumes from journal)
-bb ~/.agents/skills/ultra-code/scripts/ultra.bb run  <workflow.edn> --fresh  # discard journal, start over
-bb ~/.agents/skills/ultra-code/scripts/ultra.bb run  <workflow.edn> --limit=2  # smoke: cap jobs per stage
-```
 
-`--limit` truncates each stage's job list, including skeptic votes — with quorum 2 and a limit of 1 no finding can survive. Use it to validate plumbing, never to gate a promotion.
+See [native-schema.md](references/native-schema.md) for generating the exact reviewer-output hash required by skeptic receipts. Use create-only result files. Exit 0 means the supplied complete roster is clean; other qualification results are nonzero. Independently verify that supplied records correspond to actual host execution and the source manifest.
 
-Artifacts land in `.ημ/runs/<workflow-id>/` (relative to CWD): `journal.jsonl` (started/result/error events keyed `v2:<sha256>`) and `<timestamp>-result.edn` (`:confirmed` + `:all` findings). Structured output is extracted from the agent event stream last-text-part-first with a `{...}` substring fallback; agents that produce no parseable JSON are logged as errors and retried on the next invocation.
+When NBB is unavailable, native agents can still perform the work. Record the deterministic validator as unavailable and do not claim its qualification. Preserve the same plan and receipts for a capable host.
 
-## Laws
+## PR and durable handoff
 
-1. Workflow definitions are EDN files — never inline prompts in conversation when a workflow file exists.
-2. Every agent dispatch requires a content-hash journal entry; completed jobs are never re-run, errored jobs retry on the next invocation.
-3. Findings are claims, not facts. A finding counts only after `:stage/quorum` skeptic votes fail to refute it.
-4. Review and skeptic agents are read-only by constitution (see `agents/`). Orchestration never writes production code outside an explicit `:implement` stage's declared packet.
-5. Failed agents (limits, timeouts, parse errors) are excluded from quorums and logged — never silently counted as either refuted or confirmed.
-6. After a run, report `:confirmed` vs `:all` honestly, and append a receipts.edn entry for the wave.
+Publish a concise author walkthrough and the reviewed candidate/evidence links through the authorized PR path. A fresh-context review can satisfy the local agent-review role under this workflow. It is not a second GitHub account and does not become a native Bot approval because it is copied into a comment.
 
-## Authoring a new workflow
+Check actual repository requirements independently: required tests, required reviews or App identity, unresolved conversations, merge base and exact head. Honor them. If a required publisher/check cannot consume native evidence, record that adapter gap and continue independent work. Never bypass protection or fabricate hosted approval.
 
-Copy `workflows/template-review.edn` into the target repo and edit:
+Preserve plans, source manifests, all attempts and original receipts. Follow the repository's adopted Receipt River/Clio format; use immutable per-writer segments where adopted, and do not race to overwrite a shared ledger. Capture attempted, executed, tested and persisted separately. Do not use `--fresh` to delete a retained run.
 
-- `:vars` — the cartesian inputs (cards × lenses, or any item set).
-- `:schemas` — JSON Schema for each agent's structured output.
-- `:stages` — `:map-agent` (parallel agent per item) and `:vote-fan-out` (N skeptic votes per finding, quorum reduce). Prompt templates interpolate `{card/key}`, `{lens/prompt}`, `{finding/title|40}`, `{vote/n}`, `{repo}`.
-- `:run` — model (default `kimi-for-coding/k3`), timeout, max concurrency, and `:dir` (absolute target repo path passed to `opencode run --dir`).
+Report the candidate revision, completed/expected jobs, findings and dispositions, gates, integration status, external requirements and durable artifact location. A native background task is ongoing only while a real host handle exists; do not promise execution after the host session ends without a supported durable mechanism.
 
-## Stage kinds
+## Compatibility and provenance
 
-- `:map-agent` — fan out one agent job per cartesian item; results feed later stages.
-- `:vote-fan-out` — for every finding under `:stage/finding-path` in the `:stage/over` stage's results, dispatch `:stage/votes` skeptic votes; a finding `:survives` when at least `:stage/quorum` votes do not refute it.
-- `:implement` — bounded-write implementation of one card with retry-over-gates. Declares `:stage/packet` `{:write [...] :read [...] :forbid [...]}`, `:stage/gates` shell commands, optional `:stage/review` (an inline review+verify wave whose confirmed findings count as gate failures), optional `:stage/commit`. If `:stage/uuid` is set, the script also drives a Rheos-style kanban FSM via `node packages/rheos/dist/cli.cjs status-update` inside `:vars :repo` — omit `:stage/uuid` in repos without that CLI (FSM calls are skipped entirely).
-- `:return` — terminal marker.
-
-## Claude session import (optional)
-
-Recovered Claude Code dynamic-workflow sessions are manifest-first: `.ημ/imports/claude/<session-id>/manifest.edn` records sha256-pinned source artifacts (workflow script, run state, journal, transcript) and the translation table into ημ artifacts. The EDN workflow is the executable projection; the raw JS remains the evidence of original intent. Resume is semantic (re-dispatch un-cached jobs), never a claim to attach Claude's runtime.
+The six original OpenCode skill assets remain byte-preserved and covered by `tests/source-integrity.js`. [canonical/upstream-skill.md](canonical/upstream-skill.md) records the imported instructions. The old `agents/ultra-*.md`, `workflows/template-review.edn` and `scripts/ultra.bb` belong to the explicit legacy backend. Native roles and evidence use the references above. No historical receipt, quorum or result is reinterpreted as native qualification.
