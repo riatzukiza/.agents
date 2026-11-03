@@ -72,7 +72,7 @@ After substantive work:
 
 1. Read the relevant receipt tail.
 2. Score efficiency, friction, and skill-candidate probability.
-3. Append one entry to `.ημ/session-mycology/ledger.md`.
+3. Append one entry to `.ημ/session-mycology/ledger.edn`.
 4. Create at most one spore in `.ημ/session-mycology/spores/` when `p-skill-candidate >= 0.7` and the pattern generalizes.
 5. Never promote a spore in the same session that created it.
 

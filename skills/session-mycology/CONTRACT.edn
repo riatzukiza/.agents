@@ -39,9 +39,10 @@
   (storage
     (project-aware true)
     (root-marker [".ημ" ".git"])
-    (ledger ".ημ/session-mycology/ledger.md")
+    (ledger ".ημ/session-mycology/ledger.edn")
+    (legacy-ledger ".ημ/session-mycology/ledger.md")
     (spores-dir ".ημ/session-mycology/spores")
-    (scripts ["scripts/sm-init.bb" "scripts/sm-log.bb" "scripts/sm-spore.bb" "scripts/sm-list.bb"])
+    (scripts ["scripts/sm-init.bb" "scripts/sm-log.bb" "scripts/sm-spore.bb" "scripts/sm-list.bb" "scripts/sm-migrate.bb"])
     (legacy-global-dir "~/.config/opencode/spores"))
 
   (protocol

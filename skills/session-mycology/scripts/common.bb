@@ -39,6 +39,27 @@
   [project-root]
   (ensure-dir (io/file project-root ".ημ" "session-mycology")))
 
+(defn ledger-edn-file
+  "Return File for .ημ/session-mycology/ledger.edn."
+  [project-root]
+  (io/file (session-mycology-dir project-root) "ledger.edn"))
+
+(defn legacy-ledger-md-file
+  "Return File for legacy .ημ/session-mycology/ledger.md."
+  [project-root]
+  (io/file (session-mycology-dir project-root) "ledger.md"))
+
+(defn active-ledger-file
+  "Return active ledger file: prefers ledger.edn, falls back to legacy ledger.md."
+  [project-root]
+  (let [edn-f (ledger-edn-file project-root)
+        md-f (legacy-ledger-md-file project-root)]
+    (if (.exists edn-f)
+      edn-f
+      (if (.exists md-f)
+        md-f
+        edn-f))))
+
 (defn spores-dir
   "Return the .ημ/session-mycology/spores/ directory, creating it if needed."
   [project-root]
