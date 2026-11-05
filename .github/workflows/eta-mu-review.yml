@@ -16,7 +16,7 @@ jobs:
     # Consumes the qualified merged Eta/Muse pair with bounded Discord batches.
     # Fresh exact-head caller CI/review remains required; validated global
     # skills and the existing Node policy stay pinned.
-    uses: open-hax/eta-mu/.github/workflows/opencode-code-review.yml@7112c36440d180ca183d6a3f89661cee161fdae5
+    uses: open-hax/eta-mu/.github/workflows/opencode-code-review.yml@f4ac84be690fb6cfc7bf8fbd27b62d1befaaaee8
     with:
       pr_head_sha: ${{ github.event.pull_request.head.sha }}
       review_timeout_minutes: 120
