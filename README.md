@@ -17,6 +17,8 @@ The repository is not a bag of prompts. It is an operating substrate:
 - [`AGENTS.md`](AGENTS.md) — repository-specific instructions for maintaining this corpus.
 - [`skills/`](skills/) — the canonical skill catalog.
 - [`skills/.skill-lock.json`](skills/.skill-lock.json) — provenance and version metadata for imported skills.
+- [`docs/catalog-audit-2026-11.md`](docs/catalog-audit-2026-11.md) — catalog inventory, loading model and first-cut pruning decisions.
+- [`archive/skills/`](archive/skills/README.md) — preserved inactive skill candidates.
 - `.ημ/receipts.edn` — append-only evidence for substantive changes to this repository.
 - `.ημ/session-mycology/` — project-local learning records and incubating skill spores.
 
