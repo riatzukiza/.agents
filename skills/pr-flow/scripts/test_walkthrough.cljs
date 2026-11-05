@@ -124,8 +124,29 @@
     (is (actionability/author-walkthrough?
          (qualified (-> (snapshot)
                         (assoc-in [:thread :isOutdated] true)
-                        (assoc-in [:thread :line] nil))))
+                        (assoc-in [:thread :line] nil)
+                        (assoc-in [:thread :comments :nodes 0 :commit :oid]
+                                  "1111111111111111111111111111111111111111"))))
         "an outdated location needs a fresh current-head attestation")
+    (let [historic (-> (snapshot)
+                       (assoc-in [:thread :isOutdated] true)
+                       (assoc-in [:thread :line] nil)
+                       (assoc-in [:thread :comments :nodes 0 :commit :oid]
+                                 "1111111111111111111111111111111111111111"))
+          new-head (assoc-in historic [:pr :headRefOid] (apply str (repeat 40 "f")))
+          old-attestation (:issue-comments (qualified historic))]
+      (is (not (actionability/author-walkthrough?
+                (qualified (assoc-in historic [:thread :comments :nodes 0 :commit :oid] "123"))))
+          "a short historical commit is invalid")
+      (is (not (actionability/author-walkthrough?
+                (qualified (-> historic (assoc-in [:thread :isOutdated] false)
+                               (assoc-in [:thread :line] 99)))))
+          "a non-outdated location must bind the current commit")
+      (is (not (actionability/author-walkthrough?
+                (assoc (input new-head) :issue-comments old-attestation)))
+          "a historical attestation cannot carry across a new head")
+      (is (actionability/author-walkthrough? (qualified new-head))
+          "fresh author attestation rebinds the new head"))
     (is (actionability/author-walkthrough?
          (assoc (input (assoc-in (snapshot) [:thread :isResolved] true))
                 :issue-comments (:issue-comments t)))
