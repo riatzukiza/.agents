@@ -4,7 +4,7 @@ description: Evidence-first code and PR review workflow agent for .agents, power
 model: gemini-3.8-flash-high
 effort: high
 tools:
-  - read_file
+  - view_file
   - run_command
 ---
 
