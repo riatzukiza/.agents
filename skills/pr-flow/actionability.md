@@ -1,5 +1,21 @@
 # Candidate informational disposition
 
+## Typed author walkthroughs
+
+The 2026-11-05 user-authorized typed author-walkthrough path in
+[pr-flow](SKILL.md#typed-informational-walkthroughs) is separate from this
+candidate independent-assessment protocol. It binds a native author's explicit
+no-finding/no-request/no-question attestation to the exact head and root bytes.
+It does not establish semantic correctness: the author must not attest a real
+finding, question or request as informational. A second comment, stale head or
+changed source, incomplete custody, identity mismatch or edited attestation
+fails closed. A scoped independent actionability proposal or assessment, unavailable history or\nretained revocation returns the thread to its normal disposition path. The local\ngate excludes only qualifying typed walkthroughs from
+finding and unresolved-thread blockers. All other threads and review bodies,
+required checks and GitHub branch protection remain unchanged.
+
+The rest of this document describes the independently assessed candidate, whose
+unresolved contexts remain blocking under that separate protocol.
+
 Introduced from `9ee8831ffe001b025d425a239a2d30e95378ea6a`. The parent accepted
 this bounded design on 2026-10-03. It remains provisional: source publication and
 local tests do not qualify operational use. Current hosted source review,

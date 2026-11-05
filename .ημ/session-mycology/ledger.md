@@ -1122,3 +1122,13 @@ The earlier shorthand provider429 denotes HTTP 429 from the provider before infe
 - 2026-10-26T23:40:32.412107+00:00 | multiline enclosing ownership | actual four RED cases, native27/151 and final law/policy GREEN. Preserve native boundary, no-span fast path. Friction0.5; candidate0.3; no promotion.
 
 - 2026-10-26T23:44:28.613425+00:00 | enclosing generated boundaries | RED quoted close consumption corrected by adding generated-region ownership to same selection. Native28/155 law/policy GREEN. Friction0.5; candidate0.3; no promotion.
+
+- ts: 2026-11-01T15:45:06Z
+  session: author-walkthrough-workflow
+  task: Extend pr-flow with author self-review walkthroughs
+  p-efficiency: 0.8
+  p-friction: 0.3
+  p-skill-candidate: 0.2
+  spore: none
+  receipt-refs: 2026-11-01T15:45:06Z
+  note: Extend the existing PR skill and keep explanatory author threads separate from independent review and settlement.

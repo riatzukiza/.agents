@@ -1,0 +1,1 @@
+{:ts "2026-11-05T14:05:25Z" :task "Distinguish typed author walkthroughs from findings" :p-efficiency 0.7 :p-friction 0.5 :p-skill-candidate 0.2 :spore nil :note "Bind explicit author intent to native identity and current bytes; keep real review requests and platform protections separate."}

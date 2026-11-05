@@ -228,11 +228,13 @@ proposal/assessment for the changed manifest. See the
 Every actual finding retains settle-before-resolve and opener exclusion.
 Same-author `Handled`, author identity, a
 walkthrough prefix, unknown severity and GitHub resolution do not qualify.
-All threads default to finding obligations. Only fresh independently admitted
-native evidence with exact complete context may remove that obligation; it is
+Threads default to finding obligations. A separate typed, attested native author
+walkthrough may be informational as specified in [pr-flow](../pr-flow/SKILL.md#typed-informational-walkthroughs).
+For this candidate protocol, only fresh independently admitted native evidence
+with exact complete context may remove that obligation; it is
 not settlement or independent rejection and gives no approval/coverage/round
 credit. Real defects/questions remain findings and unresolved conversations
-still block. Mechanical protocol checks cannot guarantee the assessor's semantic
+still block under this candidate protocol. Mechanical protocol checks cannot guarantee the assessor's semantic
 judgment. Parent owns review/publication and actual fresh native qualification;
 no invocation is authorized by the preparation fixtures.
 

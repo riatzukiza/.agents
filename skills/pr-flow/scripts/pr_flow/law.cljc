@@ -421,8 +421,25 @@
                                  (:id s))))) issue-comments)]
     (assoc thread :actionability-source-withdrawals (set withdrawn))))
 
+(defn author-walkthrough?
+  "An attested walkthrough cannot override unavailable, adverse or conflicting
+   independent actionability evidence. Recompute from complete native input."
+  [thread]
+  (let [thread (actionability-thread thread)
+        status (:status (actionability/disposition thread))
+        repo-id (get-in thread [:native-context :repository :id])
+        pr-id (get-in thread [:native-context :pr :id])
+        revoked? (some #(and (not= :positive-bot-thread-preservation (:purpose %))
+                             (= :revoked (:status %))
+                             (= repo-id (:repo-id %)) (= pr-id (:pr-id %))
+                             (= (:id thread) (:thread-id %)))
+                       (:actionability-observations thread))]
+    (and (actionability/author-walkthrough? thread)
+         (= :absent status) (not revoked?))))
+
 (defn finding-obligation? [thread]
-  (actionability/finding-obligation? (actionability-thread thread)))
+  (and (not (author-walkthrough? thread))
+       (actionability/finding-obligation? (actionability-thread thread))))
 
 (defn- finding-withdrawal-details [body]
   ;; A narrow live opener statement, not author rejection or Bot agreement.
@@ -566,6 +583,7 @@
                                     (or identities default-reviewer-identities)))))]
     (assoc thread
            :actionability (actionability/disposition thread)
+           :author-walkthrough? (author-walkthrough? thread)
            :preservation (positive-thread/proof thread)
            :reviewer (:author opener)
            :severity (severity (:body opener))
@@ -1867,7 +1885,7 @@
         blockers (unsettled-blockers findings)
         unsettled (remove :settled? findings)
         contested (filter :contested? findings)
-        unresolved (remove :resolved? threads)
+        unresolved (remove #(or (:resolved? %) (author-walkthrough? %)) threads)
         min-rounds (or min-review-rounds default-min-review-rounds)
         early-deferrals (when (or (not (integer? rounds)) (<= rounds min-rounds))
                           (filter #(= :deferred (:resolution %)) findings))
