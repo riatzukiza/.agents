@@ -297,3 +297,15 @@ The opt-in `--semantic-model opencode/glm-5.3-flash-free` route on `status`,
 current-head native Bot verification. It uses a purpose-specific assessment, not
 triage-only output or another presentation parser. Protected source review and
 actual runtime qualification precede adoption. See [semantic repair](semantic-repair.md).
+
+
+### Native Additional-comment envelope compatibility (source candidate)
+
+The bounded parser also recognizes the observed CodeRabbit `dl`/`dd` wrapper
+around complete Additional-comment sections and file groups. It does not
+strip arbitrary HTML. Exact counts, balanced known tags, unique stable IDs,
+authenticated native identity and later current-head writer custody remain
+required. Unmarked siblings keep a separate whole-body obligation; positive
+notes retain their severity and supply no approval or round credit. See
+[native Additional-comment envelopes](native-additional-comments.md).
+Review and adopt this source before using it operationally.

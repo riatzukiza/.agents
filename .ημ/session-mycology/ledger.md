@@ -1081,3 +1081,44 @@ The strict root-prefix parser rejected a native User repair after CodeRabbit wra
 ## 2026-10-26T02:14:19.004973+00:00 — Clarification of prior evaluation wording
 
 The earlier shorthand provider429 denotes HTTP 429 from the provider before inference. No judgment, runtime qualification or settlement resulted. The historical entry remains unchanged.
+
+
+2026-10-26T16:55:17.165392+00:00 — Proxx native envelope compatibility. Efficiency0.70, friction0.75, reusable-spore probability0.20. Existing canonical law required a bounded native presentation adapter; complete count reconciliation exposed an unmarked corrective sibling beside55positive notes. Preserve raw source and unknown obligations rather than strip HTML or label acknowledgments as fixes. Evidence: captured review5649047508 and preceding receipt. No new spore or promotion.
+
+2026-10-26T17:25:08.423232+00:00 — Native count mismatch must preserve an independent whole-body obligation while denying positive admission. Efficiency0.65, friction0.70, spore probability0.20. Hosted/local child-process termination needs explicit error/signal diagnostics; bounded timeout change does not waive gate assertions. Evidence: review4380143755 and matching receipt. No spore or promotion.
+
+2026-10-26T18:09:24.786875+00:00 — Malformed native envelope preservation. Efficiency0.65, friction0.70, spore probability0.20. Strict positive admission and conservative unmarked-obligation recognition need separate paths; both exclude non-authoritative examples. Evidence4380747136 and matching RED/GREEN receipt. No spore or promotion.
+
+2026-10-26T19:10:56.407544+00:00 — Per-group reconciliation. Efficiency0.65, friction0.75, spore probability0.20. Aggregate declarations do not establish complete group coverage; reuse the existing item delimiter and preserve unknown obligations. Evidence4381361086 and matching RED/GREEN receipt. No new spore or promotion.
+
+- 2026-10-26T19:30:11.984533+00:00 — PR53 generic generated-wrapper veto: check raw source before comment-removing normalization. RED2failures; GREEN9/36, law226/5562, policy71/1794. Efficiency0.75 friction0.3 skillCandidate0.2; existing normalization lesson sufficient, no spore or promotion. Native source review5657820936; parser remains unadopted.
+
+- 2026-10-26T19:39:16.365020+00:00 — PR53 native-generated-region correction: global raw veto hid independent authored malformed findings; replace with local complete-region masks and unclosed-tail masking. Native10/44, law226/5562, policy71/1794 GREEN after RED sibling cases. Efficiency0.75 friction0.3 skillCandidate0.2; no spore or promotion. Native4381606114.
+
+- 2026-10-26T19:55:04.930237+00:00 — PR53 multiline-code scope: whole-body positive-admission guard cannot control conservative obligation discovery. Shared scanner retains positive Boolean veto and masks only code regions for discovery. RED8 then GREEN11/62, law226/5562, policy71/1794. Efficiency0.75 friction0.3 skillCandidate0.2; no spore/promotion. Root4381773151.
+
+- 2026-10-26T20:01:38.113335+00:00 — PR53 conservative fence-tail correction: verdict-prose passing-evidence veto cannot suppress earlier authored obligations. RED4cases, GREENnative12/72 law226/5562 policy71/1794. Efficiency0.8 friction0.2 skillCandidate0.2; existing local-exclusion pattern, no new spore or promotion. Root4381830123.
+
+- 2026-10-26T20:11:21.423787+00:00 — PR53 native-only count reconciliation: actual immutable-base replay confirmed valid legacy sibling admission must remain independent. RED then GREENnative13/75 law226/5562 policy71/1794. Efficiency0.8 friction0.2 skillCandidate0.2; no new spore/promotion. Native4381928696. Baseline replay scratch retained active.
+
+- 2026-10-26T21:58:52.253901+00:00 — PR53 native raw-block boundary/all-URL corrections: bounded conservative scanner must respect raw HTML block interruption, while strict positive guard stays unchanged; validate every asset URL instead of existential allowlisting. Immutable baseline replay corrected a too-strict test expectation. RED10, GREEN15/96 law226/5562 policy71/1794. Efficiency0.75 friction0.35 skillCandidate0.2; existing bounded-parser lesson, no new spore/promotion. Roots4382890404/4382890420.
+
+- 2026-10-26T22:11:45.455601+00:00 | fenced generated-opener correction | RED reproduced two cases; native/law/policy GREEN. Friction 0.3; candidate 0.2; no new spore or active policy adoption.
+
+- 2026-10-26T22:21:19.168867+00:00 | example-region ordering | six RED regressions corrected before generated discovery; all focused/law/policy GREEN. Friction 0.5; spore probability 0.3; no promotion. Browser timeout retained as failed verification.
+
+- 2026-10-26T22:47:58.671634+00:00 | Markdown fence lengths | four longer-closer and six invalid-closer controls; RED5 corrected GREEN native19/114 law/policy. Friction0.5, candidate0.3; no promotion.
+
+- 2026-10-26T22:56:28.739483+00:00 | unmatched fence indentation | four RED cases corrected, eight valid opener controls retained. Native21/126 law/policy GREEN. Friction0.4; candidate0.2; no promotion.
+
+- 2026-10-26T23:02:12.688578+00:00 | fence info grammar | full opener validation after four RED cases; native23/134 law/policy GREEN. Friction0.4, candidate0.2; no promotion.
+
+- 2026-10-26T23:18:35.654593+00:00 | comment/fence discovery order | RED4 then partial2 then GREEN native24/138 and final-source law/policy. Use unresolved native threads rather than timestamp cutoff. Friction0.5; candidate0.3; no promotion.
+
+- 2026-10-26T23:23:22.257012+00:00 | enclosing lexical context | combined leftmost complete-region discovery replaces swapping comment/fence passes. Both nesting directions tested. Native25/142 law/policy GREEN. Friction0.6; candidate0.4; no promotion.
+
+- 2026-10-26T23:35:24.561852+00:00 | indented code ownership | five RED indentation fixtures, native26/147 law/policy GREEN. Friction0.5; candidate0.3; no promotion.
+
+- 2026-10-26T23:40:32.412107+00:00 | multiline enclosing ownership | actual four RED cases, native27/151 and final law/policy GREEN. Preserve native boundary, no-span fast path. Friction0.5; candidate0.3; no promotion.
+
+- 2026-10-26T23:44:28.613425+00:00 | enclosing generated boundaries | RED quoted close consumption corrected by adding generated-region ownership to same selection. Native28/155 law/policy GREEN. Friction0.5; candidate0.3; no promotion.
