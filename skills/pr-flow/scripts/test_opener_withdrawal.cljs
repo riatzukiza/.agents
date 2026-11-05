@@ -130,7 +130,6 @@
            :approved-heads {"mimo" #{head}} :rounds 5 :review-participants #{"mimo"}}]
     (is (:pass? (law/merge-gate g)))
     (doseq [bad [(assoc g :approved-heads {})
-                 (assoc g :rounds 0 :review-participants #{"mimo" "coderabbit"})
                  (assoc g :checks [{:name "laws" :state "FAILURE" :required? true}])
                  (assoc g :checks [{:name "laws" :state "SKIPPED" :required? true}])
                  (assoc g :checks [{:name "CodeRabbit" :state "SUCCESS" :description "rate limit" :required? true}])
@@ -245,7 +244,6 @@
     (is (:pass? (law/merge-gate g)))
     (doseq [bad [(assoc g :approved-heads {})
                  (assoc g :approved-heads {"mimo" #{(get-in eta-root [:pullRequestReview :commit :oid])}})
-                 (assoc g :rounds 0 :review-participants #{"mimo" "coderabbit"})
                  (assoc g :required-reviewers #{"codex"})
                  (assoc g :checks [{:name "laws" :state "FAILURE" :required? true}])
                  (assoc g :checks [{:name "laws" :state "SKIPPED" :required? true}])

@@ -400,7 +400,13 @@
 (deftest optional-reviewers-do-not-become-green
   (doseq [[state description] [["PENDING" "Review in progress"] ["SUCCESS" "Review rate limited"]
                                ["SKIPPED" "Review skipped"] ["FAILURE" "Review failed"]]]
-    (let [g (law/merge-gate (update baseline :checks conj {:name "CodeRabbit" :state state :description description :required? false}))]
+    (let [g (law/merge-gate (update baseline :checks conj {:name "CodeRabbit" :state state :description description :required? false}))
+          human (assoc baseline :maintainers {"err" "admin"}
+                       :reviews [{:user {:login "err" :type "User"} :state "APPROVED" :commit_id head}])
+          g (if (= "FAILURE" state)
+              (do (is (not (:pass? g)) "a failing optional check needs a human maintainer")
+                  (law/merge-gate (update human :checks conj {:name "CodeRabbit" :state state :description description :required? false})))
+              g)]
       (is (:pass? g))
       (is (not= :completed (:coderabbit g)))
       (is (not (:pass? (law/merge-gate (assoc (update baseline :checks conj {:name "CodeRabbit" :state state :description description :required? false})
@@ -428,11 +434,16 @@
     (is (= provider (law/reviewer-check check)))
     (doseq [state ["FAILURE" "PENDING" "IN_PROGRESS" "SKIPPED" "CANCELLED"]]
       (let [row (assoc (check-row check) :state state)
-            input (update baseline :checks conj row)]
+            input (cond-> (update baseline :checks conj row)
+                    (= "FAILURE" state) (assoc :maintainers {"err" "maintain"}
+                                               :reviews [{:user {:login "err" :type "User"} :state "APPROVED" :commit_id head}]))]
         (is (:pass? (law/merge-gate input)))
+        (when (= "FAILURE" state)
+          (is (not (:pass? (law/merge-gate (dissoc input :reviews)))) "failing optional check needs a human maintainer"))
         ;; Classification cannot create approval or completed cohort rounds.
-        (is (not (:pass? (law/merge-gate (assoc input :approved-heads {})))))
-        (is (not (:pass? (law/merge-gate (assoc input :rounds 0)))))
+        (is (not (:pass? (law/merge-gate (assoc input :approved-heads {} :reviews [])))))
+        ;; Rounds no longer gate (2026-10-29 any-approval rule).
+        (is (:pass? (law/merge-gate (assoc input :rounds 0))))
         (is (not (:pass? (law/merge-gate
                          (update input :checks #(conj (vec (butlast %)) (assoc row :required? true)))))))
         (is (not (:pass? (law/merge-gate
@@ -440,7 +451,9 @@
                                 :approved-heads (assoc (:approved-heads input) provider #{head})))))))))
   (let [rows (mapv check-row (concat (map :check reviewer-output-fixtures)
                                     (:deterministic_checks native-checks) (:required_checks native-checks)))]
-    (is (:pass? (law/merge-gate (assoc baseline :checks rows))))
+    (is (not (:pass? (law/merge-gate (assoc baseline :checks rows)))) "failing optional rows need a human maintainer")
+    (is (:pass? (law/merge-gate (assoc baseline :checks rows :maintainers {"err" "admin"}
+                                       :reviews [{:user {:login "err" :type "User"} :state "APPROVED" :commit_id head}]))))
     (is (= ["FAILURE" "IN_PROGRESS"] (mapv :state (take 2 rows)))))
   (doseq [[name provider] [["CodeRabbit" "coderabbit"] ["Codex" "codex"] ["MiMo" "mimo"] ["Kimi" "kimi"]]]
     (is (= provider (law/reviewer-check {:name name})))))
@@ -487,7 +500,7 @@
                                          :required-reviewers #{"coderabbit"}
                                          :approved-heads {"coderabbit" #{head} "mimo" #{head}}))]
       (is (= "coderabbit" (law/reviewer-check row)))
-      (is (:pass? optional))
+      (is (= (not= :fail bucket) (:pass? optional)) "a failing optional check needs a human maintainer")
       (is (= {} (:checks optional)))
       (doseq [gate [required mandatory]]
         (is (= {bucket 1} (:checks gate)))
@@ -1134,7 +1147,8 @@
                                          "code" configured available head)))
     (is (:pass? (law/merge-gate (assoc baseline :rounds 1 :review-participants available
                                      :approved-heads {"mimo" #{head} "coderabbit" #{head}}))))
-    (is (not (:pass? (law/merge-gate (assoc baseline :rounds 1 :review-participants available)))))
+    ;; 2026-10-29: one exact-head approval (baseline mimo) suffices; unanimity no longer gates.
+    (is (:pass? (law/merge-gate (assoc baseline :rounds 1 :review-participants available))))
     (is (not (:pass? (law/merge-gate (assoc baseline :rounds 1 :review-participants available
                                           :required-reviewers #{"codex"}
                                           :approved-heads {"mimo" #{head} "coderabbit" #{head}})))))))
@@ -1295,9 +1309,11 @@
           approved (:approved-heads (law/review-evidence rheos-head (conj (:reviews native-rheos-stage) revoked)
                                                         rheos-comments law/default-reviewer-identities rheos-checks))]
       (is (not (contains? approved "mimo")))
-      (is (not (:pass? (law/merge-gate (assoc baseline :head rheos-head :approved-heads approved
-                                            :rounds (rheos-rounds rheos-completed markers)
-                                            :review-participants rheos-participants))))))))
+      (is (not (contains? (:approving-reviewers
+                           (law/merge-gate (assoc baseline :head rheos-head :approved-heads approved
+                                                  :rounds (rheos-rounds rheos-completed markers)
+                                                  :review-participants rheos-participants)))
+                          "mimo"))))))
 
 (def native-coderabbit-quota-info
   ;; Exact captured native bodies/identities; these observations have no head

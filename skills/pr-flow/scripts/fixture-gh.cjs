@@ -9,7 +9,18 @@ const input = fs.readFileSync(0, 'utf8');
 fs.appendFileSync(`${process.env.PR_FLOW_TEST_DATA}.calls`, `${JSON.stringify({args, input, hasToken: !!process.env.GH_TOKEN, hasGithubToken: !!process.env.GITHUB_TOKEN, hasEnterpriseToken: Object.hasOwn(process.env, 'GH_ENTERPRISE_TOKEN'), hasGithubEnterpriseToken: Object.hasOwn(process.env, 'GITHUB_ENTERPRISE_TOKEN'), ghHost: process.env.GH_HOST ?? null})}\n`);
 const out = x => process.stdout.write(typeof x === 'string' ? x : JSON.stringify(x));
 const persist = () => fs.writeFileSync(statePath, JSON.stringify(state));
-if (args[0] === 'api' && Object.hasOwn(config.apiResponses || {}, args[1])) {
+if (args[0] === 'api' && Object.hasOwn(config.apiErrors || {}, args[1])) {
+  process.stderr.write(config.apiErrors[args[1]]); process.exit(1);
+} else if (args[0] === 'run' && args[1] === 'download') {
+  const artifact = config.artifactDownloads?.[args[2]];
+  if (!artifact || artifact.error) {
+    process.stderr.write(artifact?.error || 'Artifact unavailable'); process.exit(1);
+  }
+  const dir = args[args.indexOf('-D') + 1];
+  for (const [name, body] of Object.entries(artifact.files || {})) {
+    fs.writeFileSync(require('node:path').join(dir, name), typeof body === 'string' ? body : JSON.stringify(body));
+  }
+} else if (args[0] === 'api' && Object.hasOwn(config.apiResponses || {}, args[1])) {
   const response = config.apiResponses[args[1]];
   if (response.binaryBase64) process.stdout.write(Buffer.from(response.binaryBase64, 'base64'));
   else out(args.includes('--slurp') && !Array.isArray(response) ? [response] : response);
@@ -107,6 +118,10 @@ else if (args[0] === 'api' && args[1].includes('/commits/')) {
   out({sha: config.commitResponses?.[ref] || (/^[0-9a-f]{40}$/.test(ref) ? ref : (config.resolvedCommit || config.head))});
 }
 else if (args[0] === 'api' && args[1].includes('/collaborators/')) {
+  const login = args[1].split('/').at(-2);
+  if (config.permissionResponses && Object.hasOwn(config.permissionResponses, login)) {
+    out(config.permissionResponses[login]); process.exit(0);
+  }
   out({permission: config.writerRoleAfterThreadReads != null && (state.threads || 0) >= (config.writerRoleChangeAtThreadRead ?? 2)
     ? config.writerRoleAfterThreadReads : config.authorized === false ? 'read' : 'admin'});
 }
