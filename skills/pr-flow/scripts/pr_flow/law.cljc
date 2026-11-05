@@ -6,7 +6,8 @@
             [pr-flow.kimi-publication :as publication]
             [pr-flow.repair-ack :as repair-ack]
             [pr-flow.semantic-repair :as semantic-repair]
-            [pr-flow.inventory :as inv]))
+            [pr-flow.inventory :as inv]
+            [pr-flow.permissions :as permissions]))
 
 ;; Reviewers are data (pr_flow/reviewers.edn). Code refers to formats only:
 (defn- emits? [p detector] (boolean (and p (inv/has? p detector))))
@@ -1864,16 +1865,15 @@
                      :else :not-clean)})))
 
 (defn merge-artifact-evidence
-  "Fold artifact verdicts {reviewer verdict} into review-evidence output. An
-   artifact verdict is that reviewer's decisive exact-head verdict."
+  "Retain artifact observations and blocking findings, but never approval.
+   The artifact collector does not yet verify the publishing workflow source."
   [evidence verdicts]
   (reduce (fn [e [p v]]
-            (cond-> (update e :reviewed-heads update p (fnil conj #{}) (:head v))
-              (:positive? v) (-> (assoc-in [:approved-heads p] #{(:head v)})
-                                 (assoc-in [:approval-evidence p] {:head (:head v) :channel :review-artifact}))
-              (not (:positive? v)) (-> (update :approved-heads dissoc p)
-                                       (update :approval-evidence dissoc p)
-                                       (assoc-in [:artifact-findings p] v))))
+            (cond-> (-> e
+                        (update :reviewed-heads update p (fnil conj #{}) (:head v))
+                        (update :approved-heads dissoc p)
+                        (update :approval-evidence dissoc p))
+              (not (:positive? v)) (assoc-in [:artifact-findings p] v)))
           evidence (filter (fn [[_ v]] (some? v)) verdicts)))
 
 
@@ -1896,14 +1896,26 @@
 
 (defn decisive-reviews
   "Fold native reviews to each login's latest decisive state. COMMENTED and
-   PENDING never change standing; DISMISSED clears it. Ties keep input order."
+   PENDING never change standing; DISMISSED clears it. Equal timestamps use
+   native review IDs; ambiguous IDs retain the most conservative standing."
   [reviews]
   (into {}
         (keep (fn [[login rs]]
-                (let [latest (last (sort-by (fn [[i r]] [(or (instant-ms (:submitted_at r)) 0) i])
-                                            (map-indexed vector (filter #(decisive-states (upper (:state %))) rs))))]
-                  (when (and latest (not= "DISMISSED" (upper (:state (second latest)))))
-                    [login (second latest)]))))
+                (let [standing-key (fn [r]
+                                     [(or (instant-ms (:submitted_at r)) 0)
+                                      (if (and (integer? (:id r)) (pos? (:id r))) (:id r) 0)
+                                      (get {"APPROVED" 0 "DISMISSED" 1 "CHANGES_REQUESTED" 2}
+                                           (upper (:state r)))])
+                      ordered (sort-by standing-key (filter #(decisive-states (upper (:state %))) rs))
+                      latest (last ordered)
+                      tied (take-while #(= (standing-key latest) (standing-key %)) (reverse ordered))
+                      ;; Ambiguous approvals cannot prove which commit was approved.
+                      latest (cond-> latest
+                               (and (= "APPROVED" (upper (:state latest)))
+                                    (> (count (set (map :commit_id tied))) 1))
+                               (assoc :commit_id nil))]
+                  (when (and latest (not= "DISMISSED" (upper (:state latest))))
+                    [login latest]))))
         (group-by review-login (filter review-login reviews))))
 
 (defn current-head-approvers
@@ -1972,7 +1984,8 @@
    Returns {:pass? :reasons :approvers :failing :human-approved?}."
   [{:keys [head reviews threads checks bot-approvers] :as ctx}]
   (let [latest (latest-checks head checks)
-        approvers (into (current-head-approvers head reviews) bot-approvers)
+        approvers (into (set (filter #(permissions/writer-role? (get (:maintainers ctx) %))
+                                    (current-head-approvers head reviews))) bot-approvers)
         blockers (change-requesters reviews)
         unresolved (remove :resolved? threads)
         failing (filter failing-state? latest)
@@ -1990,8 +2003,8 @@
 
 (defn merge-gate
   "Any-approval rule (2026-10-29), extending the trusted-evidence gate: any
-   exact-head approval counts (trusted bot evidence or any native APPROVED
-   review); any change request, unresolved thread or failing required check
+   exact-head approval counts (trusted bot evidence or a native APPROVED
+   review by a verified repository writer); any change request, unresolved thread or failing required check
    blocks; any failing check at all needs a human maintainer approval or valid
    human-approval evidence on the current head. Mandatory reviewer overrides
    remain all-of; findings remain obligations (fix or defer, any round).
@@ -2001,15 +2014,17 @@
            rounds waived artifact-findings
            reviews maintainers pr-author human-approval-evidence]
     :or {approval-quorum 1}}]
-  ;; A waiver removes obligations (checks, participation, mandatory status,
-  ;; artifact blocks); a positive exact-head approval it does give still counts.
+  ;; A waiver removes optional reviewer obligations, never a native required
+  ;; check. A positive exact-head approval from a waived reviewer still counts.
   (let [waived (set waived)
-        checks (remove #(waived (reviewer-check %)) (latest-checks head checks))
+        checks (remove #(and (waived (reviewer-check %)) (not (:required? %)))
+                       (latest-checks head checks))
         required-reviewers (when required-reviewers (set (remove waived required-reviewers)))
         cr (native-check-state checks)
         mandatory (or required-reviewers #{})
         bot-approved (set (for [[p heads] approved-heads
-                                :when (and (eligible-reviewers p) (contains? (set heads) head))] p))
+                                :when (and (eligible-reviewers p) (not (emits? p :check-artifact))
+                                           (contains? (set heads) head))] p))
         any-gate (any-approval-gate {:head head :reviews reviews :threads threads :checks checks
                                      :bot-approvers bot-approved :maintainers maintainers
                                      :pr-author pr-author :human-approval-evidence human-approval-evidence})

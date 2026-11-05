@@ -15,13 +15,18 @@ Implementation: `scripts/pr_flow/law.cljc` (`decisive-reviews`,
 `human-maintainer-approved?`, `any-approval-gate`, folded into `merge-gate`).
 Laws are tested one per `deftest` in `scripts/test_any_approval.cljs`.
 
+The user-approved 2026-11-05 tightening requires verified repository write-or-stronger
+access for human quorum. Antigravity findings still block and collection failures
+still abort, but clean artifacts grant no approval until workflow source verification
+is implemented. A matching check name, artifact name or claimed head is insufficient.
+
 ## Objects
 
 | Symbol | Meaning |
 | --- | --- |
 | `h` | the PR head SHA (40 hex) observed at gate time; `h = h_snapshot` |
-| `R` | native reviews `r = (login, type, state, commit, t)`, `state ∈ {APPROVED, CHANGES_REQUESTED, DISMISSED, COMMENTED, PENDING}` |
-| `B(h)` | bot approvers from trusted review evidence (`approved-heads`, inventory identities incl. Antigravity) bound to `h` |
+| `R` | native reviews `r = (id, login, type, state, commit, t)`, `state ∈ {APPROVED, CHANGES_REQUESTED, DISMISSED, COMMENTED, PENDING}` |
+| `B(h)` | bot approvers from trusted review evidence (`approved-heads`, verified inventory identities; excludes unverified Antigravity artifacts) bound to `h` |
 | `T` | review threads, `resolved(τ) ∈ {true,false}` |
 | `C` | latest run per `(name, workflow)` on `h` (`latest-checks`), `req(c)`, `fail(c)` |
 | `M` | observed role map `login → {admin, maintain, write, …}` read from GitHub |
@@ -33,10 +38,15 @@ Laws are tested one per `deftest` in `scripts/test_any_approval.cljs`.
 - **Standing.** `σ(ℓ) = state` of the latest review by `ℓ` with state in
   `{APPROVED, CHANGES_REQUESTED, DISMISSED}`; `DISMISSED ↦ ⊥`. COMMENTED and
   PENDING never change standing. This is a fold:
-  `σ = foldl (λ s r. if decisive(r) then s[login(r) ↦ r] else s) ∅ (sort_t R)`.
+  `σ = foldl (λ s r. if decisive(r) then s[login(r) ↦ r] else s) ∅ (sort_(t,id) R)`.
+  Native review IDs break equal-timestamp ties. When IDs do not distinguish tied rows,
+  conflicting states conservatively prefer CHANGES_REQUESTED, then DISMISSED,
+  then APPROVED rather than depending on input order. Tied approvals naming
+  different commits establish no exact-head approval.
 - **Human.** `Hum(ℓ) ⇔ type(ℓ) = User ∧ ¬bot(ℓ)`.
+- **Writer.** `Wrt(ℓ) ⇔ Hum(ℓ) ∧ M(ℓ) ∈ {admin, maintain, write}`.
 - **Maintainer.** `Mnt(ℓ) ⇔ Hum(ℓ) ∧ M(ℓ) ∈ {admin, maintain} ∧ ℓ ≠ a`.
-- **Approvers.** `A(h) = B(h) ∪ { ℓ | Hum(ℓ) ∧ σ(ℓ) = APPROVED ∧ commit(σ(ℓ)) = h }`.
+- **Approvers.** `A(h) = B(h) ∪ { ℓ | Wrt(ℓ) ∧ σ(ℓ) = APPROVED ∧ commit(σ(ℓ)) = h }`.
   Raw Bot `APPROVED` reviews count only through `B(h)`, which retains the
   existing scope/incomplete-review revocation.
 - **Rejecters.** `X = { ℓ | σ(ℓ) = CHANGES_REQUESTED }` (any head: sticky until
@@ -61,12 +71,14 @@ pass(h) ⇔ |A(h)| ≥ q            (q = :review/approval-quorum, default 1)
                                   review bodies answered)
 ```
 
-As a fold over the evidence stream: each observation contributes a monoid
-element `(A, X, U, F_req, F, H)` under `(∪, ∪, ∪, ∪, ∪, ∨)`; the verdict is
-the single predicate above applied to the folded value, so order of
-observation does not matter (L9) and adding a blocker can never turn BLOCKED
-into PASS except through the named supersession paths (same-reviewer approval,
-dismissal, thread resolution, a green rerun, human approval for non-required
+First derive each reviewer's latest decisive standing from the ordered native
+reviews, then derive `A` and `X` from that standing. Do not union historical
+approval and change-request sets: a later approval or dismissal must replace
+that reviewer's earlier request. The other observations determine `U`, `F_req`,
+`F` and `H`; apply the single predicate above to these derived values.
+Input order does not matter (L9), and adding a blocker cannot turn BLOCKED into
+PASS except through the named supersession paths (same-reviewer approval,
+dismissal, thread resolution, a green rerun, or human approval for non-required
 failures).
 
 ```mermaid
@@ -94,7 +106,7 @@ flowchart TD
 
 ## Laws (one test each, `test_any_approval.cljs`)
 
-- **L1 Any approval counts.** A listed-bot, Antigravity, any human or Err's
+- **L1 Any approval counts.** A trusted listed-bot or verified repository writer's
   approval on `h` alone satisfies `|A(h)| ≥ 1`; zero approvals never pass.
 - **L2 Exact head.** An approval whose commit ≠ `h` contributes nothing.
 - **L3 Any change request blocks**, from any account, across pushes, until
@@ -137,8 +149,10 @@ An automation records human approval as one of:
 ```
 
 The gate never trusts a claimed role: the CLI reads
-`repos/{repo}/collaborators/{login}/permission` and only `admin`/`maintain`
-qualify. Evidence binds to one head; a push invalidates it.
+`repos/{repo}/collaborators/{login}/permission`. Native `role_name` preserves
+`maintain` when the base `permission` is `write`; otherwise the verified base
+permission applies. `write` or stronger qualifies for ordinary quorum; only
+`admin`/`maintain` qualifies to approve non-required check failures. Evidence binds to one head; a push invalidates it.
 
 ## What changed vs. 2026-10-03
 

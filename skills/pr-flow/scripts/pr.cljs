@@ -231,31 +231,52 @@
 (defn- run-id-of [check]
   (second (re-find #"/actions/runs/([0-9]+)(?:/|$)" (str (:link check)))))
 
+(defn- fetch-run-artifact-verdict [repo head run {:keys [name-prefix file]}]
+  (try
+    (let [pages (gh-json "api" (str "repos/" repo "/actions/runs/" run "/artifacts")
+                         "--paginate" "--slurp")
+          arts (mapcat :artifacts pages)]
+      (when-not (and (vector? pages) (seq pages)
+                     (every? #(vector? (:artifacts %)) pages)
+                     (every? map? arts))
+        (throw (ex-info "Malformed artifact listing" {})))
+      (when-let [art (last (sort-by :created_at
+                                   (filter #(str/starts-with? (str (:name %)) name-prefix) arts)))]
+        ;; An expired latest artifact cannot fall back to an older clean one.
+        (when (:expired art)
+          (throw (ex-info "Review artifact expired" {})))
+        (let [dir (fs/mkdtempSync (path/join (.tmpdir (js/require "os")) "pr-flow-artifact-"))]
+          (try
+            (gh! "run" "download" (str run) "-R" repo "-n" (:name art) "-D" dir)
+            (let [found (->> (fs/readdirSync dir #js {:recursive true})
+                             (map str) (filter #(= file (path/basename %))) first)]
+              (when-not found
+                (throw (ex-info "Review artifact verdict file missing" {:file file})))
+              (or (law/artifact-verdict
+                    head (js->clj (js/JSON.parse (str (fs/readFileSync (path/join dir found) "utf8")))
+                                  :keywordize-keys true))
+                  (throw (ex-info "Review artifact is not bound to the current head" {}))))
+            (finally (fs/rmSync dir #js {:recursive true :force true}))))))
+    (catch :default e
+      (throw (ex-info (str "Cannot collect review artifact for run " run ": " (ex-message e))
+                      {:repo repo :head head :run run} e)))))
+
 (defn fetch-artifact-verdicts
-  "For every inventory reviewer with the :check-artifact detector, read the
-   exact-head review artifact of its completed check run. Absent artifacts
-   yield no verdict (never approval); unreadable ones fail closed as nil."
+  "For every inventory reviewer with the :check-artifact detector, read its
+   exact-head run artifacts. No matching run/artifact yields no verdict;
+   collection failures abort the snapshot, never falling back to old success."
   [repo head checks]
   (into {}
         (for [[id r] inv/reviewers
               :when (inv/has? id :check-artifact)
-              :let [{:keys [name-prefix file]} (:artifact r)
-                    runs (distinct (keep #(when (and (= id (inv/check-reviewer %)) (= head (:headSha %))) (run-id-of %)) checks))
-                    verdict (last (keep (fn [run]
-                                          (try
-                                            (let [arts (:artifacts (gh-json "api" (str "repos/" repo "/actions/runs/" run "/artifacts")))
-                                                  art (last (sort-by :created_at (filter #(and (str/starts-with? (str (:name %)) name-prefix) (not (:expired %))) arts)))]
-                                              (when art
-                                                (let [dir (fs/mkdtempSync (path/join (.tmpdir (js/require "os")) "pr-flow-artifact-"))]
-                                                  (try
-                                                    (gh! "run" "download" (str run) "-R" repo "-n" (:name art) "-D" dir)
-                                                    (let [found (->> (fs/readdirSync dir #js {:recursive true})
-                                                                     (map str) (filter #(= file (path/basename %))) first)]
-                                                      (when found
-                                                        (law/artifact-verdict head (js->clj (js/JSON.parse (str (fs/readFileSync (path/join dir found) "utf8"))) :keywordize-keys true))))
-                                                    (finally (fs/rmSync dir #js {:recursive true :force true}))))))
-                                            (catch :default _ nil)))
-                                        runs))]
+              :let [matched (filter #(and (= id (inv/check-reviewer %)) (= head (:headSha %))) checks)
+                    runs (distinct (map #(or (run-id-of %)
+                                             (throw (ex-info "Review check has no usable artifact run link"
+                                                             {:reviewer id :head head :link (:link %)}))) matched))
+                    verdicts (vec (keep #(fetch-run-artifact-verdict repo head % (:artifact r)) runs))
+                    ;; Check order is not chronology. Without a proven supersession
+                    ;; boundary, any adverse same-head artifact remains blocking.
+                    verdict (or (first (remove :positive? verdicts)) (last verdicts))]
               :when verdict]
           [id verdict])))
 
@@ -326,7 +347,7 @@
 (defn- authorized-author? [repo login]
   (when (and login (not (law/bot? login)))
     (try
-      (permissions/writer-role? (:permission (gh-json "api" (str "repos/" repo "/collaborators/" login "/permission"))))
+      (permissions/writer-role? (permissions/observed-role (gh-json "api" (str "repos/" repo "/collaborators/" login "/permission"))))
       (catch :default e
         (if (re-find #"HTTP 404|Not Found" (ex-message e)) false (throw e))))))
 
@@ -342,7 +363,7 @@
                                  (map :approver evidence)))
         role (fn [login]
                (when (and login (not (law/bot? login)))
-                 (try (:permission (gh-json "api" (str "repos/" repo "/collaborators/" login "/permission")))
+                 (try (permissions/observed-role (gh-json "api" (str "repos/" repo "/collaborators/" login "/permission")))
                       (catch :default e
                         (if (re-find #"HTTP 404|Not Found" (ex-message e)) nil (throw e))))))]
     {:human-approval-evidence evidence
@@ -706,7 +727,7 @@
     ;; Unavailable permissions are refused, including 404; never converted to
     ;; a healthy collection or a second authenticated identity.
     (permissions/writer-role?
-      (:permission (resolution-json env "api" (str "repos/" repo "/collaborators/" login "/permission"))))))
+      (permissions/observed-role (resolution-json env "api" (str "repos/" repo "/collaborators/" login "/permission"))))))
 
 (defn- resolution-writer [env repo]
   (let [user (resolution-json env "api" "user")

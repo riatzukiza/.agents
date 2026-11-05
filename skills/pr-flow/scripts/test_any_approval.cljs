@@ -2,7 +2,8 @@
 ;; Laws of the any-approval merge gate (Err, 2026-10-29). One deftest per law.
 (ns test-any-approval
   (:require [cljs.test :refer [deftest is testing run-tests]]
-            [pr-flow.law :as law]))
+            [pr-flow.law :as law]
+            [pr-flow.permissions :as permissions]))
 
 (def h (apply str (repeat 40 "a")))
 (def old (apply str (repeat 40 "b")))
@@ -19,12 +20,10 @@
 
 (deftest L1-any-approval-counts
   (doseq [[who r] [["listed bot" nil]
-                   ["Antigravity (evidence channel)" :antigravity]
-                   ["any human" (review (user "someone") "APPROVED" h)]
+                   ["verified writer" (review (user "dev") "APPROVED" h)]
                    ["Err" (review (user "err") "APPROVED" h)]]]
     (testing who
-      (let [g (gate (cond (= :antigravity r) {:approved-heads {"antigravity" #{h}}}
-                          r {:reviews [r]}
+      (let [g (gate (cond r {:reviews [r]}
                           :else {:approved-heads {"mimo" #{h}}}))]
         (is (:pass? g) (pr-str (:reasons g))))))
   (is (not (:pass? (gate {}))) "zero approvals never pass")
@@ -42,7 +41,7 @@
                             :reviews [(review u "CHANGES_REQUESTED" old)]})))
         "sticky across pushes, from anyone"))
   (testing "superseded only by the same reviewer's later approval or a dismissal"
-    (is (:pass? (gate {:reviews [(review (user "x") "CHANGES_REQUESTED" old "2026-10-29T10:00:00Z")
+    (is (:pass? (gate {:maintainers {"x" "write"} :reviews [(review (user "x") "CHANGES_REQUESTED" old "2026-10-29T10:00:00Z")
                                  (review (user "x") "APPROVED" h "2026-10-29T11:00:00Z")]})))
     (is (:pass? (gate {:approved-heads {"mimo" #{h}}
                        :reviews [(review (user "x") "DISMISSED" old "2026-10-29T11:00:00Z")
@@ -119,6 +118,58 @@
   (let [in {:reviews [(review (user "err") "APPROVED" h)]}]
     (is (= (gate in) (gate in)))
     (is (= (:pass? (gate in)) (:pass? (gate (update in :reviews reverse)))))))
+
+(deftest waived-reviewers-cannot-hide-required-checks
+  (doseq [state ["FAILURE" "PENDING" "SKIPPED" "CANCELLED"]]
+    (let [row {:name "Kimi" :state state :headSha h}
+          config {:approved-heads {"mimo" #{h}} :waived #{"kimi"}}]
+      (is (:pass? (gate (assoc config :checks [row]))) "optional waiver remains effective")
+      (is (not (:pass? (gate (assoc config :checks [(assoc row :required? true)]))))
+          (str "required Kimi " state " remains blocking"))))
+  (is (:pass? (gate {:approved-heads {"mimo" #{h}} :waived #{"kimi"}
+                    :checks [{:name "Kimi" :state "SUCCESS" :headSha h :required? true}]}))))
+
+(deftest equal-timestamp-standing-uses-native-review-id
+  (doseq [[earlier later passes?] [["APPROVED" "CHANGES_REQUESTED" false]
+                                  ["CHANGES_REQUESTED" "APPROVED" true]
+                                  ["CHANGES_REQUESTED" "DISMISSED" true]]]
+    (let [a (assoc (review (user "err") earlier h) :id 10)
+          b (assoc (review (user "err") later h) :id 20)]
+      (doseq [rs [[a b] [b a]]]
+        (is (= passes? (:pass? (gate {:approved-heads {"mimo" #{h}} :reviews rs})))))))
+  (let [a (review (user "err") "APPROVED" h)
+        b (review (user "err") "CHANGES_REQUESTED" h)]
+    (doseq [rs [[a b] [b a]]]
+      (is (not (:pass? (gate {:approved-heads {"mimo" #{h}} :reviews rs})))
+          "ambiguous ties without native IDs remain conservative"))))
+
+(deftest ambiguous-approvals-cannot-establish-a-head
+  (doseq [id [nil 10]]
+    (let [a (assoc (review (user "err") "APPROVED" h) :id id)
+          b (assoc (review (user "err") "APPROVED" old) :id id)]
+      (doseq [rs [[a b] [b a]]]
+        (is (not (:pass? (gate {:reviews rs}))))
+        (is (empty? (law/current-head-approvers h rs))))))
+  (let [r (assoc (review (user "err") "APPROVED" h) :id 10)]
+    (is (:pass? (gate {:reviews [r r]}))) "identical duplicates remain valid"))
+
+(deftest human-quorum-requires-verified-write-access
+  (doseq [role [nil "read" "triage" "owner" true "WRITE"]]
+    (let [g (gate {:reviews [(review (user "outsider") "APPROVED" h)]
+                  :maintainers {"outsider" role}})]
+      (is (not (:pass? g)))
+      (is (empty? (:approving-reviewers g)))))
+  (doseq [role ["write" "maintain" "admin"]]
+    (is (:pass? (gate {:reviews [(review (user "writer") "APPROVED" h)]
+                      :maintainers {"writer" role}}))))
+  (is (not (:pass? (gate {:approved-heads {"antigravity" #{h}}})))
+      "unverified artifact channel never supplies quorum"))
+
+(deftest native-maintain-role-is-not-lost-to-base-permission
+  (is (= "maintain" (permissions/observed-role {:permission "write" :role_name "maintain"})))
+  (is (= "write" (permissions/observed-role {:permission "write" :role_name "custom-role"})))
+  (doseq [response [nil {} {:permission "read"} {:role_name "custom-role" :permission "read"}]]
+    (is (nil? (permissions/observed-role response)))))
 
 (defmethod cljs.test/report [:cljs.test/default :end-run-tests] [m]
   (when-not (cljs.test/successful? m) (set! (.-exitCode js/process) 1)))

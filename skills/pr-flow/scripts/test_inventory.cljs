@@ -7,7 +7,7 @@
 
 (deftest inventory-is-data
   (is (= #{"coderabbit" "codex" "mimo" "kimi" "antigravity"} (set (keys inv/reviewers))))
-  (is (every? #(contains? inv/eligible %) (keys inv/reviewers)) "all reviewers count equally")
+  (is (every? #(contains? inv/eligible %) (keys inv/reviewers)) "all reviewers remain in the inventory; evidence admission is separate")
   (is (= "antigravity" (inv/check-reviewer {:name "review / review" :workflow "Antigravity evidence review"}))))
 
 (deftest waivers
@@ -30,11 +30,14 @@
     (is (not (:positive? (law/artifact-verdict "0000000000000000000000000000000000000000" ok))))
     (is (= :incomplete-scope (:reason (law/artifact-verdict head (assoc ok :scope_complete false)))))
     (is (= :findings (:reason (law/artifact-verdict head (assoc ok :status "findings" :findings [{:title "x"}])))))
-    (testing "clean artifact approves and counts toward the gate"
-      (let [ev (law/merge-artifact-evidence {} {"antigravity" (law/artifact-verdict head ok)})]
-        (is (contains? (get-in ev [:approved-heads "antigravity"]) head))
-        (is (:pass? (law/merge-gate (merge {:head head :snapshot-head head :threads [] :rounds 5 :checks []}
-                                           (select-keys ev [:approved-heads])))))))
+    (testing "clean artifact never approves without source verification"
+      (let [ev (law/merge-artifact-evidence {:approved-heads {"antigravity" #{head}}
+                                                  :approval-evidence {"antigravity" {:head head}}}
+                                                 {"antigravity" (law/artifact-verdict head ok)})]
+        (is (empty? (get-in ev [:approved-heads "antigravity"])))
+        (is (nil? (get-in ev [:approval-evidence "antigravity"])))
+        (is (not (:pass? (law/merge-gate (merge {:head head :snapshot-head head :threads [] :rounds 5 :checks []}
+                                           (select-keys ev [:approved-heads]))))))))
     (testing "findings block unless waived"
       (let [v (law/artifact-verdict head (assoc ok :status "findings" :findings [{:title "x"}]))
             ev (law/merge-artifact-evidence {:approved-heads {"codex" #{head}}} {"antigravity" v})

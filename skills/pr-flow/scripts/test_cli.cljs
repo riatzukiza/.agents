@@ -2580,4 +2580,121 @@
     (is (empty? (mutations reserved)))
     (is (not (str/includes? (:receipts reserved) ":status :qualified")))))
 
+(def artifact-endpoint "repos/o/r/actions/runs/101/artifacts")
+(def artifact-check {:name "Antigravity" :state "SUCCESS"
+                     :link "https://github.com/o/r/actions/runs/101/job/1"})
+(def artifact-clean {:head head :status "clean" :scope_complete true :findings []})
+(def artifact-config
+  (-> base
+      (update :checks conj artifact-check)
+      (assoc :apiResponses {artifact-endpoint
+                            {:artifacts [{:name "antigravity-review-101" :expired false
+                                          :created_at "2026-10-03T01:00:00Z"}]}}
+             :artifactDownloads {"101" {:files {"review.json" artifact-clean}}})))
+
+(deftest artifact-collection-preserves-absence-and-verdicts
+  (doseq [config [base
+                  (assoc-in artifact-config [:apiResponses artifact-endpoint] {:artifacts []})
+                  (assoc-in artifact-config [:apiResponses artifact-endpoint]
+                            [{:artifacts []} {:artifacts [{:name "antigravity-review-101"}]}])
+                  artifact-config]]
+    (let [r (execute config "gate" "o/r" "1" "--apply")]
+      (is (= 0 (:exit r)) (:err r))
+      (is (= 1 (count (writes r "merge"))))))
+  (let [r (execute (assoc-in artifact-config [:artifactDownloads "101" :files "review.json"]
+                            (assoc artifact-clean :status "findings" :findings [{:message "Fix this"}]))
+                   "gate" "o/r" "1" "--apply")]
+    (is (= 2 (:exit r)) (:err r))
+    (is (str/includes? (:out r) "Review artifact not clean"))
+    (is (empty? (writes r "merge")))))
+
+(deftest artifact-collection-errors-stop-the-gate
+  (doseq [config [(assoc artifact-config :apiErrors {artifact-endpoint "HTTP 500"})
+                  (assoc-in artifact-config [:apiResponses artifact-endpoint] {})
+                  (assoc-in artifact-config [:apiResponses artifact-endpoint :artifacts 0 :expired] true)
+                  (assoc-in artifact-config [:apiResponses artifact-endpoint :artifacts]
+                            [{:name "antigravity-review-100" :created_at "2026-10-03T00:00:00Z"}
+                             {:name "antigravity-review-101" :created_at "2026-10-03T01:00:00Z" :expired true}])
+                  (assoc-in artifact-config [:artifactDownloads "101"] {:error "download failed"})
+                  (assoc-in artifact-config [:artifactDownloads "101" :files] {})
+                  (assoc-in artifact-config [:artifactDownloads "101" :files "review.json"] "{broken")
+                  (assoc-in artifact-config [:artifactDownloads "101" :files "review.json"] [])
+                  (assoc-in artifact-config [:artifactDownloads "101" :files "review.json" :head] other)]]
+    (let [r (execute config "gate" "o/r" "1" "--apply")]
+      (is (= 1 (:exit r)) (:err r))
+      (is (empty? (writes r "merge")))
+      (is (empty? (writes r "ready"))))))
+
+(deftest artifact-collection-error-cannot-fall-back-to-passing-run
+  (doseq [checks [[artifact-check (assoc artifact-check :link "https://github.com/o/r/actions/runs/102/job/1")]
+                  [(assoc artifact-check :link "https://github.com/o/r/actions/runs/102/job/1") artifact-check]]]
+    (let [r (execute (-> artifact-config
+                         (assoc :checks (into (:checks base) checks))
+                         (assoc :apiErrors {"repos/o/r/actions/runs/102/artifacts" "HTTP 500"}))
+                     "gate" "o/r" "1" "--apply")]
+      (is (= 1 (:exit r)) (:err r))
+      (is (empty? (writes r "merge"))))))
+
+(deftest artifact-collection-requires-usable-run-links
+  (doseq [link [nil "https://github.com/o/r/actions/runs/not-a-run"]]
+    (let [r (execute (assoc artifact-config :checks
+                            (conj (:checks base) (assoc artifact-check :link link)))
+                     "gate" "o/r" "1" "--apply")]
+      (is (= 1 (:exit r)) (:err r))
+      (is (empty? (writes r "merge"))))))
+
+(deftest adverse-artifact-cannot-be-masked-by-check-order
+  (doseq [checks [[artifact-check (assoc artifact-check :link "https://github.com/o/r/actions/runs/102/job/1")]
+                  [(assoc artifact-check :link "https://github.com/o/r/actions/runs/102/job/1") artifact-check]]]
+    (let [r (execute (-> artifact-config
+                         (assoc :checks (into (:checks base) checks))
+                         (assoc-in [:apiResponses "repos/o/r/actions/runs/102/artifacts"]
+                                   {:artifacts [{:name "antigravity-review-102"}]})
+                         (assoc-in [:artifactDownloads "102" :files "review.json"]
+                                   (assoc artifact-clean :status "findings" :findings [{:message "Fix this"}])))
+                     "gate" "o/r" "1" "--apply")]
+      (is (= 2 (:exit r)) (:err r))
+      (is (str/includes? (:out r) "Review artifact not clean"))
+      (is (empty? (writes r "merge"))))))
+
+(deftest waived-required-reviewer-check-still-blocks-cli
+  (let [config (-> base (assoc :prior-stage-rounds 0)
+                   (update :checks conj {:name "Kimi" :state "FAILURE" :required true}))
+        r (execute config "gate" "open-hax/proxx" "1" "--apply")]
+    (is (= 2 (:exit r)) (:err r))
+    (is (str/includes? (:out r) "failing required check"))
+    (is (empty? (writes r "merge")))))
+
+(deftest verified-human-writer-only-cli
+  (let [r (assoc approval :user {:login "writer" :type "User"})]
+    (doseq [[response expected] [[{:permission "read"} 2]
+                               [{} 2]
+                               [{:permission "write"} 0]
+                               [{:permission "write" :role_name "maintain"} 0]
+                               [{:permission "admin"} 0]]]
+      (let [result (execute (assoc base :reviews [r] :permissionResponses {"writer" response})
+                            "gate" "o/r" "1" "--apply")]
+        (is (= expected (:exit result)) (:err result))
+        (is (= (if (zero? expected) 1 0) (count (writes result "merge"))))))
+    (let [result (execute (-> base (assoc :reviews [r] :permissionResponses
+                                        {"writer" {:permission "write" :role_name "maintain"}})
+                             (update :checks conj {:name "optional lint" :state "FAILURE"}))
+                          "gate" "o/r" "1" "--apply")]
+      (is (= 0 (:exit result)) (:err result))
+      (is (= 1 (count (writes result "merge")))))))
+
+(deftest unavailable-human-permission-never-approves-cli
+  (doseq [[error expected] [["Not Found (HTTP 404)" 2] ["Forbidden (HTTP 403)" 1] ["HTTP 500" 1]]]
+    (let [result (execute (assoc base :reviews [(assoc approval :user {:login "writer" :type "User"})]
+                                :apiErrors {"repos/o/r/collaborators/writer/permission" error})
+                          "gate" "o/r" "1" "--apply")]
+      (is (= expected (:exit result)) (:err result))
+      (is (empty? (writes result "merge"))))))
+
+(deftest unverified-clean-artifact-never-supplies-approval-cli
+  (let [result (execute (assoc artifact-config :reviews []) "gate" "o/r" "1" "--apply")]
+    (is (= 2 (:exit result)) (:err result))
+    (is (str/includes? (:out result) "No exact-head approval"))
+    (is (empty? (writes result "merge")))))
+
 (run-tests 'test-cli 'test-native-context)
