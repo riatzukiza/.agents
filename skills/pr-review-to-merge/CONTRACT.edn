@@ -1,6 +1,6 @@
 (skill-contract
   (name "pr-review-to-merge")
-  (v "ημ.skill/pr-review-to-merge@0.2.0")
+  (v "ημ.skill/pr-review-to-merge@0.3.0")
   (intent "Own an explicitly authorized PR or ordered stack through verified merge and continuation.")
   (activation
     (priority 68)
@@ -14,12 +14,15 @@
     (requires-user-approval false)
     (authorization "Do not infer merge permission from review or skill installation; reuse existing explicit authorization."))
   (invariants
-    (one-active-pr true)
-    (reviewer-defaults "pr-flow/flow.edn :flow/defaults :review/by-repo-name; mandatory reviewer sets cannot be removed by --reviewers")
-    (review-cohort "All available agents under pr-flow; authenticated quota evidence never supplies approval, settles findings or waives mandatory reviewers and required checks.")
-    (approval-quorum 1)
-    (approval-providers ["coderabbit" "codex" "mimo" "kimi"])
-    (require-trusted-exact-head-approval-or-verified-passing-verdict true)
+    (native-profile "pr-flow/native-swarm.md; independent PRs may proceed concurrently with one coordinator per PR or coupled stack and one writer per branch/resource")
+    (native-review "One proportionate combined-tree review; at most two review-driven repair passes across the entire task by default, unless the user chooses another bound")
+    (hosted-provider-compatibility
+      (one-active-pr true)
+      (reviewer-defaults "pr-flow/flow.edn :flow/defaults :review/by-repo-name; mandatory reviewer sets cannot be removed by --reviewers")
+      (review-cohort "All available agents under pr-flow; authenticated quota evidence never supplies approval, settles findings or waives mandatory reviewers and required checks.")
+      (approval-quorum 1)
+      (approval-providers ["coderabbit" "codex" "mimo" "kimi"])
+      (require-trusted-exact-head-approval-or-verified-passing-verdict true))
     (coverage-is-not-approval true)
     (require-passing-required-checks true)
     (require-resolved-review-conversations true)

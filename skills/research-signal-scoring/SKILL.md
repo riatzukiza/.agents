@@ -1,8 +1,5 @@
 ---
-description: "Apply structured research workflow: discovery, scoring, scenario modeling, uncertainty quantification, red-teaming, and deliverable writing. Use when analyzing claims, scoring signals, building evidence maps, or researching topics with proper methodology."
----
-
----
+name: research-signal-scoring
 description: "Apply structured research workflow: discovery, scoring, scenario modeling, uncertainty quantification, red-teaming, and deliverable writing. Use when analyzing claims, scoring signals, building evidence maps, or researching topics with proper methodology."
 ---
 
