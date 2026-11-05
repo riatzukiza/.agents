@@ -15,7 +15,9 @@ test('local paths and task-wide bounded exit are explicit', () => {
   assert.match(skill, /stop the review\/repair loop/);
   assert.match(skill, /skeptic is optional/);
   assert.match(skill, /strict EDN plan, manifest and validator are optional/);
-  assert.match(config, /:repair\/default-max-passes 2/);
+  const passLimit = /:repair\/default-max-passes 2(?=\s|})/;
+  assert.match(config, passLimit);
+  assert.doesNotMatch(":repair/default-max-passes 20", passLimit);
   assert.match(config, /:repair\/budget-scope :entire-task-across-replanning-and-handoffs/);
   assert.match(config, /:repair\/exhaustion :stop-and-report-unresolved/);
 });
