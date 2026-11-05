@@ -19,7 +19,7 @@ on:
         type: string
 
 concurrency:
-  group: agy-review-${{ github.workflow }}-${{ github.event.pull_request.number || inputs.pr_number || github.ref }}
+  group: agy-review-${{ github.workflow }}-${{ github.event.pull_request.number || inputs.pr_number || format('{0}-{1}', inputs.base_sha || 'none', inputs.head_sha || 'none') || github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -137,7 +137,8 @@ jobs:
             "permissions": {
               "allow": [
                 "read_file",
-                "command(regex:^git (status|diff|show|log|rev-parse|ls-files)( .*)?$)"
+                "command(regex:^git status( --short)?$)",
+                "command(regex:^git diff --stat [0-9a-fA-F]{40}\\.{3}[0-9a-fA-F]{40}$)"
               ]
             }
           }

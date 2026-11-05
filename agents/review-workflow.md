@@ -32,7 +32,7 @@ Execute exactly one bounded, disciplined pass through the following states:
 ### 1. `:deterministic`
 - Inspect deterministic test, lint, and build evidence (Verify SKILL.md frontmatter agreement and s-expression balance in PRINCIPLE.edn and CONTRACT.edn files.).
 - Distinguish pre-existing environment or test suite failures from change-introduced defects.
-- Run or inspect `git diff --stat "${PR_BASE_SHA:-HEAD~1}...${PR_HEAD_SHA:-HEAD}"`.
+- Run or inspect `git diff --stat <base-sha>...<head-sha>` using the literal full SHAs supplied with this review. Do not use shell substitutions or add command arguments.
 
 ### 2. `:map-change`
 - Identify changed APIs, contracts, boundaries, side effects, state transitions, and authorization checks.
