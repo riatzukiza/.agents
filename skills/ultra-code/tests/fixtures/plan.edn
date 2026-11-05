@@ -1,0 +1,6 @@
+{:snapshot "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+ :round 1 :capacity 2 :limited? false
+ :inputs {:roles "role content" :prompt "prompt content" :schemas "schema content" :packets "packet content" :gates "gate content" :model "host-default"}
+ :jobs [{:id "review" :kind :review :deps [] :writes [] :attempt 1}
+        {:id "gate" :kind :gate :deps [] :writes [] :attempt 1}
+        {:id "skeptic" :kind :skeptic :deps ["review"] :writes [] :attempt 1 :author-job "review"}]}

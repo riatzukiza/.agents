@@ -1,0 +1,14 @@
+{:qualification/version 2
+ :native {:use :optional-strict-profile
+          :validator "scripts/native.cljs"
+          :scope :supplied-plan-and-receipts
+          :clean-requires [:complete-expected-jobs :successful-gates
+                           :current-input-bindings :independent-context-observations
+                           :complete-skeptic-coverage :no-unresolved-findings]
+          :external-obligations [:actual-host-execution :source-byte-identity
+                                 :workspace-enforcement :github-requirements]}
+ :legacy {:runner "scripts/ultra.bb"
+          :default false
+          :qualification :not-established
+          :instructions "references/legacy-qualification.md"
+          :automatic-commit false :automatic-promotion false :delete-journal false}}

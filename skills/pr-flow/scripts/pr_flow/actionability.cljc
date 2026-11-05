@@ -46,7 +46,10 @@
              (some #(not= "" (:body %)) reviews)) unresolved-commented-review-scope
         :else nil))))
 
-(defn- context-valid? [{:keys [id head pr-author resolved? root-comment-id comments native-context context-manifest context-digest] :as t}]
+(defn- context-valid?
+  ([t] (context-valid? t false))
+  ([{:keys [id head pr-author resolved? root-comment-id comments native-context context-manifest context-digest] :as t}
+    typed-walkthrough?]
   (let [{:keys [repository pr thread]} native-context
         nodes (get-in thread [:comments :nodes]) a (:author pr)
         times (mapv :createdAt nodes)]
@@ -54,7 +57,9 @@
          (text? (:nameWithOwner repository)) (text? (:id pr)) (positive-id? (:number pr))
          (= "OPEN" (:state pr)) (user? a) (= pr-author (:login a)) (sha? 40 head) (= head (:headRefOid pr))
          (= id (:id thread)) (text? id) (boolean? resolved?) (= resolved? (:isResolved thread))
-         (boolean? (:isOutdated thread)) (text? (:path thread)) (positive-id? (:line thread))
+         (boolean? (:isOutdated thread)) (text? (:path thread))
+         (or (positive-id? (:line thread))
+             (and typed-walkthrough? (true? (:isOutdated thread)) (nil? (:line thread))))
          (vector? nodes) (seq nodes) (false? (get-in thread [:comments :pageInfo :hasNextPage]))
          (= (count nodes) (get-in thread [:comments :totalCount]))
          (= (count nodes) (count (set (map :id nodes))) (count (set (map :databaseId nodes))))
@@ -76,8 +81,8 @@
                           (= (= "" (:body r)) (= empty-sha (:body-sha256 r)))
                           (= (author-row a) (author-row (:author r))) (time? (:updatedAt r))
                           (sha? 40 (get-in r [:commit :oid]))))) nodes)
-         (some? (context-scope t)) (sha? 64 context-digest)
-         (= context-manifest (pr-flow.actionability/context-manifest native-context)))))
+         (or typed-walkthrough? (some? (context-scope t))) (sha? 64 context-digest)
+         (= context-manifest (pr-flow.actionability/context-manifest native-context))))))
 
 (defn target [t]
   ["actionability/v1" (get-in t [:native-context :repository :id])
@@ -105,6 +110,44 @@
   (and (= :github-issue-comment (:source-channel c)) (positive-id? (:id c)) (text? (:node_id c))
        (text? (:html_url c)) (time? (:created_at c)) (time? (:updated_at c))
        (= (:created_at c) (:updated_at c)) (sha? 64 (:body-sha256 c))))
+
+(defn author-walkthrough?
+  "Admit a native author's explicit exact-context no-request attestation.
+   This is an author judgment, not a semantic classifier, review or approval.
+   Complete single-comment custody, current head and an unedited later native
+   author attestation are mandatory. A reply, changed head or root body, or a
+   later enclosing-review edit revokes it."
+  [{:keys [head id root-comment-id issue-comments native-context] :as t}]
+  (let [author (get-in native-context [:pr :author])
+        thread (get-in native-context [:thread])
+        nodes (get-in thread [:comments :nodes])
+        target [(get-in native-context [:repository :id]) (get-in native-context [:pr :id])
+                id root-comment-id (:body-sha256 (first nodes))]
+        header (str "Author walkthrough attestation v1 for " head ":")]
+    (boolean
+     (and (context-valid? t true)
+          (= 1 (count nodes)) (vector? issue-comments)
+          (str/starts-with? (:body (first nodes))
+                            "<!-- pr-flow:walkthrough:v1; informational/no-finding/no-request/no-question -->\n")
+          (some (fn [c]
+                  (let [[h payload :as lines] (str/split (or (:body c) "") #"\n" -1)
+                        v (try (edn/read-string payload) (catch #?(:clj Exception :cljs :default) _ nil))
+                        targets (when (and (vector? v) (= 3 (count v))) (nth v 1))]
+                    (and (native? c) (= "User" (get-in c [:user :type]))
+                         (= [(:databaseId author) (:id author) (:login author)]
+                            [(get-in c [:user :id]) (get-in c [:user :node_id]) (get-in c [:user :login])])
+                         (pos? (compare (:created_at c) (:updatedAt (first nodes))))
+                         (pos? (compare (:created_at c) (get-in (first nodes) [:pullRequestReview :updatedAt])))
+                         (= 2 (count lines)) (= h header) (vector? v) (= payload (pr-str v))
+                         (= "author-walkthrough/v1" (first v))
+                         (= "informational/no-finding/no-request/no-question" (nth v 2 nil))
+                         (vector? targets) (<= 1 (count targets) 100)
+                         (= (count targets) (count (set targets)))
+                         (every? #(and (vector? %) (= 5 (count %))
+                                       (every? text? (take 3 %))
+                                       (positive-id? (nth % 3)) (sha? 64 (nth % 4))) targets)
+                         (some #{target} targets))))
+                issue-comments)))))
 (defn assessor-policy
   "Select separate actionability identities by exact native repository name/ID.
    Existing global identities remain; no approval or rejection roster is read."
@@ -217,7 +260,7 @@
   [{:keys [actionability-observations] :as t}]
   (if-not (vector? actionability-observations)
     {:kind :finding :status :unavailable :context-digest (:context-digest t) :observations []}
-  (let [{:keys [ps scoped revoked valid a as conflict? withdrawn? qualified?]} (evaluation t)
+  (let [{:keys [p ps scoped revoked valid a as conflict? withdrawn? qualified?]} (evaluation t)
         observation (fn [r]
                       (let [source (:source r)]
                         {:purpose :thread-actionability :repo-id (get-in t [:native-context :repository :id])
@@ -243,7 +286,7 @@
         observations (vec (concat lost (when (and qualified? (not (some #{now} old))) [now])))]
     {:kind (if qualified? :informational :finding)
      :status (cond qualified? :qualified (or conflict? withdrawn? (seq lost)) :revoked
-                   (seq scoped) :ineligible :else :absent)
+                    (or p (seq scoped)) :ineligible :else :absent)
      :channel (when (or a (seq lost)) :github-issue-comment)
      :assessment-id (or (:id as) (:assessment-id (first lost))) :proposal-id (:id ps)
      :url (or (:html_url as) (:assessment-url (first lost)))

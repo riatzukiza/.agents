@@ -1,19 +1,39 @@
 ---
 name: pr-flow
-description: Entry point for every pull-request interaction. A state machine (flow.edn) that routes muse → standalone card or epic/stories → PR (ready, auto-merge off) with CodeRabbit planning review → ready cards → red (laws, tests) → green (domain, infra) → iterative code review → an exact-head approval quorum → authorized merge, naming the skill, inputs, outputs and exit for each state, with an nbb CLI for the GitHub mechanics.
+description: "Route PR work through local direct or native parallel implementation and proportionate review when the harness supports them. Preserve exact-revision evidence, finding settlement, required GitHub checks and authorized merge. Retain the hosted-provider CLI as an explicit compatibility profile."
 license: GPL-3.0-or-later
-metadata:
-  tier: provisional
-  origin: User request 2026-10-01 (foresight session); distilled from Claude Code/OpenCode session logs, receipts and session-mycology spores across ~/spaces.
 ---
 
 # PR flow
+
+Provenance and maturity are retained in [configs/provenance.edn](configs/provenance.edn).
+
+## Default profile: native agent swarms
+
+The user's 2026-11-03 direction makes native harness subagents the preferred
+execution path. Read [native swarm review](native-swarm.md), then use
+`ultra-code` for local execution, bounded parallel dispatch, proportionate
+review and a task-wide repair limit. The profile is recorded
+in [configs/native-swarm.edn](configs/native-swarm.edn).
+
+Independent PRs run concurrently. One coordinator owns each PR or dependent
+stack, and one writer owns each branch or shared resource. Provider-specific
+planning requests, five-round minimums and global one-active-PR instructions
+in the retained graph or its child skills apply only to the explicitly selected
+hosted-provider profile. Native work uses complete scoped review and evidence
+instead of a fixed provider roster. All actual required GitHub checks/reviews,
+finding dispositions and merge authorization still apply.
+
+The existing `pr.cljs gate` consumes hosted-provider evidence; it cannot consume
+native receipts. Do not manufacture provider approvals to satisfy it. Native
+evidence qualification, actual GitHub requirements and publication are separate
+observations. See [execution instructions](references/INSTRUCTIONS.md).
 
 ## Use this skill when
 
 - You create, review, reply on, update, or merge **any** pull request.
 - The user muses about work that will become cards and PRs.
-- You resume PR work from a previous session (run `pr.cljs status` first).
+- You resume PR work from a previous session (inspect the selected profile's retained run and the current PR head; use `pr.cljs status` for the hosted profile).
 
 ## Do not use this skill when
 
@@ -66,22 +86,50 @@ history and do not edit others' comments. If nothing relevant changed, do not
 repost unchanged commentary; still verify and report current-head checks and any
 new gaps.
 
-This is author context, **not** formal approval, independent review, finding
-settlement, review-round credit, or permission to merge. An inline author
-walkthrough may create a review thread that the existing gate treats as a
-finding or unresolved blocker. Do not self-resolve it or label it informational
-to bypass that gate; follow [the existing independent disposition
-boundary](actionability.md) and settlement rules. If a separate review is blocked by an existing pending review, never submit,
+### Typed informational walkthroughs
+
+At creation, begin each purely explanatory inline comment with this exact line:
+
+`<!-- pr-flow:walkthrough:v1; informational/no-finding/no-request/no-question -->`
+
+After publishing, inspect complete native context and post one unedited PR
+conversation comment as the PR author, with two lines. The first is
+`Author walkthrough attestation v1 for <40-character-current-head>:`.
+The second is the canonical EDN vector
+`["author-walkthrough/v1" [[<repository-node-id> <pr-node-id> <thread-node-id> <root-comment-id> <root-body-sha256>] ...] "informational/no-finding/no-request/no-question"]`.
+The hash is SHA-256 of the exact GitHub-decoded UTF-8 root body, including the
+marker. One attestation may bind multiple distinct threads. Use native IDs and
+actual bytes, never guessed values. Post it after the root and enclosing review
+were last edited. For an older explanatory comment, the author may add the
+marker and then create a fresh attestation after verifying the full context.
+
+This is the author's explicit judgment that each listed comment contains no
+finding, request or question; a marker or attestation is not semantic proof.
+Never label a genuine concern or request as a walkthrough. Put it in a separate
+normal review thread. The gate admits only a complete current-head,
+single-comment native thread whose author and enclosing COMMENTED review match
+the PR author, and a matching later, unedited native author attestation. An
+outdated location requires a fresh current-head attestation after the author
+checks it. A reply, changed body, stale head, missing context, edited attestation
+or mismatched identity fails closed. A scoped independent actionability proposal or assessment,\nunavailable history or retained revocation returns the thread to the normal\ndisposition path. Attested author walkthroughs are
+informational for the local PR-flow gate, not approval, independent review,
+settlement, check credit,
+or permission to merge. Other findings, review bodies and GitHub branch
+protections remain in force. If GitHub requires conversation resolution, an
+authorized operator may resolve a verified pure walkthrough without claiming
+that it is a fixed finding; re-read the thread and preserve its history. A
+request or reply must follow ordinary settlement, never this path.
+
+If a separate review is blocked by an existing pending review, never submit,
 discard or edit an existing pending review without explicit authorization.
 Instead, when authorized, use a clearly labeled author-walkthrough overview
 comment with source links to the relevant exact-head locations; report the
-inline-review limitation. Separate informational navigation from discovered
-findings, which retain the normal finding process. If publication is unavailable,
-report the blocker and leave the PR's review and merge gates intact. This skill
-does not itself grant publication or merge permission in a more restrictive
+inline-review limitation. If publication is unavailable, report the blocker.
+This skill does not grant publication or merge permission in a more restrictive
 harness or engagement.
 
-## The graph
+
+## Hosted-provider graph (explicit compatibility profile)
 
 `flow.edn` is the source of truth for the state graph and consumed CLI defaults.
 Run `pr.cljs flow` to print it, or `pr.cljs flow <state>` for one state's skill,
@@ -145,7 +193,12 @@ POST, retains actual outcome/readback and revocation observations, and requires
 a new resolved-scope assessment. Source preparation must be protected and
 adopted before use; no settlement, approval or round credit is supplied.
 
-## Hard-won rules
+## Hosted-provider rules and shared publication safeguards
+
+Provider identities, invitations, availability cohorts and round counts below
+describe the legacy CLI profile. Integrity, authorization, required checks,
+finding settlement and truthful publication apply to both profiles. The native
+profile is governed by [native-swarm.md](native-swarm.md).
 
 - **gh auth.** A fine-grained `GH_TOKEN` can push but may fail `createPullRequest` with "Resource not accessible by personal access token". The CLI retries with the token unset so gh uses its keyring login. For raw `gh`, use `env -u GH_TOKEN -u GITHUB_TOKEN gh …`.
 - **Approval quorum.** After the review minimum is reached, one trusted exact-head GitHub `APPROVED` review or explicit completed passing/no-issues verdict from CodeRabbit, Codex, MiMo or Kimi satisfies the default approval quorum. Before that minimum, the loop can exit early only when at least one round has completed, every available review agent approves the current head, and every finding is settled. A COMMENTED state alone, coverage alone, `CHANGES_REQUESTED`, acknowledgements and stale reviews do not qualify. All four remain invited. All findings from every reviewer must be settled; required CI and evidence gates must pass.

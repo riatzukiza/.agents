@@ -1,70 +1,53 @@
 ---
-name: ultra-code
-description: Evidence-gated dynamic workflows for opencode. EDN-defined orchestration executed out-of-conversation by scripts/ultra.bb with content-hash journaled, resumable subagent fan-out. Use for adversarial review waves, multi-card audits, and any task needing plan -> fan-out -> skeptic-verify -> verdict topology. Self-contained global port of the eta-mu ultracode skill.
+name: "ultra-code"
+description: "Complete substantial work in the current local environment, using either direct execution or native parallel agents with a bounded review and repair cycle."
 ---
 
-# ultra-code
+# UltraCode
 
-Dynamic workflows are DATA, not prompting theater. The durable orchestration plan lives in an EDN workflow file; execution lives in `scripts/ultra.bb` (babashka); every agent dispatch is journaled by content hash so interrupted runs resume exactly where they stopped.
+See the [execution instructions](references/INSTRUCTIONS.md), [contract](CONTRACT.edn), and [qualification configuration](configs/qualification.edn).
 
-## Layout of this pack
+Work in the current selected local environment. Do not create a remote task, PR, hosted review, deployment, or service as a side effect of invoking UltraCode. Respect explicit user choices and required repository or platform controls.
 
-- `scripts/ultra.bb` — the orchestrator (plan/run). Repo-agnostic; invoke from the target repo root.
-- `agents/ultra-reviewer.md`, `agents/ultra-skeptic.md`, `agents/ultra-implementer.md` — the opencode agent definitions the workflows dispatch to. Installed globally to `~/.config/opencode/agents/`; the copies here are the canonical source.
-- `workflows/template-review.edn` — generic cards × lenses review workflow. Copy it into `<repo>/.ημ/workflows/<id>.edn` and edit.
+Choose one of two paths and start promptly:
 
-## Prerequisites
+1. **Direct local:** use one worker when the work is coupled, small enough to coordinate directly, or native dispatch is unavailable.
+2. **Parallel local:** use native agents in the same selected environment for independent packets; assign one writer per resource and integrate their changes locally. Do not use an external runner merely to get parallelism.
 
-- `bb` (babashka) on PATH.
-- `opencode` CLI on PATH; agents dispatch via `opencode run --format json --agent <name>`.
-- The three `ultra-*` agents registered in the opencode config scope you run from (they are installed globally; re-copy from `agents/` here if they drift).
+Make a short plan identifying the outcome, acceptance checks, dependencies, ownership and risky assumptions. Update it when needed, but do not start a separate planning-review loop. Capture enough source and test evidence to identify what was checked, including dirty and untracked changes where relevant. Use the repository's required evidence format when applicable. A strict EDN plan, manifest and validator are optional, not prerequisites for ordinary local work.
 
-## When to use
+## Implement, check and finish
 
-- Adversarial review of one or more kanban cards / change sets before promotion.
-- Any fan-out where findings must survive independent skeptic votes before they count.
-- Bounded-write implementation waves with gates (`:implement` stages — see below).
+- Implement independent ready work concurrently when useful, preserving unrelated changes. Serialize overlapping paths and shared resources. Native contexts are not automatically isolated sandboxes.
+- Run appropriate focused tests during implementation, integrate the actual combined tree, and run affected checks on it. Report unrun or failing checks honestly.
+- Perform one proportionate review of the integrated result, using a fresh native reviewer when available. If no independent context is available, inspect and test directly and report that limitation. A separate skeptic is optional when risk or a disputed finding warrants it, not a required second review.
+- Fix substantiated findings and verify the changed behavior. Do not restart a full review solely because a repair changed the candidate. Use a focused recheck of the repair and its affected behavior.
+- **Bound the loop:** at most two review-driven repair passes for the entire task by default, including after replanning, integration or handoffs. The budget never resets when a plan, candidate, reviewer or wave changes. One pass can fix multiple findings. Required checks and safety obligations are not waived. If material findings or failed required checks remain after the budget, stop the review/repair loop, preserve the partial work, and report the specific unresolved issues and next decision instead of declaring success or silently starting another round. A user can explicitly choose a different bound.
+- Do not treat failed, missing, stale or truncated review as a clean result. Distinguish observed review and test results from assumptions. Do not fabricate approvals or bypass required controls.
 
-## Running
+For explicit PR or publication work, follow the target repository's actual requirements and its PR flow when available. Publication, merge and deployment require their own authorization. Do not start them merely because local work finished.
 
-Run from the target repo root so artifacts land in that repo's `.ημ/`:
+## Optional strict native evidence
 
+When a task specifically needs this stricter receipt format, the deterministic helper reads EDN and evaluates supplied receipts. It does not launch models, infer missing outcomes, authenticate a reviewer, enforce a sandbox, post a GitHub review, or authorize a merge.
+
+From this skill directory:
+
+```sh
+nbb -cp src scripts/native.cljs sha256 PLAN.edn
+nbb -cp src scripts/native.cljs check PLAN.edn RECEIPTS.edn RESULT.edn
+nbb -cp src:tests tests/native_test.cljs
+node tests/source-integrity.js
 ```
-bb ~/.agents/skills/ultra-code/scripts/ultra.bb plan <workflow.edn>          # dry-run: job inventory + first prompt
-bb ~/.agents/skills/ultra-code/scripts/ultra.bb run  <workflow.edn>          # execute (resumes from journal)
-bb ~/.agents/skills/ultra-code/scripts/ultra.bb run  <workflow.edn> --fresh  # discard journal, start over
-bb ~/.agents/skills/ultra-code/scripts/ultra.bb run  <workflow.edn> --limit=2  # smoke: cap jobs per stage
-```
 
-`--limit` truncates each stage's job list, including skeptic votes — with quorum 2 and a limit of 1 no finding can survive. Use it to validate plumbing, never to gate a promotion.
+See [native-schema.md](references/native-schema.md) for generating the exact reviewer-output hash required by skeptic receipts. Use create-only result files. Exit 0 means the supplied complete roster is clean; other qualification results are nonzero. Independently verify that supplied records correspond to actual host execution and the source manifest.
 
-Artifacts land in `.ημ/runs/<workflow-id>/` (relative to CWD): `journal.jsonl` (started/result/error events keyed `v2:<sha256>`) and `<timestamp>-result.edn` (`:confirmed` + `:all` findings). Structured output is extracted from the agent event stream last-text-part-first with a `{...}` substring fallback; agents that produce no parseable JSON are logged as errors and retried on the next invocation.
+NBB and this strict profile are not required for ordinary local execution. If requested but unavailable, report that it was not run and do not claim its qualification.
 
-## Laws
+## Handoff
 
-1. Workflow definitions are EDN files — never inline prompts in conversation when a workflow file exists.
-2. Every agent dispatch requires a content-hash journal entry; completed jobs are never re-run, errored jobs retry on the next invocation.
-3. Findings are claims, not facts. A finding counts only after `:stage/quorum` skeptic votes fail to refute it.
-4. Review and skeptic agents are read-only by constitution (see `agents/`). Orchestration never writes production code outside an explicit `:implement` stage's declared packet.
-5. Failed agents (limits, timeouts, parse errors) are excluded from quorums and logged — never silently counted as either refuted or confirmed.
-6. After a run, report `:confirmed` vs `:all` honestly, and append a receipts.edn entry for the wave.
+Report what changed, the final source state, checks and review performed, and any remaining risks or blockers. Preserve required repository records without inventing successful execution. A background task is ongoing only while a real host handle exists.
 
-## Authoring a new workflow
+## Compatibility and provenance
 
-Copy `workflows/template-review.edn` into the target repo and edit:
-
-- `:vars` — the cartesian inputs (cards × lenses, or any item set).
-- `:schemas` — JSON Schema for each agent's structured output.
-- `:stages` — `:map-agent` (parallel agent per item) and `:vote-fan-out` (N skeptic votes per finding, quorum reduce). Prompt templates interpolate `{card/key}`, `{lens/prompt}`, `{finding/title|40}`, `{vote/n}`, `{repo}`.
-- `:run` — model (default `kimi-for-coding/k3`), timeout, max concurrency, and `:dir` (absolute target repo path passed to `opencode run --dir`).
-
-## Stage kinds
-
-- `:map-agent` — fan out one agent job per cartesian item; results feed later stages.
-- `:vote-fan-out` — for every finding under `:stage/finding-path` in the `:stage/over` stage's results, dispatch `:stage/votes` skeptic votes; a finding `:survives` when at least `:stage/quorum` votes do not refute it.
-- `:implement` — bounded-write implementation of one card with retry-over-gates. Declares `:stage/packet` `{:write [...] :read [...] :forbid [...]}`, `:stage/gates` shell commands, optional `:stage/review` (an inline review+verify wave whose confirmed findings count as gate failures), optional `:stage/commit`. If `:stage/uuid` is set, the script also drives a Rheos-style kanban FSM via `node packages/rheos/dist/cli.cjs status-update` inside `:vars :repo` — omit `:stage/uuid` in repos without that CLI (FSM calls are skipped entirely).
-- `:return` — terminal marker.
-
-## Claude session import (optional)
-
-Recovered Claude Code dynamic-workflow sessions are manifest-first: `.ημ/imports/claude/<session-id>/manifest.edn` records sha256-pinned source artifacts (workflow script, run state, journal, transcript) and the translation table into ημ artifacts. The EDN workflow is the executable projection; the raw JS remains the evidence of original intent. Resume is semantic (re-dispatch un-cached jobs), never a claim to attach Claude's runtime.
+The six original OpenCode skill assets remain byte-preserved and covered by `tests/source-integrity.js`. [canonical/upstream-skill.md](canonical/upstream-skill.md) records the imported instructions. The old `agents/ultra-*.md`, `workflows/template-review.edn` and `scripts/ultra.bb` belong to the explicit legacy backend. Native roles and evidence use the references above. No historical receipt, quorum or result is reinterpreted as native qualification.

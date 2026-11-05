@@ -1,0 +1,28 @@
+{:contract/version 2
+ :contract/id :ultra-code/native-swarm
+ :origin :user-request-2026-11-03
+ :execution/default :current-local-environment
+ :execution/paths [:direct-local :parallel-native-local]
+ :execution/fallback :explicit-qualified-adapter
+ :workflow/data :proportionate-local-evidence
+ :workflow/strict-edn :optional
+ :workflow/dispatch :actual-host-capabilities
+ :workflow/expected-jobs :as-needed
+ :workflow/readiness :successful-dependencies-and-capacity
+ :review/context :fresh-when-available
+ :review/roles [:reviewer :optional-skeptic]
+ :review/evidence :source-and-plan-bound
+ :review/unknown :incomplete
+ :review/round-count :no-fixed-minimum
+ :review/repair :two-passes-total-across-replanning-then-report-unresolved
+ :writes/authority :one-writer-per-resource
+ :integration/qualification :combined-tree-tests-and-proportionate-review
+ :publication/principal :observed-authenticated-account
+ :publication/approval :actual-repository-policy
+ :validator/scope :supplied-evidence-not-authentication
+ :legacy {:source-preserved true :default false :qualification :not-established}
+ :requirements ["Honor active user instructions and applicable repository rules"
+                "Do not erase failed, skipped, cancelled, incomplete or stale attempts"
+                "Do not fabricate host execution, read-only enforcement or GitHub approval"
+                "Keep current required checks, findings settlement and protected publication"
+                "Preserve historical evidence and immutable source inputs"]}
