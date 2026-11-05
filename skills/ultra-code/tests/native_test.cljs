@@ -143,4 +143,7 @@
                     (assoc-in b [:receipts 1 :output] {})]]
       (is (= ["independent"] (:ready (n/qualify broken)))))
     (is (= ["downstream" "independent"] (:ready (n/qualify b))))))
+(defmethod cljs.test/report [:cljs.test/default :end-run-tests] [m]
+  (when-not (cljs.test/successful? m) (set! (.-exitCode js/process) 1)))
+
 (run-tests)
