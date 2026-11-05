@@ -117,13 +117,15 @@
       (when (contains? config :testGhHost) (aset env "GH_HOST" (:testGhHost config)))
       (fs/writeFileSync data (js/JSON.stringify (clj->js (dissoc config :flow-data))))
       (fs/copyFileSync (path/join here "fixture-gh.cjs") gh) (fs/chmodSync gh 493)
-      (let [r (cp/spawnSync "nbb" (clj->js (into ["-cp" scripts (path/join scripts "pr.cljs")] args)) #js {:env env :encoding "utf8" :timeout 5000})
+      ;; A gate invocation starts several fixture-gh children after loading nbb.
+      ;; Keep it bounded, but allow that full process boundary on loaded CI hosts.
+      (let [r (cp/spawnSync "nbb" (clj->js (into ["-cp" scripts (path/join scripts "pr.cljs")] args)) #js {:env env :encoding "utf8" :timeout 15000})
             calls-path (str data ".calls") observation-calls-path (str data ".observation-calls")
             review-comments-path (str data ".review-comments")
             calls (if (fs/existsSync calls-path)
                     (mapv #(js->clj (js/JSON.parse %) :keywordize-keys true)
                           (remove str/blank? (str/split-lines (fs/readFileSync calls-path "utf8")))) [])]
-        {:exit (.-status r) :out (str (.-stdout r)) :err (str (.-stderr r)) :calls calls
+        {:exit (.-status r) :out (str (.-stdout r)) :err (str (.-stderr r) (when (.-error r) (str "\nChild process error: " (.-error r))) (when (.-signal r) (str "\nChild process signal: " (.-signal r)))) :calls calls
          :review-comments (if (fs/existsSync review-comments-path)
                             (mapv edn/read-string (remove str/blank? (str/split-lines (fs/readFileSync review-comments-path "utf8")))) [])
          :observation-append-calls (if (fs/existsSync observation-calls-path)
