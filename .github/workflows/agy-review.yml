@@ -143,12 +143,6 @@ jobs:
           }
           JSON
 
-          agy agents | tee "$RUNNER_TEMP/agy-agents.txt"
-          grep -Fq "review-workflow" "$RUNNER_TEMP/agy-agents.txt" || {
-            echo "::error::agy did not discover the review-workflow agent."
-            exit 1
-          }
-
       - name: Run agy Gemini 3.8 Flash review workflow
         shell: bash
         env:
@@ -164,6 +158,15 @@ jobs:
           fi
           export PATH="$HOME/.local/bin:$PATH"
           output_file="$RUNNER_TEMP/agy-review-output.txt"
+
+          if ! env GEMINI_API_KEY="$GEMINI_API_KEY" agy agents | tee "$RUNNER_TEMP/agy-agents.txt"; then
+            echo "::error::agy could not list configured agents."
+            exit 1
+          fi
+          grep -Fq "review-workflow" "$RUNNER_TEMP/agy-agents.txt" || {
+            echo "::error::agy did not discover the review-workflow agent."
+            exit 1
+          }
 
           set +e
           env GEMINI_API_KEY="$GEMINI_API_KEY" agy --agent review-workflow --model gemini-3.8-flash-high --effort high \
