@@ -1,0 +1,64 @@
+{
+  "source_url": "https://github.com/open-hax/receipt-river/pull/4#pullrequestreview-5641463808",
+  "body_sha256": "9d7ecf948778e599981e6ff20d4d10be31e8515c91cfce6877ac1060bbb4ea30",
+  "review": {
+    "id": 5641463808,
+    "node_id": "PRR_kwDOUY051M8AAAABUEHoAA",
+    "user": {
+      "login": "coderabbitai[bot]",
+      "id": 136622811,
+      "node_id": "BOT_kgDOCCSy2w",
+      "avatar_url": "https://avatars.githubusercontent.com/in/347564?v=4",
+      "gravatar_id": "",
+      "url": "https://api.github.com/users/coderabbitai%5Bbot%5D",
+      "html_url": "https://github.com/apps/coderabbitai",
+      "followers_url": "https://api.github.com/users/coderabbitai%5Bbot%5D/followers",
+      "following_url": "https://api.github.com/users/coderabbitai%5Bbot%5D/following{/other_user}",
+      "gists_url": "https://api.github.com/users/coderabbitai%5Bbot%5D/gists{/gist_id}",
+      "starred_url": "https://api.github.com/users/coderabbitai%5Bbot%5D/starred{/owner}{/repo}",
+      "subscriptions_url": "https://api.github.com/users/coderabbitai%5Bbot%5D/subscriptions",
+      "organizations_url": "https://api.github.com/users/coderabbitai%5Bbot%5D/orgs",
+      "repos_url": "https://api.github.com/users/coderabbitai%5Bbot%5D/repos",
+      "events_url": "https://api.github.com/users/coderabbitai%5Bbot%5D/events{/privacy}",
+      "received_events_url": "https://api.github.com/users/coderabbitai%5Bbot%5D/received_events",
+      "type": "Bot",
+      "user_view_type": "public",
+      "site_admin": false
+    },
+    "body": "<!-- coderabbit-ai-generated:v1 -->\n\n\n\n<details>\n<summary>🔇 Additional comments: 7</summary><blockquote>\n<dl>\n<dd>\n\n<details>\n<summary>src/cljs/eta_mu/receipt_river/law/completion.cljc: 1</summary><blockquote>\n<dl>\n<dd>\n\n`5-58`: LGTM!\n\n<!-- cr-comment:v1:0b41f2b43c4faa9c29c7a53f -->\n\n</dd>\n</dl>\n</blockquote></details>\n<details>\n<summary>test/cljs/eta_mu/receipt_river/completion_test.cljs: 1</summary><blockquote>\n<dl>\n<dd>\n\n`1-109`: LGTM!\n\n<!-- cr-comment:v1:c5c77bd1afd2b580400165a3 -->\n\n</dd>\n</dl>\n</blockquote></details>\n<details>\n<summary>src/cljs/eta_mu/receipt_river/api.cljs: 1</summary><blockquote>\n<dl>\n<dd>\n\n`6-7`: LGTM!\n\n\n\nAlso applies to: 66-75\n\n<!-- cr-comment:v1:92d9c42a4714a108117a2fe6 -->\n\n</dd>\n</dl>\n</blockquote></details>\n<details>\n<summary>shadow-cljs.edn: 1</summary><blockquote>\n<dl>\n<dd>\n\n`7-7`: LGTM!\n\n\n\nAlso applies to: 14-14\n\n<!-- cr-comment:v1:eac6a50299612e565eb44e74 -->\n\n</dd>\n</dl>\n</blockquote></details>\n<details>\n<summary>README.md: 1</summary><blockquote>\n<dl>\n<dd>\n\n`59-61`: LGTM!\n\n\n\nAlso applies to: 63-82\n\n<!-- cr-comment:v1:1aabfb143e693fec4f265fe2 -->\n\n</dd>\n</dl>\n</blockquote></details>\n<details>\n<summary>.ημ/receipts.edn: 1</summary><blockquote>\n<dl>\n<dd>\n\n`24-27`: LGTM!\n\n<!-- cr-comment:v1:546ed5c2ec7bc54f5f5987a2 -->\n\n</dd>\n</dl>\n</blockquote></details>\n<details>\n<summary>.ημ/session-mycology/ledger.md-134-138: 1</summary><blockquote>\n<dl>\n<dd>\n\n`134-138`: **<picture><img src=\"https://storage.googleapis.com/coderabbit_public_assets/review-comment-icons-v1/amber-16.svg\" width=\"16\" height=\"16\" align=\"absmiddle\" alt=\"\"></picture> Minor** · **Data Integrity & Integration** · **Quick win**\n\n⚠️ **Unverified finding**\nVerification ran but could not confirm this finding. It is shown for review, not as a verified issue.\n\n**P2: Preserve the session-ledger record shape.**\n\nThis entry omits the `ts`, `origin`, and `receipt-refs` fields used by the surrounding records. Without these fields, the follow-up cannot be ordered or linked to its receipt event. Add the standard provenance fields before merging this ledger update.\n\n</dd>\n</dl>\n</blockquote></details>\n\n</dd>\n</dl>\n</blockquote></details>\n\n---\n\n<details>\n<summary><picture><img src=\"https://storage.googleapis.com/coderabbit_public_assets/review-comment-icons-v1/info.svg\" width=\"16\" height=\"16\" align=\"absmiddle\" alt=\"\"></picture> Review info</summary>\n<dl>\n<dd>\n\n<details>\n<summary><picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://storage.googleapis.com/coderabbit_public_assets/review-comment-icons-v1/cog-dark.svg\"><img src=\"https://storage.googleapis.com/coderabbit_public_assets/review-comment-icons-v1/cog.svg\" width=\"16\" height=\"16\" align=\"absmiddle\" alt=\"\"></picture> Run configuration</summary>\n<dl>\n<dd>\n\n- **Source mode**: Auto\n- **Repository**: Unavailable\n- **Branch**: Unavailable\n- **File**: No configuration file from this repository applied\n- **Commit**: Unavailable\n- **Layers**: Organization UI\n- **Review profile**: CHILL\n- **Plan**: Advanced\n- **Run ID**: `20b50390-9bd4-421b-b560-0d687ed0c650`\n\n</dd>\n</dl>\n</details>\n\n<details>\n<summary><picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://storage.googleapis.com/coderabbit_public_assets/review-comment-icons-v1/git-commit-horizontal-dark.svg\"><img src=\"https://storage.googleapis.com/coderabbit_public_assets/review-comment-icons-v1/git-commit-horizontal.svg\" width=\"16\" height=\"16\" align=\"absmiddle\" alt=\"\"></picture> Commits</summary>\n<dl>\n<dd>\n\nReviewing files that changed from the base of the PR and between 747d5030d332ec0c93d32edaced7e9603eebb01f and 95ca57546fc7c677555191ea2db83754d090ef5a.\n\n</dd>\n</dl>\n</details>\n\n<details>\n<summary><picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://storage.googleapis.com/coderabbit_public_assets/review-comment-icons-v1/file-plus-corner-dark.svg\"><img src=\"https://storage.googleapis.com/coderabbit_public_assets/review-comment-icons-v1/file-plus-corner.svg\" width=\"16\" height=\"16\" align=\"absmiddle\" alt=\"\"></picture> Files selected for processing: 7</summary>\n<dl>\n<dd>\n\n* `.ημ/receipts.edn`\n* `.ημ/session-mycology/ledger.md`\n* `README.md`\n* `shadow-cljs.edn`\n* `src/cljs/eta_mu/receipt_river/api.cljs`\n* `src/cljs/eta_mu/receipt_river/law/completion.cljc`\n* `test/cljs/eta_mu/receipt_river/completion_test.cljs`\n\n</dd>\n</dl>\n</details>\n\n**Included review availability:** This review used your included allowance. Your plan provides up to 1 included review per hour; 0 remain after this review.\n\n</dd>\n</dl>\n</details>\n\n<!-- This is an auto-generated comment by CodeRabbit for review status -->\n\n<!-- coderabbit-review-publication v1 publication=d48fc909-17ba-467b-ad43-9a07a9364ca1 attempt=bc97541d-b2ea-479a-b62a-092cf4c8332d batch=1/1 -->",
+    "state": "COMMENTED",
+    "html_url": "https://github.com/open-hax/receipt-river/pull/4#pullrequestreview-5641463808",
+    "pull_request_url": "https://api.github.com/repos/open-hax/receipt-river/pulls/4",
+    "author_association": "NONE",
+    "_links": {
+      "html": {
+        "href": "https://github.com/open-hax/receipt-river/pull/4#pullrequestreview-5641463808"
+      },
+      "pull_request": {
+        "href": "https://api.github.com/repos/open-hax/receipt-river/pulls/4"
+      }
+    },
+    "is_copilot_code_review": false,
+    "copilot_code_review_effort": null,
+    "submitted_at": "2026-10-25T04:16:37Z",
+    "commit_id": "95ca57546fc7c677555191ea2db83754d090ef5a",
+    "updated_at": "2026-10-25T04:16:37Z"
+  },
+  "native_review": {
+    "id": "PRR_kwDOUY051M8AAAABUEHoAA",
+    "databaseId": 5641463808,
+    "state": "COMMENTED",
+    "body": "<!-- coderabbit-ai-generated:v1 -->\n\n\n\n<details>\n<summary>🔇 Additional comments: 7</summary><blockquote>\n<dl>\n<dd>\n\n<details>\n<summary>src/cljs/eta_mu/receipt_river/law/completion.cljc: 1</summary><blockquote>\n<dl>\n<dd>\n\n`5-58`: LGTM!\n\n<!-- cr-comment:v1:0b41f2b43c4faa9c29c7a53f -->\n\n</dd>\n</dl>\n</blockquote></details>\n<details>\n<summary>test/cljs/eta_mu/receipt_river/completion_test.cljs: 1</summary><blockquote>\n<dl>\n<dd>\n\n`1-109`: LGTM!\n\n<!-- cr-comment:v1:c5c77bd1afd2b580400165a3 -->\n\n</dd>\n</dl>\n</blockquote></details>\n<details>\n<summary>src/cljs/eta_mu/receipt_river/api.cljs: 1</summary><blockquote>\n<dl>\n<dd>\n\n`6-7`: LGTM!\n\n\n\nAlso applies to: 66-75\n\n<!-- cr-comment:v1:92d9c42a4714a108117a2fe6 -->\n\n</dd>\n</dl>\n</blockquote></details>\n<details>\n<summary>shadow-cljs.edn: 1</summary><blockquote>\n<dl>\n<dd>\n\n`7-7`: LGTM!\n\n\n\nAlso applies to: 14-14\n\n<!-- cr-comment:v1:eac6a50299612e565eb44e74 -->\n\n</dd>\n</dl>\n</blockquote></details>\n<details>\n<summary>README.md: 1</summary><blockquote>\n<dl>\n<dd>\n\n`59-61`: LGTM!\n\n\n\nAlso applies to: 63-82\n\n<!-- cr-comment:v1:1aabfb143e693fec4f265fe2 -->\n\n</dd>\n</dl>\n</blockquote></details>\n<details>\n<summary>.ημ/receipts.edn: 1</summary><blockquote>\n<dl>\n<dd>\n\n`24-27`: LGTM!\n\n<!-- cr-comment:v1:546ed5c2ec7bc54f5f5987a2 -->\n\n</dd>\n</dl>\n</blockquote></details>\n<details>\n<summary>.ημ/session-mycology/ledger.md-134-138: 1</summary><blockquote>\n<dl>\n<dd>\n\n`134-138`: **<picture><img src=\"https://storage.googleapis.com/coderabbit_public_assets/review-comment-icons-v1/amber-16.svg\" width=\"16\" height=\"16\" align=\"absmiddle\" alt=\"\"></picture> Minor** · **Data Integrity & Integration** · **Quick win**\n\n⚠️ **Unverified finding**\nVerification ran but could not confirm this finding. It is shown for review, not as a verified issue.\n\n**P2: Preserve the session-ledger record shape.**\n\nThis entry omits the `ts`, `origin`, and `receipt-refs` fields used by the surrounding records. Without these fields, the follow-up cannot be ordered or linked to its receipt event. Add the standard provenance fields before merging this ledger update.\n\n</dd>\n</dl>\n</blockquote></details>\n\n</dd>\n</dl>\n</blockquote></details>\n\n---\n\n<details>\n<summary><picture><img src=\"https://storage.googleapis.com/coderabbit_public_assets/review-comment-icons-v1/info.svg\" width=\"16\" height=\"16\" align=\"absmiddle\" alt=\"\"></picture> Review info</summary>\n<dl>\n<dd>\n\n<details>\n<summary><picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://storage.googleapis.com/coderabbit_public_assets/review-comment-icons-v1/cog-dark.svg\"><img src=\"https://storage.googleapis.com/coderabbit_public_assets/review-comment-icons-v1/cog.svg\" width=\"16\" height=\"16\" align=\"absmiddle\" alt=\"\"></picture> Run configuration</summary>\n<dl>\n<dd>\n\n- **Source mode**: Auto\n- **Repository**: Unavailable\n- **Branch**: Unavailable\n- **File**: No configuration file from this repository applied\n- **Commit**: Unavailable\n- **Layers**: Organization UI\n- **Review profile**: CHILL\n- **Plan**: Advanced\n- **Run ID**: `20b50390-9bd4-421b-b560-0d687ed0c650`\n\n</dd>\n</dl>\n</details>\n\n<details>\n<summary><picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://storage.googleapis.com/coderabbit_public_assets/review-comment-icons-v1/git-commit-horizontal-dark.svg\"><img src=\"https://storage.googleapis.com/coderabbit_public_assets/review-comment-icons-v1/git-commit-horizontal.svg\" width=\"16\" height=\"16\" align=\"absmiddle\" alt=\"\"></picture> Commits</summary>\n<dl>\n<dd>\n\nReviewing files that changed from the base of the PR and between 747d5030d332ec0c93d32edaced7e9603eebb01f and 95ca57546fc7c677555191ea2db83754d090ef5a.\n\n</dd>\n</dl>\n</details>\n\n<details>\n<summary><picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://storage.googleapis.com/coderabbit_public_assets/review-comment-icons-v1/file-plus-corner-dark.svg\"><img src=\"https://storage.googleapis.com/coderabbit_public_assets/review-comment-icons-v1/file-plus-corner.svg\" width=\"16\" height=\"16\" align=\"absmiddle\" alt=\"\"></picture> Files selected for processing: 7</summary>\n<dl>\n<dd>\n\n* `.ημ/receipts.edn`\n* `.ημ/session-mycology/ledger.md`\n* `README.md`\n* `shadow-cljs.edn`\n* `src/cljs/eta_mu/receipt_river/api.cljs`\n* `src/cljs/eta_mu/receipt_river/law/completion.cljc`\n* `test/cljs/eta_mu/receipt_river/completion_test.cljs`\n\n</dd>\n</dl>\n</details>\n\n**Included review availability:** This review used your included allowance. Your plan provides up to 1 included review per hour; 0 remain after this review.\n\n</dd>\n</dl>\n</details>\n\n<!-- This is an auto-generated comment by CodeRabbit for review status -->\n\n<!-- coderabbit-review-publication v1 publication=d48fc909-17ba-467b-ad43-9a07a9364ca1 attempt=bc97541d-b2ea-479a-b62a-092cf4c8332d batch=1/1 -->",
+    "updatedAt": "2026-10-25T04:16:37Z",
+    "submittedAt": "2026-10-25T04:16:37Z",
+    "commit": {
+      "oid": "95ca57546fc7c677555191ea2db83754d090ef5a"
+    },
+    "author": {
+      "login": "coderabbitai",
+      "__typename": "Bot",
+      "id": "BOT_kgDOCCSy2w",
+      "databaseId": 136622811
+    }
+  }
+}

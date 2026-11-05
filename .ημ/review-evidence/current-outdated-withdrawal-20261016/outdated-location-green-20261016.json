@@ -1,0 +1,85 @@
+{
+  "kind": "observed-command-output-transcription",
+  "notRawProviderApproval": true,
+  "observedAt": "2026-10-16T02:43:24.093985+00:00",
+  "localRedCommit": "ca70d5039ff7a4426e0677964454690d4b8ac802",
+  "red": {
+    "registeredLawTests": 183,
+    "assertions": 4892,
+    "failures": 2,
+    "errors": 0,
+    "rawLogSHA256": "a980ad5c5142b6aa558e9fd65fa39c35910dc30ca9b70101d9145f65f1b6b587"
+  },
+  "green": [
+    {
+      "gate": "law",
+      "exit": 0,
+      "tests": 183,
+      "assertions": 4892,
+      "logBytes": 289,
+      "logSHA256": "7a36934a6b6d41311c45c48af6a506ad0d1a659747488473892ee7403465911f"
+    },
+    {
+      "gate": "policy",
+      "exit": 0,
+      "tests": 61,
+      "assertions": 1554,
+      "logBytes": 85,
+      "logSHA256": "16d4299ba390e4cc1ddc448f4b8544f90bd11400443f871afa867580808f2f8f"
+    },
+    {
+      "gate": "cli",
+      "exit": 0,
+      "tests": 99,
+      "assertions": 2681,
+      "logBytes": 111,
+      "logSHA256": "baa12639b6a1727b3e1d46ac6d782e6b964ac37e447832b1d9fb30889db77491"
+    },
+    {
+      "gate": "portable",
+      "exit": 0,
+      "tests": 2,
+      "assertions": 7,
+      "logBytes": 83,
+      "logSHA256": "1b8148723568b1e5b649f4c2fc4727a746915293e08a13e01a7e8aeb8509b741"
+    },
+    {
+      "gate": "flow",
+      "exit": 0,
+      "tests": null,
+      "assertions": null,
+      "logBytes": 535,
+      "logSHA256": "04a787faf09292f4cc3882bc87c308717c05a7de5656103198113de64c88415e"
+    },
+    {
+      "gate": "lint",
+      "exit": 0,
+      "tests": null,
+      "assertions": null,
+      "logBytes": 44,
+      "logSHA256": "3de2619d3d7a12907ed426af5f82c87f82222b74224fc098fe800372b05ace89"
+    },
+    {
+      "gate": "contract",
+      "exit": 0,
+      "tests": null,
+      "assertions": null,
+      "logBytes": 20,
+      "logSHA256": "67fb8f6fe1e96cce292ebcf06d4a5f6654544f8b410efb928a3ea0cf0d2e34ef"
+    }
+  ],
+  "sourceSHA256": {
+    "skills/pr-flow/scripts/pr_flow/law.cljc": "d9a93d81991fe48384d6b63d6b1f40abd8edd86ddb28b2f2a546f9b849639c50",
+    "skills/pr-flow/scripts/test_opener_withdrawal.cljs": "a946c8155dce4eb1167940b397980f96396597d27ea183db6cf11413e08402dc",
+    "skills/pr-flow/SKILL.md": "b82edee90acce834f552b114e4cc72e75868d804c5733af5f5a3ead35c4e4caa",
+    "skills/pr-flow/CONTRACT.edn": "d1c9583059f49e006a89bd6565630ca07de1d2e076ea972da4ddc5c49496725d",
+    "skills/pr-review-settlement/SKILL.md": "dda8ea59321668239b1c4bf1dd64faff9a1f7c637e981dba5b7c6e55b693e8b6"
+  },
+  "scope": "accepted withdrawal2 only; known concordant outdated flags inside existing current resolved custody",
+  "codexReceiptFixApplied": false,
+  "nativePrimary": "6c789296-a573-47ae-9d46-3f30a9f359ae",
+  "nativePrimaryStatus": "in_progress",
+  "actualParentPoints": 41,
+  "newCodexCardScopeIsSeparate": true,
+  "notApprovalMergeInstallationOrLiveProof": true
+}

@@ -1,0 +1,44 @@
+{
+  "tier": "actual native primary readback; future parent reconciliation is acceptance requirement, not completed transition",
+  "supersedes_for_current_primary": "native-parent-epic-and-plan-revision.json remains its actual earlier snapshot",
+  "native_primary": {
+    "uuid": "fbf4f337-5a01-48fb-b3ac-52859ed42a07",
+    "frontmatter": {
+      "category": "kanban",
+      "labels": "cephalon, pr-flow, withdrawal, provenance",
+      "parent": "63a0e4ff-353f-4c90-ab8a-7241d958d54c",
+      "type": "task",
+      "write-id": "1791991309233-0.qcaud2m2gxpuoqlpa99",
+      "points": "2",
+      "title": "Repair canonical opener withdrawal across immutable review heads",
+      "priority": "P1",
+      "status": "incoming",
+      "epic": "63a0e4ff-353f-4c90-ab8a-7241d958d54c",
+      "uuid": "fbf4f337-5a01-48fb-b3ac-52859ed42a07",
+      "created_at": "2026-10-14T14:49:46.534Z"
+    },
+    "sections": [
+      {
+        "type": "body",
+        "content": "## Context\n\nThe human explicitly included this narrow two-point prerequisite in the current\ncharacter milestone on 2026-10-14: “Include the narrow canonical repair.”\nThe owning issue is https://github.com/riatzukiza/.agents/issues/25.\nETA PR15 has current approving reviews and passing deterministic checks but the\ncanonical withdrawal predicate requires its original finding's immutable review\ncommit to equal the latest PR head. A later opener recheck cannot mutate that\noriginal review. The original native root and history must remain inspectable.\n\n## Outcome\n\nA configured native finding opener can withdraw its own older finding after a\ncurrent-head recheck; a subsequent authorized current-head writer settlement\ncan clear that finding through the canonical law. Original severity, root,\nreview identity and source commit remain preserved.\n\n## Scope\n\nOwning `.agents` pure PR-flow withdrawal predicate, regression fixtures, skill/contract wording and protected adoption. Collector/acquisition/pagination/identity-custody changes are excluded: the actual existing collector already captures original and current enclosing reviews and complete native conversation. If this pure repair proves insufficient, stop and report the owning gap for a separately scoped and estimated prerequisite before changing collector code.\nThe Foresight card is the primary board artifact. The owning source PR carries\nan explicitly attributed planning snapshot, not another board implementation.\nKeep the existing two-point estimate for this included prerequisite.\n\n## Non-goals\n\nChange approval or cohort policy, waive checks, add native identities, create a\nlocal classifier, accept copied Bot transcripts or general cross-thread agreement,\nrewrite receipts, add repository fields, change credentials/models/paid usage,\nor change character runtime, clock, gateway, grants or publication.\n\n## Acceptance criteria\n\n1. Freeze the actual old-root conversation and immutable review commit. A\n   clearly labeled prospective fixture with a current native opener withdrawal\n   and later current authorized writer reproduces the false refusal before the\n   change. Original raw bytes remain distinct from fixture-only mutations.\n2. Preserve the original root/review/commit and conservative severity. Admit a\n   known older original commit only when the actual current-head configured\n   opener withdrawal and subsequent writer match repository/PR/thread/root,\n   complete ordered native context, substantive rationale/evidence and chronology.\n3. Stale withdrawal or writer, missing/malformed original binding, wrong opener,\n   repository/PR/root, partial pagination, unresolved/outdated conversation,\n   unknown timestamps, later edits/retraction/pushback and nonwriter identity\n   remain denied. Unknown history never becomes an empty successful history.\n4. Existing same-head withdrawal, rejection, native body/thread obligations,\n   approval/full-input/cohort/required-check and merge-head guards retain behavior.\n   The new disposition grants no approval, review round, quota or CI credit.\n5. Run all owning PR-flow laws, policy, CLI, portable and lint gates. Complete\n   current-head planning/code review and protected history-preserving MERGE.\n   Only then adopt the reviewed source and obtain fresh native withdrawal/writer\n   evidence on ETA PR15; historical752 evidence cannot qualify current564.\n\n6. Before this prerequisite is admitted Ready, reconcile its parent epic through\n   qualified Rheos: add this child UUID/two-point scope to the native inventory,\n   and apply the independently reviewed enumerated total of 39 points\n   (the existing proposed37 plus this included2). Read back the actual epic\n   UUID/type, points and scope comment. Preserve prior34/37 source and events;\n   the arithmetic is a proposal until planning review qualifies it. No readiness\n   may rely only on the old Incoming34 readback or a duplicated source snapshot.\n\n## Verification\n\nPlanning review assesses this scope, two-point estimate, identities/bindings and\nnegative matrix before lawful Rheos readiness. RED/GREEN follows readiness.\nUse the actual native ETA conversation plus explicit fixture-only current-head\nsuccessors, preserving every original byte and ledger prefix. Capture exact\ncommands/results, full changed input and final merged/adopted source hashes.\nCurrent application/deployment and B1/B2/B3 behavior are separate later evidence.\n\n## Risks\n\nConfusing old root provenance with stale current authority; weakening native\nchronology or trusting partial capture; accepting withdrawn rejection agreement\nas finding withdrawal; masking later conflicts; tests depending on unavailable\nprovider or live network. Keep source qualification and actual adoption separate.\n\nLicense: GPL-3.0-or-later."
+      },
+      {
+        "type": "comment",
+        "content": "Planning correction from native Codex4272509069: primary Scope is now pure withdrawal predicate/tests/skill-contract only; collector/acquisition/pagination/identity-custody changes excluded. Existing complete capture supplies original/current reviews. Any insufficiency requires separately scoped and estimated prerequisite before collector work. Incoming2/frontmatter preserved; no implementation or readiness. Parent target evidence is being captured independently through native Rheos.\n\nPlanning correction from native Codex4272681727: AC6 makes parent inventory/two-point child and independently reviewed proposed37+2=39 reconciliation explicit BEFORE this card Ready. Qualified Rheos must apply inventory comment and reviewed points, with actual parent readback; original34/37 history/events preserved. No parent estimate or readiness changed before review. Scope remains pure law2; collector excluded."
+      }
+    ],
+    "source-path": "/home/err/.codex/worktrees/cephalon-recall-refinement/foresight/docs/agile/kanban/repair-canonical-opener-withdrawal-across-immutable-review-heads-9ed42a07.md"
+  },
+  "native_comment_stdout": "{\n  \"ok\": true,\n  \"uuid\": \"fbf4f337-5a01-48fb-b3ac-52859ed42a07\",\n  \"comment\": \"Planning correction from native Codex4272681727: AC6 makes parent inventory/two-point child and independently reviewed proposed37+2=39 reconciliation explicit BEFORE this card Ready. Qualified Rheos must apply inventory comment and reviewed points, with actual parent readback; original34/37 history/events preserved. No parent estimate or readiness changed before review. Scope remains pure law2; collector excluded.\"\n}\n",
+  "primary_sha256": "ae3418b92a1021bc7df2783e90ebddd56c497ee08863c354413e0cf4735ea2c6",
+  "source_snapshot_sha256": "1f8024346e245f23068be364dbc1bef2180155397a2d6748bd146423e2e36d93",
+  "native_finding": 4272681727,
+  "parent_reconciliation": {
+    "current_actual_points": 34,
+    "existing_proposed_scope_sum": 37,
+    "new_included_prerequisite": 2,
+    "proposed_enumerated_points": 39,
+    "admitted": false,
+    "required_before_primary_ready": true
+  }
+}

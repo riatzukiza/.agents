@@ -1,0 +1,4 @@
+interface:
+  display_name: "UltraCode"
+  short_description: "Local execution with bounded review"
+  default_prompt: "Use $ultra-code to execute locally, directly or with native agents, with bounded review and verification for this change."

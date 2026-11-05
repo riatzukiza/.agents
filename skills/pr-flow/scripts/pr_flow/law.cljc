@@ -1,0 +1,1906 @@
+(ns pr-flow.law
+  "Pure laws for the PR flow: severity, thread classification, review state,
+   and the merge gate. No I/O; the CLI in ../pr.cljs feeds it GitHub data
+   already decoded into Clojure maps."
+  (:require [clojure.string :as str] [pr-flow.actionability :as actionability] [pr-flow.positive-thread :as positive-thread]
+            [pr-flow.kimi-publication :as publication]
+            [pr-flow.repair-ack :as repair-ack]
+            [pr-flow.semantic-repair :as semantic-repair]))
+
+(def default-min-review-rounds 5)
+
+;; --- severity -------------------------------------------------------------
+
+(def severity-rank
+  "Lower is more severe. P0/P1 cannot be deferred before merge."
+  {:p0 0 :p1 1 :p2 2 :p3 3 :unknown 2})
+
+(def ^:private severity-markers
+  ;; Ordered: first match wins. CodeRabbit writes e.g.
+  ;; "_⚠️ Potential issue_ | _🔴 Critical_" or "_🧹 Nitpick_ | _🔵 Trivial_".
+  ;; Explicit P-labels (from humans or other agents) are honoured first.
+  ;; JS regexes accept an inline (?i) only at the start of a pattern.
+  [[#"(?i)\bP0\b" :p0]
+   [#"(?i)\bP1\b" :p1]
+   [#"(?i)\bP2\b" :p2]
+   [#"(?i)\bP3\b" :p3]
+   [#"(?i)🔴|\bcritical\b" :p0]
+   [#"(?i)🟠|\bmajor\b" :p1]
+   [#"(?i)🟡|\bminor\b" :p2]
+   [#"(?i)🔵|🧹|\btrivial\b|\bnitpick\b" :p3]
+   [#"(?i)⚠|potential issue" :p1]
+   [#"(?i)🛠|refactor suggestion" :p2]])
+
+(defn- head-text
+  "Only the first few lines carry the severity banner; the rest is prose that
+   may mention words like 'critical' incidentally."
+  [body]
+  (->> (str/split-lines (or body "")) (take 3) (str/join "\n")))
+
+(defn severity
+  "Classify a review comment body into :p0..:p3, or :unknown."
+  [body]
+  (let [head (head-text body)]
+    (or (some (fn [[re sev]] (when (re-find re head) sev)) severity-markers)
+        :unknown)))
+
+(defn blocking?
+  "P0/P1 are severity blockers; settlement disposition is checked separately."
+  [sev]
+  (<= (severity-rank sev 2) 1))
+
+;; --- titles ---------------------------------------------------------------
+
+(defn title-of
+  "One-line summary of a review comment: CodeRabbit's bold title when present,
+   else the first prose line. HTML comments, tags and banner lines are skipped."
+  [body]
+  (let [text (-> (or body "")
+                 (str/replace #"<!--[\s\S]*?-->" "")
+                 (str/replace #"<details>[\s\S]*?</details>" "")
+                 (str/replace #"</?sub>" "")
+                 (str/replace #"!\[[^\]]*\]\([^)]*\)" ""))
+        bold (some-> (re-find #"\*\*([^*\n]+)\*\*" text) second str/trim not-empty)
+        prose (->> (str/split-lines text)
+                   (map str/trim)
+                   (remove #(or (str/blank? %) (str/starts-with? % "<") (re-find #"^_.*_$" %)))
+                   first)
+        t (or bold prose "")]
+    (if (> (count t) 110) (str (subs t 0 107) "...") t)))
+
+;; --- threads --------------------------------------------------------------
+
+(def resolution-verbs
+  "A settlement reply must open with one of these, so the outcome is
+   machine-readable: `Fixed in <sha>: ...`, `Deferred to <card>: ...`,
+   `Rejected: <reason>`, `Handled: ...`."
+  #{"fixed" "deferred" "rejected" "handled"})
+
+(defn resolution-of
+  "Parse the outcome keyword from a settlement reply, or nil."
+  [body]
+  (when-let [[_ verb] (re-find #"(?i)^\s*\**\s*(fixed|deferred|rejected|handled)\b" (or body ""))]
+    (keyword (str/lower-case verb))))
+
+(defn bot? [login]
+  (boolean (and login (re-find #"(?i)\[bot\]$|coderabbit|copilot|kimi|codex|opencode|github-actions" login))))
+
+(def ^:private confirmation
+  "A reviewer reply that accepts the settlement rather than disputing it."
+  #"(?im)(?:^|[.!]\s*)(?:✅\s*)?review thread resolved[.!]?[ \t]*$|(?:^|[.!]\s*)verified(?: the fix)?[.!]?[ \t]*$|(?:^|[.!]\s*)this addresses (?:the|my) (?:finding|issue|comment)[.!]?[ \t]*$")
+
+(declare verdict-prose native-scope-prose valid-head? default-reviewer-identities trusted-reviewer)
+
+(defn- remove-matches [text pattern]
+  ;; SCI/CLJS string replacement can discard inline regex flags. Match with
+  ;; re-find, then remove the literal match, as verdict-prose does for fences.
+  (loop [text text]
+    (if-let [match (re-find pattern text)]
+      (recur (str/replace-first text (if (string? match) match (first match)) ""))
+      text)))
+
+(defn reviewer-prose
+  "Evaluate the actual reply, excluding quoted/fenced examples and known
+   CodeRabbit analysis, learning and generated share blocks."
+  [body]
+  (some-> (str body)
+          (remove-matches #"(?s)<!-- This is an auto-generated comment: tweet message by coderabbit\.ai -->.*?<!-- end of auto-generated comment: tweet message by coderabbit\.ai -->")
+          (remove-matches #"(?s)<details>\s*<summary>(?:🧩 Analysis chain|✏️ Learnings added)</summary>.*?</details>")
+          (str/replace #"<blockquote>[\s\S]*?</blockquote>" "")
+          (remove-matches #"(?m)^[ \t]*>[^\n]*(?:\n|$)")
+          verdict-prose
+          (str/replace #"<!--[\s\S]*?-->" "")
+          (remove-matches #"(?m)^_You are interacting with an AI system\._[ \t]*$|^[ \t]*---[ \t]*$")
+          (str/replace #"\[([^\]]*)\]\([^\s)]*\)" "$1")))
+
+(defn codex-positive-body?
+  "Recognize only the native positive prefix, legacy or receipt-v1 wrapped.
+   This lexical predicate supplies no identity, commit, scope or gate proof."
+  [body]
+  (let [envelope "<!-- codex-review-receipt:v1 -->\n\n"
+        prefix "Codex Review: Didn't find any major issues."
+        candidate (when (string? body)
+                    (if (str/starts-with? body envelope)
+                      (subs body (count envelope))
+                      body))]
+    (boolean
+     (and candidate
+          ;; No trim, multiline search or generic HTML-comment normalization.
+          (str/starts-with? candidate prefix)
+          (str/starts-with? (or (reviewer-prose candidate) "") prefix)))))
+
+(defn- confirmed? [body]
+  (let [prose (reviewer-prose body)]
+    (boolean
+     (and prose (re-find confirmation prose)
+          ;; A positive quote/acknowledgement cannot erase an actual negative
+          ;; verdict in the same reply. Ambiguous prose remains contested.
+          (not (re-find #"(?i)still (?:reproduces|fails|broken|wrong)|not (?:fixed|resolved|addressed)|does(?: not|n't) (?:hold|address|fix|resolve)|(?:cannot|can't|unable to) (?:verify|confirm)|resolved incorrectly|(?:fix|settlement) (?:is )?(?:incorrect|rejected)" prose))))))
+
+(defn- comment-login [comment]
+  (str/lower-case (str (or (:author comment) (get-in comment [:user :login])))))
+
+(defn- rejection-prose [body]
+  ;; Keep evidence links, but never accept quoted examples as live proposals.
+  (some-> (str body)
+          (remove-matches #"(?s)<!-- This is an auto-generated comment: tweet message by coderabbit\.ai -->.*?<!-- end of auto-generated comment: tweet message by coderabbit\.ai -->")
+          (#(when-not (re-find #"(?i)<!--\s*(?:This is an auto-generated comment:|end of auto-generated comment:)" %) %))
+          (remove-matches #"(?is)<details\b[^>]*>.*?</details>")
+          (str/replace #"<blockquote>[\s\S]*?</blockquote>" "")
+          (remove-matches #"(?m)^[ \t]*>[^\n]*(?:\n|$)")
+          verdict-prose
+          (str/replace #"<!--[\s\S]*?-->" "")
+          str/trim
+          ;; Unbalanced/nested generated HTML is not safely recoverable.
+          (#(when-not (re-find #"(?i)</?(?:details|summary|blockquote)\b" %) %))))
+
+(defn- evidence-reference? [evidence]
+  (boolean (re-find #"https?://[^\s]+|(?:[a-zA-Z0-9_.-]+/)+[a-zA-Z0-9_.-]+|[a-zA-Z0-9_.-]+\.(?:cljc?|cljs|md|edn|json|ya?ml|jsx?|tsx?|py|sh)(?::[0-9]+)?" (str evidence))))
+
+(defn- details [reason evidence]
+  (let [reason (str/trim (str reason)) evidence (str/trim (str evidence))]
+    (when (and (not (str/blank? reason)) (evidence-reference? evidence))
+      {:reason reason :evidence evidence})))
+
+(defn- rejection-details [body]
+  (when-let [prose (rejection-prose body)]
+    (let [reasons (map second (re-seq #"(?m)^Reason:[ \t]*([^\n]*)$" prose))
+          evidence (map second (re-seq #"(?m)^Evidence:[ \t]*([^\n]*)$" prose))]
+      (when (and (= 1 (count reasons)) (= 1 (count evidence)))
+        (when-let [[_ reason-line reason-block evidence-line evidence-block]
+                   (re-find #"(?ms)^Reason:[ \t]*([^\n]*)\n([\s\S]*?)^Evidence:[ \t]*([^\n]*)(?:\n([\s\S]*))?$" prose)]
+          (details (if (str/blank? reason-line) reason-block reason-line)
+                   (if (str/blank? evidence-line) evidence-block evidence-line)))))))
+
+(defn- thread-binding [body]
+  (let [lines (map second (re-seq #"(?m)^Finding:[ \t]*([^\n]+)$" (or (rejection-prose body) "")))
+        line (first lines)
+        threads (re-seq #"\bPRRT_[a-zA-Z0-9_-]+\b" (str line))
+        roots (map second (re-seq #"\bcomment([1-9][0-9]*)\b" (str line)))]
+    (when (= 1 (count lines) (count threads) (count roots))
+      [(first threads) (first roots)])))
+
+(defn- timestamp [s]
+  (when (string? s)
+    (when-let [[_ seconds fraction] (re-matches #"([0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2})(?:\.([0-9]{1,3}))?Z" s)]
+      (str seconds "." (subs (str fraction "000") 0 3) "Z"))))
+
+(defn- comment-time [c]
+  (let [created (timestamp (or (:created-at c) (:created_at c)))
+        edited-value (or (:updated-at c) (:updated_at c))
+        edited (timestamp edited-value)]
+    (when (and created (or (and (not= :github-issue-comment (:source-channel c)) (nil? edited-value)) edited))
+      (last (sort (remove nil? [created edited]))))))
+
+(defn- native-agent [comment identities]
+  ;; Rejection corroboration may use a configured OpenCode/Claude App without
+  ;; adding that App to the distinct hosted merge approval quorum.
+  (let [login (comment-login comment)
+        user (:user comment)
+        matches (for [[provider logins] identities
+                      :when (contains? (set logins) login)] provider)]
+    (when (and (= "Bot" (:type user)) (= login (str/lower-case (str (:login user))))
+               (= 1 (count matches)) (not= "coderabbit" (first matches))
+               (not (contains? (set (get identities "coderabbit")) login)))
+      (first matches))))
+
+(defn- withdrawal-prose [body]
+  (when-let [prose (rejection-prose body)]
+    (when (re-find #"(?i)\b(?:i|we) (?:hereby )?(?:withdraw|revoke|retract|rescind)\b[^\n.!?]{0,80}\bagreement\b|\b(?:my|our) (?:rejection )?agreement\b[^\n.!?]{0,40}\b(?:is |has been )?(?:withdrawn|revoked|retracted|rescinded)\b" prose)
+      prose)))
+
+(defn- withdrawn-sources [c sources identities]
+  ;; Direct reference binds a withdrawal to its original authenticated native
+  ;; agreement, not to arbitrary PR discussion or another agent's assessment.
+  (when (and (= :github-issue-comment (:source-channel c)) (native-agent c identities))
+    (when-let [prose (withdrawal-prose (:body c))]
+      (let [urls (set (map #(str/replace % #"[.,;]+$" "") (re-seq #"https?://[^\s)\]>]+" prose)))
+            plain (remove-matches prose #"https?://[^\s)\]>]+")
+            ids (set (map second (re-seq #"(?i)\b(?:issue ?comment|comment(?:\s+id)?|agreement(?:\s+comment)?)[ \t:#=-]*([1-9][0-9]*)\b" plain)))
+            finding-lines (map second (re-seq #"(?m)^Finding:[ \t]*([^\n]+)$" prose))]
+        (set (for [source sources
+                   :when (and (= (comment-login c) (comment-login source))
+                              (or (contains? ids (str (:id source)))
+                                  (contains? urls (:html_url source))
+                                  ;; A native same-agent thread-only withdrawal
+                                  ;; is ambiguous about the response ID, so the
+                                  ;; known agreement for that thread cannot pass.
+                                  (= [(first (thread-binding (:body source)))] (vec finding-lines))))]
+               (:id source)))))))
+
+(defn- thread-evidence-comments [{:keys [id root-comment-id comments issue-comments head identities]}]
+  (let [scope (when (and (integer? root-comment-id) (pos? root-comment-id)) [id (str root-comment-id)])
+        identities (or identities default-reviewer-identities)
+        scoped (filter #(and scope (= :github-issue-comment (:source-channel %))
+                              (= scope (thread-binding (:body %)))) issue-comments)
+        sources (filter #(and (native-agent % identities) (integer? (:id %)) (pos? (:id %))
+                              (= (str "Rejection agreement for " head ":")
+                                 (first (str/split-lines (or (rejection-prose (:body %)) ""))))) scoped)
+        relevant (keep (fn [c]
+                         (let [withdrawn (withdrawn-sources c sources identities)]
+                           (when (or (some #{c} scoped) (seq withdrawn))
+                             (cond-> c (seq withdrawn) (assoc :withdrawn-source-ids withdrawn))))) issue-comments)
+        created (fn [c] (timestamp (or (:created-at c) (:created_at c))))
+        times (mapv created comments)]
+    (if-not (seq relevant) (vec comments)
+      (when (and (every? some? times) (= times (sort times))
+                 (every? comment-time comments) (every? comment-time relevant))
+        (vec (sort-by created
+                      (concat comments (map #(assoc % :author (or (:author %) (get-in % [:user :login]))) relevant))))))))
+
+(defn- rejection-marker-line? [head scope kind c]
+  (= (str "Rejection " kind " for " head ":" (when scope (str " " scope)))
+     (first (str/split-lines (or (rejection-prose (:body c)) "")))))
+
+(defn- rejection-agreement-prose? [c]
+  (let [prose (or (rejection-prose (:body c)) "")]
+    (and (not (re-find #"(?i)\b(?:i|we) (?:do not|don't|cannot|can't|no longer) agree|\b(?:withdraw|revoke) (?:my|our|the) agreement|\bdisagree with (?:the )?(?:proposal|rejection)|\b(?:rejection|proposal|agreement) (?:is )?(?:wrong|incorrect|invalid|rejected)"
+                       prose))
+         (not (re-find #"(?i)^(?:(?:i|we) (?:fully )?)?(?:agree(?:d)?(?: with (?:(?:the|this|that|proposed|author's) )?(?:proposal|author|rejection|assessment|conclusion|change))?|lgtm|looks good(?: to me)?|yes|approved)[.! ✅]*$"
+                       (str (:reason (rejection-details (:body c)))))))))
+
+(defn- rejection-marker? [head identities scope thread-scope kind c]
+  (let [prose (or (rejection-prose (:body c)) "")]
+    (and (rejection-marker-line? head scope kind c)
+         (= 1 (count (re-seq #"(?m)^Rejection (?:proposal|agreement) for " prose)))
+         (or (not= :github-issue-comment (:source-channel c))
+             (and thread-scope (= thread-scope (thread-binding (:body c)))
+                  (integer? (:id c)) (pos? (:id c)) (native-agent c identities)
+                  (rejection-agreement-prose? c))))))
+
+(defn- rejection-proposal-index [comments end settler marker?]
+  (last (keep-indexed
+         (fn [i c] (when (and (= settler (comment-login c))
+                              (not= false (:authorized? c)) (marker? c)) i))
+         (subvec comments 0 end))))
+
+(defn- rejection-evidence
+  ([head identities pr-author comments settlement-index final-details scope]
+   (rejection-evidence head identities pr-author comments settlement-index final-details scope nil))
+  ([head identities pr-author comments settlement-index final-details scope thread-scope]
+  (when (and (valid-head? head) (not (str/blank? pr-author)) final-details)
+    (let [settler (comment-login (nth comments settlement-index))
+          marker? (partial rejection-marker? head identities scope thread-scope)
+          proposal-index (rejection-proposal-index comments settlement-index settler
+                                                   (partial marker? "proposal"))
+          proposal (when proposal-index (nth comments proposal-index))
+          agreement-index (when proposal-index
+                            (last (for [i (range (inc proposal-index) settlement-index)
+                                        :let [c (nth comments i) login (comment-login c)]
+                                        :when (and (not= settler login) (not= (str/lower-case pr-author) login)
+                                                   (native-agent c identities) (marker? "agreement" c)
+                                                   (or (not= :github-issue-comment (:source-channel c))
+                                                       (and (not= login (comment-login (first (remove #(= :github-issue-comment (:source-channel %)) comments))))
+                                                            (= thread-scope (thread-binding (:body proposal)))
+                                                            (pos? (compare (timestamp (:created_at c)) (comment-time proposal)))
+                                                            (pos? (compare (comment-time (nth comments settlement-index)) (comment-time c)))))
+                                                   (rejection-details (:body c))
+                                                   (not (str/blank? (or (:url c) (:html_url c)))))] i)))
+          agreement (when agreement-index (nth comments agreement-index))
+          disputed? (when agreement-index
+                      (some (fn [c]
+                              (let [prose (reviewer-prose (:body c))]
+                                (and (not= settler (comment-login c))
+                                     (or (nil? scope) (every? #(str/includes? (str (:body c)) %)
+                                                             (str/split scope #" ")))
+                                     (or (contains? (:withdrawn-source-ids c) (:id agreement))
+                                         (and (not (seq (:withdrawn-source-ids c)))
+                                              (not (marker? "agreement" c))
+                                              (or (nil? prose)
+                                                  (and (not (str/blank? prose))
+                                                       (not (confirmed? (:body c))))))))))
+                            (subvec comments (inc agreement-index))))]
+      (when (and (not (str/blank? settler)) agreement (not disputed?)
+                 (= final-details (rejection-details (:body proposal))))
+        {:reviewer (native-agent agreement identities) :url (or (:url agreement) (:html_url agreement))
+         :channel (or (:source-channel agreement) :github-review-thread) :source-id (:id agreement)})))))
+
+(defn- thread-assessment-request
+  "Prospective scope only for an actual native thread proposal. The host must
+   freshly collect/select the original normalized thread and bind complete raw
+   conversation/issue history and permissions. No native evidence or effect."
+  [{:keys [id root-comment-id head pr-author comments issue-comments identities resolved?] :as thread}
+   proposal-id prospective-user]
+  (let [deny (fn [reason] {:eligible? false :reason reason})
+        identities (or identities default-reviewer-identities)
+        positive-id? (fn [n] (and (integer? n) (pos? n)))
+        created (fn [c] (timestamp (:created-at c)))
+        edited (fn [c] (timestamp (:updated-at c)))
+        matches (when (vector? comments) (filterv #(= proposal-id (:id %)) comments))
+        proposal (when (= 1 (count matches)) (first matches))
+        writer (when proposal (comment-login proposal))
+        scope [id (str root-comment-id)]
+        latest (when (and writer (vector? comments))
+                 ;; First select the latest same-writer bare header attempt. A
+                 ;; malformed later attempt must not revive an older proposal.
+                 (rejection-proposal-index comments (count comments) writer
+                                           (partial rejection-marker-line? head nil "proposal")))]
+    (cond
+      (not (and (map? thread) (string? id) (re-matches #"PRRT_[a-zA-Z0-9_-]+" id)
+                (positive-id? root-comment-id) (valid-head? head)
+                (string? pr-author) (not (str/blank? pr-author)) (boolean? resolved?)
+                (vector? comments) (seq comments) (vector? issue-comments)
+                (= root-comment-id (:id (first comments)))
+                (every? #(and (positive-id? (:id %)) (string? (:body %))
+                              (string? (:url %)) (not (str/blank? (:url %)))
+                              (created %) (edited %) (not (pos? (compare (created %) (edited %))))) comments)
+                (= (count comments) (count (set (map :id comments))))
+                (= (mapv created comments) (sort (map created comments)))
+                (some? (thread-evidence-comments thread))))
+      (deny :invalid-native-context)
+
+      (not (and (positive-id? proposal-id) proposal (some? latest)
+                (= proposal (nth comments latest))
+                (= "User" (get-in proposal [:user :type]))
+                (= writer (str/lower-case (str (get-in proposal [:user :login]))))
+                (true? (:authorized? proposal)) (not (bot? writer))
+                (not= writer (comment-login (first comments)))
+                (rejection-marker? head identities nil scope "proposal" proposal)
+                (= scope (thread-binding (:body proposal)))
+                (rejection-details (:body proposal))))
+      (deny :invalid-latest-proposal)
+
+      (not (and (map? prospective-user)
+                (= #{:login :id :node_id :type} (set (keys prospective-user)))
+                (positive-id? (:id prospective-user)) (string? (:node_id prospective-user))
+                (not (str/blank? (:node_id prospective-user)))
+                (native-agent {:user prospective-user} identities)
+                (not (contains? (set [writer (str/lower-case pr-author)
+                                       (comment-login (first comments))])
+                                (str/lower-case (str (:login prospective-user)))))))
+      (deny :ineligible-principal)
+
+      :else
+      {:eligible? true :head head :thread-id id :root-comment-id root-comment-id
+       :proposal-id proposal-id :proposal-body (:body proposal)
+       :proposal-created-at (:created-at proposal) :proposal-updated-at (:updated-at proposal)
+       :writer-login writer :expected-user prospective-user :created-after (comment-time proposal)})))
+
+(defn- thread-assessment-publication
+  "Validate/reconstruct body-only agreement text through the existing rejection
+   grammar. Never fabricate native source metadata or settle a finding. Actual
+   On native readback, :user must match :expected-user for :login, :id,
+   :node_id and :type; login-only matching is insufficient. POST/readback
+   must later pass unchanged rejection-evidence chronology."
+  [thread proposal-id accepted-summary prospective-user]
+  (let [request (thread-assessment-request thread proposal-id prospective-user)
+        c {:body accepted-summary}
+        scope [(:thread-id request) (str (:root-comment-id request))]
+        parsed (when (string? accepted-summary) (rejection-details accepted-summary))
+        body (when parsed
+               (str "Rejection agreement for " (:head request) ":\n"
+                    "Finding: " (:thread-id request) " comment" (:root-comment-id request) "\n"
+                    "Reason: " (:reason parsed) "\nEvidence: " (:evidence parsed)))]
+    (cond
+      (not (:eligible? request)) request
+      (not (and (rejection-marker? (:head request) (or (:identities thread) default-reviewer-identities)
+                                  nil scope "agreement" c)
+                (= scope (thread-binding accepted-summary))
+                (rejection-agreement-prose? c) parsed (= accepted-summary body)))
+      {:eligible? false :reason :invalid-summary}
+      :else (assoc request :body body))))
+
+(defn- actionability-thread
+  "Reuse the existing native withdrawal grammar with ONLY the separately
+   admitted actionability identity. No rejection-list or approval admission."
+  [{:keys [issue-comments actionability-policy] :as thread}]
+  (let [actionability-policy (actionability/assessor-policy actionability-policy
+                                                         (get-in thread [:native-context :repository]))
+        assessor? #(actionability/assessor-identity? % actionability-policy)
+        sources (filter (fn [c]
+                          (let [r (actionability/protocol c)]
+                            (and (assessor? c) (= :assessment (:kind r)) (= (:head thread) (:head r))
+                                 (= (actionability/target thread) (vec (take 5 (:payload r))))))) issue-comments)
+        identities {"opencode" (set (map :login (:identities actionability-policy)))}
+        withdrawn (mapcat (fn [c]
+                           (when (assessor? c)
+                             (let [ids (withdrawn-sources c sources identities)]
+                               (for [s sources :when (and (contains? ids (:id s))
+                                                         (comment-time c) (comment-time s)
+                                                         (pos? (compare (comment-time c) (comment-time s))))]
+                                 (:id s))))) issue-comments)]
+    (assoc thread :actionability-source-withdrawals (set withdrawn))))
+
+(defn finding-obligation? [thread]
+  (actionability/finding-obligation? (actionability-thread thread)))
+
+(defn- finding-withdrawal-details [body]
+  ;; A narrow live opener statement, not author rejection or Bot agreement.
+  ;; Preserve its own rationale/links; analysis, learning, quotes and examples
+  ;; cannot supply missing withdrawal evidence.
+  (when-let [prose (some-> (rejection-prose body)
+                           (remove-matches #"`[^`\n]*`"))]
+    (when (and (re-find #"(?im)(?:^|[.!?][ \t]+)I withdraw this finding\." prose)
+               (not (re-find #"(?i)(?:do not|don't|might|may|will|cannot|can't) withdraw|(?:still|remains) (?:valid|reproduces|unresolved)|retract (?:my|the) withdrawal|(?:withdrawal|finding|assessment) (?:is )?(?:pending|ambiguous)|(?:pending|awaiting) (?:assessment|verification|decision)|(?:quota|usage|review) limit|rate.limit" prose)))
+      (when-let [reason (re-find #"(?im)^(?:The|This|My) finding[ \t]+[^\n]{40,}" prose)]
+        (let [links (vec (re-seq #"https?://[^\s)\]>]+" prose))]
+          (when (seq links) {:reason reason :evidence links}))))))
+
+(defn- opener-withdrawal
+  "Current-head native opener withdrawal plus a bound writer Handled reply.
+   This preserves the finding; it supplies no rejection/approval/round credit."
+  [{:keys [id head root-comment-id comments native-context identities resolved? outdated?] :as input} settlement-index]
+  (let [{:keys [repository pr thread]} native-context
+        nodes (get-in thread [:comments :nodes]) root (first nodes)
+        original-review (:pullRequestReview root)
+        original-head (get-in original-review [:commit :oid])
+        writer (when settlement-index (nth comments settlement-index))
+        writer-prose (rejection-prose (:body writer))
+        native-writer (when settlement-index (nth nodes settlement-index nil))
+        login (get-in root [:author :login])
+        reviewer (fn [c]
+                   ;; GraphQL Bot logins omit REST's [bot] suffix. The native
+                   ;; typename, exact opener identity and existing roster own
+                   ;; this normalization; no new reviewer is admitted.
+                   (let [a (:author c) l (:login a)]
+                     (trusted-reviewer {:user {:type (:__typename a)
+                                              :login (if (str/ends-with? (str l) "[bot]") l (str l "[bot]"))}}
+                                       (or identities default-reviewer-identities))))
+        url (fn [c] (str "https://github.com/" (:nameWithOwner repository) "/pull/" (:number pr)
+                         "#discussion_r" (:databaseId c)))
+        normalized (fn [c] {:id (:databaseId c) :author (get-in c [:author :login]) :body (:body c)
+                           :url (:url c) :created-at (:createdAt c) :updated-at (:updatedAt c)})
+        times (mapv #(timestamp (:createdAt %)) nodes)
+        evidence-comments (thread-evidence-comments input)]
+    (when (and (valid-head? head) (= head (:headRefOid pr)) (= "OPEN" (:state pr))
+               (= id (:id thread)) (= root-comment-id (:databaseId root))
+               (true? resolved?) (true? (:isResolved thread))
+               ;; Location age is provenance; current resolved custody is required.
+               (boolean? outdated?) (= outdated? (:isOutdated thread))
+               (vector? nodes) (seq nodes) (false? (get-in thread [:comments :pageInfo :hasNextPage]))
+               (= (count nodes) (get-in thread [:comments :totalCount]) (count comments)
+                  (count (set (map :databaseId nodes))))
+               (= (mapv normalized nodes)
+                  (mapv #(select-keys % [:id :author :body :url :created-at :updated-at]) comments))
+               (every? some? times) (= times (sort times)) (every? comment-time comments)
+               (every? #(and (timestamp (:updatedAt %))
+                             (not (pos? (compare (:createdAt %) (:updatedAt %))))) nodes)
+               (some? evidence-comments)
+               ;; The original review's commit is immutable provenance. Only
+               ;; the new withdrawal and writer must bind the current head.
+               (valid-head? original-head)
+               (integer? (:databaseId original-review)) (pos? (:databaseId original-review))
+               (string? (:id original-review)) (not (str/blank? (:id original-review)))
+               (contains? #{"COMMENTED" "CHANGES_REQUESTED" "APPROVED" "DISMISSED"}
+                          (:state original-review))
+               (= (select-keys (:author root) [:login :__typename])
+                  (select-keys (:author original-review) [:login :__typename]))
+               (= (:url root) (url root)) (reviewer root) (not= login (get-in pr [:author :login]))
+               (= :handled (resolution-of (:body writer))) (true? (:authorized? writer))
+               (str/starts-with? (or (rejection-prose (:body writer)) "") "Handled:")
+               (= "User" (get-in native-writer [:author :__typename]) (get-in writer [:user :type]))
+               (= (:author writer) (get-in writer [:user :login]))
+               (= head (get-in native-writer [:pullRequestReview :commit :oid]))
+               (= [id (str root-comment-id)] (thread-binding (:body writer)))
+               (str/includes? writer-prose head))
+      (last
+       (keep-indexed
+        (fn [i c]
+          (when-let [details (finding-withdrawal-details (:body c))]
+            (let [source (nth comments i)]
+              (when (and (pos? i) (< i settlement-index) (= login (get-in c [:author :login]))
+                         (= (reviewer root) (reviewer c))
+                         (= "COMMENTED" (get-in c [:pullRequestReview :state]))
+                         (= head (get-in c [:pullRequestReview :commit :oid]))
+                         (= (:url c) (url c)) (integer? (:databaseId c)) (pos? (:databaseId c))
+                         (str/includes? writer-prose (:url c))
+                         (or (not (re-find #"(?m)^Finding:" (or (rejection-prose (:body c)) "")))
+                             (= [id (str root-comment-id)] (thread-binding (:body c))))
+                         (pos? (compare (comment-time writer) (comment-time source)))
+                         ;; Later conflicts/edits cannot be erased by resolution
+                         ;; or a writer settlement. Ordinary confirmations may
+                         ;; follow; unknown/missing chronology fails closed.
+                         (every? (fn [other]
+                                   (or (= (:id source) (:id other)) (= writer other)
+                                       (and (neg? (compare (comment-time other) (comment-time source)))
+                                            (neg? (compare (timestamp (or (:created-at other) (:created_at other)))
+                                                           (timestamp (:createdAt c)))))
+                                       (confirmed? (:body other)))) evidence-comments))
+                (merge details {:source-id (:databaseId c) :url (:url c) :head head
+                                :original-head original-head :original-review-id (:databaseId original-review)
+                                :thread-id id :root-comment-id root-comment-id
+                                :reviewer (reviewer c)}))))) nodes)))))
+
+(defn classify-thread
+  "thread: {:id :resolved? :outdated? :path :line
+             :comments [{:author :body :url :created-at}]}
+   Returns the thread with :severity, :reviewer, :resolution, :settled?, and
+   :contested? — true when a reviewer replied after the last settlement
+   without confirming it. A contested thread blocks the gate until it is
+   settled again, even if GitHub shows it resolved."
+  [{:keys [comments head identities pr-author] :as thread}]
+  (let [thread (actionability-thread thread)
+        opener (first comments)
+        replies (vec (rest comments))
+        settle-idx (->> (map-indexed vector replies)
+                        (filter (fn [[_ c]] (and (not= (:author opener) (:author c))
+                                                (not (bot? (:author c)))
+                                                (not= false (:authorized? c))
+                                                (resolution-of (:body c)))))
+                        (map first) last)
+        settlement (when settle-idx (resolution-of (:body (nth replies settle-idx))))
+        later (when settle-idx (subvec replies (inc settle-idx)))
+        settler (when settle-idx (:author (nth replies settle-idx)))
+        contested? (boolean
+                    (some (fn [c]
+                            (let [prose (reviewer-prose (:body c))]
+                              (and (not= settler (:author c))
+                                   (or (nil? prose)
+                                       (and (not (str/blank? prose)) (not (confirmed? (:body c)))))))) later))
+        rejection (when (and (= :rejected settlement) (not contested?))
+                    (let [reply (nth replies settle-idx)]
+                      (when (str/starts-with? (or (rejection-prose (:body reply)) "") "Rejected:")
+                        (when-let [evidence-comments (thread-evidence-comments thread)]
+                          (let [index (first (keep-indexed #(when (= reply %2) %1) evidence-comments))]
+                            (rejection-evidence head (or identities default-reviewer-identities) pr-author
+                                                evidence-comments index (rejection-details (:body reply)) nil
+                                                [(:id thread) (str (:root-comment-id thread))]))))))
+        withdrawal (when (and (= :handled settlement) (not contested?))
+                     (opener-withdrawal thread (inc settle-idx)))
+        semantic (semantic-repair/proof thread (:semantic-repair-evidence thread))
+        acknowledgement (or semantic (repair-ack/proof thread
+                          (fn [a] (trusted-reviewer
+                                    {:user {:type (:__typename a)
+                                            :login (if (str/ends-with? (str (:login a)) "[bot]")
+                                                     (:login a) (str (:login a) "[bot]"))}}
+                                    (or identities default-reviewer-identities)))))]
+    (assoc thread
+           :actionability (actionability/disposition thread)
+           :preservation (positive-thread/proof thread)
+           :reviewer (:author opener)
+           :severity (severity (:body opener))
+           :repair-acknowledgement acknowledgement
+           :resolution (if acknowledgement :fixed settlement)
+           :settled? (boolean (or acknowledgement (and (some? settlement) (not contested?) (or (not= :rejected settlement) (some? rejection)))))
+           :contested? (if acknowledgement false contested?)
+           :opener-withdrawal withdrawal
+           :rejection-approved? (boolean rejection)
+           :rejection-reviewer (:reviewer rejection)
+           :rejection-channel (:channel rejection)
+           :rejection-source-id (:source-id rejection)
+           :rejection-url (:url rejection))))
+
+(defn- explicit-item-priority [banner title]
+  ;; Only the banner and actual title can supply an explicit P-label. Details,
+  ;; quotes and fenced examples in a modern title are not the live finding.
+  (let [prose (reviewer-prose (remove-matches (str title) #"(?is)<details\b[^>]*>.*?</details>"))
+        prose (when-not (re-find #"(?i)</?(?:details|summary|blockquote)\b" (str prose)) prose)
+        text (str banner "\n" prose)]
+    (some (fn [[pattern priority]] (when (re-find pattern text) priority))
+          (take 4 severity-markers))))
+
+(defn- legacy-own-title [prefix prose]
+  ;; The own bold title is the first nonblank line at this item's quote depth.
+  ;; Searching later bold text would promote quoted/generated instructions.
+  (let [line (first (remove #(re-matches #"[ \t]*(?:>[ \t]*)*" %)
+                            (str/split-lines prose)))]
+    (when (and line (str/starts-with? line prefix))
+      (second (re-find #"^\*\*([^*\n]+)\*\*" (subs line (count prefix)))))))
+
+(defn- legacy-body-findings [body]
+  ;; Old CodeRabbit items put the banner immediately inside a file's
+  ;; summary/blockquote, with the ID after nested generated prompts. Remove
+  ;; fenced examples first, including the outer Markdown quote used for
+  ;; outside-diff sections. An unfinished fence cannot justify a downgrade.
+  (let [text (remove-matches (str body)
+                            #"(?ms)^([ \t]*(?:>[ \t]?)*)(`{3,}|~{3,})[^\n]*\n.*?^\1\2[ \t]*$")]
+    (when-not (re-find #"(?m)^[ \t]*(?:>[ \t]?)*(?:`{3,}|~{3,})" text)
+      (mapv
+       (fn [[_ prefix start end banner prose id]]
+         (let [number (fn [s] #?(:clj (Long/parseLong s) :cljs (js/parseInt s 10)))
+               valid-range? (or (nil? end) (<= (number start) (number end)))
+               extra-banner? (some #(and (str/starts-with? % prefix)
+                                         (re-find #"^`[0-9]+(?:-[0-9]+)?`:.*\|" (subs % (count prefix))))
+                                   (str/split-lines prose))
+               banner-priority (get {"🔴 Critical" :p0 "🟠 Major" :p1
+                                     "🟡 Minor" :p2 "🔵 Trivial" :p3} banner)]
+           {:id id
+            :severity (if (and valid-range? (not extra-banner?) banner-priority)
+                        (or (explicit-item-priority banner (legacy-own-title prefix prose)) banner-priority)
+                        :p1)
+            :title (title-of prose)}))
+       ;; Same quote prefix on the header, banner, ID and closing boundary;
+       ;; never cross a sibling/nested blockquote or another finding marker.
+       (re-seq #"(?m)^([ \t]*(?:>[ \t]?)*)(?:<summary>[^<\n]+</summary><blockquote>)[ \t]*\n(?:[ \t]*(?:>[ \t]*)*\n)*\1`([1-9][0-9]{0,8})(?:-([1-9][0-9]{0,8}))?`: _[^_\n]+_ \| _([^_\n]+)_ \| _[^_\n]+_[ \t]*\n((?:(?!</?blockquote>|<!-- cr-comment:v1:)[\s\S])*?)^\1<!-- cr-comment:v1:([a-z0-9]+) -->[ \t]*\n(?:(?!</?blockquote>|<!-- cr-comment:v1:)[\s\S])*?^\1</blockquote></details>" text)))))
+
+
+
+(defn- multiline-code-regions
+  ([text] (multiline-code-regions text false))
+  ([text native-boundaries?]
+  ;; Find raw equal backtick runs across lines, including blank paragraphs.
+  ;; Positive admission denies them; conservative discovery masks only them.
+  ;; Outside a code span, complete native comments/fences remain examples.
+  ;; Inside one, backslashes, comments and fences cannot hide its delimiter.
+  (let [matching-close
+        (fn [cursor size]
+          (let [remaining (subs text cursor)
+                native-opening (when native-boundaries?
+                                 (re-find #"(?m)^<details>\r?\n<summary>🔇 Additional comments" remaining))
+                boundary (when native-opening (+ cursor (str/index-of remaining native-opening)))]
+            (loop [cursor cursor]
+              (when-let [run (re-find #"`+" (subs text cursor))]
+                (let [start (+ cursor (str/index-of (subs text cursor) run))
+                      end (+ start (count run))]
+                  (when (or (nil? boundary) (< start boundary))
+                    (if (= size (count run)) [start end] (recur end))))))))]
+    (loop [cursor 0 regions []]
+      (if-let [token (re-find #"<!--[\s\S]*?-->|`+|~{3,}" (subs text cursor))]
+        (let [start (+ cursor (str/index-of (subs text cursor) token))
+              end (+ start (count token))
+              line-start (inc (or (str/last-index-of (subs text 0 start) "\n") -1))
+              fence (when (and (>= (count token) 3)
+                               (re-matches #"[ \t]*" (subs text line-start start)))
+                      (when-let [match (re-find #"(?ms)^([ \t]*)(`{3,}|~{3,})[^\n]*\n.*?^\1\2[ \t]*$"
+                                                (subs text line-start))]
+                        (when (zero? (str/index-of (subs text line-start) (first match))) (first match))))
+              escaped? (odd? (loop [index (dec start) n 0]
+                               (if (and (>= index 0) (= "\\" (subs text index (inc index))))
+                                 (recur (dec index) (inc n)) n)))]
+          (cond
+            (str/starts-with? token "<!--") (recur end regions)
+            fence (recur (+ line-start (count fence)) regions)
+            (str/starts-with? token "~") (recur end regions)
+            escaped? (recur (inc start) regions)
+            :else (if-let [[close after] (matching-close end (count token))]
+                    (recur after (cond-> regions
+                                   (re-find #"[\r\n]" (subs text end close)) (conj [start after])))
+                    (recur end regions))))
+        regions)))))
+
+(defn- multiline-code-span? [text]
+  (boolean (seq (multiline-code-regions text))))
+
+(defn- mask-multiline-code-regions [text]
+  ;; Reverse offsets preserve source coordinates and do not invent line starts.
+  (reduce (fn [source [start end]]
+            (str (subs source 0 start) "[excluded non-authoritative source]" (subs source end)))
+          text (reverse (multiline-code-regions text true))))
+
+(defn- retain-excluded-regions [text pattern]
+  ;; Exclusion must not sanitize extra own-item source into an exact LGTM.
+  ;; The sentinel cannot match a native item or a complete section header,
+  ;; and must not invent line boundaries around an excluded source region.
+  (loop [text text]
+    (if-let [match (re-find pattern text)]
+      (recur (str/replace-first text (if (string? match) match (first match)) "[excluded non-authoritative source]"))
+      text)))
+
+(defn- trim-blank-lines [text]
+  ;; Retain indentation: four-space Markdown code is not live native prose.
+  (-> text (str/replace #"^(?:[ \t]*\n)+" "")
+      (str/replace #"(?:\n[ \t]*)+$" "")))
+
+(defn- native-public-asset-token? [token]
+  (let [attributes (re-seq #" (src|srcset)=\"([^\"]*)\"" token)
+        url #"https://storage\.googleapis\.com/coderabbit_public_assets/[^\s<>\"',]+"
+        candidate #"https://storage\.googleapis\.com/coderabbit_public_assets/[^\s<>\"',]+(?:[ \t]+(?:[1-9][0-9]*(?:\.[0-9]+)?x|[1-9][0-9]*w))?"]
+    (boolean
+     (and (re-matches #"<(?:img|source)(?: (?:src|srcset|width|height|align|alt|media)=\"[^\"<>\r\n]*\")+>" token)
+          (seq attributes)
+          (every? (fn [[_ attribute value]]
+                    (case attribute
+                      "src" (re-matches url value)
+                      "srcset" (every? #(re-matches candidate (str/trim %)) (str/split value #"," -1))
+                      false)) attributes)))))
+
+(defn- additional-comment-section
+  ([body] (additional-comment-section body #"^<details>\n<summary>🔇 Additional comments(?:: [1-9][0-9]{0,3}| \([1-9][0-9]{0,3}\))</summary><blockquote>"))
+  ([body section-header] (additional-comment-section body section-header false))
+  ([body section-header native-dl?]
+  ;; Only the observed complete, top-level native section is a candidate.
+  ;; Quotes/fences/generated share examples are not authored LGTM evidence.
+  ;; A deliberately small balanced tag grammar rejects unfamiliar HTML rather
+  ;; than borrowing a closing boundary from a nested or sibling example.
+  (let [text (some-> (when-not (multiline-code-span? (str body)) (str body))
+                     (retain-excluded-regions #"(?s)<!-- This is an auto-generated comment: tweet message by coderabbit\.ai -->.*?<!-- end of auto-generated comment: tweet message by coderabbit\.ai -->")
+                     (#(when (verdict-prose %) %))
+                     (retain-excluded-regions #"(?ms)^[ \t]*(`{3,}|~{3,})[^\n]*\n.*?^[ \t]*\1[ \t]*$")
+                     ;; Raw quote starts can own unprefixed lazy continuations.
+                     ;; The supported native section has no quoted source.
+                     (#(when-not (re-find #"(?m)^[ \t]*>" (str body)) %)))]
+    (when (and text (not (re-find #"(?i)<!--\s*(?:This is an auto-generated comment:|end of auto-generated comment:)" text)))
+      (loop [remaining text offset 0 stack [] sections []]
+        (if-let [token (re-find #"<!--[\s\S]*?-->|</?[A-Za-z][^>]*>|</?[A-Za-z]|<\?|<!" remaining)]
+          (let [start (+ offset (str/index-of remaining token))
+                end (+ start (count token))
+                tail (subs text end)]
+            (cond
+              (str/starts-with? token "<!--") (recur tail end stack sections)
+              (and native-dl?
+                   (or (re-matches #"<https://[^<>\s]+>" token)
+                       (native-public-asset-token? token)))
+              (recur tail end stack sections)
+              :else
+              (when-let [[_ closing tag] (re-matches (if native-dl?
+                                                      #"<(\/?)(details|summary|blockquote|dl|dd|picture)>"
+                                                      #"<(\/?)(details|summary|blockquote)>") token)]
+                (when-not (re-matches #"(?: {4}| {0,3}\t)[ \t]*"
+                                      (last (str/split (subs text 0 start) #"\n" -1)))
+                  (if (= closing "/")
+                    (when (and (= tag (:tag (peek stack)))
+                               (or (not (:additional? (peek stack)))
+                                   (re-find #"^[ \t]*(?:\r?\n|$)" tail)))
+                      (let [frame (peek stack)
+                            sections (if (:additional? frame)
+                                       (conj sections (subs text (:start frame) end)) sections)]
+                        (recur tail end (pop stack) sections)))
+                    (let [own-line? (or (zero? start) (= "\n" (subs text (dec start) start)))
+                          additional? (and (= tag "details") (empty? stack) own-line?
+                                           (re-find section-header (subs text start)))]
+                      (recur tail end (conj stack {:tag tag :start start :additional? additional?}) sections)))))))
+          (when (and (empty? stack) (= 1 (count sections))) (first sections))))))))
+
+(defn- native-positive-item [item file]
+  (when-let [[_ start end extra id]
+             (re-matches #"`([1-9][0-9]{0,8})-([1-9][0-9]{0,8})`: LGTM!\s*(?:Also applies to: ([1-9][0-9]{0,8}-[1-9][0-9]{0,8}(?:, [1-9][0-9]{0,8}-[1-9][0-9]{0,8})*)\s*)?<!-- cr-comment:v1:([0-9a-f]{24}) -->" (trim-blank-lines item))]
+    (let [number (fn [n] #?(:clj (Long/parseLong n) :cljs (js/parseInt n 10)))
+          ranges (into [[(number start) (number end)]]
+                       (map (fn [[_ a b]] [(number a) (number b)])
+                            (re-seq #"([0-9]+)-([0-9]+)" (str extra))))]
+      (when (and (not (re-find #"(?m)^(?: {4}| {0,3}\t)[ \t]*\S" item))
+                 (every? (fn [[a b]] (<= a b)) ranges))
+        {:id id :format :native-additional-lgtm :file file :ranges ranges :source (trim-blank-lines item)}))))
+
+(defn- native-additional-groups
+  ([body] (native-additional-groups body true))
+  ([body reconcile-counts?]
+  (when-let [section (or (additional-comment-section body)
+                        (additional-comment-section body
+                          #"^<details>\n<summary>🔇 Additional comments(?:: [1-9][0-9]{0,3}| \([1-9][0-9]{0,3}\))</summary><blockquote>\s*<dl>\s*<dd>"
+                          true))]
+    (let [dl? (boolean (re-find #"^<details>\n<summary>[^\n]+</summary><blockquote>\s*<dl>" section))
+          outer (if dl?
+                  #"<details>\n<summary>🔇 Additional comments(?:: ([1-9][0-9]{0,3})| \(([1-9][0-9]{0,3})\))</summary><blockquote>\s*<dl>\s*<dd>([\s\S]*)</dd>\s*</dl>\s*</blockquote>\s*</details>"
+                  #"<details>\n<summary>🔇 Additional comments(?:: ([1-9][0-9]{0,3})| \(([1-9][0-9]{0,3})\))</summary><blockquote>([\s\S]*)</blockquote></details>")
+          group (if dl?
+                  #"<details>\n<summary>([^<\n]+?)(?:: ([1-9][0-9]{0,3})| \(([1-9][0-9]{0,3})\))</summary><blockquote>\s*<dl>\s*<dd>([\s\S]*?)</dd>\s*</dl>\s*</blockquote>\s*</details>"
+                  #"<details>\n<summary>([^<\n]+?)(?:: ([1-9][0-9]{0,3})| \(([1-9][0-9]{0,3})\))</summary><blockquote>([\s\S]*?)</blockquote></details>")]
+      (when-let [[_ total-colon total-paren inner] (re-matches outer section)]
+        (let [groups (re-seq group inner)
+              remainder (reduce #(str/replace-first %1 (first %2) "") inner groups)
+              number (fn [n] #?(:clj (Long/parseLong n) :cljs (js/parseInt n 10)))]
+          (when (and (str/blank? remainder)
+                     (or (not reconcile-counts?)
+                         (and (= (number (or total-colon total-paren))
+                                 (reduce + (map #(number (or (nth % 2) (nth % 3))) groups)))
+                              (or (not dl?)
+                                  (every? (fn [[_ _ count-colon count-paren content]]
+                                            (= (number (or count-colon count-paren))
+                                               (count (str/split (trim-blank-lines content)
+                                                                 #"\n[ \t]*\n---\n[ \t]*\n"))))
+                                          groups)))))
+            groups)))))))
+
+(defn- mask-native-discovery-examples [body]
+  ;; Select the earliest enclosing complete region, including multiline spans.
+  ;; The span scanner retains native-block interruption for dangling delimiters.
+  ;; Complete generated regions own their inner examples and closing markers.
+  ;; Unclosed generated markers remain for the following tail-exclusion pass.
+  (let [pattern #"(?im)<!--\s*This is an auto-generated comment:[\s\S]*?-->[\s\S]*?<!--\s*end of auto-generated comment:[\s\S]*?-->|<!--(?!\s*(?:This is an auto-generated comment:|end of auto-generated comment:))[\s\S]*?-->|^(?:[ ]{4}|[ ]{0,3}\t)[^\r\n]*|^[ ]{0,3}<(pre|code|blockquote)\b[^>]*>[\s\S]*?</\1>|^[ ]{0,3}>[^\r\n]*(?:(?:\r\n|\r|\n)(?![ \t]*(?:\r\n|\r|\n|$)|[ ]{0,3}<details>[ \t]*(?:\r\n|\r|\n|$))[^\r\n]*)*|^[ ]{0,3}(`{3,})[^`\r\n]*(?:\r\n|\r|\n)[\s\S]*?^[ ]{0,3}\2`*[ \t]*(?:$|\r)|^[ ]{0,3}(~{3,})(?!~)[^\r\n]*(?:\r\n|\r|\n)[\s\S]*?^[ ]{0,3}\3~*[ \t]*(?:$|\r)|(?<!`)(`+)(?!`)[^\r\n]*?\4(?!`)"]
+    (loop [text body]
+      (if-let [[span-start span-end] (first (multiline-code-regions text true))]
+        (let [match (re-find pattern text)
+              example (when match (if (string? match) match (first match)))
+              example-start (when example (str/index-of text example))
+              region (if (or (nil? example-start) (< span-start example-start))
+                       (subs text span-start span-end)
+                       example)]
+          (recur (str/replace-first text region "[excluded non-authoritative source]")))
+        (retain-excluded-regions text pattern)))))
+
+
+(defn- recognizable-native-additional? [body]
+  ;; Recognition only preserves a conservative obligation. It cannot admit a
+  ;; positive item or borrow authority from quoted, fenced or generated source.
+  ;; Mask generated regions locally: an unrelated footer must not erase an
+  ;; independently authored malformed section. An unclosed opener owns its tail.
+  (let [text (some-> (str body)
+                       mask-native-discovery-examples
+                       (retain-excluded-regions #"(?is)<!--\s*This is an auto-generated comment:.*?-->.*?<!--\s*end of auto-generated comment:.*?-->")
+                       (retain-excluded-regions #"(?is)<!--\s*This is an auto-generated comment:.*?-->.*$")
+                       (retain-excluded-regions #"<!--[\s\S]*?-->")
+                       mask-multiline-code-regions
+                       ;; Complete fences are already masked. Exclude unmatched
+                       ;; tails before the legacy scope scanner can reinterpret them.
+                       (retain-excluded-regions #"(?m)^[ ]{0,3}(?:`{3,}[^`\r\n]*(?:\r?\n|$)|~{3,}[^\r\n]*(?:\r?\n|$))[\s\S]*$")
+                       native-scope-prose)]
+    (boolean (and text
+                  (re-find #"(?m)^<details>\r?\n<summary>🔇 Additional comments(?:: [1-9][0-9]{0,3}| \([1-9][0-9]{0,3}\))</summary><blockquote>\s*<dl>\s*<dd>" text)))))
+
+(defn- unmarked-additional-finding? [body]
+  ;; Declared native items without stable IDs cannot disappear when the
+  ;; identified siblings settle. Duplicate IDs cannot fill a missing slot.
+  (boolean
+   (or
+    (and (recognizable-native-additional? body)
+         (not (native-additional-groups body)))
+    ;; A structurally bounded section with irreconcilable declared totals is
+    ;; not a valid positive envelope. Preserve a whole-body finding separately.
+    (and (native-additional-groups body false)
+         (not (native-additional-groups body)))
+    (some (fn [[_ _ count-colon count-paren content]]
+           (> #?(:clj (Long/parseLong (or count-colon count-paren))
+                 :cljs (js/parseInt (or count-colon count-paren) 10))
+              (count (set (map second (re-seq #"<!-- cr-comment:v1:([a-z0-9]+) -->" content))))))
+         (native-additional-groups body)))))
+
+(defn- native-positive-body-items [body]
+  (when-let [groups (native-additional-groups body)]
+    (let [number (fn [n] #?(:clj (Long/parseLong n) :cljs (js/parseInt n 10)))
+          frequencies (frequencies (map #(str/lower-case (second %))
+                                        (re-seq #"(?i)<!-- cr-comment:v1:([a-z0-9]+) -->" (str body))))]
+      (into {}
+            (for [[_ file count-colon count-paren content] groups
+                  ;; Authored repository-relative paths; never a generated
+                  ;; nested summary, absolute path, or traversal fragment.
+                  :when (and (re-matches #"(?:[^\s<>]| )+" file)
+                             (not (re-find #"[\u0000:\\]" file))
+                             (not (str/starts-with? file "/"))
+                             (not (some #{"" ".." "."} (str/split file #"/" -1))))
+                  :let [parts (str/split (trim-blank-lines content) #"\n[ \t]*\n---\n[ \t]*\n")
+                        items (mapv #(native-positive-item % file) parts)]
+                  :when (and (= (number (or count-colon count-paren)) (count parts)) (every? some? items))
+                  item items :when (= 1 (get frequencies (:id item)))]
+              [(:id item) (dissoc item :id)])))))
+
+(defn review-body-findings
+  "Extract each outside-diff or nitpick finding and its stable CodeRabbit ID."
+  [body]
+  (let [modern (->> (re-seq #"<summary><em>([^<]*)</em> · ([\s\S]*?) · <code>[^<]*</code></summary>[\s\S]*?<!-- cr-comment:v1:([a-z0-9]+) -->" (str body))
+                   (mapv (fn [[_ banner title id]]
+                           (let [priority (severity banner)]
+                             {:id id :severity (if (= :unknown priority) :p1
+                                                 (or (explicit-item-priority banner title) priority))
+                              :title title}))))
+        modern-ids (set (map :id modern))
+        identified (into modern (remove #(modern-ids (:id %)) (legacy-body-findings body)))
+        known (set (map :id identified))
+        positive (native-positive-body-items body)
+        other (for [[_ id] (re-seq #"<!-- cr-comment:v1:([a-z0-9]+) -->" (str body))
+                    :when (not (known id))]
+                (cond-> {:id id :severity :p1 :title "Unclassified review-body finding; fix before merge"}
+                  (get positive id) (assoc :positive-body-item (get positive id))))]
+    (into identified other)))
+
+(defn- body-finding? [body]
+  (boolean
+   (or (re-find #"(?i)(?:nitpick comments|outside diff range comments|duplicate comments)\s*\([1-9][0-9]*\)" (str body))
+       (re-find #"(?im)^Confirmed findings:\s*\n\s*[1-9][0-9]*\." (str body)))))
+
+(defn review-findings
+  "Stable CR item IDs remain individual findings. Unmarked native Additional
+   items retain a conservative P1 whole-body obligation alongside those IDs.
+   Body-only change requests and legacy sections use the same settlement path."
+  [review]
+  (let [items (review-body-findings (:body review))
+        body (:body review)
+        whole-body? (or (unmarked-additional-finding? body)
+                        (and (empty? items)
+                             (or (= "CHANGES_REQUESTED" (:state review))
+                                 (body-finding? body))))]
+    (cond-> items
+      whole-body? (conj {:id (str (:id review)) :kind :review-body :severity :p1
+                         :title "Whole review body requires a verified fix"}))))
+
+(defn review-update-matches?
+  "Shared REST/GQL review-body edit binding. Numeric author identity and live
+   item selection are additional body-assessment requirements below."
+  ([review native] (review-update-matches? review native "Bot"))
+  ([review native actor-type]
+  (and (#{"User" "Bot"} actor-type)
+       (map? native) (string? (:node_id review)) (not (str/blank? (:node_id review)))
+       (= (:node_id review) (:id native)) (= (:id review) (:databaseId native))
+       (= (:body review) (:body native)) (= (:state review) (:state native))
+       (= (:commit_id review) (get-in native [:commit :oid]))
+       (= (:submitted_at review) (:submittedAt native))
+       (string? (get-in review [:user :node_id]))
+       (= (get-in review [:user :node_id]) (get-in native [:author :id]))
+       (= actor-type (get-in native [:author :__typename])) (string? (:updatedAt native)))))
+
+(defn- assessment-file-groups? [section]
+  (let [[header total-colon total-paren]
+        (re-find #"^<details>\n<summary>🔇 Additional comments(?:: ([1-9][0-9]{0,3})| \(([1-9][0-9]{0,3})\))</summary><blockquote>" section)
+        inner (when header (subs section (count header) (- (count section) (count "</blockquote></details>"))))
+        groups (re-seq #"<details>\n<summary>([^<\n]+?)(?:: ([1-9][0-9]{0,3})| \(([1-9][0-9]{0,3})\))</summary><blockquote>((?:(?!</?(?:details|summary|blockquote)>)[\s\S])*)</blockquote></details>" (str inner))
+        number #?(:clj #(Long/parseLong %) :cljs #(js/parseInt % 10))]
+    (and header (seq groups)
+         (str/blank? (reduce #(str/replace-first %1 (first %2) "") inner groups))
+         (= (number (or total-colon total-paren)) (reduce + (map #(number (or (nth % 2) (nth % 3))) groups)))
+         (every? (fn [[_ file n m content]]
+                   (and (positive-thread/source-path? file) (re-find #"[/.]" file)
+                        (<= (count (re-seq #"<!-- cr-comment:v1:[a-z0-9]+ -->" content)) (number (or n m))))) groups))))
+
+(defn- live-item-prose [body]
+  ;; Reuse the native container scanner. Unsupported HTML and excluded source
+  ;; cannot be normalized into an authored heading or marker.
+  (when-let [prose (when (and (not (multiline-code-span? (str body)))
+                             (verdict-prose body)) (str body))]
+    (let [prose (-> prose
+                    (retain-excluded-regions #"(?ms)^[ \t]*(`{3,}|~{3,})[^\n]*\n.*?^[ \t]*\1[ \t]*$")
+                    (retain-excluded-regions #"(?s)<!-- This is an auto-generated comment: tweet message by coderabbit\.ai -->.*?<!-- end of auto-generated comment: tweet message by coderabbit\.ai -->")
+                    (retain-excluded-regions #"(?s)<details>\s*<summary>(?:🧩 Analysis chain|✏️ Learnings added)</summary>.*?</details>")
+                    (retain-excluded-regions #"(?is)<(pre|code)\b[^>]*>.*?</\1>")
+                    (retain-excluded-regions #"<!--(?! cr-comment:v1:[a-z0-9]+ -->)[\s\S]*?-->"))]
+      (when-not (or (re-find #"(?m)^[ \t]*>" prose)
+                    (re-find #"(?i)<!--\s*(?:This is an auto-generated comment:|end of auto-generated comment:)" prose))
+        (if (re-find #"(?i)</?[a-z]|<\?|<!" (remove-matches prose #"<!--[\s\S]*?-->"))
+          (let [section (additional-comment-section prose
+                          #"^<details>\n<summary>🔇 Additional comments(?:: [1-9][0-9]{0,3}| \([1-9][0-9]{0,3}\))</summary><blockquote>")]
+            (when (and section (assessment-file-groups? section)) section))
+          prose)))))
+
+(defn graphql-rest-login
+  "REST spelling for a native User/Bot login; no identity or permission credit."
+  [author]
+  (let [login (:login author)]
+    (when (and (#{"User" "Bot"} (:__typename author))
+               (string? login) (not (str/blank? login)))
+      (if (and (= "Bot" (:__typename author)) (not (str/ends-with? login "[bot]")))
+        (str login "[bot]") login))))
+
+(defn native-review-item?
+  "One current live authored item with complete native edit/actor custody.
+   This is not independent judgment, settlement or native authentication."
+  [review item-id identities]
+  (let [native (:native-review review) user (:user review)
+        submitted (timestamp (:submitted_at review)) updated (timestamp (:updated_at review))
+        occurrences (fn [s] (count (re-seq (re-pattern (str "<!-- cr-comment:v1:" item-id " -->")) (str s))))
+        marker-lines (fn [s] (count (re-seq (re-pattern (str "(?m)^ {0,3}<!-- cr-comment:v1:" item-id " -->[ \t]*$")) (str s))))
+        prose (when (string? (:body review)) (live-item-prose (:body review)))]
+    (boolean
+     (and (map? review) (integer? (:id review)) (pos? (:id review))
+          (string? item-id) (re-matches #"[a-z0-9]+" item-id)
+          (#{"COMMENTED" "APPROVED" "CHANGES_REQUESTED"} (:state review))
+          (valid-head? (:commit_id review)) submitted updated (not (pos? (compare submitted updated)))
+          (review-update-matches? review native) (= (:updated_at review) (:updatedAt native))
+          (= "Bot" (:type user)) (integer? (:id user)) (pos? (:id user))
+          (= (:id user) (get-in native [:author :databaseId]))
+          (= (:login user) (graphql-rest-login (:author native)))
+          (trusted-reviewer review (or identities default-reviewer-identities))
+          prose (= 1 (occurrences (:body review)) (occurrences prose)
+                   (marker-lines (:body review)) (marker-lines prose))
+          (= 1 (count (filter #(= item-id (:id %)) (review-findings review))))))))
+
+(defn- body-assessment-request
+  [{:keys [head pr-author pr-author-user review-id item-id review issue-comments identities] :as context}
+   proposal-id prospective-user]
+  (let [deny (fn [reason] {:eligible? false :reason reason})
+        identities (or identities default-reviewer-identities)
+        scope (str "review-id:" review-id " cr-comment:v1:" item-id)
+        matches (when (vector? issue-comments) (filterv #(= proposal-id (:id %)) issue-comments))
+        proposal (when (= 1 (count matches)) (first matches)) writer (comment-login proposal)
+        attempt-prefix (str "Rejection proposal for " head ": " scope)
+        latest (when (vector? issue-comments)
+                 (last (keep-indexed
+                        (fn [i c]
+                          (let [line (first (str/split-lines (or (rejection-prose (:body c)) "")))]
+                            (when (and (true? (:authorized? c)) (= "User" (get-in c [:user :type]))
+                                       (not (bot? (comment-login c)))
+                                       (string? line) (str/starts-with? line attempt-prefix)
+                                       (or (= line attempt-prefix)
+                                           (not (re-matches #"[a-z0-9]" (subs line (count attempt-prefix) (inc (count attempt-prefix))))))) i)))
+                        issue-comments)))
+        positive-id? #(and (integer? %) (pos? %))]
+    (cond
+      (not (and (= :review-body-item (:kind context))
+                (not-any? #(contains? context %) [:id :thread-id :root-comment-id :items :scopes])
+                (valid-head? head) (string? pr-author) (not (str/blank? pr-author))
+                (map? pr-author-user) (= pr-author (:login pr-author-user))
+                (#{"User" "Bot"} (:type pr-author-user))
+                (positive-id? (:id pr-author-user)) (string? (:node_id pr-author-user))
+                (not (str/blank? (:node_id pr-author-user)))
+                (= review-id (:id review)) (native-review-item? review item-id identities)
+                (vector? issue-comments)
+                (every? #(and (positive-id? (:id %)) (string? (:body %))
+                              (timestamp (:created_at %)) (timestamp (:updated_at %))
+                              (not (pos? (compare (timestamp (:created_at %)) (timestamp (:updated_at %)))))) issue-comments)
+                (= (count issue-comments) (count (set (map :id issue-comments))))
+                (= (mapv #(timestamp (:created_at %)) issue-comments)
+                   (sort (map #(timestamp (:created_at %)) issue-comments)))))
+      (deny :invalid-native-body-context)
+
+      (not (and (positive-id? proposal-id) proposal (some? latest) (= proposal (nth issue-comments latest))
+                (= "User" (get-in proposal [:user :type])) (true? (:authorized? proposal))
+                (positive-id? (get-in proposal [:user :id]))
+                (string? (get-in proposal [:user :node_id])) (not (str/blank? (get-in proposal [:user :node_id])))
+                (string? (:node_id proposal)) (not (str/blank? (:node_id proposal)))
+                (string? (:html_url proposal)) (not (str/blank? (:html_url proposal)))
+                (not (bot? writer)) (not (str/blank? writer))
+                (not= writer (comment-login review))
+                (rejection-marker-line? head scope "proposal" proposal)
+                (= 1 (count (re-seq #"(?m)^Rejection (?:proposal|agreement) for " (or (rejection-prose (:body proposal)) ""))))
+                (rejection-details (:body proposal))
+                (pos? (compare (timestamp (:created_at proposal)) (timestamp (:submitted_at review))))
+                (pos? (compare (comment-time proposal) (timestamp (:updated_at review))))))
+      (deny :invalid-latest-proposal)
+
+      (not (and (map? prospective-user) (= #{:login :id :node_id :type} (set (keys prospective-user)))
+                (positive-id? (:id prospective-user)) (string? (:node_id prospective-user))
+                (not (str/blank? (:node_id prospective-user)))
+                (native-agent {:user prospective-user} identities)
+                (not-any? #(or (= (:id prospective-user) (:id %))
+                               (= (:node_id prospective-user) (:node_id %)))
+                          [(:user review) (:user proposal) pr-author-user])
+                (not (contains? (set [writer (str/lower-case pr-author) (comment-login review)])
+                                (str/lower-case (str (:login prospective-user)))))))
+      (deny :ineligible-principal)
+
+      :else {:eligible? true :kind :review-body-item :head head :review-id review-id :item-id item-id
+             :review-node-id (:node_id review) :review-commit (:commit_id review)
+             :review-body (:body review) :review-updated-at (:updated_at review)
+             :proposal-id proposal-id :proposal-body (:body proposal)
+             :proposal-created-at (:created_at proposal) :proposal-updated-at (:updated_at proposal)
+             :writer-login writer :expected-user prospective-user :created-after (comment-time proposal)})))
+
+(defn- unsupported-assessment-kind? [context]
+  (and (map? context) (contains? context :kind)
+       (not= :review-body-item (:kind context))))
+
+(defn rejection-assessment-request
+  "Prospective eligibility for one native thread or typed review-body item.
+   Complete collection, independent invocation and real publication remain
+   transport obligations; no native evidence or settlement is manufactured."
+  [context proposal-id prospective-user]
+  (cond
+    (unsupported-assessment-kind? context) {:eligible? false :reason :invalid-native-context}
+    (= :review-body-item (:kind context)) (body-assessment-request context proposal-id prospective-user)
+    :else (thread-assessment-request context proposal-id prospective-user)))
+
+(defn rejection-assessment-publication
+  "Reconstruct one accepted agreement through the existing scope grammar.
+   Actual POST/readback and later independent User settlement remain required."
+  [context proposal-id accepted-summary prospective-user]
+  (cond
+    (unsupported-assessment-kind? context) {:eligible? false :reason :invalid-native-context}
+    (not= :review-body-item (:kind context)) (thread-assessment-publication context proposal-id accepted-summary prospective-user)
+    :else (let [request (body-assessment-request context proposal-id prospective-user)
+          scope (str "review-id:" (:review-id request) " cr-comment:v1:" (:item-id request))
+          parsed (when (string? accepted-summary) (rejection-details accepted-summary))
+          body (when parsed (str "Rejection agreement for " (:head request) ": " scope
+                                 "\nReason: " (:reason parsed) "\nEvidence: " (:evidence parsed)))
+          c {:body accepted-summary}]
+      (cond
+        (not (:eligible? request)) request
+        (not (and parsed (= accepted-summary body) (rejection-agreement-prose? c)
+                  (rejection-marker? (:head request) (or (:identities context) default-reviewer-identities)
+                                     scope nil "agreement" c)))
+        {:eligible? false :reason :invalid-summary}
+        :else (assoc request :body body)))))
+
+(declare incomplete-review-reason)
+
+(defn outstanding-review-bodies
+  "Discover findings from every provider and human. Body-only change requests
+   stay active across pushes until settled or superseded by the same author's
+   later approval/dismissal on that commit or the current head. Historical
+   identified and explicitly listed findings retain their settlement IDs."
+  [head reviews]
+  (let [superseded? (fn [r]
+                      (some #(and (= (get-in r [:user :login]) (get-in % [:user :login]))
+                                  (#{"APPROVED" "DISMISSED"} (:state %))
+                                  (or (= "DISMISSED" (:state %))
+                                      (nil? (incomplete-review-reason (:body %))))
+                                  (or (= head (:commit_id %)) (= (:commit_id r) (:commit_id %)))
+                                  (pos? (compare [(:submitted_at %) (:id %)] [(:submitted_at r) (:id r)]))) reviews))]
+    (filter #(or (seq (review-body-findings (:body %)))
+                 (body-finding? (:body %))
+                 (unmarked-additional-finding? (:body %))
+                 (and (= "CHANGES_REQUESTED" (:state %)) (not (superseded? %)))) reviews)))
+
+(defn- inline-rejection-details [text]
+  (when-let [[_ reason evidence] (re-find #"^:[ \t]*Reason:[ \t]*(.+?);[ \t]*Evidence:[ \t]*(.+)$" text)]
+    (details reason evidence)))
+
+
+
+(defn- native-positive-time [value]
+  ;; The shared timestamp helper normalizes lexical comparison. This new
+  ;; admission additionally refuses impossible calendar/time components.
+  (when-let [[_ year month day hour minute second]
+             (and (timestamp value)
+                  (re-matches #"([0-9]{4})-([0-9]{2})-([0-9]{2})T([0-9]{2}):([0-9]{2}):([0-9]{2})(?:\.[0-9]{1,3})?Z" value))]
+    (let [number (fn [n] #?(:clj (Long/parseLong n) :cljs (js/parseInt n 10)))
+          [y m d h mn sec] (map number [year month day hour minute second])
+          leap? (and (zero? (mod y 4)) (or (not (zero? (mod y 100))) (zero? (mod y 400))))
+          days (get [0 31 (if leap? 29 28) 31 30 31 30 31 31 30 31 30 31] m)]
+      (when (and (pos? y) (<= 1 m 12) days (<= 1 d days) (<= 0 h 23) (<= 0 mn 59) (<= 0 sec 59))
+        (timestamp value)))))
+
+(defn- positive-handled? [review writer finding context]
+  ;; Classification metadata is never authority by itself. The strict native
+  ;; participants, timestamps and current live item binding admit Handled only
+  ;; for this exact positive format; no severity or approval is downgraded.
+  ;; A non-authoritative boundary prevents legacy trimming from promoting an
+  ;; indented first source line into live settlement prose. Shared rejection
+  ;; rules retain their existing behavior; this marker supplies no evidence.
+  (let [raw (str (:body writer))
+        ;; This admission supports native plaintext only. Deny markup before
+        ;; shared sanitation can assemble evidence across excluded regions.
+        prose (when-not (or (multiline-code-span? raw)
+                            (re-find #"<!|<\?|</?[A-Za-z]" raw)
+                            (re-find #"(?m)^[ \t]*>" raw))
+                (rejection-prose (str "[positive writer source boundary]\n" raw)))
+        submitted (native-positive-time (:submitted_at review))
+        review-updated (native-positive-time (:updated_at review))
+        created (native-positive-time (:created_at writer))
+        updated (native-positive-time (:updated_at writer))
+        ;; The observed native writer binds one complete plaintext line. Code
+        ;; tokens and unknown markup cannot supply a missing live binding.
+        binding-pattern #"(?mi)^review-id:([0-9]+)[ \t]*$"
+        bindings (map second (re-seq binding-pattern (str prose)))
+        raw-bindings (map second (re-seq binding-pattern raw))
+        head (:head context)
+        handled-pattern #"(?mi)^[-*][ \t]+Handled[ \t]+cr-comment:v1:([0-9a-f]{24})\b([^\n]*)$"
+        handled (re-seq handled-pattern (str prose))
+        raw-handled (set (map first (re-seq handled-pattern raw)))]
+    (boolean
+     (and (= :native-additional-lgtm (get-in finding [:positive-body-item :format]))
+          (some? prose)
+          (= "coderabbit" (trusted-reviewer review (or (:identities context) default-reviewer-identities)))
+          (= "COMMENTED" (:state review)) (valid-head? (:commit_id review))
+          (integer? (:id review)) (pos? (:id review)) submitted review-updated
+          (not (neg? (compare review-updated submitted)))
+          (true? (:authorized? writer)) (= "User" (get-in writer [:user :type]))
+          (integer? (:id writer)) (pos? (:id writer))
+          created updated (pos? (compare created submitted))
+          (pos? (compare created review-updated)) (not (neg? (compare updated created)))
+          (valid-head? head) (= 1 (count (re-seq #"(?i)\breview-id:" (str prose))))
+          (= [(str (:id review))] (vec bindings) (vec raw-bindings))
+          (some (fn [[line id tail]]
+                  (and (= id (:id finding)) (contains? raw-handled line)
+                       (re-find (re-pattern (str "(?i)(?:^|[^0-9a-f])" head "(?:$|[^0-9a-f])")) tail))) handled)))))
+
+(defn- answered-finding? [review comments {:keys [id kind severity] :as finding} context]
+  (let [opener (get-in review [:user :login])]
+    (some (fn [[settlement-index {:keys [body created_at user authorized?] :as writer}]]
+          (and (not (str/blank? opener))
+               (not (str/blank? (:login user)))
+               (not= (str/lower-case opener) (str/lower-case (:login user)))
+               (not= false authorized?)
+               (not (bot? (:login user)))
+               created_at
+               (not (neg? (compare created_at (:submitted_at review))))
+               (re-find (re-pattern (str "(?i)review-id:" (:id review) "\\b")) (str body))
+               (some (fn [[_ verb marker-type marker tail]]
+                       (and (= marker-type (if (= :review-body kind) "review-body" "cr-comment:v1"))
+                            (= marker id)
+                            (case (str/lower-case verb)
+                              "fixed" true
+                              "handled" (or (not (blocking? severity)) (positive-handled? review writer finding context))
+                              "deferred" (and (not (blocking? severity))
+                                              (integer? (:rounds context))
+                                              (> (:rounds context) (or (:min-review-rounds context) default-min-review-rounds)))
+                              "rejected" (some? (rejection-evidence (:head context)
+                                                                   (or (:identities context) default-reviewer-identities)
+                                                                   (:pr-author context) (vec comments) settlement-index
+                                                                   (inline-rejection-details tail)
+                                                                   (str "review-id:" (:id review) " " marker-type ":" marker)))
+                              false)))
+                     (re-seq #"(?mi)^\s*[-*]\s*(Fixed|Deferred|Rejected|Handled)\b[^\n]*?(cr-comment:v1|review-body):([a-z0-9]+)\b([^\n]*)" (str body)))))
+        (map-indexed vector comments))))
+
+(defn unanswered-review-count
+  "A flagged review clears only when each identified item has an authorized,
+   later settlement from a known author other than the opener. P0/P1 items
+   require Fixed or independent head/item-bound rejection agreement, except
+   bounded native positive-format items admitted by positive-handled?. Context
+   is required for that Handled admission, rejection and post-minimum deferral;
+   absence fails closed."
+  ([reviews comments] (unanswered-review-count reviews comments {}))
+  ([reviews comments context]
+   (let [comments (vec (sort-by :created_at comments))]
+     (reduce +
+             (for [review reviews
+                   :let [findings (review-findings review)]]
+               (count (remove #(answered-finding? review comments % context) findings)))))))
+
+(defn legacy-stage-marker
+  "Recognize an authorized native User's unedited legacy head-bound stage
+   declaration. This is stage history only, never request/approval credit."
+  [c]
+  (let [prose (some-> (str (:body c))
+                  (remove-matches #"(?is)<details\b[^>]*>.*?</details>")
+                  (str/replace #"<blockquote>[\s\S]*?</blockquote>" "")
+                  (remove-matches #"(?m)^[ \t]*>[^\n]*(?:\n|$)")
+                  verdict-prose
+                  (remove-matches #"`[^`\n]*`"))
+        stages (map second (re-seq #"<!-- pr-flow-stage:(planning|code) -->" (str prose)))
+        heads (map second (re-seq #"<!-- pr-flow-head:([0-9a-f]{40}) -->" (str prose)))]
+    (when (and (true? (:authorized? c)) (= "User" (get-in c [:user :type]))
+               (not (str/blank? (str (get-in c [:user :login]))))
+               (integer? (:id c)) (pos? (:id c)) (timestamp (:created_at c))
+               (= (:created_at c) (:updated_at c)) (= 1 (count stages) (count heads))
+               (= 1 (count (re-seq #"pr-flow-stage:" (str prose)))
+                    (count (re-seq #"pr-flow-head:" (str prose))))
+               (not (re-find #"(?i)</?(?:details|summary|blockquote)\b|<!--\s*(?:This is an auto-generated comment:|end of auto-generated comment:)|pr-flow-review:" (str prose))))
+      {:stage (first stages) :created_at (:created_at c) :head (first heads)
+       :source-id (:id c) :format :legacy-head})))
+
+(defn- stage-reviews
+  [reviews stage-comments stage]
+  (let [markers (sort-by :created_at stage-comments)
+        latest (last markers)]
+    (if (and latest (not= stage (:stage latest)))
+      []
+      (let [current (reverse (take-while #(= stage (:stage %)) (reverse markers)))
+            start (:created_at (first current))]
+        (filter #(or (nil? start)
+                     (not (neg? (compare (:submitted_at %) start)))) reviews)))))
+
+(defn stage-review-rounds
+  "A completed round includes one full review from every participant at one
+   head. Trusted round markers bind modern cohorts; legacy same-head passes
+   are paired by each provider's chronological pass index. Three-arity is a
+   compatibility timestamp counter; production supplies the participant set."
+  ([reviews stage-comments stage] (count (stage-reviews reviews stage-comments stage)))
+  ([reviews stage-comments stage participants]
+   (if-not (seq participants) 0
+     (let [reviews (filter #(and (contains? (set participants) (:reviewer %))
+                                 (or (nil? (:stage %)) (= stage (:stage %)))
+                                 (valid-head? (:commit_id %)))
+                           (stage-reviews reviews stage-comments stage))
+           explicit (filter :round-id reviews)
+           explicit-complete (for [[[round-id _] group] (group-by (juxt :round-id :commit_id) explicit)
+                                   :when (every? (set (map :reviewer group)) participants)] round-id)
+           legacy (remove :round-id reviews)
+           indexed (mapcat (fn [[_ group]]
+                             (map-indexed #(assoc %2 :cohort-index %1)
+                                          (sort-by (juxt :submitted_at :id) group)))
+                           (group-by (juxt :commit_id :reviewer) legacy))
+           legacy-complete (filter (fn [[_ group]] (every? (set (map :reviewer group)) participants))
+                                   (group-by (juxt :commit_id :cohort-index) indexed))]
+       (+ (count (set explicit-complete)) (count legacy-complete))))))
+
+;; --- trusted hosted review evidence ---------------------------------------
+
+(def eligible-reviewers #{"coderabbit" "codex" "mimo" "kimi"})
+(def default-reviewer-identities
+  ;; GitHub REST identities observed in this workflow. Kimi must be bound to
+  ;; its verified GitHub App identity by reviewed repository configuration.
+  {"coderabbit" #{"coderabbitai[bot]"}
+   "codex" #{"chatgpt-codex-connector[bot]"}
+   "mimo" #{"eta-mu-ai[bot]"}
+   "kimi" #{}})
+
+(defn valid-head? [head]
+  (boolean (and (string? head) (re-matches #"[0-9a-f]{40}" head))))
+
+(defn trusted-reviewer
+  "Match exact Bot identities; substring matches and CLI provider claims are
+   never authority. An identity configured for two providers is ambiguous."
+  [{:keys [user provider] :as review} identities]
+  (let [login (str/lower-case (str (:login user)))
+        matches (for [[reviewer logins] identities
+                      :when (and (eligible-reviewers reviewer)
+                                 (contains? (set logins) login))] reviewer)]
+    (if (= "opencode-agent[bot]" login)
+      ;; The same physical App remains rejection-only in the global map.
+      ;; Only verified Proxx publication facts admit its Kimi review role.
+      (when (and (empty? matches) (publication/admitted? review)
+                 (or (nil? provider) (= "kimi" provider))) "kimi")
+      (when (and (= "Bot" (:type user)) (= 1 (count matches))
+                 (or (nil? provider) (= provider (first matches))))
+        (first matches)))))
+
+(defn coderabbit-covered-heads
+  "Decode only the observed final_review_risk_coverage fields. This marker
+   establishes coverage, never APPROVED state. Duplicated fields fail closed."
+  [body]
+  (set
+   (keep (fn [[_ payload]]
+           (let [field (fn [key]
+                         (let [values (map second (re-seq (re-pattern (str "\"" key "\"\\s*:\\s*\"([^\"]*)\"")) payload))]
+                           (when (= 1 (count values)) (first values))))
+                 source (field "sourceCommitId") covered (field "coveredCommitId")]
+             (when (and (= "reviewed" (field "kind"))
+                        (valid-head? source) (= source covered)) covered)))
+         (re-seq #"<!--\s*final_review_risk_coverage:\s*\{([^}]*)\}\s*-->" (str body)))))
+
+(defn verdict-prose
+  "Exclude quoted code examples from provider verdict recognition. An
+  unterminated fenced block is ambiguous and supplies no passing prose."
+  [body]
+  (loop [prose (str body)]
+    (if-let [[block] (re-find #"(?ms)^[ \t]*(`{3,}|~{3,})[^\n]*\n.*?^[ \t]*\1[ \t]*$" prose)]
+      ;; Replace the matched literal, preserving multiline/dotall matching
+      ;; across JVM and SCI/CLJS string implementations.
+      (recur (str/replace-first prose block ""))
+      (when-not (re-find #"(?m)^[ \t]*(?:`{3,}|~{3,})" prose) prose))))
+
+(defn- native-scope-prose [body]
+  ;; Preserve excluded regions inline, so removal cannot assemble a heading.
+  ;; Raw native details blocks interrupt paragraphs before inline-code parsing:
+  ;; stray backticks or a quoted paragraph cannot hide this live block opener.
+  ;; Complete fences/comments/generated blocks and explicit quote/code HTML
+  ;; wrappers remain examples only at raw 0–3-space block starts. Backtick
+  ;; info cannot contain backticks; escaped/code-indented starts stay visible.
+  ;; Unrelated HTML is not blanket-excluded.
+  (retain-excluded-regions
+   (str body)
+   #"(?im)<!-- This is an auto-generated comment: tweet message by coderabbit\.ai -->[\s\S]*?<!-- end of auto-generated comment: tweet message by coderabbit\.ai -->|<!--[\s\S]*?-->|^[ ]{0,3}<(pre|code|blockquote)\b[^>]*>[\s\S]*?</\1>|^[ ]{0,3}>[^\r\n]*(?:(?:\r\n|\r|\n)(?![ \t]*(?:\r\n|\r|\n|$)|[ ]{0,3}<details>[ \t]*(?:\r\n|\r|\n|$))[^\r\n]*)*|^[ ]{0,3}(`{3,})[^`\r\n]*(?:\r\n|\r|\n)[\s\S]*?^[ ]{0,3}\2[ \t]*(?:$|\r)|^[ ]{0,3}(~{3,})[^\r\n]*(?:\r\n|\r|\n)[\s\S]*?^[ ]{0,3}\3[ \t]*(?:$|\r)"))
+
+(defn- native-skipped-review-input? [body]
+  ;; Match the observed live section header, not arbitrary skipped-file prose.
+  ;; The positive digit grammar avoids overflow and never treats zero as an
+  ;; omission. The native opener allows 0–3 spaces; inner summary indentation
+  ;; remains raw HTML content. Preserve raw boundaries without normalization.
+  (boolean
+   (re-find #"(?m)^[ ]{0,3}<details>[ \t]*(?:\r\n|\r|\n)[ \t]*<summary><strong>🚧 Files skipped from review as they are similar to previous changes \([1-9][0-9]*\)</strong></summary>[ \t]*(?:\r?$)"
+            (native-scope-prose body))))
+
+(defn- incomplete-phrase-prose [body]
+  ;; Use reviewer-prose's exclusions and order, retaining block barriers so
+  ;; removal cannot assemble a phrase. Generic inline comments remain inert.
+  (some-> (str body)
+          (retain-excluded-regions #"(?s)<!-- This is an auto-generated comment: tweet message by coderabbit\.ai -->.*?<!-- end of auto-generated comment: tweet message by coderabbit\.ai -->")
+          (retain-excluded-regions #"(?s)<details>\s*<summary>(?:🧩 Analysis chain|✏️ Learnings added)</summary>.*?</details>")
+          (retain-excluded-regions #"<blockquote>[\s\S]*?</blockquote>")
+          (retain-excluded-regions #"(?m)^[ \t]*>[^\r\n]*")
+          (#(when (verdict-prose %) %))
+          (retain-excluded-regions #"(?ms)^[ \t]*(`{3,}|~{3,})[^\n]*\n.*?^[ \t]*\1[ \t]*$")
+          (str/replace #"<!--[\s\S]*?-->" "")
+          (remove-matches #"(?m)^_You are interacting with an AI system\._[ \t]*$|^[ \t]*---[ \t]*$")
+          (str/replace #"\[([^\]]*)\]\([^\s)]*\)" "$1")))
+
+(defn incomplete-review-reason
+  "Commit binding is distinct from completed review scope. Reject an actual
+   admission of unfinished/omitted input, including formal approvals. Quotes
+   and generated examples are not the current verdict; truncation alone does
+   not disqualify a reviewer who retrieved and reviewed the omitted input."
+  [body]
+  (let [prose (reviewer-prose body)
+        phrase-prose (incomplete-phrase-prose body)
+        ;; A guard against incomplete review submissions describes an artifact,
+        ;; not the reviewer's scope. Keep every other admission in the section.
+        paragraphs (when phrase-prose
+                     (map #(remove-matches % #"(?i)\b(?:prevent(?:s|ed|ing)?|reject(?:s|ed|ing)?|block(?:s|ed|ing)?)\s+(?:altered\s+or\s+)?(?:partial|incomplete)\s+review\s+submissions?\b")
+                          (str/split phrase-prose #"(?:\r?\n|\r(?!\n))[ \t]*(?:\r?\n|\r(?!\n))")))]
+    (cond
+      (or (nil? prose) (nil? phrase-prose)) :ambiguous-prose
+      (some #(re-find #"(?i)\breview\s+(?:is\s+|was\s+|remains\s+)?(?:incomplete|rate\s+limited)\b|\b(?:partial|incomplete)\s+review\b|\b(?:unable\s+to|could\s+not|couldn't|cannot|can't)\s+complete\s+(?:the\s+)?review\b" %)
+            paragraphs)
+      :incomplete-review
+      (or (native-skipped-review-input? body)
+          (re-find #"(?im)(?:^|[.;]\s*)(?:some |the |these )?unreviewed (?:files|changes|input) (?:still )?remain\b" prose)
+          (and (re-find #"(?i)\btruncat(?:ed|ion)\b" prose)
+               (re-find #"(?i)\b(?:rather than|instead of) (?:being )?(?:fully |exhaustively )?(?:read|reviewed)\b|\b(?:tail|omitted (?:files|changes|input)) (?:was |were |is |are )?not (?:read|reviewed)\b" prose))
+          (and (re-find #"(?i)\btruncat(?:ed|ion)\b" prose)
+               (re-find #"(?i)\bare outside this inline review\b" prose)
+               (re-find #"(?i)\bbehavior is evidenced only by\b[^\n]*\bpreparation logs\b" prose))
+          (and (re-find #"(?i)\btruncat(?:ed|ion)\b" prose)
+               (re-find #"(?i)\bread at head only to validate claims anchored on staged lines\b" prose))
+          (some (fn [[_ read total]]
+                  (neg? (compare #?(:clj (Long/parseLong read) :cljs (js/parseInt read 10))
+                                 #?(:clj (Long/parseLong total) :cljs (js/parseInt total 10)))))
+                (re-seq #"(?i)\breviewed (?:only )?([0-9]+) of ([0-9]+) (?:changed )?files\b" prose)))
+      :unreviewed-input)))
+
+(declare latest-checks coderabbit-state)
+
+(defn- completed-coderabbit-check?
+  "Only an unambiguous successful native CodeRabbit check on this exact head
+   corroborates an issue completion. Unknown head binding is not evidence."
+  [head checks]
+  (let [current (filter #(and (= "CodeRabbit" (:name %)) (= head (:headSha %)))
+                        (latest-checks head checks))]
+    (and (valid-head? head) (seq current)
+         (every? #(= :completed (coderabbit-state [%])) current))))
+
+(defn- kimi-passing-verdict?
+  "The observed explicit passing sentence is eligible only inside an admitted
+   finding-free publication. Quoted/examples, reversals and incomplete scope
+   remain nonpassing; summary text alone is never admission authority."
+  [review]
+  (let [summary (get-in review [:kimi-publication :submission :summary])
+        prose (reviewer-prose summary)]
+    (boolean
+     (and (publication/finding-free? review) prose
+          (nil? (incomplete-review-reason summary))
+          (re-find #"(?i)(?:^|[.!?]\s+)I found no actionable correctness, security, or workflow findings\.(?:\s|$)" prose)
+          (not (re-find #"(?i)\b(?:generated (?:example|verdict)|hypothetical verdict|example verdict|sample verdict|template verdict|for example[.:])" prose))
+          (not (re-find #"(?i)\b(?:found|confirmed|identified)\s+(?:an?|one|some|[1-9][0-9]*|actionable)\s+(?:actionable\s+)?(?:correctness|security|workflow|finding|issue|bug|defect)|\b(?:retract|withdraw|reverse|reject)\s+(?:(?:that|the|my|this)\s+)?(?:verdict|approval)|\b(?:cannot|can't|do not|don't)\s+approve|\b(?:issue|finding|bug|defect)\s+(?:still\s+)?remains|\bverdict\s+(?:is\s+)?(?:incorrect|withdrawn|retracted)|\b(?:there (?:is|are)|I (?:see|observed))\s+(?:(?:an?|one|some|[1-9][0-9]*|P[0-3]|blocking|actionable|correctness|security|workflow)\s+)*(?:findings?|issues?|bugs?|defects?)\b|\b(?:findings?|issues?|bugs?|defects?|regressions?)\s+(?:still\s+)?(?:remain|exists?)\b|\bstill (?:fails|broken|reproduces)\b" prose))))))
+
+(defn review-evidence
+  "Trust completed explicit verdicts as well as formal approvals, while
+   retaining their distinct channels and immutable commit binding. Formal
+   APPROVED state cannot override an admitted incomplete review scope."
+  ([head reviews comments identities]
+   (review-evidence head reviews comments identities []))
+  ([head reviews comments identities checks]
+  (let [trusted (->> reviews
+                     (keep (fn [r]
+                             (when-let [p (trusted-reviewer r identities)]
+                               (when (and (valid-head? head) (= head (:commit_id r))
+                                          (string? (:submitted_at r)))
+                                 (assoc r :reviewer p)))))
+                     (sort-by (juxt :submitted_at :id)))
+        review-verdicts (keep (fn [r]
+                               (let [incomplete (incomplete-review-reason (:body r))]
+                                 (cond
+                                 (#{"CHANGES_REQUESTED" "DISMISSED"} (:state r))
+                                 (assoc r :positive? false :channel :github-review)
+                                 (and incomplete (#{"APPROVED" "COMMENTED"} (:state r)))
+                                 (assoc r :positive? false :channel :incomplete-review :incomplete-reason incomplete)
+                                 (= "APPROVED" (:state r))
+                                 (assoc r :positive? true :channel :github-approved)
+                                 (and (= "COMMENTED" (:state r)) (:kimi-publication r))
+                                 ;; A later full nonpassing publication cannot leave
+                                 ;; this same principal's prior passing verdict alive.
+                                 (let [passing? (kimi-passing-verdict? r)]
+                                   (assoc r :positive? passing? :channel
+                                          (if passing? :explicit-review-verdict :publication-nonpassing)))
+                                 (and (= "COMMENTED" (:state r))
+                                      (re-find #"(?im)^\s*(?:\*\*)?(?:Confirmed findings:\s*none|No confirmed findings|No issues found)(?:\*\*)?\s*(?:[.—-]|$)" (or (reviewer-prose (:body r)) "")))
+                                 (assoc r :positive? true :channel :explicit-review-verdict)))) trusted)
+        comment-verdicts
+        (keep (fn [c]
+                (let [p (trusted-reviewer c identities)
+                      body (str (:body c))
+                      incomplete (incomplete-review-reason body)
+                      recent (second (re-find #"(?s)<!--\s*recent_review_start\s*-->(.*?)<!--\s*recent_review_end\s*-->" body))
+                      passing? (case p
+                                 "coderabbit" (and ((coderabbit-covered-heads body) head)
+                                                   recent (str/includes? recent head)
+                                                   (re-find #"(?m)^No actionable comments were generated in the recent review\." (or (reviewer-prose recent) "")))
+                                 "codex" (and (= head (:resolved-commit-id c))
+                                              (codex-positive-body? body))
+                                 false)]
+                  (when (and (valid-head? head) passing?
+                             ;; Incomplete native verdicts still revoke prior
+                             ;; approval; a missing check cannot hide pushback.
+                             (or incomplete (not= "coderabbit" p)
+                                 (completed-coderabbit-check? head checks))
+                             (string? (or (:updated_at c) (:created_at c))))
+                    (cond-> (assoc c :reviewer p :positive? (nil? incomplete) :channel :explicit-issue-verdict
+                                   :submitted_at (or (:updated_at c) (:created_at c)))
+                      incomplete (assoc :incomplete-reason incomplete))))) comments)
+        decisive (reduce (fn [m r] (assoc m (:reviewer r) r)) {}
+                         (sort-by (juxt :submitted_at :id) (concat review-verdicts comment-verdicts)))
+        approved (into {} (for [[p r] decisive :when (:positive? r)] [p #{head}]))
+        covered (reduce (fn [m r]
+                          (if (and (not= "coderabbit" (:reviewer r))
+                                   (or (not (str/blank? (:body r)))
+                                       (#{"APPROVED" "CHANGES_REQUESTED"} (:state r))))
+                            (update m (:reviewer r) (fnil conj #{}) head) m)) {} trusted)
+        covered (reduce (fn [m c]
+                          (if (and (valid-head? head)
+                                   (= "coderabbit" (trusted-reviewer c identities))
+                                   ((coderabbit-covered-heads (:body c)) head))
+                            (update m "coderabbit" (fnil conj #{}) head) m)) covered comments)]
+    {:approved-heads approved :reviewed-heads covered
+     :incomplete-evidence (into {} (for [[p r] decisive :when (:incomplete-reason r)]
+                                    [p {:head head :channel (:channel r) :id (:id r) :reason (:incomplete-reason r)}]))
+     :approval-evidence (into {} (for [[p r] decisive :when (:positive? r)]
+                                  [p {:head head :channel (:channel r) :id (:id r)}]))})))
+
+(defn reviewer-check
+  "Recognize exact labels and reviewed job/workflow tuples as provider outputs.
+   This is not review identity or approval evidence. Requiredness and explicit
+   mandatory reviewers still override optional classification in merge-gate."
+  [check]
+  (or (get {["Review pull request with OpenCode" "OpenCode Kimi PR Review"] "kimi"
+            ["Produce exact-head Kimi review" "OpenCode Kimi PR Review"] "kimi"
+            ["Evidence-first review (eta-mu) / Review pull request with OpenCode MiMo"
+             "eta-mu evidence review"] "mimo"}
+           [(:name check) (:workflow check)])
+      (get {"CodeRabbit" "coderabbit" "Codex" "codex" "MiMo" "mimo" "Kimi" "kimi"}
+           (:name check))))
+
+(defn cooldown-ms
+  "Parse a wait/retry duration from a rate-limit reply, not allowance counts.
+   Only the exact native CodeRabbit information paragraph supplies zero wait."
+  [body]
+  (if (re-matches #"Your plan includes PR reviews subject to rate limits\. Reviews are available now\."
+                  (str/trim (or (reviewer-prose body) "")))
+    0
+    (when-let [[_ duration] (re-find #"(?i)(?:wait|retry(?: again)?(?: in| after)?|try again in|cooldown:?|next (?:included )?review (?:will be )?available in|more reviews (?:will be )?available in)[^0-9]*([^\n.<]+)" (str body))]
+      (let [parts (re-seq #"(?i)([0-9]+)\s*(hours?|minutes?|seconds?)" (or (re-find #"(?i)^[0-9]+[ \t]*(?:hours?|minutes?|seconds?)(?:[ \t]*(?:(?:,|and)[ \t]*)?[0-9]+[ \t]*(?:hours?|minutes?|seconds?))*\b(?![ \t]*(?:(?:,|and)[ \t]*)*[0-9])" duration) ""))]
+        (when (seq parts)
+          (reduce + (for [[_ n unit] parts]
+                      (* #?(:clj (Long/parseLong n) :cljs (js/parseInt n 10))
+                         (cond (str/starts-with? (str/lower-case unit) "hour") 3600000
+                               (str/starts-with? (str/lower-case unit) "minute") 60000
+                               :else 1000)))))))))
+
+(defn- instant-ms [value]
+  (when (string? value)
+    #?(:clj (try (.toEpochMilli (java.time.Instant/parse value)) (catch Exception _ nil))
+       :cljs (let [ms (js/Date.parse value)] (when-not (js/isNaN ms) ms)))))
+
+(defn- quota-prose [body]
+  ;; Native notices may be quoted; normalize quote prefixes so fenced examples
+  ;; are excluded from both notice recognition and cooldown parsing.
+  (verdict-prose (str/join "\n" (map #(str/replace % #"^[ \t]*(?:>[ \t]*)+" "")
+                                     (str/split-lines (str body))))))
+
+(defn- codex-account-quota? [body]
+  (re-find #"(?m)^You have reached your Codex usage limits for code reviews\." (or (quota-prose body) "")))
+
+(defn- quota-notice? [provider body]
+  (let [prose (or (quota-prose body) "")]
+    (or (re-find #"(?im)^[ \t>]*(?:#+[ \t]*)?(?:\*\*)?(?:review limit reached|rate limit (?:reached|exceeded)|review rate[ -]limited|(?:review )?quota (?:reached|exceeded)|your included review limit is currently reached)\b" prose)
+        (and (= "coderabbit" provider)
+             ;; Native info, not walkthrough/quoted examples. Recognize malformed
+             ;; durations as notices too: they retain nil/UNKNOWN, never zero.
+             (re-matches #"(?:Your plan includes PR reviews subject to rate limits\. (?:More reviews will be available in\b[^\n]*|Reviews are available now\b[^\n]*)|You're currently rate limited under our Fair Usage Limits Policy\. Your current included review allowance is based on your included PR review attempts over the past 7 days\. Your next review will be available in\b[^\n]*)"
+                         (str/trim (or (reviewer-prose body) ""))))
+        (and (= "codex" provider) (codex-account-quota? body)))))
+
+(defn full-review?
+  "Formal verdicts and recognizable full-review outputs are completions;
+   requests, acknowledgements, quoted examples and incomplete scope are not."
+  [review identities]
+  (let [prose (reviewer-prose (:body review))
+        provider (trusted-reviewer review identities)]
+    (and provider (nil? (incomplete-review-reason (:body review)))
+         (not (re-find #"(?im)^(?:#+\s*)?Review (?:queued|requested|triggered|in progress)[.!]?\s*$|^(?:Acknowledged|Working on it)[.!]?\s*$" (or prose "")))
+         (or (publication/admitted? review)
+             (#{"APPROVED" "CHANGES_REQUESTED"} (:state review))
+             (and (= "COMMENTED" (:state review))
+                  (if (= "coderabbit" provider)
+                    (re-find #"(?i)actionable comments posted:\s*[0-9]+|no actionable comments (?:were generated|posted|found)" (or prose ""))
+                    (re-find #"(?im)^Full review finished\.[ \t]*$|^Review complete(?:d)?[.!]?[ \t]*$|^Confirmed findings:[ \t]*(?:none(?:[.—-]|$)|\n[ \t]*[1-9][0-9]*\.)|^No confirmed findings(?:[.—-]|$)|^No issues found(?:[.—-]|$)|^Here are some automated review suggestions for this pull request" (or prose ""))))))))
+
+(defn- review-round-candidates
+  [reviews comments identities]
+  (let [requests (sort-by :created_at (filter :trusted? comments))
+        provider-request? (fn [c p]
+                            (or (str/includes? (str (:body c)) (str "pr-flow-reviewer:" p " -->"))
+                                (and (= "coderabbit" p)
+                                     (not (str/includes? (str (:body c)) "pr-flow-reviewer:"))
+                                     (re-find #"@coderabbitai (?:full )?review" (str (:body c))))))
+        issue-rounds (keep (fn [c]
+                             (let [provider (trusted-reviewer c identities)
+                                   completed (assoc c :submitted_at (or (:updated_at c) (:created_at c)) :round-source :issue)]
+                               (case provider
+                                 "coderabbit"
+                                 (let [coverage (coderabbit-covered-heads (:body c))]
+                                   ;; A checked coverage marker is input binding,
+                                   ;; not a native completion of the request.
+                                   (when (re-find #"(?m)^Full review finished\.[ \t]*$"
+                                                  (or (reviewer-prose (:body c)) ""))
+                                     (cond-> completed (= 1 (count coverage)) (assoc :commit_id (first coverage)))))
+                                 "codex"
+                                 (when (and (valid-head? (:resolved-commit-id c))
+                                            (codex-positive-body? (:body c)))
+                                   (assoc completed :commit_id (:resolved-commit-id c)))
+                                 nil))) comments)
+        rounds (keep (fn [r]
+                       (when-let [p (trusted-reviewer r identities)]
+                         (let [at (:submitted_at r)
+                               request (last (filter #(and (provider-request? % p)
+                                                           (string? at) (string? (:created_at %))
+                                                           (not (pos? (compare (:created_at %) at)))
+                                                           (or (nil? (:commit_id r))
+                                                               (str/includes? (str (:body %)) (str "pr-flow-review:" (:commit_id r) " -->")))) requests))
+                               completion-head (or (:commit_id r)
+                                                   (second (re-find #"<!--\s*pr-flow-review:([0-9a-f]{40})\s*-->" (str (:body request)))))]
+                           (when (and (string? at) (nil? (incomplete-review-reason (:body r)))
+                                      (or (not= :issue (:round-source r)) request)
+                                      (or (= :issue (:round-source r)) (full-review? r identities)))
+                             (cond-> (assoc r :reviewer p
+                                            :round-key (if request [p :request (:id request) (:created_at request)]
+                                                            [p :review (:id r)]))
+                               request (assoc :round-id (some-> (second (re-find #"<!--\s*pr-flow-round:([1-9][0-9]*)\s*-->" (str (:body request))))
+                                                              #?(:clj Long/parseLong :cljs js/parseInt))
+                                              :stage (second (re-find #"<!--\s*pr-flow-stage:(planning|code)\s*-->" (str (:body request)))))
+                               (and request (nil? (:commit_id r)))
+                               (assoc :commit_id completion-head)))))) (concat reviews issue-rounds))]
+    rounds))
+
+(defn coderabbit-issue-completion-heads
+  "Only authenticated complete Bot replies matched to trusted exact-head
+   writer requests identify commits whose native check evidence may be read."
+  [comments identities]
+  (set (keep #(when (and (= "coderabbit" (:reviewer %)) (= :issue (:round-source %))
+                        (valid-head? (:commit_id %))) (:commit_id %))
+             (review-round-candidates [] comments identities))))
+
+(defn completed-review-rounds
+  "Combine full REST reviews and checked native no-findings completions.
+   Historical issue completions retain credit only with successful check
+   evidence on their own exact commit. Dedupe only after corroboration."
+  ([reviews comments identities]
+   (completed-review-rounds reviews comments identities []))
+  ([reviews comments identities checks]
+   (let [rounds (filter #(or (not= :issue (:round-source %)) (not= "coderabbit" (:reviewer %))
+                            (completed-coderabbit-check? (:commit_id %) checks))
+                        (review-round-candidates reviews comments identities))]
+     (mapv #(first (sort-by :submitted_at %)) (vals (group-by :round-key rounds))))))
+
+(defn request-verdict
+  "Manual requests reuse pending work and observe actual reviewer cooldowns.
+   Completed review rounds are a soft minimum, never a request cap."
+  [{:keys [head reviewer comments reviews checks now-ms identities round stage]
+    :or {identities default-reviewer-identities}}]
+  (let [checks (latest-checks head checks)
+        requests (filter #(and (:trusted? %)
+                               (str/includes? (str (:body %)) (str "pr-flow-review:" head " -->"))
+                               (or (str/includes? (str (:body %)) (str "pr-flow-reviewer:" reviewer " -->"))
+                                   (and (= "coderabbit" reviewer)
+                                        (not (str/includes? (str (:body %)) "pr-flow-reviewer:"))
+                                        (re-find #"(?i)@coderabbitai (?:full )?review" (str (:body %)))))) comments)
+        request (last (sort-by :created_at requests))
+        request-round (some-> (second (re-find #"<!--\s*pr-flow-round:([1-9][0-9]*)\s*-->" (str (:body request))))
+                              #?(:clj Long/parseLong :cljs js/parseInt))
+        request-stage (second (re-find #"<!--\s*pr-flow-stage:(planning|code)\s*-->" (str (:body request))))
+        all-completions (completed-review-rounds reviews comments identities checks)
+        native-completions (when request
+                             (filter #(and (= head (:commit_id %))
+                                           (= [reviewer :request (:id request) (:created_at request)] (:round-key %)))
+                                     all-completions))
+        replies (filter #(= reviewer (trusted-reviewer % identities)) comments)
+        completion-at (last (sort (keep #(when (and (= head (:commit_id %)) (= reviewer (:reviewer %)))
+                                          (instant-ms (:submitted_at %))) all-completions)))
+        account-completion-at (when (= "codex" reviewer)
+                                (last (sort (keep #(when (= reviewer (:reviewer %))
+                                                    (instant-ms (:submitted_at %))) all-completions))))
+        request-at (instant-ms (:created_at request))
+        limit (->> replies
+                   (filter #(quota-notice? reviewer (:body %)))
+                   (filter #(let [at (instant-ms (or (:updated_at %) (:created_at %)))
+                                  recovery-at (if (and (= "codex" reviewer) (codex-account-quota? (:body %)))
+                                                account-completion-at completion-at)]
+                              (or (nil? at)
+                                  (and (or (nil? request-at) (>= at request-at))
+                                       (or (nil? recovery-at) (>= at recovery-at))))))
+                   (sort-by #(or (:updated_at %) (:created_at %) "")) last)
+        delay (some-> limit :body quota-prose cooldown-ms)
+        limit-at (when limit (instant-ms (or (:updated_at limit) (:created_at limit))))
+        retry-at (when (and delay limit-at) (+ limit-at delay))
+        ;; Coverage describes input binding. Only actual request-bound full
+        ;; completions can finish an attempt or clear an older quota notice.
+        completed? (seq native-completions)
+        legacy-completed? (and round request completed? (not (str/includes? (str (:body request)) "pr-flow-round:")))
+        pending? (some #(and (= reviewer (reviewer-check %))
+                            (#{"PENDING" "QUEUED" "IN_PROGRESS"} (str/upper-case (str (:state %))))) checks)
+        ended? (some #(and request (= head (:headSha %)) (= reviewer (reviewer-check %))
+                           (#{:failed :skipped} (coderabbit-state [(assoc % :name "CodeRabbit")]))
+                           (instant-ms (:completedAt %)) (instant-ms (:created_at request))
+                           (> (instant-ms (:completedAt %)) (instant-ms (:created_at request)))) checks)]
+    (cond
+      (or (not (valid-head? head)) (not (eligible-reviewers reviewer))) {:status :invalid}
+      (and limit (or (nil? retry-at) (nil? now-ms))) {:status :rate-limited}
+      (and retry-at (< now-ms retry-at)) {:status :cooldown :retry-at-ms retry-at}
+      pending? {:status :pending}
+      legacy-completed? {:status :request}
+      (and completed? (or (and round request-round (> round request-round))
+                        (and stage request-stage (not= stage request-stage)))) {:status :request}
+      completed? {:status :completed}
+      ended? {:status :request}
+      ;; An expired quota reply ended that attempt. A later operator may make
+      ;; one new manual request; this law never schedules a retry itself.
+      (and request (or (nil? limit-at)
+                       (<= limit-at (or (instant-ms (:created_at request)) 0)))) {:status :pending}
+      :else {:status :request})))
+
+(defn reviewer-availability
+  "Availability is observed separately from approval. Only an authenticated
+   quota reply to a trusted current-head request excludes an optional agent.
+   The observed Codex account-quota format needs no manual request (the App
+   also runs automatically) and survives a head change. Any original request
+   head remains provenance, never review coverage.
+   Pending, absent, failed and incomplete reviews remain obligations; an
+   expired cooldown or newer completed review restores availability. Unknown
+   resets remain explicit until a new request/response observes recovery."
+  [{:keys [head comments reviews checks identities mandatory now-ms repository publication-profile]
+    :or {identities default-reviewer-identities mandatory #{}}}]
+  (let [configured (cond-> (into (set mandatory)
+                                (for [[p logins] identities :when (and (eligible-reviewers p) (seq logins))] p))
+                     (publication/applicable? repository publication-profile) (conj "kimi"))
+        completed (completed-review-rounds reviews comments identities checks)
+        observations
+        (into {}
+              (for [p configured
+                    :let [request (last (sort-by :created_at
+                                      (filter #(and (:trusted? %)
+                                                    (instant-ms (:created_at %)) (:id %)
+                                                    (re-find #"<!--\s*pr-flow-review:[0-9a-f]{40}\s*-->" (str (:body %)))
+                                                    (str/includes? (str (:body %)) (str "pr-flow-reviewer:" p " -->"))) comments)))
+                          request-head (second (re-find #"<!--\s*pr-flow-review:([0-9a-f]{40})\s*-->" (str (:body request))))
+                          at (instant-ms (:created_at request))
+                          replies (filter #(and (:id %) (= p (trusted-reviewer % identities))
+                                                (instant-ms (:created_at %))
+                                                (or (nil? at) (>= (instant-ms (:created_at %)) at))) comments)
+                          notice (last (sort-by #(or (:updated_at %) (:created_at %))
+                                               (filter #(quota-notice? p (:body %)) replies)))
+                          notice-at (instant-ms (or (:updated_at notice) (:created_at notice)))
+                          account? (and (= "codex" p) (codex-account-quota? (:body notice)))
+                          verdict (request-verdict {:head head :reviewer p :comments (cond-> (vec replies) request (conj request))
+                                                    :checks checks :identities identities :now-ms now-ms})
+                          recovered? (some #(and notice-at (= p (:reviewer %))
+                                                 (or account? (= head (:commit_id %)))
+                                                 (instant-ms (:submitted_at %))
+                                                 (> (instant-ms (:submitted_at %)) notice-at)) completed)
+                          active? (some #(and notice-at (= head (:headSha %)) (= p (reviewer-check %))
+                                              (#{"PENDING" "QUEUED" "IN_PROGRESS"} (str/upper-case (str (:state %))))
+                                              (instant-ms (:startedAt %))
+                                              (> (instant-ms (:startedAt %)) notice-at)) (latest-checks head checks))
+                          unavailable? (and (valid-head? head) (or account? (= head request-head))
+                                            notice-at (or (nil? now-ms) (<= notice-at now-ms))
+                                            (not recovered?) (not active?)
+                                            (#{:cooldown :rate-limited} (:status verdict)))]]
+                [p (cond-> {:available? (not (boolean unavailable?)) :mandatory? (contains? (set mandatory) p)
+                            :status (if unavailable? :quota-unavailable :available)}
+                     unavailable? (assoc :request-id (:id request) :source-id (:id notice)
+                                         :request-head request-head :scope (if account? :account :current-head)
+                                         :head head :observed-at (or (:updated_at notice) (:created_at notice))
+                                         :retry-at-ms (:retry-at-ms verdict)))]))
+        participants (set (for [[p {:keys [available? mandatory?]}] observations :when (or available? mandatory?)] p))]
+    {:review-participants participants :review-availability observations}))
+
+(defn available-review-rounds
+  "Keep historical full-roster rounds intact. A current-head complete pass
+   from every currently available participant supplies at most one cohort;
+   current quota observations never multiply or rewrite historical rounds."
+  [completed markers stage configured participants head]
+  (let [historical (stage-review-rounds completed markers stage configured)
+        current (filter #(and (= head (:commit_id %)) (or (nil? (:stage %)) (= stage (:stage %))))
+                        (stage-reviews completed markers stage))
+        passed (set (map :reviewer current))
+        current-complete? (and (valid-head? head) (seq participants) (every? passed participants))]
+    (max historical (if current-complete? 1 0))))
+
+(defn required-reviewers-for
+  "Repository-specific reviewer requirements cannot be removed by a CLI flag."
+  [defaults repo requested]
+  (let [repo-name (str/lower-case (last (str/split repo #"/")))]
+    (into (into (:review/required defaults) (or requested #{}))
+          (get-in defaults [:review/by-repo-name repo-name] #{}))))
+
+(defn unsettled-blockers
+  "P0/P1 require a fix or a detailed independently corroborated rejection.
+   Handled qualifies only for native opener-withdrawal or separately qualified
+   positive Bot-thread preservation;
+   deferral and generic Handled remain blockers."
+  [threads]
+  (filter (fn [{:keys [severity resolution rejection-approved? settled? opener-withdrawal resolved?] :as thread}]
+            (and (blocking? severity) (not= :fixed resolution)
+                 (not (and (= :rejected resolution) rejection-approved? settled?))
+                 (not (and (= :handled resolution) settled? resolved?
+                           (or opener-withdrawal (:settled? (positive-thread/proof thread)))))))
+          (filter finding-obligation? threads)))
+
+;; --- review state ---------------------------------------------------------
+
+(defn coderabbit-state
+  "From PR check rows [{:name :state :description}] derive CodeRabbit's state:
+   :absent :pending :completed :rate-limited :skipped :failed."
+  [checks]
+  (if-let [{:keys [state description]} (first (filter #(= "coderabbit" (str/lower-case (str (:name %)))) checks))]
+    (let [d (str/lower-case (str description))
+          s (str/lower-case (str state))]
+      (cond
+        (re-find #"rate limit" d) :rate-limited
+        (re-find #"skip" d) :skipped
+        (#{"pending" "queued" "in_progress"} s) :pending
+        (re-find #"in progress" d) :pending
+        (#{"skipped" "skipping" "cancelled"} s) :skipped
+        (#{"success" "pass"} s) :completed
+        :else :failed))
+    :absent))
+
+(defn check-summary
+  "Count every supplied obligation by native state bucket. merge-gate filters
+   optional provider outputs before calling this counter; names waive nothing."
+  [checks]
+  (->> checks
+       (map (fn [{:keys [state]}]
+              (case (str/lower-case (str state))
+                ("pass" "success" "neutral") :pass
+                ("skipping" "skipped" "cancelled") :skip
+                ("pending" "queued" "in_progress") :pending
+                :fail)))
+       frequencies))
+
+;; --- merge gate -----------------------------------------------------------
+
+(defn loop-verdict
+  "Completed cohort rounds are a soft minimum. Findings always require
+   another iteration; unanimous current-head approval permits an early exit."
+  [{:keys [rounds open-findings unanimous-approval? min-review-rounds]
+    :or {min-review-rounds default-min-review-rounds}}]
+  (if (and (integer? rounds) (not (neg? rounds))
+           (integer? open-findings) (zero? open-findings)
+           (integer? min-review-rounds) (pos? min-review-rounds)
+           (or (>= rounds min-review-rounds) (and (pos? rounds) (true? unanimous-approval?))))
+    :converged :iterate))
+
+(defn latest-checks
+  "Select the latest run of each context/workflow on this head. Requiredness
+   survives reruns; ambiguous ordering fails closed by retaining all rows."
+  [head checks]
+  (mapcat
+   (fn [[_ rows]]
+     (let [required? (boolean (some :required? rows))
+           current (filter #(or (nil? (:headSha %)) (= head (:headSha %))) rows)
+           stamp #(instant-ms (:startedAt %))
+           stamps (map stamp current)
+           picked (cond
+                    (empty? current) [(assoc (first rows) :state "PENDING")]
+                    (= 1 (count current)) current
+                    (and (every? some? stamps) (= (count stamps) (count (set stamps))))
+                    [(last (sort-by stamp current))]
+                    :else current)]
+       (map #(assoc % :required? required?) picked)))
+   (group-by (juxt :name :workflow) checks)))
+
+(defn merge-gate
+  "One positive exact-head hosted review is the default quorum. Mandatory
+   reviewer overrides remain all-of; all deterministic checks and findings
+   remain obligations. Observed coverage is never approval."
+  [{:keys [threads checks review-bodies-unanswered head snapshot-head
+           required-reviewers approved-heads incomplete? approval-quorum
+           rounds review-participants min-review-rounds]
+    :or {approval-quorum 1}}]
+  (let [checks (latest-checks head checks)
+        cr (coderabbit-state checks)
+        mandatory (or required-reviewers #{})
+        approved (set (for [[p heads] approved-heads
+                            :when (and (eligible-reviewers p) (contains? (set heads) head))] p))
+        missing (sort (remove approved mandatory))
+        obligations (filter #(or (:required? %) (nil? (reviewer-check %))
+                                 (mandatory (reviewer-check %))) checks)
+        sums (check-summary obligations)
+        findings (filter finding-obligation? threads)
+        blockers (unsettled-blockers findings)
+        unsettled (remove :settled? findings)
+        contested (filter :contested? findings)
+        unresolved (remove :resolved? threads)
+        min-rounds (or min-review-rounds default-min-review-rounds)
+        early-deferrals (when (or (not (integer? rounds)) (<= rounds min-rounds))
+                          (filter #(= :deferred (:resolution %)) findings))
+        unanimous? (and (seq review-participants) (every? approved review-participants))
+        open-findings (+ (count (filter #(or (not (:settled? %)) (not (:resolved? %))
+                                             (:contested? %) (some #{%} blockers)
+                                             (some #{%} early-deferrals)) findings))
+                         (or review-bodies-unanswered 0))
+        loop-state (loop-verdict {:rounds rounds :open-findings open-findings
+                                 :unanimous-approval? (boolean unanimous?)
+                                 :min-review-rounds min-rounds})
+        valid-quorum? (and (integer? approval-quorum) (<= 1 approval-quorum (count eligible-reviewers)))
+        reasons (cond-> []
+                  (not valid-quorum?)
+                  (conj "Invalid approval quorum")
+                  (not (valid-head? head)) (conj "Missing or invalid exact PR head")
+                  (and snapshot-head (not= head snapshot-head)) (conj "PR head changed while collecting evidence")
+                  incomplete? (conj "Review data was truncated; refusing a partial view")
+                  (and valid-quorum? (< (count approved) approval-quorum)) (conj "No trusted exact-head APPROVED review meets the quorum")
+                  (seq missing) (conj (str "Missing exact-head approval from mandatory reviewers: " (str/join ", " missing)))
+                  (some #(and (reviewer-check %) (not= :completed (coderabbit-state [(assoc % :name "CodeRabbit")]))) obligations)
+                  (conj "A required reviewer/check is pending, skipped, failed or rate-limited")
+                  (pos? (get sums :fail 0)) (conj (str (get sums :fail) " failing deterministic/required check(s)"))
+                  (pos? (get sums :pending 0)) (conj (str (get sums :pending) " pending deterministic/required check(s)"))
+                  (some #(and (:required? %) (#{"skipped" "skipping" "cancelled"} (str/lower-case (str (:state %))))) checks)
+                  (conj "A required check was skipped or cancelled")
+                  (seq blockers) (conj (str (count blockers) " P0/P1 thread(s) not fixed"))
+                  (seq early-deferrals) (conj (str "Verified findings cannot be deferred during the first " min-rounds " review rounds"))
+                  (seq contested) (conj (str (count contested) " disputed settlement(s)"))
+                  (seq unsettled) (conj (str (count unsettled) " thread(s) without a settlement reply"))
+                  (seq unresolved) (conj (str (count unresolved) " unresolved thread(s)"))
+                  (pos? (or review-bodies-unanswered 0)) (conj (str review-bodies-unanswered " unanswered review summary item(s)"))
+                  (not= :converged loop-state) (conj (str "Review loop requires " min-rounds " completed rounds or unanimous current-head approval, with every finding settled")))]
+    {:pass? (empty? reasons) :head head :reasons reasons :coderabbit cr :checks sums
+     :approving-reviewers approved :approval-quorum approval-quorum
+     :review-rounds rounds :unanimous-approval? (boolean unanimous?) :loop-verdict loop-state}))

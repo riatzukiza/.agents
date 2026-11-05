@@ -1,0 +1,247 @@
+{
+  "source": {
+    "repository": "open-hax/knoxx",
+    "pull_request": 387,
+    "head": "662a1f8f9f522c7fc601aea6f857e36378bdecc2",
+    "observed_threads": "Three exact native author walkthroughs, all unresolved; complete thread objects and all comment/review bodies/hunks are preserved without sanitization.",
+    "capture_sha256": {
+      "native-complete-threads-current-v2.stdout": "02460daae6a23ca0217c16e962c29e442c360678c4e30b06557ced8b03de091b",
+      "native-pr-head-closing-read-v1.stdout": "5ddc8c7b56a737478a7023d62e7e1c9e6d6b6e602f0f6d279bdbf1c110509f20"
+    },
+    "field_projection": "Repository/PR binding fields selected from GraphQL; number/state selected from identity/head-matching REST PR, with open->OPEN canonical case conversion. Thread objects unchanged.",
+    "synthetic_controls": "Only tests alter resolved flags and add synthetic proposal/assessment records; this file contains no new native judgment, settlement, workflow qualification or adoption."
+  },
+  "snapshots": [
+    {
+      "repository": {
+        "id": "R_kgDOR4ZK1A",
+        "databaseId": 1199983316,
+        "nameWithOwner": "open-hax/knoxx"
+      },
+      "pr": {
+        "id": "PR_kwDOR4ZK1M8AAAABHoBh5Q",
+        "headRefOid": "662a1f8f9f522c7fc601aea6f857e36378bdecc2",
+        "isDraft": false,
+        "author": {
+          "login": "riatzukiza",
+          "__typename": "User",
+          "id": "MDQ6VXNlcjEwNjc2OTI1",
+          "databaseId": 10676925
+        },
+        "number": 387,
+        "state": "OPEN"
+      },
+      "thread": {
+        "id": "PRRT_kwDOR4ZK1M6q-HVV",
+        "isResolved": false,
+        "isOutdated": false,
+        "path": "backend/src/cljs/knoxx/backend/domain/cms_document.cljs",
+        "line": 26,
+        "originalLine": 26,
+        "comments": {
+          "totalCount": 1,
+          "pageInfo": {
+            "hasNextPage": false,
+            "endCursor": "Y3Vyc29yOnYyOpK0MjAyNi0xMC0wOVQyMjo1MDo1MVrO_HAVzA=="
+          },
+          "nodes": [
+            {
+              "id": "PRRC_kwDOR4ZK1M78cBXM",
+              "databaseId": 4235204044,
+              "url": "https://github.com/open-hax/knoxx/pull/387#discussion_r4235204044",
+              "body": "This repairs newly emitted source-language intents: English has no self-translation candidate to approve, so it uses :none, matching the existing generated-draft constructor. Spanish retains :required and the unchanged exact candidate/content/source/output approval laws. The preceding resource fields still declare :withheld and :source/current, so a save does not publish and unresolved source cannot pass. The red regression failed twice under the original policy; the repaired domain run passes 3 tests / 26 assertions. Existing manifests retain their declared review fields; this change intentionally requires a fresh document or a separately reviewed policy edit for existing resources.",
+              "createdAt": "2026-10-09T22:50:51Z",
+              "updatedAt": "2026-10-09T22:50:51Z",
+              "authorAssociation": "MEMBER",
+              "author": {
+                "login": "riatzukiza",
+                "__typename": "User",
+                "id": "MDQ6VXNlcjEwNjc2OTI1",
+                "databaseId": 10676925
+              },
+              "commit": {
+                "oid": "662a1f8f9f522c7fc601aea6f857e36378bdecc2"
+              },
+              "originalCommit": {
+                "oid": "0e1bb4162fa7f281442a5809db5ffa6029d5b369"
+              },
+              "diffHunk": "@@ -17,7 +22,8 @@\n                       {:publication/id (keyword (str \"cms.\" org) (str \"doc-\" id \"-\" (name locale))) :publication/document (keyword (str \"cms.\" org) (str \"doc-\" id))\n                        :publication/garden (keyword (str \"cms.\" org) \"workspace\") :publication/target :open-hax.publication/static-site\n                        :publication/locale locale :publication/revision :source/current :publication/state :withheld\n-                       :publication/path (str \"/cms/\" org \"/\" id \"/\" (name locale)) :translation/review :required}))})\n+                       :publication/path (str \"/cms/\" org \"/\" id \"/\" (name locale))\n+                       :translation/review (if (= :en locale) :none :required)}))})",
+              "pullRequestReview": {
+                "id": "PRR_kwDOR4ZK1M8AAAABRmbRRg",
+                "databaseId": 5476110662,
+                "state": "COMMENTED",
+                "body": "Author walkthrough of the source-locale policy, reusable qualification source custody and HTTP evidence boundary. These comments explain decisions and verification; they are not a review approval or deployment qualification.",
+                "createdAt": "2026-10-09T22:50:51Z",
+                "updatedAt": "2026-10-09T22:50:51Z",
+                "submittedAt": "2026-10-09T22:50:51Z",
+                "commit": {
+                  "oid": "0e1bb4162fa7f281442a5809db5ffa6029d5b369"
+                },
+                "author": {
+                  "login": "riatzukiza",
+                  "__typename": "User",
+                  "id": "MDQ6VXNlcjEwNjc2OTI1",
+                  "databaseId": 10676925
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "repository": {
+        "id": "R_kgDOR4ZK1A",
+        "databaseId": 1199983316,
+        "nameWithOwner": "open-hax/knoxx"
+      },
+      "pr": {
+        "id": "PR_kwDOR4ZK1M8AAAABHoBh5Q",
+        "headRefOid": "662a1f8f9f522c7fc601aea6f857e36378bdecc2",
+        "isDraft": false,
+        "author": {
+          "login": "riatzukiza",
+          "__typename": "User",
+          "id": "MDQ6VXNlcjEwNjc2OTI1",
+          "databaseId": 10676925
+        },
+        "number": 387,
+        "state": "OPEN"
+      },
+      "thread": {
+        "id": "PRRT_kwDOR4ZK1M6q-HVd",
+        "isResolved": false,
+        "isOutdated": false,
+        "path": ".github/workflows/deploy-production.yml",
+        "line": 29,
+        "originalLine": 29,
+        "comments": {
+          "totalCount": 1,
+          "pageInfo": {
+            "hasNextPage": false,
+            "endCursor": "Y3Vyc29yOnYyOpK0MjAyNi0xMC0wOVQyMjo1MDo1MVrO_HAV1g=="
+          },
+          "nodes": [
+            {
+              "id": "PRRC_kwDOR4ZK1M78cBXW",
+              "databaseId": 4235204054,
+              "url": "https://github.com/open-hax/knoxx/pull/387#discussion_r4235204054",
+              "body": "The caller can be Services, so the checkout default would resolve main in Services rather than Knoxx. The explicit repository appears in all four jobs (source, integration-e2e, mutation and qualified), ensuring the selected SHA, local setup action, mutation source and accepting verifier come from Knoxx. Credential persistence stays disabled; source still must be an immutable commit reachable from Knoxx main, and all downstream jobs use that selected SHA. scripts/test-production-checkout.py checks all four bindings and is invoked by the eta-mu deterministic evidence gate. This repairs source custody; it does not supply a passing integration/e2e or four-batch mutation qualification.",
+              "createdAt": "2026-10-09T22:50:51Z",
+              "updatedAt": "2026-10-09T22:50:51Z",
+              "authorAssociation": "MEMBER",
+              "author": {
+                "login": "riatzukiza",
+                "__typename": "User",
+                "id": "MDQ6VXNlcjEwNjc2OTI1",
+                "databaseId": 10676925
+              },
+              "commit": {
+                "oid": "662a1f8f9f522c7fc601aea6f857e36378bdecc2"
+              },
+              "originalCommit": {
+                "oid": "0e1bb4162fa7f281442a5809db5ffa6029d5b369"
+              },
+              "diffHunk": "@@ -26,6 +26,7 @@ jobs:\n     steps:\n       - uses: actions/checkout@v5\n         with:\n+          repository: open-hax/knoxx",
+              "pullRequestReview": {
+                "id": "PRR_kwDOR4ZK1M8AAAABRmbRRg",
+                "databaseId": 5476110662,
+                "state": "COMMENTED",
+                "body": "Author walkthrough of the source-locale policy, reusable qualification source custody and HTTP evidence boundary. These comments explain decisions and verification; they are not a review approval or deployment qualification.",
+                "createdAt": "2026-10-09T22:50:51Z",
+                "updatedAt": "2026-10-09T22:50:51Z",
+                "submittedAt": "2026-10-09T22:50:51Z",
+                "commit": {
+                  "oid": "0e1bb4162fa7f281442a5809db5ffa6029d5b369"
+                },
+                "author": {
+                  "login": "riatzukiza",
+                  "__typename": "User",
+                  "id": "MDQ6VXNlcjEwNjc2OTI1",
+                  "databaseId": 10676925
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "repository": {
+        "id": "R_kgDOR4ZK1A",
+        "databaseId": 1199983316,
+        "nameWithOwner": "open-hax/knoxx"
+      },
+      "pr": {
+        "id": "PR_kwDOR4ZK1M8AAAABHoBh5Q",
+        "headRefOid": "662a1f8f9f522c7fc601aea6f857e36378bdecc2",
+        "isDraft": false,
+        "author": {
+          "login": "riatzukiza",
+          "__typename": "User",
+          "id": "MDQ6VXNlcjEwNjc2OTI1",
+          "databaseId": 10676925
+        },
+        "number": 387,
+        "state": "OPEN"
+      },
+      "thread": {
+        "id": "PRRT_kwDOR4ZK1M6q-HVg",
+        "isResolved": false,
+        "isOutdated": false,
+        "path": "backend/test/cljs/knoxx/backend/cms_history_test.cljs",
+        "line": 158,
+        "originalLine": 120,
+        "comments": {
+          "totalCount": 1,
+          "pageInfo": {
+            "hasNextPage": false,
+            "endCursor": "Y3Vyc29yOnYyOpK0MjAyNi0xMC0wOVQyMjo1MDo1MVrO_HAV3Q=="
+          },
+          "nodes": [
+            {
+              "id": "PRRC_kwDOR4ZK1M78cBXd",
+              "databaseId": 4235204061,
+              "url": "https://github.com/open-hax/knoxx/pull/387#discussion_r4235204061",
+              "body": "This digest comes from the immutable source actually saved through native CMS HTTP creation and read through the production source resolver, rather than a fabricated revision fact. The surrounding assertions hydrate persisted EN/ES intents and prove withheld English denial, published English admission without self-translation work, and Spanish evidence blockers. The existing Fastify suite passes 7 tests / 95 assertions. scripts/verify-cms-history.sh now uses the canonical error preload and testCountersExitCode: a fatal asynchronous error must fail before PASS output even when Shadow prints zero failures. The wrapper bounds both runs. Seeded auth principals and a local server are explicit limits; deployed image, password login, real provider, browser and artifact materialization proof remain in the linked verification guide.",
+              "createdAt": "2026-10-09T22:50:51Z",
+              "updatedAt": "2026-10-09T22:50:51Z",
+              "authorAssociation": "MEMBER",
+              "author": {
+                "login": "riatzukiza",
+                "__typename": "User",
+                "id": "MDQ6VXNlcjEwNjc2OTI1",
+                "databaseId": 10676925
+              },
+              "commit": {
+                "oid": "662a1f8f9f522c7fc601aea6f857e36378bdecc2"
+              },
+              "originalCommit": {
+                "oid": "0e1bb4162fa7f281442a5809db5ffa6029d5b369"
+              },
+              "diffHunk": "@@ -92,6 +96,37 @@\n               revision (:revision initial)]\n           (is (= 200 (:status created)))\n           (is (= \"base\" (text (:source_path initial))))\n+          (let [paths (files/paths \"org-one\" id)\n+                manifest (reader/read-string (text (:manifest paths)))\n+                garden (reader/read-string (text (:garden paths)))\n+                index (resolver/publication-index (into (:resources garden) (:resources manifest)))\n+                document (first (:resources manifest))\n+                intents (into {} (map (fn [intent]\n+                                       [(:publication/locale intent)\n+                                        (publication-law/hydrate-publication-intent index intent)]))\n+                              (:publications index))\n+                revisions (with-redefs [source/source-root (constantly (:content (roots root)))]\n+                            (await (source/source-revisions! {} [document])))\n+                facts (merge (source/revision-facts revisions)\n+                             (evidence/gate-facts (evidence/evidence {:receipts [] :approvals []})))\n+                english (:en intents)\n+                published-english (gate/gate (assoc english :publication/state :published) facts)\n+                published-spanish (gate/gate (assoc (:es intents) :publication/state :published) facts)]\n+            (is (= {:en :none :es :required}\n+                   (into {} (map (fn [[locale intent]] [locale (:translation/review intent)])) intents))\n+                \"HTTP creation persists the source and translated locale review policies\")\n+            (is (= (:source_path initial) (get-in document [:document/source :path]))\n+                \"The generated resource names the actual saved immutable source\")\n+            (is (= (source/content-revision \"base\") (:concrete-revision published-english))",
+              "pullRequestReview": {
+                "id": "PRR_kwDOR4ZK1M8AAAABRmbRRg",
+                "databaseId": 5476110662,
+                "state": "COMMENTED",
+                "body": "Author walkthrough of the source-locale policy, reusable qualification source custody and HTTP evidence boundary. These comments explain decisions and verification; they are not a review approval or deployment qualification.",
+                "createdAt": "2026-10-09T22:50:51Z",
+                "updatedAt": "2026-10-09T22:50:51Z",
+                "submittedAt": "2026-10-09T22:50:51Z",
+                "commit": {
+                  "oid": "0e1bb4162fa7f281442a5809db5ffa6029d5b369"
+                },
+                "author": {
+                  "login": "riatzukiza",
+                  "__typename": "User",
+                  "id": "MDQ6VXNlcjEwNjc2OTI1",
+                  "databaseId": 10676925
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

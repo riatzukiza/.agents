@@ -13,8 +13,15 @@ permissions:
 jobs:
   review:
     name: Evidence-first review (eta-mu)
-    uses: open-hax/eta-mu/.github/workflows/opencode-code-review.yml@2b918cdab2ebd30e745bb8fa86d077d7a3af0030
+    # Consumes the qualified merged Eta/Muse pair with bounded Discord batches.
+    # Fresh exact-head caller CI/review remains required; validated global
+    # skills and the existing Node policy stay pinned.
+    uses: open-hax/eta-mu/.github/workflows/opencode-code-review.yml@f4ac84be690fb6cfc7bf8fbd27b62d1befaaaee8
     with:
+      pr_head_sha: ${{ github.event.pull_request.head.sha }}
+      review_timeout_minutes: 120
+      muse_revision: c1369c223cf3c57e3e31934a6d746bfcdfe73f5a
+      agents_revision: 7ab2f99e048e370f5f943acc2321b8294402e786
       setup_eta_mu_toolchain: false
       evidence_gates_script: |
         run_gate diff_stat git diff --stat "${PR_BASE_SHA}...HEAD"

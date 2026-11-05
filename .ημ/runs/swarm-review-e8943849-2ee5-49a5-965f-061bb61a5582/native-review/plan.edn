@@ -1,0 +1,11 @@
+{:snapshot "8c574c323b9459e4eed56ece3b5553f4710a2d20e78eef7dbc28811845769bfe"
+ :round 3 :capacity 4 :limited? false
+ :inputs {:prompt "347311e1f2c2fb1fbc52d772fb9393539f4a3b648ac7ab398d5b8dd7b4249164;31444ec94b0531c2936bb5a3ede2a1dc55edb4ed35392483f5f9b9099ae38309"
+          :roles "snapshot-bound references/native-reviewer.md and references/native-skeptic.md"
+          :schemas "snapshot-bound references/native-schema.md"
+          :packets "all 25 files in source-manifest.json; read-only"
+          :gates "NBB 1.4.208 native suite; node source-integrity; quick_validate; manifest unchanged"
+          :model "gpt-6.1-terra high; native collaboration fork_turns=none"}
+ :jobs [{:id "review" :kind :review :deps [] :writes [] :attempt 1}
+        {:id "gate" :kind :gate :deps [] :writes [] :attempt 1}
+        {:id "skeptic" :kind :skeptic :deps ["review"] :writes [] :attempt 1 :author-job "review"}]}

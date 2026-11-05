@@ -1,0 +1,34 @@
+{
+  "tier": "actual native creation/readback plus derived source snapshot; no review or readiness credit",
+  "human_inclusion": "Include the narrow canonical repair",
+  "human_question_id": "call_76bc9029c105441ab737caa2947c0fc2",
+  "native_create_stdout": "created task fbf4f337-5a01-48fb-b3ac-52859ed42a07 [incoming] Repair canonical opener withdrawal across immutable review heads\n  /home/err/.codex/worktrees/cephalon-recall-refinement/foresight/docs/agile/kanban/repair-canonical-opener-withdrawal-across-immutable-review-heads-9ed42a07.md\n",
+  "native_create_stderr": "",
+  "native_readback": {
+    "uuid": "fbf4f337-5a01-48fb-b3ac-52859ed42a07",
+    "frontmatter": {
+      "category": "kanban",
+      "labels": "cephalon, pr-flow, withdrawal, provenance",
+      "parent": "63a0e4ff-353f-4c90-ab8a-7241d958d54c",
+      "type": "task",
+      "write-id": "1791989386534-0.y2bkh3uvwahw3b5jocz",
+      "points": "2",
+      "title": "Repair canonical opener withdrawal across immutable review heads",
+      "priority": "P1",
+      "status": "incoming",
+      "epic": "63a0e4ff-353f-4c90-ab8a-7241d958d54c",
+      "uuid": "fbf4f337-5a01-48fb-b3ac-52859ed42a07",
+      "created_at": "2026-10-14T14:49:46.534Z"
+    },
+    "sections": [
+      {
+        "type": "body",
+        "content": "## Context\n\nThe human explicitly included this narrow two-point prerequisite in the current\ncharacter milestone on 2026-10-14: “Include the narrow canonical repair.”\nThe owning issue is https://github.com/riatzukiza/.agents/issues/25.\nETA PR15 has current approving reviews and passing deterministic checks but the\ncanonical withdrawal predicate requires its original finding's immutable review\ncommit to equal the latest PR head. A later opener recheck cannot mutate that\noriginal review. The original native root and history must remain inspectable.\n\n## Outcome\n\nA configured native finding opener can withdraw its own older finding after a\ncurrent-head recheck; a subsequent authorized current-head writer settlement\ncan clear that finding through the canonical law. Original severity, root,\nreview identity and source commit remain preserved.\n\n## Scope\n\nOwning `.agents` pure PR-flow withdrawal law and, only if necessary, its native\ncollector; regression fixtures, skill/contract wording and protected adoption.\nThe Foresight card is the primary board artifact. The owning source PR carries\nan explicitly attributed planning snapshot, not another board implementation.\nKeep the existing two-point estimate for this included prerequisite.\n\n## Non-goals\n\nChange approval or cohort policy, waive checks, add native identities, create a\nlocal classifier, accept copied Bot transcripts or general cross-thread agreement,\nrewrite receipts, add repository fields, change credentials/models/paid usage,\nor change character runtime, clock, gateway, grants or publication.\n\n## Acceptance criteria\n\n1. Freeze the actual old-root conversation and immutable review commit. A\n   clearly labeled prospective fixture with a current native opener withdrawal\n   and later current authorized writer reproduces the false refusal before the\n   change. Original raw bytes remain distinct from fixture-only mutations.\n2. Preserve the original root/review/commit and conservative severity. Admit a\n   known older original commit only when the actual current-head configured\n   opener withdrawal and subsequent writer match repository/PR/thread/root,\n   complete ordered native context, substantive rationale/evidence and chronology.\n3. Stale withdrawal or writer, missing/malformed original binding, wrong opener,\n   repository/PR/root, partial pagination, unresolved/outdated conversation,\n   unknown timestamps, later edits/retraction/pushback and nonwriter identity\n   remain denied. Unknown history never becomes an empty successful history.\n4. Existing same-head withdrawal, rejection, native body/thread obligations,\n   approval/full-input/cohort/required-check and merge-head guards retain behavior.\n   The new disposition grants no approval, review round, quota or CI credit.\n5. Run all owning PR-flow laws, policy, CLI, portable and lint gates. Complete\n   current-head planning/code review and protected history-preserving MERGE.\n   Only then adopt the reviewed source and obtain fresh native withdrawal/writer\n   evidence on ETA PR15; historical752 evidence cannot qualify current564.\n\n## Verification\n\nPlanning review assesses this scope, two-point estimate, identities/bindings and\nnegative matrix before lawful Rheos readiness. RED/GREEN follows readiness.\nUse the actual native ETA conversation plus explicit fixture-only current-head\nsuccessors, preserving every original byte and ledger prefix. Capture exact\ncommands/results, full changed input and final merged/adopted source hashes.\nCurrent application/deployment and B1/B2/B3 behavior are separate later evidence.\n\n## Risks\n\nConfusing old root provenance with stale current authority; weakening native\nchronology or trusting partial capture; accepting withdrawn rejection agreement\nas finding withdrawal; masking later conflicts; tests depending on unavailable\nprovider or live network. Keep source qualification and actual adoption separate.\n\nLicense: GPL-3.0-or-later."
+      }
+    ],
+    "source-path": "/home/err/.codex/worktrees/cephalon-recall-refinement/foresight/docs/agile/kanban/repair-canonical-opener-withdrawal-across-immutable-review-heads-9ed42a07.md"
+  },
+  "primary_card_sha256": "e20a8edc734b434c2090d6d299871b5d3bb95d4e0cd341d541e8551e294e352e",
+  "plan_snapshot_sha256": "6ce168eeae7a1b8d02817a7148a254bf0b67fbda2a6472a173c0111b403d279f",
+  "qualified_rheos_sha256": "85369213440634989365f75929045d36eb69b6c6b1e7679f68d483374a0d526b"
+}

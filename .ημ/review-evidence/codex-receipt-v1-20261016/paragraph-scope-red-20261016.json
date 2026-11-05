@@ -1,0 +1,45 @@
+{
+  "tier": "Observed causal registered RED, no approval/merge/adoption",
+  "observedAt": "2026-10-16T08:25:41.001428+00:00",
+  "againstHead": "d72324a2d00af5813195d99dc74bdf4c74623d48",
+  "nativeReview": 5544627211,
+  "nativeRoot": 4292173389,
+  "actualResults": {
+    "law": {
+      "tests": 191,
+      "assertions": 5073,
+      "failures": 22,
+      "errors": 0
+    },
+    "policy": {
+      "tests": 69,
+      "assertions": 1762,
+      "failures": 24,
+      "errors": 0
+    },
+    "portable": {
+      "tests": 5,
+      "assertions": 40,
+      "failures": 9,
+      "errors": 0
+    }
+  },
+  "attribution": "Everyfailure belongs to new paragraph/excludedfragmentcases; oldassertions andnewunknowninlinecomment/live-after-example controls pass. No parse orfixtureerrors.",
+  "CLI": "Registered commandstubcases extended/linted, not executedRED; fullGREENCLI stillrequired",
+  "node": "22.23.3 process-only",
+  "kondo": "0errors0warnings",
+  "diffCheckExit": 0,
+  "sourceTests": {
+    "skills/pr-flow/scripts/test_law.cljs": "4577492e2649ba7ffa475ae15d271af608373924a724663d02f27425a5145a24",
+    "skills/pr-flow/scripts/test_policy.cljs": "1760c14cc666c14f22b0ea8a6e7884aeb246c9708bb02db7985ced7c44826072",
+    "skills/pr-flow/scripts/test_cli.cljs": "ae3fc2eb9354c59a5dbe8e7049e28b3877d0b4483fab368df6cb7d46bfefdd38",
+    "skills/pr-flow/scripts/test_babashka.clj": "7aa5cc5a2b9a04e958ba53ff3db186f74d8f3b0991c60c2d93e3c845627ed5bd"
+  },
+  "testPatchSHA256": "e95e4666fab17bae6d01c73685215b09b3b8fab499447810bed7f1822988ec8d",
+  "privateExecutionSummarySHA256": "45ba9dc2aa001fb13cf8d43bf343b348bb105991bae2b1dfe9798787c96139d2",
+  "protectedProductionAndP1ArtifactsEqualD723": true,
+  "nativePublic4206ByteFixtureSHA256": "b5e9927e862ff5c5d5d7dcbb662099e838755cefa9d3dfa1df1e9c96b7473eaf",
+  "nativeOperativePlan": "Qualified3ops0, unchangedInProgress1; actual248158Bledgerprefix+2456Bnativeappend in coordinator",
+  "plannedGreenBoundary": "Phrase-only blockbarriers/paragraphs; preserve arbitraryinertinlinecomment removal, CRLFsinglelinewrap andnilambiguity; globalpositivehelper/reviewerprose/nativeSkipped/otherunreviewedbranches unchanged. Data-minimize documentaryP1copiesonlyafterthisRED; exactoriginalsprivate/historical, no historyerasureclaim.",
+  "limits": "No production/P1 change beforeRED, new provider request, Gitpush, Fixed, MERGE or operationaladoption."
+}

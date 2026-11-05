@@ -1,0 +1,205 @@
+{
+  "provenance": {
+    "kind": "read-only-native-capture",
+    "observed": "2026-10-24",
+    "note": "Surviving native comments only. No deleted root reconstructed. Fresh protocol replies in tests are synthetic."
+  },
+  "repository": {
+    "id": "R_kgDOT3TWPA",
+    "databaseId": 1333057084,
+    "nameWithOwner": "open-hax/foresight"
+  },
+  "pr": {
+    "id": "PR_kwDOT3TWPM8AAAABKKKjXQ",
+    "number": 144,
+    "state": "OPEN",
+    "isDraft": false,
+    "headRefOid": "f3491a43399b35d9fab4e9695d32fc5b08096436",
+    "author": {
+      "login": "riatzukiza",
+      "__typename": "User",
+      "id": "MDQ6VXNlcjEwNjc2OTI1",
+      "databaseId": 10676925
+    }
+  },
+  "threads": [
+    {
+      "id": "PRRT_kwDOT3TWPM6vcq2j",
+      "isResolved": true,
+      "isOutdated": false,
+      "path": "docs/agile/kanban/hac-02-actor-bindings.md",
+      "line": 40,
+      "comments": {
+        "totalCount": 2,
+        "pageInfo": {
+          "hasNextPage": false
+        },
+        "nodes": [
+          {
+            "id": "PRRC_kwDOT3TWPM8AAAABA5rwcQ",
+            "databaseId": 4355453041,
+            "author": {
+              "login": "riatzukiza",
+              "__typename": "User",
+              "id": "MDQ6VXNlcjEwNjc2OTI1",
+              "databaseId": 10676925
+            },
+            "body": "Fixed in af114f39: adds authenticated producer wrong-role and missing-capability denial to HAC.02.",
+            "diffHunk": "@@ -0,0 +1,54 @@\n+---\n+category: \"kanban\"\n+labels: \"muse, knoxx, harness, 5sp\"\n+type: \"story\"\n+story_id: \"HAC.02\"\n+points: \"5\"\n+title: \"HAC.02 \u2014 Specify portable harness actor bindings and message admission\"\n+priority: \"P1\"\n+status: \"incoming\"\n+uuid: \"hac-02-actor-bindings\"\n+epic: \"harness-actor-continuity\"\n+parent: \"harness-actor-continuity\"\n+---\n+\n+# HAC.02 \u2014 Specify portable harness actor bindings and message admission\n+\n+> Design: [harness actor continuity](../../notes/design/harness-actor-continuity.md)\n+> Research: [grounding](../../research/harness-actor-continuity.md)\n+> Target: knoxx, axxium, clio, katamorph\n+\n+## Context\n+\n+PR 141 provides the layered-contract plan. This slice connects its selected operating contract to host tools and Knoxx identity.\n+\n+## Outcome\n+\n+Specify portable harness actor bindings and message admission.\n+\n+## Scope\n+\n+Reuse actor/mailbox/event authority and specify identity, delegation, correlation, deduplication and revocation contracts before host adapters.\n+\n+## Non-goals\n+\n+No production cutover, broad credential copying, new board implementation or automatic memory lift.\n+\n+## Acceptance criteria\n+\n+- [ ] GIVEN two contexts with the same human/model WHEN bound THEN they have distinct context provenance and bounded grants.\n+- [ ] GIVEN a spoofed producer, expired grant or wrong tenant/audience WHEN a message is admitted THEN it is denied without creating a valid event.",
+            "url": "https://github.com/open-hax/foresight/pull/144#discussion_r4355453041",
+            "createdAt": "2026-10-23T02:14:13Z",
+            "updatedAt": "2026-10-23T02:14:13Z",
+            "commit": {
+              "oid": "f3491a43399b35d9fab4e9695d32fc5b08096436"
+            },
+            "originalCommit": {
+              "oid": "eeae0b77ba79b9ae024b9e398c0fc74f31daa7a0"
+            },
+            "pullRequestReview": {
+              "id": "PRR_kwDOT3TWPM8AAAABTypWPA",
+              "databaseId": 5623141948,
+              "state": "COMMENTED",
+              "body": "",
+              "updatedAt": "2026-10-23T02:14:13Z",
+              "commit": {
+                "oid": "af114f393049dfb1c931fd00d57283a9ca3f0a21"
+              },
+              "author": {
+                "login": "riatzukiza",
+                "__typename": "User",
+                "id": "MDQ6VXNlcjEwNjc2OTI1",
+                "databaseId": 10676925
+              }
+            }
+          },
+          {
+            "id": "PRRC_kwDOT3TWPM8AAAABA5r-0w",
+            "databaseId": 4355456723,
+            "author": {
+              "login": "coderabbitai",
+              "__typename": "Bot",
+              "id": "BOT_kgDOCCSy2w",
+              "databaseId": 136622811
+            },
+            "body": "<!-- coderabbit-ai-generated:v1 -->\n\n@riatzukiza Thanks for confirming. The reported change in `af114f39` addresses the missing wrong-role and missing-capability denial cases.\n\n---\n\n<!-- This is an auto-generated comment: tweet message by coderabbit.ai -->\n\nIf you found this review helpful, would you consider giving us a shout-out on [X](https://twitter.com/intent/tweet?related=CodeRabbitAI&text=Add%20unauthorized%20role%20and%20capability%20checks%20to%20message-admission%20criteria%2C%20preventing%20invalid%20events.%20Try%20%40coderabbitai%20for%20sharp%2C%20actionable%20reviews!%20%F0%9F%94%92&url=https%3A%2F%2Fgithub.com%2Fopen-hax%2Fforesight%2Fpull%2F144%23discussion_r4355429869)?\n\nThank you for using CodeRabbit!\n\n<!-- end of auto-generated comment: tweet message by coderabbit.ai -->\n\n\n\n\u2705 Review thread resolved.\n\n<sub><i>You are interacting with an AI system.</i></sub>\n\n<!-- This is an auto-generated reply by CodeRabbit -->",
+            "diffHunk": "@@ -0,0 +1,54 @@\n+---\n+category: \"kanban\"\n+labels: \"muse, knoxx, harness, 5sp\"\n+type: \"story\"\n+story_id: \"HAC.02\"\n+points: \"5\"\n+title: \"HAC.02 \u2014 Specify portable harness actor bindings and message admission\"\n+priority: \"P1\"\n+status: \"incoming\"\n+uuid: \"hac-02-actor-bindings\"\n+epic: \"harness-actor-continuity\"\n+parent: \"harness-actor-continuity\"\n+---\n+\n+# HAC.02 \u2014 Specify portable harness actor bindings and message admission\n+\n+> Design: [harness actor continuity](../../notes/design/harness-actor-continuity.md)\n+> Research: [grounding](../../research/harness-actor-continuity.md)\n+> Target: knoxx, axxium, clio, katamorph\n+\n+## Context\n+\n+PR 141 provides the layered-contract plan. This slice connects its selected operating contract to host tools and Knoxx identity.\n+\n+## Outcome\n+\n+Specify portable harness actor bindings and message admission.\n+\n+## Scope\n+\n+Reuse actor/mailbox/event authority and specify identity, delegation, correlation, deduplication and revocation contracts before host adapters.\n+\n+## Non-goals\n+\n+No production cutover, broad credential copying, new board implementation or automatic memory lift.\n+\n+## Acceptance criteria\n+\n+- [ ] GIVEN two contexts with the same human/model WHEN bound THEN they have distinct context provenance and bounded grants.\n+- [ ] GIVEN a spoofed producer, expired grant or wrong tenant/audience WHEN a message is admitted THEN it is denied without creating a valid event.",
+            "url": "https://github.com/open-hax/foresight/pull/144#discussion_r4355456723",
+            "createdAt": "2026-10-23T02:15:00Z",
+            "updatedAt": "2026-10-23T02:15:00Z",
+            "commit": {
+              "oid": "f3491a43399b35d9fab4e9695d32fc5b08096436"
+            },
+            "originalCommit": {
+              "oid": "eeae0b77ba79b9ae024b9e398c0fc74f31daa7a0"
+            },
+            "pullRequestReview": {
+              "id": "PRR_kwDOT3TWPM8AAAABTypnHg",
+              "databaseId": 5623146270,
+              "state": "COMMENTED",
+              "body": "",
+              "updatedAt": "2026-10-23T02:15:00Z",
+              "commit": {
+                "oid": "af114f393049dfb1c931fd00d57283a9ca3f0a21"
+              },
+              "author": {
+                "login": "coderabbitai",
+                "__typename": "Bot",
+                "id": "BOT_kgDOCCSy2w",
+                "databaseId": 136622811
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "PRRT_kwDOT3TWPM6vcq20",
+      "isResolved": true,
+      "isOutdated": false,
+      "path": "docs/notes/design/harness-actor-continuity.md",
+      "line": 30,
+      "comments": {
+        "totalCount": 2,
+        "pageInfo": {
+          "hasNextPage": false
+        },
+        "nodes": [
+          {
+            "id": "PRRC_kwDOT3TWPM8AAAABA5rzuQ",
+            "databaseId": 4355453881,
+            "author": {
+              "login": "riatzukiza",
+              "__typename": "User",
+              "id": "MDQ6VXNlcjEwNjc2OTI1",
+              "databaseId": 10676925
+            },
+            "body": "Fixed in af114f39: defines child grant subset/expiry attenuation and principal/installation/context/expiry/revocation validation on every use/resume, with specific HAC.02 negative cases.",
+            "diffHunk": "@@ -0,0 +1,84 @@\n+# Muse tools and harness actors across Knoxx instances\n+\n+- Status: proposed; 2026-10-22.\n+- Research: [inventory and sources](../../research/harness-actor-continuity.md).\n+- Extends [layered contracts](layered-operating-contracts.md); preserves contract-0.\n+- Epic: harness-actor-continuity.\n+\n+## Outcome\n+\n+Select one operating contract through .\u03b7\u03bc layers, project its supported tools\n+into Codex, OpenCode, Claude and qualified Hermes contexts, and bind each active\n+context to its own Knoxx actor. Local and remote Knoxx instances retain scoped\n+memory and explicit authority over what crosses their boundary.\n+\n+## Ownership and interfaces\n+\n+Muse compiles declared tools, schemas, exposures and supported host adapters.\n+Reuse its existing MCP backend for Codex tools. Host lifecycle, task messages\n+and agent spawning require separate host adapters; MCP tool parity never implies\n+hook parity. Unsupported capabilities must be reported in the manifest.\n+Knoxx owns actors, mailboxes and admission. Axxium owns principal/authorization\n+contracts; Clio owns event identity/replay. Katamorph supplies portable shapes.\n+Epiphany supplies archaeological evidence, Rheos supplies work state.\n+\n+A binding identifies instance id, actor id, authenticated principal reference,\n+harness family, installation id, session/task id, parent context, capability\n+profile and effective-contract hash. Credentials stay in the runtime's secret\n+store; manifests contain references only. Each spawned context gets distinct\n+provenance and a bounded delegated grant. A verified resume may reuse a binding;\n+new tasks must not be silently aliased by model name or similar content.",
+            "url": "https://github.com/open-hax/foresight/pull/144#discussion_r4355453881",
+            "createdAt": "2026-10-23T02:14:22Z",
+            "updatedAt": "2026-10-23T02:14:22Z",
+            "commit": {
+              "oid": "f3491a43399b35d9fab4e9695d32fc5b08096436"
+            },
+            "originalCommit": {
+              "oid": "eeae0b77ba79b9ae024b9e398c0fc74f31daa7a0"
+            },
+            "pullRequestReview": {
+              "id": "PRR_kwDOT3TWPM8AAAABTypZ3Q",
+              "databaseId": 5623142877,
+              "state": "COMMENTED",
+              "body": "",
+              "updatedAt": "2026-10-23T02:14:22Z",
+              "commit": {
+                "oid": "af114f393049dfb1c931fd00d57283a9ca3f0a21"
+              },
+              "author": {
+                "login": "riatzukiza",
+                "__typename": "User",
+                "id": "MDQ6VXNlcjEwNjc2OTI1",
+                "databaseId": 10676925
+              }
+            }
+          },
+          {
+            "id": "PRRC_kwDOT3TWPM8AAAABA5tLBQ",
+            "databaseId": 4355476229,
+            "author": {
+              "login": "coderabbitai",
+              "__typename": "Bot",
+              "id": "BOT_kgDOCCSy2w",
+              "databaseId": 136622811
+            },
+            "body": "<!-- coderabbit-ai-generated:v1 -->\n\n<details>\n<summary>\ud83e\udde9 Analysis chain</summary>\n\n\ud83c\udfc1 Script executed:\n\n```shell\n#!/bin/bash\nset -euo pipefail\ngit show --format=short --no-ext-diff af114f39 -- docs/notes/design/harness-actor-continuity.md docs/agile/kanban/hac-02-actor-bindings.md\nprintf '\\n--- Current binding rules and verification cases ---\\n'\nrg -n -C5 'subset|attenuat|revok|revocation|installation|resume|widen|expir' docs/notes/design/harness-actor-continuity.md docs/agile/kanban/hac-02-actor-bindings.md\n```\n\nLength of output: 17095\n\n---\n\n</details>\n\n`@riatzukiza` Verified in `af114f39` and the current documents. The design now requires child-grant attenuation and binding validation on every use and resume. HAC.02 adds negative cases for capability widening, installation mismatch, and resume after revocation.\n\nThis addresses the planning finding. Runtime verification remains part of implementation.\n\n---\n\n<!-- This is an auto-generated comment: tweet message by coderabbit.ai -->\n\nIf you found this review helpful, would you consider giving us a shout-out on [X](https://twitter.com/intent/tweet?related=CodeRabbitAI&text=CodeRabbit%20caught%20a%20subtle%20auth%20gap%3A%20delegated%20grants%20must%20only%20narrow%20parent%20capabilities%2C%20and%20resume%20must%20reject%20mismatched%20or%20revoked%20bindings.%20Try%20%40coderabbitai%20for%20sharper%20reviews%20%F0%9F%94%92&url=https%3A%2F%2Fgithub.com%2Fopen-hax%2Fforesight%2Fpull%2F144%23discussion_r4355429902)?\n\nThank you for using CodeRabbit!\n\n<!-- end of auto-generated comment: tweet message by coderabbit.ai -->\n\n\n\n\u2705 Review thread resolved.\n\n<sub><i>You are interacting with an AI system.</i></sub>\n\n<!-- This is an auto-generated reply by CodeRabbit -->",
+            "diffHunk": "@@ -0,0 +1,84 @@\n+# Muse tools and harness actors across Knoxx instances\n+\n+- Status: proposed; 2026-10-22.\n+- Research: [inventory and sources](../../research/harness-actor-continuity.md).\n+- Extends [layered contracts](layered-operating-contracts.md); preserves contract-0.\n+- Epic: harness-actor-continuity.\n+\n+## Outcome\n+\n+Select one operating contract through .\u03b7\u03bc layers, project its supported tools\n+into Codex, OpenCode, Claude and qualified Hermes contexts, and bind each active\n+context to its own Knoxx actor. Local and remote Knoxx instances retain scoped\n+memory and explicit authority over what crosses their boundary.\n+\n+## Ownership and interfaces\n+\n+Muse compiles declared tools, schemas, exposures and supported host adapters.\n+Reuse its existing MCP backend for Codex tools. Host lifecycle, task messages\n+and agent spawning require separate host adapters; MCP tool parity never implies\n+hook parity. Unsupported capabilities must be reported in the manifest.\n+Knoxx owns actors, mailboxes and admission. Axxium owns principal/authorization\n+contracts; Clio owns event identity/replay. Katamorph supplies portable shapes.\n+Epiphany supplies archaeological evidence, Rheos supplies work state.\n+\n+A binding identifies instance id, actor id, authenticated principal reference,\n+harness family, installation id, session/task id, parent context, capability\n+profile and effective-contract hash. Credentials stay in the runtime's secret\n+store; manifests contain references only. Each spawned context gets distinct\n+provenance and a bounded delegated grant. A verified resume may reuse a binding;\n+new tasks must not be silently aliased by model name or similar content.",
+            "url": "https://github.com/open-hax/foresight/pull/144#discussion_r4355476229",
+            "createdAt": "2026-10-23T02:19:07Z",
+            "updatedAt": "2026-10-23T02:19:07Z",
+            "commit": {
+              "oid": "f3491a43399b35d9fab4e9695d32fc5b08096436"
+            },
+            "originalCommit": {
+              "oid": "eeae0b77ba79b9ae024b9e398c0fc74f31daa7a0"
+            },
+            "pullRequestReview": {
+              "id": "PRR_kwDOT3TWPM8AAAABTyrBHw",
+              "databaseId": 5623169311,
+              "state": "COMMENTED",
+              "body": "",
+              "updatedAt": "2026-10-23T02:19:07Z",
+              "commit": {
+                "oid": "af114f393049dfb1c931fd00d57283a9ca3f0a21"
+              },
+              "author": {
+                "login": "coderabbitai",
+                "__typename": "Bot",
+                "id": "BOT_kgDOCCSy2w",
+                "databaseId": 136622811
+              }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

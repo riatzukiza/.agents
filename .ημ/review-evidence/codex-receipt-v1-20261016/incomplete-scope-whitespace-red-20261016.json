@@ -1,0 +1,53 @@
+{
+  "tier": "Observed causal registered RED, not approval/merge/adoption",
+  "observedAt": "2026-10-16T07:26:41.816568+00:00",
+  "againstHead": "9c530fedff89f6c54245e4d4ab31742704891b28",
+  "nativeReview": 5544234437,
+  "nativeRoot": 4291863831,
+  "request": 6210091850,
+  "completedReply": 6210093618,
+  "actualResults": {
+    "law": {
+      "tests": 189,
+      "assertions": 5001,
+      "failures": 12,
+      "errors": 0,
+      "exit": 1
+    },
+    "policy": {
+      "tests": 67,
+      "assertions": 1714,
+      "failures": 16,
+      "errors": 0,
+      "exit": 1
+    },
+    "portable": {
+      "tests": 4,
+      "assertions": 29,
+      "failures": 4,
+      "errors": 0,
+      "exit": 1
+    }
+  },
+  "attribution": "All failures new causal cases; all prior assertions and positive/exclusion/artifact controls pass. New CLI cases registered and linted, not executed RED.",
+  "productionByteEqual9c": [
+    "skills/pr-flow/scripts/pr_flow/law.cljc",
+    "skills/pr-flow/scripts/pr.cljs",
+    "skills/pr-flow/SKILL.md",
+    "skills/pr-flow/CONTRACT.edn"
+  ],
+  "testHashes": {
+    "skills/pr-flow/scripts/test_law.cljs": "b2df0fb069e681fd437f39196bdcdb67186599f836ac791056c673f13f225654",
+    "skills/pr-flow/scripts/test_policy.cljs": "85a1d84525ee682c746ed8e8dc3f1a54fcdb5da51a872aaddf8361e6873135ce",
+    "skills/pr-flow/scripts/test_cli.cljs": "349a2f6dfa391e2a81963c47dc577e73cc98fb60b15cbc3ea07000313efe7136",
+    "skills/pr-flow/scripts/test_babashka.clj": "7b65a54c6c2f04e555755d1330916d8e3c6e0c6f8bbaaeeab200d6fef9b217eb"
+  },
+  "node": "Process-only22.23.3",
+  "kondo": "0errors0warnings",
+  "diffCheckExit": 0,
+  "rawNativeFixtureSHA256": "b5e9927e862ff5c5d5d7dcbb662099e838755cefa9d3dfa1df1e9c96b7473eaf",
+  "handoffSHA256": "66c9e22d3d1a149622846349aae7e84b6f4ed4de66270ea057b1464a3108782a",
+  "nativeOperativePlan": "Qualified3ops0, unchangedInProgress1; coordinator event244389Bprefix+1835Bactualappend",
+  "operatorPreparationFailure": "Initial Python bytes literal contained a Unicode heading, causing parse failure before any script action; following helperENOENT/staging/no-commit failures appended or staged nothing. Corrected operator preparation is not production verification.",
+  "limits": "Old9c MiMo approval and policySUCCESS remain dated; no newhead qualification or operational adoption."
+}

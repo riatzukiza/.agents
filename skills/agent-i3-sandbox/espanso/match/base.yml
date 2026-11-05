@@ -1,0 +1,8 @@
+matches:
+  - trigger: ":sandbox-ascii"
+    replace: "sandbox-ascii-expanded"
+  - trigger: ":sandbox-unicode"
+    replace: "μ⟲"
+  - trigger: ":sandbox-keys"
+    replace: "μ⟲"
+    force_mode: keys

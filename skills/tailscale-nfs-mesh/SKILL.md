@@ -18,7 +18,7 @@ Automates provisioning new machines into the workspace's Tailscale + NFS mesh ne
 
 - Machines are already provisioned (check `tailscale status` first)
 - You only need Tailscale without NFS (just run `tailscale up` manually)
-- You only need Cloudflare Tunnels without NFS (use `cloudflare-tunnel-ops` skill)
+- You only need Cloudflare Tunnels without NFS (use `cloudflare-tunnel-skills` skill)
 
 ## Inputs
 

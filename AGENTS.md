@@ -9,11 +9,13 @@ These instructions apply to the entire repository.
 1. Obey the active harness and user instructions.
 2. Read [`PRINCIPLE.edn`](PRINCIPLE.edn) before substantive work in this repository.
 3. Read this file completely.
-4. Inspect `.ημ/receipts.edn` before major decisions when it exists.
+4. Inspect a bounded recent window of the adopted receipt ledger before major decisions when it exists. Use `skills/receipt-river/SKILL.md` to detect legacy or segmented mode; in segmented mode use its union-aware recovery order and preserve the frozen legacy file. Include relevant immutable run evidence without claiming automatic ledger admission.
 5. Discover the smallest relevant set of skills under `skills/` and read their `SKILL.md` files before acting.
 6. Read a skill's `CONTRACT.edn` when changing its activation, governance, scoring, or non-override behavior.
 
 Do not load the entire skill corpus by default. Prefer targeted discovery from task language, referenced files, and explicit skill invocations.
+
+For OpenHAX Services operations, follow the Services repository’s current instructions, deployment definitions, workflows, and live runtime evidence.
 
 ## Core skills
 
@@ -25,8 +27,13 @@ The following skills are part of the repository's operating substrate:
 - `grok-intention` — use when intent is dense, symbolic, compressed, or recoverable from repository context.
 - `sing-the-songs-of-your-people` — use for truthful corpus-native synthesis, not decorative mystification.
 - `skill-authoring` — use when creating or materially revising a reusable skill.
+- [`pr-flow`](skills/pr-flow/SKILL.md) — read for every PR interaction; the canonical skill pack owns review and authorized merge policy. Global harness instructions should point here rather than copy its policy.
 
 Explicit invocation wins. Otherwise activate skills only when their gates match.
+
+For i3, Emacs/Spacemacs, or Espanso desktop configuration tests, use
+`skills/agent-i3-sandbox/SKILL.md`. Run synthetic input in its isolated Xvfb
+container, and verify the target window before every injected key.
 
 ## Repository invariants
 
@@ -38,6 +45,21 @@ Explicit invocation wins. Otherwise activate skills only when their gates match.
 - Prefer harness-neutral instructions. Put harness-specific assumptions in clearly named compatibility sections or adapters.
 - Do not silently rewrite imported third-party skills as if they were native.
 - Never commit secrets, tokens, authorization headers, private keys, session cookies, or private user data.
+
+## Rheos board authority and Markdown input
+
+Rheos is the sole operational authority for board status, frontmatter,
+comments, transitions and event history. Do not introduce another parser,
+validator, migration script or board-state command surface. Use Rheos CLI,
+API, MCP or UI for those operations; missing behavior is an upstream gap.
+
+Cards may be created and edited manually as Markdown. Hand-authored outcomes,
+scope, non-goals, acceptance criteria and verification are first-class Rheos
+input and are reviewed as diffs. This permission does not authorize manual
+status transitions or fabricated ledger events. Keep comma-separated scalar
+labels for parser compatibility, explicit UUID identity, and omit empty
+dependency fields. Preserve existing board state and append-only event history.
+Never use administrator bypass to replace required review or CI evidence.
 
 ## Skill changes
 
@@ -54,7 +76,15 @@ When adding or materially revising a skill:
 
 ## Receipt River
 
-For non-trivial work, maintain `.ημ/receipts.edn` as an append-only ledger.
+For non-trivial work, follow the repository's adopted Receipt River mode.
+In legacy mode, one designated coordinator owns append-only writes to
+`.ημ/receipts.edn`. In segmented mode, use the adopted per-writer segment and
+union-read contract; never append to a legacy file frozen by cutover. Do not
+infer segmented-mode adoption from a source proposal or the presence of a run
+directory. Preserve the cutover and recovery rules from the Receipt River
+skill when integrating the segmented-ledger change.
+
+Native concurrent agents retain proportionate source, test and handoff evidence; use immutable run records when required or selected. Only an observed writer/admission result establishes canonical ledger or Clio ingestion. Workers must not race to rewrite a shared ledger.
 
 - Never modify or delete prior receipt lines.
 - Append an observation near the start.
@@ -72,7 +102,7 @@ After substantive work:
 
 1. Read the relevant receipt tail.
 2. Score efficiency, friction, and skill-candidate probability.
-3. Append one entry to `.ημ/session-mycology/ledger.edn`.
+3. Give the coordinator one entry for `.ημ/session-mycology/ledger.edn`. Concurrent workers retain separate immutable run notes; serialize aggregate publication and preserve original notes.
 4. Create at most one spore in `.ημ/session-mycology/spores/` when `p-skill-candidate >= 0.7` and the pattern generalizes.
 5. Never promote a spore in the same session that created it.
 
@@ -80,6 +110,9 @@ Promotions must preserve provenance and be reviewed before becoming a production
 
 ## Git and concurrent work
 
+- For native agent swarms, use the native profile in `skills/pr-flow/native-swarm.md` and `skills/ultra-code/SKILL.md`. Discover the active harness's capabilities; prefer its own spawn, background completion and wait mechanisms.
+- Independent PRs and packets may run concurrently. Assign one coordinator per PR or dependent stack and one writer per branch or shared resource. Review the integrated result proportionately in a fresh context when available. Use a skeptic only when risk or a disputed finding warrants one, and honor UltraCode’s task-wide repair limit.
+- Hosted-provider round counts and provider-specific child-skill instructions apply only when that compatibility profile is selected. Required GitHub checks/approvals, current-revision evidence, findings settlement and merge authorization still apply.
 - Assume shared or concurrent work unless exclusivity is explicit.
 - Use a branch and pull request for repository-wide governance changes.
 - Never destroy unrelated work with repo-wide reset, restore, clean, or blanket staging.
