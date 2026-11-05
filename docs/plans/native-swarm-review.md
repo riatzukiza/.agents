@@ -1,5 +1,7 @@
 # Native swarm review: outcome and acceptance
 
+**Historical proposal:** The 2026-11-05 local-first clarification supersedes this plan's mandatory reviewer/skeptic roster and strict evidence requirements. The current `ultra-code` skill and native PR profile define the bounded default; the strict validator remains optional unless explicitly required.
+
 As a coordinator of concurrent agent work, use the active harness's native subagents for implementation, independent review and skeptical verification, so useful work can proceed without an external runner or a fixed hosted-provider queue.
 
 The user requested this change on 2026-11-03. The audit found explicit external-runner assumptions in UltraCode, repeated provider-round policy in pr-flow, and divergent device catalogs. This source change adds a native profile and preserves the existing hosted-provider implementation as compatibility behavior.
