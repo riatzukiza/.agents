@@ -1,6 +1,15 @@
 (skill-contract
   (name "pr-flow")
-  (v "ημ.skill/pr-flow@0.3.10")
+  (v "ημ.skill/pr-flow@0.4.0")
+
+  (execution-profile
+    (default :native-swarm-when-capable)
+    (native "native-swarm.md and configs/native-swarm.edn; dispatch and evidence via ultra-code")
+    (legacy "flow.edn and scripts/pr.cljs remain hosted-provider mechanics; no native receipt ingestion")
+    (scope "Provider-specific invariants below govern the explicit legacy profile. Both profiles preserve real required GitHub checks/reviews, findings settlement, exact revision binding and merge authorization.")
+    (parallelism "Independent ready PRs and packets may run concurrently; one coordinator per PR or dependent stack and one writer per branch/resource.")
+    (native-convergence "Use proportionate combined-tree review and checks, with a task-wide bounded repair exit; report unresolved findings rather than looping or claiming completion. Actual GitHub requirements still apply.")
+    (native-identity "Separate contexts establish local review roles, not separate GitHub principals or synthetic Bot approval."))
 
   ;; Semantic assessment retains native custody and supplies scoped settlement only.
   (intent

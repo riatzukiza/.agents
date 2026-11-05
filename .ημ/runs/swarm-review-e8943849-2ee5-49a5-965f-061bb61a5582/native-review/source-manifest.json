@@ -1,0 +1,108 @@
+{
+  "scope": "installed UltraCode candidate, all files",
+  "root": "/root/.codex/skills/remote-skills/skill-6aea161798ec81918b9bd4f6e3417792",
+  "baseline": "29f4a990e11a9de1282e6d50419be05e6cde5e31",
+  "write_control": "read-only role instructions with shared filesystem permissions; verify source manifest unchanged",
+  "files": [
+    {
+      "path": "CONTRACT.edn",
+      "sha256": "7b09e5be8428f8832ea2a57c2fb52262dc25c311f97627d270c2be1dc2ecc962"
+    },
+    {
+      "path": "SKILL.md",
+      "sha256": "50d5d92d699dc84806ccccda957020a1ca892be4bb0e3b31246a88c3300739a7"
+    },
+    {
+      "path": "agents/openai.yaml",
+      "sha256": "a244b2993c1c15d624e30163c33c11450c616ca5389eb895a0eec7a9ee323c03"
+    },
+    {
+      "path": "agents/ultra-implementer.md",
+      "sha256": "649dc74956d114ba4dfbedf645e7d8c76480ed51402e0e3ae7015b349f5d638f"
+    },
+    {
+      "path": "agents/ultra-reviewer.md",
+      "sha256": "3469f98b93212d4c19412fab53437f356ecda1b3c6fa059869b8f3e3fead9eb7"
+    },
+    {
+      "path": "agents/ultra-skeptic.md",
+      "sha256": "51bbb47d9766605cbcf712eae6eee4df5834da142b5fbbd513a4f0b09617d877"
+    },
+    {
+      "path": "assets/icon.svg",
+      "sha256": "8936b24f674a1250d999e2c2b5901374fb4240426f32bd1ae340c352a90d617d"
+    },
+    {
+      "path": "canonical/upstream-skill.md",
+      "sha256": "344a363f91ea8818973f6c8d193bc4b135e2adbba9264c3a0ed4aab97cadf07b"
+    },
+    {
+      "path": "configs/native.edn",
+      "sha256": "64f30747ccb29b28803384f4e9ebe09ca7482e6fee43f816b3ca17a35c6c43c8"
+    },
+    {
+      "path": "configs/qualification.edn",
+      "sha256": "806137d9338652a02eb498d916e35895e8676c4b882e1170e99fa0b3a9cf2783"
+    },
+    {
+      "path": "references/INSTRUCTIONS.md",
+      "sha256": "d64efeef311baffe0192383622ebcf23b4f0d9e88fe79ac12bcc63ccc64bddde"
+    },
+    {
+      "path": "references/harness-adapters.md",
+      "sha256": "37ab4b890164a1cf623ea3ac105e037318ac14586bd005c935adb3549649e253"
+    },
+    {
+      "path": "references/legacy-qualification.md",
+      "sha256": "d2d6bb530a089e43d3b997a22a66cbaf84d138a0f1b5bf27b9087d0919e40a19"
+    },
+    {
+      "path": "references/native-implementer.md",
+      "sha256": "810026fc7ea79d98ac85b894e18a481f1be769f7596c1ea174b80cf653ec9c3c"
+    },
+    {
+      "path": "references/native-reviewer.md",
+      "sha256": "2b9833a9b86ad8a18441cbfbf6f6312f4cef176cef7a7f8b7349a601540ff814"
+    },
+    {
+      "path": "references/native-schema.md",
+      "sha256": "17fd4458e87861363ebfbd68c93e54c7042d7be4f82fccf6e3a79f3835121ca5"
+    },
+    {
+      "path": "references/native-skeptic.md",
+      "sha256": "f7a1bf34f489ec7195163e73343db96fe11e6f9cc5246591bc3e0489bf48575a"
+    },
+    {
+      "path": "scripts/native.cljs",
+      "sha256": "ff5cc956acdc277d8b7f81aac21f8b9b71ef5a0c86becce18ea0bb9ba0ea3fbf"
+    },
+    {
+      "path": "scripts/ultra.bb",
+      "sha256": "9a50f3c9f7f1aa7b211ebcb9b69c33f7360af85e912555e2ec0cceb5d24c8f0b"
+    },
+    {
+      "path": "src/ultra_code/native.cljc",
+      "sha256": "12c5de3fba1d7749cf6da24d9c219d95b85e8b4316fb1e78c441f4140c0e3997"
+    },
+    {
+      "path": "tests/fixtures/plan.edn",
+      "sha256": "7d21f3eb55bcf2b2e2233fc687ced7f47728b72554f5a9c98198585677aec17b"
+    },
+    {
+      "path": "tests/fixtures/receipts.edn",
+      "sha256": "34e8af96ab2828a1f14bea553ac9a4c0a3363acc7781d7a16bbdfcb4ab7e38c0"
+    },
+    {
+      "path": "tests/native_test.cljs",
+      "sha256": "41ac42e90278c6faa79a34bb256fe9b94554e9d2d75d5491ae2b35b13ac382d8"
+    },
+    {
+      "path": "tests/source-integrity.js",
+      "sha256": "6692af3f750c5bc1daefb375f5e15cb653cbac8c63eba52d9fe2aae27371fe49"
+    },
+    {
+      "path": "workflows/template-review.edn",
+      "sha256": "55b5771fcfb16c4c0a97e24988ee537004a937177b65bd1ab10c7bfde9c1efa3"
+    }
+  ]
+}
