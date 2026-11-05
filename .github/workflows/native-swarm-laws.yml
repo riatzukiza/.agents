@@ -25,6 +25,9 @@ jobs:
       - name: Check preserved upstream assets
         working-directory: skills/ultra-code
         run: node tests/source-integrity.js
+      - name: Check local workflow guidance
+        working-directory: skills/ultra-code
+        run: node --test tests/guidance.test.js
       - name: Test native evidence decisions and file boundaries
         working-directory: skills/ultra-code
         run: npm exec --yes --package=nbb@1.4.208 -- nbb -cp src:tests tests/native_test.cljs

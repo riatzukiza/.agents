@@ -8,7 +8,7 @@
     (legacy "flow.edn and scripts/pr.cljs remain hosted-provider mechanics; no native receipt ingestion")
     (scope "Provider-specific invariants below govern the explicit legacy profile. Both profiles preserve real required GitHub checks/reviews, findings settlement, exact revision binding and merge authorization.")
     (parallelism "Independent ready PRs and packets may run concurrently; one coordinator per PR or dependent stack and one writer per branch/resource.")
-    (native-convergence "Complete declared fresh-context reviewer/skeptic coverage, successful deterministic gates and resolved findings; no fixed round count or provider roster.")
+    (native-convergence "Use proportionate combined-tree review and checks, with a task-wide bounded repair exit; report unresolved findings rather than looping or claiming completion. Actual GitHub requirements still apply.")
     (native-identity "Separate contexts establish local review roles, not separate GitHub principals or synthetic Bot approval."))
 
   ;; Semantic assessment retains native custody and supplies scoped settlement only.

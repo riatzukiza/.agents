@@ -84,10 +84,7 @@ infer segmented-mode adoption from a source proposal or the presence of a run
 directory. Preserve the cutover and recovery rules from the Receipt River
 skill when integrating the segmented-ledger change.
 
-Native concurrent agents retain immutable plans, source manifests, attempts,
-results and handoff records under `.ημ/runs/<run-id>/`. These are source evidence;
-only an observed writer/admission result establishes canonical ledger or Clio
-ingestion. Workers must not race to rewrite a shared ledger.
+Native concurrent agents retain proportionate source, test and handoff evidence; use immutable run records when required or selected. Only an observed writer/admission result establishes canonical ledger or Clio ingestion. Workers must not race to rewrite a shared ledger.
 
 - Never modify or delete prior receipt lines.
 - Append an observation near the start.
@@ -114,7 +111,7 @@ Promotions must preserve provenance and be reviewed before becoming a production
 ## Git and concurrent work
 
 - For native agent swarms, use the native profile in `skills/pr-flow/native-swarm.md` and `skills/ultra-code/SKILL.md`. Discover the active harness's capabilities; prefer its own spawn, background completion and wait mechanisms.
-- Independent PRs and packets may run concurrently. Assign one coordinator per PR or dependent stack and one writer per branch or shared resource. Review frozen candidates in fresh reviewer and skeptic contexts, then review the integrated result.
+- Independent PRs and packets may run concurrently. Assign one coordinator per PR or dependent stack and one writer per branch or shared resource. Review the integrated result proportionately in a fresh context when available. Use a skeptic only when risk or a disputed finding warrants one, and honor UltraCode’s task-wide repair limit.
 - Hosted-provider round counts and provider-specific child-skill instructions apply only when that compatibility profile is selected. Required GitHub checks/approvals, current-revision evidence, findings settlement and merge authorization still apply.
 - Assume shared or concurrent work unless exclusivity is explicit.
 - Use a branch and pull request for repository-wide governance changes.

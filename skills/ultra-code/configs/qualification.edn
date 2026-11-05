@@ -1,5 +1,6 @@
 {:qualification/version 2
- :native {:validator "scripts/native.cljs"
+ :native {:use :optional-strict-profile
+          :validator "scripts/native.cljs"
           :scope :supplied-plan-and-receipts
           :clean-requires [:complete-expected-jobs :successful-gates
                            :current-input-bindings :independent-context-observations

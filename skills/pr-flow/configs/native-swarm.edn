@@ -8,12 +8,12 @@
  :ownership/coordinator :per-pr-or-dependent-stack
  :ownership/writer :per-branch-or-shared-resource
  :parallelism :independent-ready-jobs
- :review/roles [:reviewer :skeptic]
- :review/context :fresh
+ :review/roles [:reviewer :optional-skeptic]
+ :review/context :fresh-when-available
  :review/fixed-minimum-rounds nil
  :review/required-coverage :all-declared-jobs-and-findings
- :review/repair-boundary :new-immutable-input
- :integration/review :final-combined-snapshot
+ :review/repair-boundary :two-passes-total-across-replanning-then-report
+ :integration/review :proportionate-combined-tree-review
  :github/requirements :actual-required-checks-and-approvals
  :github/local-context-is-principal false
  :merge/authorization :separate-user-scope

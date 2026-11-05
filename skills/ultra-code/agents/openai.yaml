@@ -1,4 +1,4 @@
 interface:
   display_name: "UltraCode"
-  short_description: "Parallel agents with independent review and evidence"
-  default_prompt: "Use $ultra-code to coordinate native agents, independent reviews and verification for this change."
+  short_description: "Local execution with bounded review"
+  default_prompt: "Use $ultra-code to execute locally, directly or with native agents, with bounded review and verification for this change."

@@ -1,6 +1,6 @@
 ---
 name: pr-flow
-description: "Route PR work through native parallel implementation and independent reviewer/skeptic contexts when the harness supports them. Preserve exact-revision evidence, finding settlement, required GitHub checks and authorized merge. Retain the hosted-provider CLI as an explicit compatibility profile."
+description: "Route PR work through local direct or native parallel implementation and proportionate review when the harness supports them. Preserve exact-revision evidence, finding settlement, required GitHub checks and authorized merge. Retain the hosted-provider CLI as an explicit compatibility profile."
 license: GPL-3.0-or-later
 ---
 
@@ -12,8 +12,8 @@ Provenance and maturity are retained in [configs/provenance.edn](configs/provena
 
 The user's 2026-11-03 direction makes native harness subagents the preferred
 execution path. Read [native swarm review](native-swarm.md), then use
-`ultra-code` for immutable plans, bounded parallel dispatch, fresh reviewer and
-skeptic contexts, repair and final integration review. The profile is recorded
+`ultra-code` for local execution, bounded parallel dispatch, proportionate
+review and a task-wide repair limit. The profile is recorded
 in [configs/native-swarm.edn](configs/native-swarm.edn).
 
 Independent PRs run concurrently. One coordinator owns each PR or dependent
