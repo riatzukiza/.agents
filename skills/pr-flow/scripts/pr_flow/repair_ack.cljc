@@ -1,7 +1,7 @@
 ;; SPDX-License-Identifier: GPL-3.0-or-later
 (ns pr-flow.repair-ack
   "Bounded independent verification of an author repair statement. No I/O."
-  (:require [clojure.string :as str]))
+  (:require [clojure.string :as str] [pr-flow.inventory :as inv]))
 
 (defn- text? [x] (and (string? x) (not (str/blank? x))))
 (defn- id? [x] (and (integer? x) (pos? x)))
@@ -77,7 +77,7 @@
         prefix (butlast nodes) a (:author pr) b (:author assessment)
         head (:head t) r (:pullRequestReview assessment)
         url-prefix (str "https://github.com/" (:nameWithOwner repository) "/pull/" (:number pr) "#discussion_r")
-        lines (str/split (or (assessment-text (:body assessment) (= "coderabbit" (reviewer b)) (:login a)) "") #"\n" -1)
+        lines (str/split (or (assessment-text (:body assessment) (inv/has? (reviewer b) :generated-reply-suffix) (:login a)) "") #"\n" -1)
         [header finding verified reason evidence] lines
         valid-node? (fn [c]
                       (let [review (:pullRequestReview c)]
