@@ -25,6 +25,7 @@ The following skills are part of the repository's operating substrate:
 - `grok-intention` — use when intent is dense, symbolic, compressed, or recoverable from repository context.
 - `sing-the-songs-of-your-people` — use for truthful corpus-native synthesis, not decorative mystification.
 - `skill-authoring` — use when creating or materially revising a reusable skill.
+- [`pr-flow`](skills/pr-flow/SKILL.md) — read for every PR interaction; the canonical skill pack owns review and authorized merge policy. Global harness instructions should point here rather than copy its policy.
 
 Explicit invocation wins. Otherwise activate skills only when their gates match.
 
@@ -72,7 +73,7 @@ After substantive work:
 
 1. Read the relevant receipt tail.
 2. Score efficiency, friction, and skill-candidate probability.
-3. Append one entry to `.ημ/session-mycology/ledger.md`.
+3. Append one entry to `.ημ/session-mycology/ledger.edn`.
 4. Create at most one spore in `.ημ/session-mycology/spores/` when `p-skill-candidate >= 0.7` and the pattern generalizes.
 5. Never promote a spore in the same session that created it.
 
@@ -116,10 +117,11 @@ This repository is a home-superproject submodule: it is checked out at `~/.agent
 
 ## Promethean nested-host operations
 
-Use `promethean-rest-dns` for nested DNS and TLS provisioning, and
-`promethean-host-runtime-inventory` to verify the full hostname, certificate,
-route type, and live upstream. Knoxx is an allowed target; its placeholder
-routes are not application deployments. Preserve existing runtime placement
-using `promethean-host-slotting` and `promethean-service-deploy`.
+For OpenHAX Services operations, follow the Services repository's current
+instructions, deployment definitions, workflows, and live runtime evidence.
+Treat placeholders as distinct from application deployments and preserve
+existing runtime placement and unrelated services.
 
-Use `pr-promotion-workflows` with these skills for testing-label leases, main-to-staging merges and evidence-gated production. Device environments use `<env>.<service>.promethean.rest`; inventory private transports and verify a fresh recipient login after any authorized source identity-service shutdown.
+## Harness SSH attribution
+
+Use [agent-ssh-identity](skills/agent-ssh-identity/SKILL.md) before harness SSH work on knoxx.promethean.rest; read the matching contexts document and verify loginuid before mutation.
