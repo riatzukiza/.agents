@@ -1,68 +1,45 @@
 ---
 name: pr-promotion-workflows
-description: Set up PR-based branch promotion workflows with tiered CI gates, staging/main deploy hooks, and explicit GitHub branch-protection follow-through.
-license: GPL-3.0
-compatibility:
-  - opencode
-  - codex
+description: Implement code-owner testing-label leases, successful main merges to staging, and integration/e2e/mutation-qualified production promotion.
+license: GPL-3.0-or-later
 ---
 
-# Skill: PR Promotion Workflows
+# PR Promotion Workflows
 
-## Goal
-Create or revise a `PR -> staging -> PR -> main` style promotion pipeline with honest gate tiers and deploy hooks.
+## Use this skill when
+Creating or revising PR environment admission and production qualification.
 
-## Use This Skill When
-- A repo needs branch promotion instead of direct-to-main merges.
-- The user wants lighter checks for `staging` and heavier checks for `main`.
-- You need to add deploy-on-push hooks for staging and production branches.
-- You need a reusable pattern for new repos, not a one-off CI tweak.
+## Do not use when
+The task only runs an already-correct pipeline unchanged or only provisions DNS.
 
-## Do Not Use This Skill When
-- The repo only needs a single-branch CI workflow.
-- There is no agreed branch model yet.
-- The repo has no meaningful test surface and the task is just to copy generic YAML blindly.
+## Environment contract
+- Public names are `<env>.<service-name>.promethean.rest`; use lowercase hyphenated service names.
+- Environments: `stealth`, `yoga`, `testing`, `staging`, `production`. Preserve existing production aliases such as `knoxx.promethean.rest` until explicitly migrated.
+- Stealth is this device (`err-Stealth-16-AI-Studio-A1VGG`, observed LAN `192.168.12.128`). Yoga is `err@192.168.12.68` (`err-Yoga-7-16ARP8`). Recheck addresses and hostname before mutation.
+- The public Knoxx ingress is `err@knoxx.promethean.rest`, IPv4 `157.245.125.134`. A service hostname is an application route, not an SSH target.
+- A code owner can claim testing by applying `testing` to an open PR targeting `main`. Read the latest label-event timestamp, not `updated_at`. Any other open testing label aged two hours or less blocks it; older claims expire. Reapplying a label resets its lease.
+- Read CODEOWNERS from main and verify the label actor. Missing CODEOWNERS refuses admission; the initial app files name the existing repository admins. Never trust owner changes in the candidate PR.
+- Repeat admission inside a serialized per-service testing deployment slot immediately before deployment, and require the built commit to equal the admitted head. A denied PR needs a fresh label event after the blocker expires.
+- A successful PR merge into `main` deploys its exact merge commit to staging. Main does not deploy production.
+- Production requires the same immutable revision to pass integration, e2e, and four disjoint mutation batches with at least 250 evaluated mutations each. A failing baseline, no tests, compilation failure, timeout, survivor, duplicate mutation, or stale evidence rejects promotion.
+- Build PR code on ephemeral runners with no deployment credentials. Deployment controllers come from trusted, pinned Services code; deployment credentials enter only a fresh deployment job. Do not run candidate scripts in privileged pull_request_target jobs.
+- Distinguish policy authored, workflow merged, GitHub environment configured, event exercised, and live deployment verified. A draft workflow is not an active gate.
 
-## Inputs
-- Repo branch model (`staging`, `main`, or equivalents).
-- Real test/build surface: typechecks, unit tests, integration tests, E2E tests, lint, packaging.
-- Deploy targets, secrets, and environment-variable conventions.
-- Existing workflows under `.github/workflows/`.
+## Procedure
+1. Inspect existing workflows, branch rules and environment protection. Remove active main-to-production and staging-branch assumptions when implementing this policy; do not leave a manual bypass around qualification.
+2. Fetch paginated current PRs, label timeline events, changed files and trusted ownership rules. Fail closed on missing timestamps, ambiguous ownership, changed heads or unavailable evidence.
+3. Keep validation and host mutation separate. Per-service testing concurrency covers the final lease recheck and complete deploy, not unrelated no-op events.
+4. Run production qualification in independent ephemeral jobs. Establish a passing baseline in each mutation batch, partition stable mutation fingerprints, require hundreds per batch and aggregate all four against one SHA.
+5. Required checks must run nonempty relevant suites and inspect actual failure counters. Do not use allow-failure, skipped jobs, planned mutation manifests, or compile errors as passing proof.
+6. Validate workflow syntax and admission race/expiry cases. Exercise actual events only after the reviewed workflow is on the authoritative branch and destination environments are configured.
+7. Record protected-environment requirements and pinned controller version. Report configuration and observed enforcement separately.
 
-## Steps
-1. Inventory the repo's actual checks.
-   - Separate cheap checks from expensive/environment checks.
-   - Do not call something E2E unless it really exercises the integrated system.
-2. Define the promotion contract.
-   - PRs into `staging`: typechecks + unit tests only.
-   - PRs into `main`: lint + full suite + integration/E2E + packaging/schema/build checks.
-   - Push to `staging`: deploy staging.
-   - Push to `main`: deploy production.
-3. Encode branch-specific GitHub Actions workflows.
-   - Use separate workflow names/check names for `staging` and `main` PR gates.
-   - Add a guard if `main` PRs must come specifically from `staging`.
-4. Parameterize deployment honestly.
-   - Keep production/staging host, user, and deploy path in repo/environment vars and secrets when possible.
-   - Fail early with a clear message when required secrets/vars are missing.
-5. Preserve a post-merge smoke path.
-   - Optionally keep a push-based smoke workflow for merged branches, but do not rely on it as the PR gate.
-6. Document the GitHub-settings follow-through.
-   - Required status checks.
-   - Protected branches.
-   - Environment approvals/secrets.
-   - Any source-branch restriction (`staging` -> `main`).
-7. Verify locally.
-   - Run the exact commands used by the workflows.
-   - Parse workflow YAML to catch syntax errors.
+## Installed environment runtime (2026-09-13)
 
-## Output
-- Branch-specific PR workflows for `staging` and `main`.
-- Deploy workflows for `staging` and `main` push events.
-- A short note stating what still must be configured in GitHub settings.
-
-## Checklist
-- `staging` PR checks are lightweight and fast.
-- `main` PR checks are the real full gate.
-- Deployment is triggered by branch pushes, not PR open events.
-- Required secrets/vars are validated explicitly.
-- Branch protection/settings gaps are called out, not hand-waved.
+- Stealth is `192.168.12.128`; Yoga is `192.168.12.68`. Both have isolated Axxium and Knoxx compose projects under `~/.local/share/promethean/services/`. Stealth Tailscale is logged out; use LAN SSH where applicable.
+- Knoxx ingress owns public TLS. Host applications reach its private relays through user-systemd SSH forwards. `testing` and `staging` slots live at `/srv/open-hax/environments/<env>/<service>`; their separate forced-command keys accept only admitted image archives.
+- The source-controlled controller is in `open-hax/services`; app callers activate after review and merge to main. A configured hostname with a 503 placeholder is not a deployed application.
+- For a new service, add a reviewed build recipe, fixed compose template, restricted receiver slot and health probe before connecting its DNS/TLS route. Never let PR code supply the host compose file or deployment script.
+- Local translation requires an explicitly configured model provider and embedding model/dimensions. Yoga's verified provider is local Ollama: `gemma4:e4b`, with `nomic-embed-text:latest` embeddings at 768 dimensions. Background event runtimes can remain disabled while manual publication translation dispatch runs.
+- CMS now uses `/api/cms/documents`, organization-scoped local content and generated publication resources. New documents enter review; publication intent is separate from the immutable translated candidate and its review history. Do not route CMS document saves through the retired ingestion proxy.
+- Identity-offline proof stops only the source Axxium application container, then uses a fresh recipient login and actual browser content/review/translation actions. Record whether the source was restored; it is intentionally stopped for the current acceptance run.

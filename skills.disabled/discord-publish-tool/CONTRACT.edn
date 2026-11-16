@@ -1,0 +1,14 @@
+{:name "discord-publish-tool"
+ :description "Post messages and images to Discord channels using the discord tool"
+ :version 1
+ :domain :social
+ :platform :discord
+ :requires-env ["OPENHAX_DISCORD_TOKEN" "DISCORD_BOT_TOKEN"]
+ :tools ["discord"]
+ :defaults {:channel-id "1444189585373663417"}
+ :exposes
+ {:triggers ["post to discord" "share on discord" "discord channel"]
+  :actions {:send {:tool "discord" :action "send"}
+            :send-image {:tool "discord" :action "send-image"}
+            :list-channels {:tool "discord" :action "list-channels"}
+            :list-guilds {:tool "discord" :action "list-guilds"}}}}

@@ -1,0 +1,16 @@
+(skill-contract
+  (name "submodule-monorepo-runtime-rehab")
+  (v "ημ.skill/submodule-monorepo-runtime-rehab@0.1.0")
+
+  (intent "Normalize newly-submoduled packages for runtime use by fixing relative tsconfig extends, workspace path assumptions, auth/env defaults, writable-temp assumptions, and storage collection collisions before compose startup.")
+
+  (activation
+    (priority 41)
+    (explicit ["skill:submodule-monorepo-runtime-rehab"])
+    (triggers ["submodule-monorepo-runtime-rehab" "submodule monorepo runtime rehab"]))
+
+  (governance
+    (touch-layer :mutable)
+    (non-override [:mission :directives :safety :license :output-shape])
+    (requires-user-approval false))
+)

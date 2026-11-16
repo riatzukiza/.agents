@@ -1,0 +1,40 @@
+#!/usr/bin/env bb
+;; Emit ssh_config mesh blocks for a device. Args: <device> [...flags]
+;; Flags: --no-knoxx  (omit knoxx-agent-* aliases; kept on stealth where the
+;;                    legacy knoxx transport keys must remain first-alias)
+;; Peer connections use the peer LAN address: Tailscale SSH intercepts port 22
+;; on 100.x addresses and replaces the OpenSSH session, so PAM never sets the
+;; audit loginuid (observed 4294967295). LAN addresses hit real sshd.
+(def harnesses ["codex" "grokbot" "opencode" "hermes" "pi" "eta-mu" "knoxx" "claude" "agy"])
+(def lan-ip {"stealth" "192.168.6.3" "yoga" "192.168.4.21"})
+(def peer (get {"stealth" "yoga" "yoga" "stealth"} (first *command-line-args*)))
+(def device (or (first *command-line-args*) (System/exit 1)))
+(def flags (into #{} (rest *command-line-args*)))
+(println "\n# BEGIN agent-identity-mesh generated 2026-10-26")
+#_(println (str "# Keys: per-source-device, ~/.ssh/agent-identities/" device "/<harness>."))
+(doseq [h harnesses]
+  (println (str "Host " device "-agent-" h))
+  (println "    HostName localhost")
+  (println (str "    User " h))
+  (println (str "    IdentityFile " (clojure.string/replace (str "~/.ssh/agent-identities/" device "/" h) #"/home/[^/]+/" "~")))
+  (println "    IdentitiesOnly yes")
+  (println "    ForwardAgent no")
+  (println "    StrictHostKeyChecking accept-new")
+  (println "")
+  (println (str "Host " peer "-agent-" h))
+  (println "    HostName " (lan-ip peer))
+  (println (str "    User " h))
+  (println (str "    IdentityFile " (clojure.string/replace (str "~/.ssh/agent-identities/" device "/" h) #"/home/[^/]+/" "~")))
+  (println "    IdentitiesOnly yes")
+  (println "    ForwardAgent no")
+  (println "    StrictHostKeyChecking accept-new")
+  (println "")
+  (when-not (contains? flags "--no-knoxx")
+    (println (str "Host knoxx-agent-" h))
+    (println "    HostName knoxx.promethean.rest")
+    (println (str "    User " h))
+    (println (str "    IdentityFile " (clojure.string/replace (str "~/.ssh/agent-identities/" device "/" h) #"/home/[^/]+/" "~")))
+    (println "    IdentitiesOnly yes")
+    (println "    ForwardAgent no")
+    (println "")))
+(println "# END agent-identity-mesh")

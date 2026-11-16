@@ -1,0 +1,16 @@
+(skill-contract
+  (name "cljs-js-factory-method-extraction")
+  (v "ημ.skill/cljs-js-factory-method-extraction@0.1.0")
+
+  (intent "Pattern for avoiding paren hell in CLJS #js{} factory functions: extract methods as separate defn- fns, use cond->/aset for conditional JS object keys, separate binding computation from #js literal construction")
+
+  (activation
+    (priority 41)
+    (explicit ["skill:cljs-js-factory-method-extraction"])
+    (triggers ["cljs-js-factory-method-extraction" "cljs js-factory-method-extraction"]))
+
+  (governance
+    (touch-layer :mutable)
+    (non-override [:mission :directives :safety :license :output-shape])
+    (requires-user-approval false))
+)

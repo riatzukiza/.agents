@@ -1,0 +1,16 @@
+(skill-contract
+  (name "cljs-promise-chain-paren-balancer")
+  (v "ημ.skill/cljs-promise-chain-paren-balancer@0.1.0")
+
+  (intent "Automated tool for verifying and fixing paren balance in CLJS files with deeply nested promise chains. Extract methods as separate defns, check each individually, then verify the full file has zero nested defns.")
+
+  (activation
+    (priority 41)
+    (explicit ["skill:cljs-promise-chain-paren-balancer"])
+    (triggers ["cljs-promise-chain-paren-balancer" "cljs promise-chain-paren-balancer"]))
+
+  (governance
+    (touch-layer :mutable)
+    (non-override [:mission :directives :safety :license :output-shape])
+    (requires-user-approval false))
+)

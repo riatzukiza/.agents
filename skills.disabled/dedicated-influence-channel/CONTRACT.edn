@@ -1,0 +1,29 @@
+(skill-contract
+  (name "dedicated-influence-channel")
+  (v "ημ.skill/dedicated-influence-channel@0.1.0")
+
+  (intent
+    "Safely extend an ECS influence system with a new conserved-quantity flow without violating single-writer or barrier invariants.")
+
+  (activation
+    (priority 70)
+    (explicit ["skill:dedicated-influence-channel"])
+    (triggers ["new influence channel" "ECS influence" "mass flux" "single-writer" "influence registry"]))
+
+  (governance
+    (touch-layer :mutable)
+    (non-override [:mission :directives :safety :license :output-shape])
+    (requires-user-approval false))
+
+  (effects
+    (writes true)
+    (network false)
+    (commits false))
+
+  (protocol
+    (workflow
+      ["Define a new component c/<flux-name> in the components namespace."
+       "Create one system that owns writes to that component; declare every :read and :write in the system registry."
+       "Register the component in the integrator influence-registry under the appropriate accumulate."
+       "Emit the influence only from its owner system."
+       "Add a test that exercises the new channel end-to-end and checks conservation."])))

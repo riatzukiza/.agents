@@ -1,0 +1,18 @@
+[Unit]
+Description=Project acknowledged Linux audit observations into OpenPlanner graph
+After=docker.service knoxx-audit-forwarder.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /usr/local/lib/knoxx-audit-forwarder/audit_graph_projector.py
+TimeoutStartSec=110
+UMask=0077
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ReadWritePaths=/var/lib/knoxx-audit-forwarder
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6

@@ -1,0 +1,37 @@
+[Unit]
+Description=Forward local Linux audit records to MongoDB Atlas (insert only)
+After=network-online.target auditd.service
+Wants=network-online.target
+Requires=auditd.service
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=audit-shipper
+Group=audit-shipper
+SupplementaryGroups=adm
+Environment=AUDIT_FORWARDER_CONFIG=/etc/audit-forwarder/config.json
+Environment=AUDIT_FORWARDER_STATE=/var/lib/audit-forwarder
+ExecStart=/usr/local/lib/audit-forwarder/venv/bin/python /usr/local/lib/audit-forwarder/audit_forwarder.py
+Restart=on-failure
+RestartSec=5
+StateDirectory=audit-forwarder
+StateDirectoryMode=0700
+UMask=0077
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+RestrictNamespaces=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+CapabilityBoundingSet=
+LockPersonality=yes
+ReadOnlyPaths=/var/log/audit /etc/audit-forwarder
+
+[Install]
+WantedBy=multi-user.target

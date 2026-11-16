@@ -1,0 +1,14 @@
+{:name "vision-proxy"
+ :description "Give vision capabilities to any model by analyzing images through vision-capable models via the Open Hax proxy."
+ :version "1.0.0"
+ :license "GPL-3.0-or-later"
+ :compatibility [:pi :opencode]
+ :extensions [{:name "vision-proxy"
+              :path "~/.pi/agent/extensions/vision-proxy.ts"}]
+ :triggers [{:pattern #"(?i)(image|screenshot|photo|picture|visual|see|look at|show me)"
+             :confidence 0.6}
+            {:pattern #"(?i)(ocr|extract text|read text)"
+             :confidence 0.9}
+            {:pattern #"(?i)(analyze|describe|what.*in.*image|what.*on.*screen)"
+             :confidence 0.7}]
+ :default-action "vision"}

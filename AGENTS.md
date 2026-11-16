@@ -15,7 +15,7 @@ These instructions apply to the entire repository.
 
 Do not load the entire skill corpus by default. Prefer targeted discovery from task language, referenced files, and explicit skill invocations.
 
-For OpenHAX Services operations, follow the Services repository’s current instructions, deployment definitions, workflows, and live runtime evidence.
+For OpenHAX Services operations, follow the Services repository’s current instructions, deployment definitions, workflows, and live runtime evidence. Treat placeholders as distinct from application deployments and preserve existing runtime placement and unrelated services.
 
 ## Core skills
 
@@ -102,7 +102,7 @@ After substantive work:
 
 1. Read the relevant receipt tail.
 2. Score efficiency, friction, and skill-candidate probability.
-3. Give the coordinator one entry for `.ημ/session-mycology/ledger.md`. Concurrent workers retain separate immutable run notes; serialize aggregate publication and preserve original notes.
+3. Give the coordinator one entry for `.ημ/session-mycology/ledger.edn` (the legacy `ledger.md` stays as append-only history). Concurrent workers retain separate immutable run notes; serialize aggregate publication and preserve original notes.
 4. Create at most one spore in `.ημ/session-mycology/spores/` when `p-skill-candidate >= 0.7` and the pattern generalizes.
 5. Never promote a spore in the same session that created it.
 
@@ -140,3 +140,13 @@ Report:
 - receipt and mycology artifacts added,
 - branch, commit, and pull-request references.
 
+## Device federation (device/stealth)
+
+This repository is a home-superproject submodule: it is checked out at `~/.agents` (relative path `.agents` from the superproject at `/home/err`), on branch `device/stealth`.
+
+- Because harnesses across the device discover skills directly from this path, an edit here propagates to every harness that reads `~/.agents/skills` — there is no staging layer between this checkout and live agent behavior.
+- The gitlink recorded in the `/home/err` superproject is advanced only with explicit commits; never amend or rewrite history on this branch.
+
+## Harness SSH attribution
+
+Use [agent-ssh-identity](skills/agent-ssh-identity/SKILL.md) before harness SSH work on knoxx.promethean.rest; read the matching contexts document and verify loginuid before mutation.

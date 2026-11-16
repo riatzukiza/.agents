@@ -1,0 +1,1 @@
+/home/err/.agents/skills/agent-skills-sync/SKILL.md

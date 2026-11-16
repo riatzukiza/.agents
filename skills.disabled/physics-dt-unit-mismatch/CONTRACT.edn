@@ -1,0 +1,30 @@
+(skill-contract
+  (name "physics-dt-unit-mismatch")
+  (v "ημ.skill/physics-dt-unit-mismatch@0.1.0")
+
+  (intent
+    "Diagnose unit or time-step mismatches in simulation physics that masquerade as missing features or broken algorithms.")
+
+  (activation
+    (priority 75)
+    (explicit ["skill:physics-dt-unit-mismatch"])
+    (triggers ["dt mismatch" "time step" "simulation stopped" "orders of magnitude off" "physics dt"]))
+
+  (governance
+    (touch-layer :mutable)
+    (non-override [:mission :directives :safety :license :output-shape])
+    (requires-user-approval false))
+
+  (effects
+    (writes true)
+    (network false)
+    (commits false))
+
+  (protocol
+    (workflow
+      ["Reproduce the symptom with a minimal headless sim or focused unit test."
+       "Grep all dt/time reads in the hot path."
+       "Compare each read against the active world key (:sim/dt, :genesis/dt, :tick-dt)."
+       "Verify units match the formula's expectation."
+       "Add a test asserting the correct dt and a known delta per tick."
+       "Run the full suite."])))

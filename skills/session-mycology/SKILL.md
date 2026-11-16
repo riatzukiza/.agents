@@ -36,18 +36,18 @@ The bb scripts and skill text assume a project root that contains either `.ημ/
 ## Spore files
 
 ### Ledger
-Append every sensed turn to `.ημ/session-mycology/ledger.md`:
+Append every sensed turn to `.ημ/session-mycology/ledger.edn` as a single-line EDN map:
 
-```markdown
-- ts: <ISO-8601>
-  session: <session-id or cwd>
-  task: <one-line summary>
-  p-efficiency: <0..1>
-  p-friction: <0..1>
-  p-skill-candidate: <0..1>
-  spore: <filename or none>
-  receipt-refs: <receipt line hashes or none>
-  note: <one-line reflection>
+```clojure
+{:ts "2026-11-03T11:40:00Z"
+ :session "/home/err/spaces/foresight"
+ :task "Commit, push, and open PRs for agy Gemini 3.8 Flash review workflow agents"
+ :p-efficiency 0.98
+ :p-friction 0.10
+ :p-skill-candidate 0.35
+ :spore nil
+ :receipt-refs ["eb4c8f42-95f7-4fb4-8e70-5500342079c4"]
+ :note "Successfully created isolated branches and opened PRs with zero working tree dirt."}
 ```
 
 ### Candidate spore
@@ -89,9 +89,10 @@ What should the next agent do differently?
 The skill ships with Babashka scripts in `scripts/`. They are harness-agnostic: run them from anywhere inside the project.
 
 - `sm-init.bb` — create `.ημ/session-mycology/` and `spores/`.
-- `sm-log.bb` — append a ledger entry.
+- `sm-log.bb` — append an EDN entry to `ledger.edn`.
 - `sm-spore.bb` — create a candidate spore file.
 - `sm-list.bb` — list recent ledger entries and/or spores.
+- `sm-migrate.bb` — migrate legacy `ledger.md` to `ledger.edn` with count verification.
 
 Examples:
 
@@ -112,6 +113,7 @@ Examples:
   --better-path "Ship bb scripts with each file-writing skill" \
   --candidate 0.8
 ~/.agents/skills/session-mycology/scripts/sm-list.bb --limit 10
+~/.agents/skills/session-mycology/scripts/sm-migrate.bb --dry-run
 ```
 
 ## Per-turn workflow
@@ -128,7 +130,7 @@ Examples:
 4. **Spore** the pattern.
    - If `p-skill-candidate >= 0.7` and the pattern generalizes, create a candidate spore file.
 5. **Log** the reflection.
-   - Append a line to `.ημ/session-mycology/ledger.md`.
+   - Append an EDN entry to `.ημ/session-mycology/ledger.edn`.
 
 ## Promotion path
 - Do not promote spores yourself during the same session that created them.
@@ -138,7 +140,9 @@ Examples:
 - The actor scans each project root for `.ημ/session-mycology/spores/`; it no longer relies on a global spores directory.
 
 ## Backward compatibility
-Older spores stored in the legacy global directory `~/.config/opencode/spores/` are still readable, but new spores should always be written to the project-local `.ημ/session-mycology/`.
+- `sm-list.bb` reads `.ημ/session-mycology/ledger.edn` when present, falling back gracefully to legacy `ledger.md`.
+- Run `sm-migrate.bb` to convert any existing `ledger.md` into `ledger.edn` with verification.
+- Older spores stored in the legacy global directory `~/.config/opencode/spores/` are still readable, but new spores should always be written to the project-local `.ημ/session-mycology/`.
 
 ## Operating rules
 - Keep the retrospective mostly silent.
@@ -147,7 +151,7 @@ Older spores stored in the legacy global directory `~/.config/opencode/spores/` 
 - Never log secrets.
 
 ## Output
-- One appended line in `.ημ/session-mycology/ledger.md`.
+- One appended EDN line in `.ημ/session-mycology/ledger.edn`.
 - Zero or one new candidate spore file in `.ημ/session-mycology/spores/`.
 - A short better-path note for the next similar task.
 

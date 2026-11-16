@@ -1,9 +1,9 @@
 (skill-contract
   (name "pr-promotion-workflows")
-  (v "ημ.skill/pr-promotion-workflows@0.1.0")
+  (v "ημ.skill/pr-promotion-workflows@0.2.0")
 
   (intent
-    "Set up PR-based branch promotion workflows with tiered CI gates, staging/main deploy hooks, and explicit GitHub branch-protection follow-through.")
+    "Set up PR-based branch promotion workflows with tiered CI gates, testing-label leases, main-to-staging deploy hooks, qualified production, and explicit GitHub branch-protection follow-through.")
 
   (activation
     (priority 68)

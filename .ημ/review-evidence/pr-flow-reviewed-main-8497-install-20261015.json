@@ -1,0 +1,57 @@
+{
+  "observedAt": "2026-10-15T12:57:57.064688+00:00",
+  "sourceMerge": "8497afdd329c3dcaefb78eec36d8e629a59d9eb2",
+  "sourceHead": "d0600f24d3262feeed0dfa21b0c1807dc09278de",
+  "nativeGate": "PASS,5checks/1availablecohort,CodeRabbit+MiMo; actual native Codex quota retained, no approval credit",
+  "mergeParentsAndTreeVerified": true,
+  "installedExactReviewedPaths": [
+    {
+      "path": "skills/pr-flow/CONTRACT.edn",
+      "installedSHA256": "43916c10aae38d79e830ea1f8ae65a662ad9d6082ac169f7938d05b50cb8584b",
+      "previousReviewedSHA256": "43916c10aae38d79e830ea1f8ae65a662ad9d6082ac169f7938d05b50cb8584b",
+      "newReviewedSHA256": "355b765892bd16830ba2b6bebd3b81c2789a730808c2479aeaa807ef4e726105"
+    },
+    {
+      "path": "skills/pr-flow/actionability.md",
+      "installedSHA256": "7d9a066c4310e4da9e2d769cabd600a614bed02060ee60bc9d07486156d08d08",
+      "previousReviewedSHA256": "7d9a066c4310e4da9e2d769cabd600a614bed02060ee60bc9d07486156d08d08",
+      "newReviewedSHA256": "18e6097dd65d4228dbb428bcd2a8a43e9981f53414657eacb76c99980ab16731"
+    },
+    {
+      "path": "skills/pr-flow/flow.edn",
+      "installedSHA256": "e5a97d47332982ce0421f7abf799d3ebdb6e24ef7a07b30ce852d2709fe72bf5",
+      "previousReviewedSHA256": "e5a97d47332982ce0421f7abf799d3ebdb6e24ef7a07b30ce852d2709fe72bf5",
+      "newReviewedSHA256": "7d67002ac44b2489e8749d24caeea4aa9351dadf2030bc1204b8a08a33822ab9"
+    },
+    {
+      "path": "skills/pr-flow/scripts/test_informational.cljs",
+      "installedSHA256": "22425d5c1c992b4294b690e682924d2a7a9c286e0226ebf8525fbc9880504af0",
+      "previousReviewedSHA256": "22425d5c1c992b4294b690e682924d2a7a9c286e0226ebf8525fbc9880504af0",
+      "newReviewedSHA256": "86be9d81a1988057b076f931498b1b7d856cafbff958872dac1f3cb47a23ffd2"
+    }
+  ],
+  "localTests": [
+    {
+      "script": "test_law.cljs",
+      "exit": 0
+    },
+    {
+      "script": "test_policy.cljs",
+      "exit": 0
+    },
+    {
+      "script": "test_cli.cljs",
+      "exit": 0
+    }
+  ],
+  "unrelatedModifiedFilesUnchanged": {
+    "AGENTS.md": "761e4f0215a8fe889ee14e2bfcc67c6373b7149270fa1ca2be0dccdc382f27a1",
+    "skills/harness-handoff/SKILL.md": "b425877008bb6abde6b03758005e1b413721554e30b43e16f605d93fb4040a41",
+    "skills/harness-handoff/scripts/handoff.bb": "21d49c5b48833120823eb88487557f64c3530c69e95e74583543ccc96c3b3a9d",
+    "skills/session-mycology/SKILL.md": "9ab246fe970a880b08c364f9c2266c990a536b6c8c9ea01499d77d55c56fe76d",
+    ".\u03b7\u03bc/receipts.edn": "6cb3d428104e2556d40a9092741bf540f29ede9020172ed0314f3525fc55d2f2",
+    ".\u03b7\u03bc/session-mycology/ledger.md": "e55615c1711ae8c1032a08c7f3b8197124617599202769d692164dad55c483ac"
+  },
+  "deviceHeadUnchanged": "1cb2d7d43c5d80c47676e33e4905e9c89b37ecf3",
+  "scope": "Exact Knoxx personal repository informational actionability enrollment only; no rate/quorum/withdrawal waiver or local classifier"
+}

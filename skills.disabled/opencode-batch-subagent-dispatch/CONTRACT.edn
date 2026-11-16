@@ -1,0 +1,16 @@
+(skill-contract
+  (name "opencode-batch-subagent-dispatch")
+  (v "ημ.skill/opencode-batch-subagent-dispatch@0.1.0")
+
+  (intent "Running opencode subagents as batch workers from babashka: mode:primary+hidden:true required for --agent CLI dispatch (subagent mode falls back silently); babashka.process must pass :in \"\" (stdin EOF or the CLI hangs) and read :out/:err from the derefed process map, not the proc handle; extract structured JSON from the --format json event stream last-text-part-first with a brace-substring fallback; model kimi-for-coding/k3 works when opencode/zen credits are absent.")
+
+  (activation
+    (priority 41)
+    (explicit ["skill:opencode-batch-subagent-dispatch"])
+    (triggers ["opencode-batch-subagent-dispatch" "opencode batch subagent dispatch"]))
+
+  (governance
+    (touch-layer :mutable)
+    (non-override [:mission :directives :safety :license :output-shape])
+    (requires-user-approval false))
+)

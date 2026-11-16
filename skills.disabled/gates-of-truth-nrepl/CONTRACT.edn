@@ -1,0 +1,54 @@
+;; gates-of-truth-nrepl CONTRACT
+;; Enables agents to connect to the live simulation via nREPL and interact with the ECS world.
+
+(contract "gates-of-truth-nrepl"
+  (version "1.0.0")
+  (description "Connect to Gates of Truth nREPL, inspect live Phase 0 simulation, interact with ECS world.")
+
+  (requires
+    (tool "bash" "pm2 status, clj REPL connection, stdin piping")
+    (tool "read" "source code inspection"))
+
+  (exposes
+    (skill-registry
+      (entry
+        (name "gates-of-truth-nrepl")
+        (priority 55)
+        (autoload false)
+        (description "Connect to the live Gates of Truth nREPL and interact with the stellar simulation."))))
+
+  (invariants
+    "Single substrate: ONE world model (domain.ecs.core). No parallel world types."
+    "Namespace law: domain/ is pure, infra/ handles IO, shape/ is math, law/ is schemas."
+    "Single renderer: infra.render is the only renderer."
+    "New physics = new ECS system + components on existing entities."
+    "No utils/ or helpers/ namespaces.")
+
+  (protocol
+    (phase "connect"
+      (step "Verify pm2 service is online")
+      (step "Connect via clj -M:repl -c -h 127.0.0.1 -p 7888")
+      (step "Require infra.dev.window and domain.phase0"))
+
+    (phase "inspect"
+      (step "Query :phase0/phase, :tick, :phase0/sim-time")
+      (step "Query observer coherence and decoherence state")
+      (step "Query regime distribution via frequencies")
+      (step "Query field-report for one-line HUD"))
+
+    (phase "mutate"
+      (step "reset! world to fresh (p/create-world) or with params")
+      (step "swap! world to modify observer focus/coherence")
+      (step "swap! world to toggle :phase0/adaptive-pacing?")
+      (step "swap! world with p/tick-world for manual stepping"))
+
+    (phase "verify"
+      (step "Re-query state after mutation")
+      (step "Check phase transitions fired correctly")))
+
+  (safety
+    "Never run destructive mutations without user confirmation."
+    "Always verify pm2 service is online before connecting."
+    "Do not commit secrets or tokens to the world state."))
+
+;; END CONTRACT

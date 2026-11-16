@@ -1,0 +1,16 @@
+(skill-contract
+  (name "dt-dilated-player-constants")
+  (v "ημ.skill/dt-dilated-player-constants@0.1.0")
+
+  (intent "When sizing player-facing velocities/forces for a time-dilated simulation, always derive the constant from the integrator's advance rule (displacement per tick = v·dt_sim), never from wall-clock frame feel; add a dt-invariance property test (doseq over the dt range) for every such constant.")
+
+  (activation
+    (priority 41)
+    (explicit ["skill:dt-dilated-player-constants"])
+    (triggers ["dt-dilated-player-constants" "dt dilated player constants"]))
+
+  (governance
+    (touch-layer :mutable)
+    (non-override [:mission :directives :safety :license :output-shape])
+    (requires-user-approval false))
+)

@@ -1,0 +1,41 @@
+(skill-contract
+  (name "spec-driven-dev")
+  (v "ημ.skill/spec-driven-dev@0.2.0")
+
+  (intent
+    "Convert work into a spec + phases with verification; expose work-management sub-skills (kanban, curation, routing) grounded in the workspace eta-mu kanban CLI when Kanban state matters.")
+
+  (activation
+    (priority 70)
+    (explicit ["skill:spec-driven-dev"])
+    (triggers ["write a spec" "spec draft" "phase plan" "kanban" "work breakdown" "SDD" "eta-mu kanban"]))
+
+  (governance
+    (touch-layer :mutable)
+    (non-override [:mission :directives :safety :license :output-shape])
+    (requires-user-approval false))
+
+  (effects
+    (writes true)
+    (network false)
+    (commits false))
+
+  (protocol
+    (workflow
+      ["Create or update a spec draft capturing open questions, risks, priorities, phases, and definition of done."
+       "Resolve unknowns with minimal questions; remove resolved questions from the draft."
+       "If Kanban state matters, inspect the board with `eta-mu kanban count` and `eta-mu kanban list`, then use those states/tokens in the spec."
+       "Execute phase-by-phase; verify after each phase; keep repo stable."
+       "Record unexpected complications and verification results."
+       "Update task status with `eta-mu kanban frontmatter <uuid> status <new-status>`."
+       "Add progress comments with `eta-mu kanban comment <uuid> <text>"."
+       ]))
+
+  (exposes
+    (skill-registry
+      (entry (name "kanban-fsm")      (contract "~/.pi/agent/skills/kanban-fsm/CONTRACT.edn")      (priority 65))
+      (entry (name "kanban-curation") (contract "~/.pi/agent/skills/kanban-curation/CONTRACT.edn") (priority 60))
+      (entry (name "task-router")     (contract "~/.pi/agent/skills/task-router/CONTRACT.edn")     (priority 66))
+      (entry (name "local-container-registry") (contract "~/.pi/agent/skills/local-container-registry/CONTRACT.edn") (priority 55))
+      (entry (name "promptdb-contracts") (contract "~/.pi/agent/skills/promptdb-contracts/CONTRACT.edn") (priority 58))))
+)

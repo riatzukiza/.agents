@@ -1,0 +1,27 @@
+{
+  "knoxx_2025-10-22": {
+    "verified_at": "2026-10-23T03:45:18.893783+00:00",
+    "host": "knoxx.promethean.rest",
+    "files_sha256": {
+      "audit_forwarder.py": "4bc43dee3b708ebc90f712f2dae2492adb84271d2c87c50553abcfda95af2da2",
+      "audit_graph_projector.py": "649b15edbfe5906558b20ba59a10f317c1c3bd656bc18e673f5766d6bfde7e06",
+      "audit_graph_ingest.mjs": "9e19794239e99baeab3a6311777e0acb7c43edc99ce6722643646c9dc41e436e",
+      "knoxx-audit-forwarder.service": "1eb61c871c605c9be6b3dfcf4d5f786fd7e17fc94608e95a57dfd8f900d4315e",
+      "knoxx-audit-graph.service": "f337ae1b333ea34715f9c4d8fe9efbafe0551a027f29435a3431db50c6e5b4a3",
+      "knoxx-audit-graph.timer": "edad8e58f62d512df932babac41e343bb89052af1afe3e7398fb16d95fc400bc",
+      "test_audit_forwarder.py": "88a04e58295784537b612ae995833e19be740d2a4a059a643e773d4a8a7a5aef"
+    }
+  },
+  "mesh_2026-10-26": {
+    "note": "Nine agent accounts (UID 1002-1010), sudoers 90-agent-identities, auditd with persistent 70-agent-identities.rules and 75-agent-integrity.rules provisioned on stealth and yoga via provision-host.sh. Cross-device keys enrolled on all three hosts. linux-audit-forwarder active on stealth and yoga writing to the shared Atlas linux_audit.events with the same insert-only shipper credential. central_audit_graph_projector deployed on knoxx; awaits the human-created read-only central reader credential.",
+    "hosts_provisioned": ["err-Stealth-16-AI-Studio-A1VGG", "err-Yoga-7-16ARP8"],
+    "files_sha256": {
+      "audit_forwarder.py": "9248baa5651f3013fe20e0a832e8010b6ded661786ae85280365814dfa52f0db",
+      "linux-audit-forwarder.service": "29830adafce229141d1e6d214d5ec268877700ad6a16ec0a25f4ae3275a605b9",
+      "provision-host.sh": "a3d1adbc314e251a87e4328b161b18fc4e7388803580120da2f2b2d2dab47646",
+      "central_audit_graph_projector.py": "9be33c0c72ebea2fefe46d03bc21658bdcc38903c1cdc7d6a53720ae9521625d",
+      "central-audit-graph.service": "99cb7a2b7a740bac16aea34f3fc2824d70f6c40f3d2672e16be7341fdd5fcd4f",
+      "central-audit-graph.timer": "f0942293b3fad35fb6dd350d9c4a9a0cf6a1de91729dc68711304336cf5c0ddc"
+    }
+  }
+}

@@ -1,0 +1,35 @@
+(skill-contract
+  (name "voice-tts")
+  (v "ημ.skill/voice-tts@0.2.0")
+
+  (intent
+    "Convert text to speech through the OpenHax Voxx gateway. Voxx is the
+    canonical boundary for agent speech; agents should strongly prefer the
+    local Kokoro backend via VOICE_GATEWAY_TTS_BACKEND_ORDER=kokoro,
+    defaulting to af_jessica at VOICE_GATEWAY_TTS_DEFAULT_SPEED=1.15.
+    Agents may select a specific Voxx provider per request by setting the
+    OpenAI-compatible model field or tts.sh --model to values such as kokoro,
+    melo, espeak, xiaomi_mimo, requesty, or openai, then confirm the actual
+    renderer with the x-openhax-tts-backend response header when debugging.
+    If a remote Voxx-backed provider such as Xiaomi MiMo is configured, keep
+    Kokoro after it (for example xiaomi_mimo,kokoro) so quota, rate-limit,
+    auth, and status-code failures degrade locally without silent eSpeak. Agents
+    must not wire direct proprietary voice-provider clients into skills or
+    agent code, and must not launch parallel retries against Voxx queue errors.")
+
+  (activation
+    (priority 72)
+    (explicit ["skill:voice-tts"])
+    (triggers ["text to speech" "tts" "speak this" "read aloud" "voice output"
+               "kokoro" "voxx" "synthesize speech"]))
+
+  (governance
+    (touch-layer :mutable)
+    (non-override [:mission :directives :safety :license :output-shape])
+    (requires-user-approval false))
+
+  (effects
+    (writes true)
+    (network true)
+    (commits false))
+)

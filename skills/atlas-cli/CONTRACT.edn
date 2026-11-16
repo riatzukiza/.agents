@@ -1,0 +1,7 @@
+(skill-contract
+  (name "atlas-cli")
+  (v "ημ.skill/atlas-cli@0.1.0")
+  (intent "Use native Atlas CLI administration and host-local authentication.")
+  (activation (explicit ["skill:atlas-cli"])(priority 50))
+  (governance (touch-layer :mutable) (requires-user-approval false)
+    (non-override [:mission :directives :safety :license :output-shape])))
