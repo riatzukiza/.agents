@@ -1,0 +1,343 @@
+{
+  "status": "local-preparation-only; no native admission or activation",
+  "base": "9ee8831ffe001b025d425a239a2d30e95378ea6a",
+  "branch": "codex/pr-flow-informational-disposition",
+  "captured_at": "2026-10-03T14:28:31.476341+00:00",
+  "native_fixture_captured_at": "2026-10-03T13:33:23.056760+00:00",
+  "native_heads": {
+    "open-hax/proxx": "57f1f452f6466b9f5cca56c1059e37e25c0559f8",
+    "open-hax/uxx": "68eeefdca9d840571e2dec911085b782dc5c4ed2"
+  },
+  "source_sha256": {
+    "skills/pr-flow/scripts/pr_flow/actionability.cljc": "f95e0048e743ee286d6a67fccde002ae4a43ff2e4d49d80267b9b95f283ec310",
+    "skills/pr-flow/scripts/pr_flow/law.cljc": "1f1a541bcbc270f5365469db0d20cb7d1a2bfb646ac0726cc7d637a4cb71a355",
+    "skills/pr-flow/scripts/pr.cljs": "4101daf3c2e62a0aee9e3dacfd91e556a1af3ff1b725933559785e9d92b345d2",
+    "skills/pr-flow/flow.edn": "05bf24dfa4965e9bbad40707902a62954bcddbc4a140f124fae8ad54513fd352",
+    "skills/pr-flow/scripts/test_informational.cljs": "84d699f207f9da59d552e6cebc3bb4aff00c726d770379d0011efa0d524962f6",
+    "skills/pr-flow/scripts/test_cli.cljs": "39b0ae384bb1cc9587cb0ea8e8ab8d9e223fb9414471080403605e9b7066ad4a",
+    "skills/pr-flow/scripts/test_law.cljs": "bb3ee30aa144b226d7de15ddf189dd0e8dee1475e4b54b09cab6bc7c9d8387c6",
+    "skills/pr-flow/scripts/fixtures/native-author-walkthroughs.json": "dffe5edbc0f306d89be0ea4af4b24a8fd83f599ab3c6dee8d031e6dc51cfe077",
+    "skills/pr-flow/actionability.md": "bfa8122ca170303d07d6cdf119b11fe4de965595f887daed8d1890532be5913f",
+    "skills/pr-flow/SKILL.md": "4f09a4616b00ba97457c4f5bce08ef2e0f6951f7289c66819daefc96d17c015a",
+    "skills/pr-flow/CONTRACT.edn": "1b817180e80192d1a2b72334536199a294de4049aefd19427576ac67d8c96182",
+    "skills/pr-review-settlement/SKILL.md": "52a6e7cbfb3222a46d049b2bdd0218f3bf4f6bede2ccb4a09c32e21cbe6ce499"
+  },
+  "historical_prefixes": {
+    ".ημ/receipts.edn": {
+      "bytes": 82584,
+      "sha256": "158246bf25f58ace83f40d7a85f10dae706bf88dfe607e2e5f4d657492740fc6",
+      "preserved": true
+    },
+    ".ημ/session-mycology/ledger.md": {
+      "bytes": 8754,
+      "sha256": "1867ee13f34610159edea36fb90f328bda32ffeccac9c5477440be5a366d12f2",
+      "preserved": true
+    }
+  },
+  "verification": {
+    "initial_red": {
+      "tests": 2,
+      "assertions": 10,
+      "expected_failures": 4,
+      "errors": 0,
+      "meaning": "Both walkthrough classifications and gates absent before production implementation"
+    },
+    "laws": {
+      "tests": 60,
+      "assertions": 722,
+      "failures": 0,
+      "errors": 0
+    },
+    "policy": {
+      "tests": 19,
+      "assertions": 254,
+      "failures": 0,
+      "errors": 0
+    },
+    "cli_hosted_mode": {
+      "tests": 40,
+      "assertions": 556,
+      "failures": 0,
+      "errors": 0
+    },
+    "cli_with_local_exact_9ee_red_proof": {
+      "tests": 40,
+      "assertions": 562,
+      "failures": 0,
+      "errors": 0
+    },
+    "clj_kondo": {
+      "errors": 0,
+      "warnings": 0
+    },
+    "flow": "PASS",
+    "bb_cljc_load": "PASS",
+    "actual_adapter_graphql_get": "PASS at Proxx57f; 14 native threads",
+    "diff_check": "PASS",
+    "runtime": "Node v24.14.1 / nbb 1.3.204; hosted Node22 remains parent qualification"
+  },
+  "unchanged": [
+    "All flow data except separate review/actionability profile",
+    "check-summary",
+    "latest-checks",
+    "completed-review-rounds",
+    "stage-review-rounds",
+    "loop-verdict",
+    "review-evidence",
+    "withdrawal-prose",
+    "withdrawn-sources",
+    "rejection-evidence"
+  ],
+  "limitations": [
+    "Synthetic issue proposal/assessment records are test inputs only, never native requests or approvals",
+    "Mechanical binding cannot guarantee independent semantic reasoning/correctness",
+    "Observed native Bot identity does not establish immutable execution/model/App-key isolation; no new overall successful-run prerequisite",
+    "Local Receipt River observations must be retained/committed across hosts; no distributed history guarantee",
+    "Parent must integrate Hubble required coderabbit-review-gate check-summary P1 repair before workflow qualification",
+    "No publication, installation, GitHub mutation, native request, settlement, waiver, merge or deployment"
+  ],
+  "completed_verification_logs": {
+    "laws": {
+      "path": ".ημ/pr-flow-informational-disposition-laws.log",
+      "sha256": "c0c51b26eb5cb9d39a65d85a70e35db2f0e68d0077c7f5cd5b42498a888dc773",
+      "exit_code": 0,
+      "command": "nbb -cp skills/pr-flow/scripts skills/pr-flow/scripts/test_law.cljs"
+    },
+    "policy": {
+      "path": ".ημ/pr-flow-informational-disposition-policy.log",
+      "sha256": "4dba22d57e68af2cd10351c45f536ee1871957596c75ed9fad19eaea67c731d0",
+      "exit_code": 0,
+      "command": "nbb -cp skills/pr-flow/scripts skills/pr-flow/scripts/test_policy.cljs"
+    },
+    "cli": {
+      "path": ".ημ/pr-flow-informational-disposition-cli.log",
+      "sha256": "ed4ec39099ac4767fb44071033db495be8460913f662b06b0f764c13fefafc1e",
+      "exit_code": 0,
+      "command": "PR_FLOW_BASELINE_PROOF=1 nbb -cp skills/pr-flow/scripts skills/pr-flow/scripts/test_cli.cljs"
+    },
+    "kondo": {
+      "path": ".ημ/pr-flow-informational-disposition-kondo.log",
+      "sha256": "21e3607b5e36fe92071ffd013c719cacedfcc4c0f0905859afa070a319cbf0f2",
+      "exit_code": 0,
+      "command": "clj-kondo --lint skills/pr-flow/scripts"
+    },
+    "flow": {
+      "path": ".ημ/pr-flow-informational-disposition-flow.log",
+      "sha256": "04a787faf09292f4cc3882bc87c308717c05a7de5656103198113de64c88415e",
+      "exit_code": 0,
+      "command": "nbb -cp skills/pr-flow/scripts skills/pr-flow/scripts/pr.cljs flow"
+    }
+  },
+  "logs_frozen_at": "2026-10-03T14:34:03.254085+00:00",
+  "parent_integration_context": {
+    "source": "User progress report; no independent parent checkout inspection in this final freeze",
+    "core": "15f optional/required repair installed; isolated feature remains uninstalled",
+    "requirement": "Parent composes source into reviewed core without changing native binding/cohort/minimum law, then requalifies; actual fresh actionability assessment remains absent"
+  },
+  "frozen_native_context_codec": {
+    "algorithm": "SHA-256 of UTF-8 Clojure pr-str ordered vector; exact version1 manifest, decoded native body/hunk bytes; observed snapshot metadata only",
+    "assessment_status": "Positive protocol records are synthetic controls, not authentic native assessments",
+    "snapshots": [
+      {
+        "context-sha256": "420c6674db72452e58b809726ed25f7b888900e3918782e9c625b19ae40a9e80",
+        "repository-id": "R_kgDORjtCag",
+        "repository": "open-hax/proxx",
+        "head": "57f1f452f6466b9f5cca56c1059e37e25c0559f8",
+        "pr-number": 445,
+        "pr-id": "PR_kwDORjtCas8AAAABGXQMvA",
+        "root-comment-id": 4172711510,
+        "thread-id": "PRRT_kwDORjtCas6omZxM",
+        "ordered-manifest": [
+          1,
+          [
+            "R_kgDORjtCag",
+            1178288746,
+            "open-hax/proxx"
+          ],
+          [
+            "PR_kwDORjtCas8AAAABGXQMvA",
+            445,
+            "57f1f452f6466b9f5cca56c1059e37e25c0559f8",
+            [
+              "MDQ6VXNlcjEwNjc2OTI1",
+              10676925,
+              "riatzukiza",
+              "User"
+            ]
+          ],
+          [
+            "PRRT_kwDORjtCas6omZxM",
+            true,
+            false,
+            ".github/workflows/opencode-code-review.yml",
+            99
+          ],
+          [
+            [
+              "PRRC_kwDORjtCas74toZW",
+              4172711510,
+              "https://github.com/open-hax/proxx/pull/445#discussion_r4172711510",
+              [
+                "MDQ6VXNlcjEwNjc2OTI1",
+                10676925,
+                "riatzukiza",
+                "User"
+              ],
+              "2026-10-03T10:13:03Z",
+              "2026-10-03T10:13:03Z",
+              "57f1f452f6466b9f5cca56c1059e37e25c0559f8",
+              "a1268d16cd4b8ea83f7433680c7a9b86cc59d23d",
+              "6d3adbd0bc278022b04919ae9b02ebd6454dd04e837ee8cb8fac458a2588a7e3",
+              "269f7b5fe452a732025cc595a47a4442b3384d6c8222662333d7bd0228a33227",
+              [
+                "PRR_kwDORjtCas8AAAABQeDDZg",
+                5400216422,
+                "COMMENTED",
+                "2026-10-03T10:13:03Z",
+                [
+                  "MDQ6VXNlcjEwNjc2OTI1",
+                  10676925,
+                  "riatzukiza",
+                  "User"
+                ],
+                "a1268d16cd4b8ea83f7433680c7a9b86cc59d23d",
+                "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+              ]
+            ],
+            [
+              "PRRC_kwDORjtCas74tqzy",
+              4172721394,
+              "https://github.com/open-hax/proxx/pull/445#discussion_r4172721394",
+              [
+                "MDQ6VXNlcjEwNjc2OTI1",
+                10676925,
+                "riatzukiza",
+                "User"
+              ],
+              "2026-10-03T10:15:01Z",
+              "2026-10-03T10:15:01Z",
+              "57f1f452f6466b9f5cca56c1059e37e25c0559f8",
+              "a1268d16cd4b8ea83f7433680c7a9b86cc59d23d",
+              "c3d2ef96b9a6b5938779f2dd0f9c54c71a237c7564643542816d847bc817ea41",
+              "269f7b5fe452a732025cc595a47a4442b3384d6c8222662333d7bd0228a33227",
+              [
+                "PRR_kwDORjtCas8AAAABQeDvdg",
+                5400227702,
+                "COMMENTED",
+                "2026-10-03T10:15:01Z",
+                [
+                  "MDQ6VXNlcjEwNjc2OTI1",
+                  10676925,
+                  "riatzukiza",
+                  "User"
+                ],
+                "a1268d16cd4b8ea83f7433680c7a9b86cc59d23d",
+                "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+              ]
+            ]
+          ]
+        ]
+      },
+      {
+        "context-sha256": "034ecce657d6b6129050350878820c68e16fde116d4c542849f69f21ae343721",
+        "repository-id": "R_kgDOR5O5HA",
+        "repository": "open-hax/uxx",
+        "head": "68eeefdca9d840571e2dec911085b782dc5c4ed2",
+        "pr-number": 14,
+        "pr-id": "PR_kwDOR5O5HM8AAAABGXQN_A",
+        "root-comment-id": 4172775340,
+        "thread-id": "PRRT_kwDOR5O5HM6omklO",
+        "ordered-manifest": [
+          1,
+          [
+            "R_kgDOR5O5HA",
+            1200863516,
+            "open-hax/uxx"
+          ],
+          [
+            "PR_kwDOR5O5HM8AAAABGXQN_A",
+            14,
+            "68eeefdca9d840571e2dec911085b782dc5c4ed2",
+            [
+              "MDQ6VXNlcjEwNjc2OTI1",
+              10676925,
+              "riatzukiza",
+              "User"
+            ]
+          ],
+          [
+            "PRRT_kwDOR5O5HM6omklO",
+            true,
+            false,
+            ".github/workflows/opencode-code-review.yml",
+            142
+          ],
+          [
+            [
+              "PRRC_kwDOR5O5HM74t3-s",
+              4172775340,
+              "https://github.com/open-hax/uxx/pull/14#discussion_r4172775340",
+              [
+                "MDQ6VXNlcjEwNjc2OTI1",
+                10676925,
+                "riatzukiza",
+                "User"
+              ],
+              "2026-10-03T10:25:12Z",
+              "2026-10-03T10:25:12Z",
+              "68eeefdca9d840571e2dec911085b782dc5c4ed2",
+              "68eeefdca9d840571e2dec911085b782dc5c4ed2",
+              "338d05b4bd8c8e778ff87df515366767310c21e97ecded2e833bd1cf9f0d811f",
+              "e5660350e064169d6dc805442a8c223157e5fd02276cdda58d8f39d855093d89",
+              [
+                "PRR_kwDOR5O5HM8AAAABQeHYew",
+                5400287355,
+                "COMMENTED",
+                "2026-10-03T10:25:12Z",
+                [
+                  "MDQ6VXNlcjEwNjc2OTI1",
+                  10676925,
+                  "riatzukiza",
+                  "User"
+                ],
+                "68eeefdca9d840571e2dec911085b782dc5c4ed2",
+                "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+              ]
+            ],
+            [
+              "PRRC_kwDOR5O5HM74t4x9",
+              4172778621,
+              "https://github.com/open-hax/uxx/pull/14#discussion_r4172778621",
+              [
+                "MDQ6VXNlcjEwNjc2OTI1",
+                10676925,
+                "riatzukiza",
+                "User"
+              ],
+              "2026-10-03T10:25:54Z",
+              "2026-10-03T10:25:54Z",
+              "68eeefdca9d840571e2dec911085b782dc5c4ed2",
+              "68eeefdca9d840571e2dec911085b782dc5c4ed2",
+              "69b18fbc7132acedf5f27754eeaf0915fe9f8ae8d3718ba72264d830ce44de7a",
+              "e5660350e064169d6dc805442a8c223157e5fd02276cdda58d8f39d855093d89",
+              [
+                "PRR_kwDOR5O5HM8AAAABQeHlow",
+                5400290723,
+                "COMMENTED",
+                "2026-10-03T10:25:54Z",
+                [
+                  "MDQ6VXNlcjEwNjc2OTI1",
+                  10676925,
+                  "riatzukiza",
+                  "User"
+                ],
+                "68eeefdca9d840571e2dec911085b782dc5c4ed2",
+                "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+              ]
+            ]
+          ]
+        ]
+      }
+    ]
+  }
+}

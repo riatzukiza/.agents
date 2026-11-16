@@ -1,0 +1,33 @@
+name: Native swarm evidence
+
+on:
+  pull_request:
+    paths:
+      - 'skills/ultra-code/**'
+      - '.github/workflows/native-swarm-laws.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  native-evidence:
+    name: Native evidence laws and CLI
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+      - name: Check preserved upstream assets
+        working-directory: skills/ultra-code
+        run: node tests/source-integrity.js
+      - name: Check local workflow guidance
+        working-directory: skills/ultra-code
+        run: node --test tests/guidance.test.js
+      - name: Test native evidence decisions and file boundaries
+        working-directory: skills/ultra-code
+        run: npm exec --yes --package=nbb@1.4.208 -- nbb -cp src:tests tests/native_test.cljs

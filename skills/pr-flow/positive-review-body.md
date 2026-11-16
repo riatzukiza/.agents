@@ -1,0 +1,132 @@
+# Positive CodeRabbit body settlements
+
+This is a source proposal for a narrow native-format admission rule. It becomes
+operational only through reviewed canonical adoption. Preparing or locally
+qualifying it does not change the installed CLI or clear any live blocker.
+
+## Recovered failure
+
+Services [review 5480465504](https://github.com/open-hax/services/pull/94#pullrequestreview-5480465504)
+contains 33 positive `LGTM!` items plus a real receipt-coverage finding. The
+writer answered every identified item in [comment 6101393171](https://github.com/open-hax/services/pull/94#issuecomment-6101393171).
+The current reader discovers those positive IDs through its unknown-item P1
+fallback and therefore refuses their truthful `Handled` dispositions. Replacing
+those replies with `Fixed` would invent item-specific defect repairs.
+
+The native review body SHA-256 is
+`e4ad471e4dbef0f497270945bbc7e0bf4be6f2479964530b22df7be89f375cf8`.
+The actual writer body SHA-256 is
+`8df730736f5ae1c03f23bae3bb185f329ae5aaffbb7ae33e96112175768811a9`.
+Its reviewed source is `b9d73fc9058a219d166affde81dce06c7710fa2f`;
+its later writer/current head is `369db6e04258963ee3cbdd80b6d58c888a616a27`.
+These are regression provenance, never an item, repository or thread allowlist.
+
+## Bounded admission
+
+Recognize a candidate only inside a complete authored Additional-comments file
+group using the observed native wrapper grammar. The section scanner treats
+XML declaration, CDATA and processing-instruction starts, including incomplete
+constructs, as unsupported boundaries. Complete native HTML comments remain
+supported; unterminated comments fail closed. Incomplete generic HTML tag
+starts also deny the section, including unsupported starts after its outer close. Markdown code indentation on
+any structural opening or closing tag fails closed; native inline summary and blockquote
+tags remain supported. Any raw quote-prefixed review line denies this bounded
+section admission, so lazy continuations cannot become top-level source through
+sanitation. Literal greater-than signs and escaped leading signs remain supported.
+The final outer close must end its line with only optional spaces or tabs before
+a newline or the body boundary; a same-line suffix cannot be silently excluded.
+Excluded regions retain a non-authoritative sentinel without inserting line
+boundaries, so sanitation cannot manufacture a clean final closing line.
+File paths must have no empty, dot or dot-dot slash components and no NUL;
+supported literal filenames, including extensionless root names and ordinary
+spaces, remain unnormalized. Leading or trailing spaces stay part of the filename;
+tabs and line whitespace remain outside this bounded single-line grammar.
+Each item must be an exact
+numeric range followed by `LGTM!`, its unique 24-hex stable marker, and only the
+supported numeric “Also applies to” ranges and item separator. Preserve the
+item ID and conservative fallback severity; attach positive-format provenance
+rather than removing the historical item or pretending the reviewer assigned
+a lower priority.
+
+The `Handled` admission also needs a configured native CodeRabbit Bot identity,
+a native COMMENTED review ID, its observed full source commit and submission
+time and latest native review-body edit time, and a distinct true-authorized native User writer whose settlement has
+its native comment ID. The CLI supplies writer authorization from the native
+repository relationship; an author name in pasted prose supplies none.
+The supported writer is native plaintext. Raw HTML tag and comment starts,
+XML declaration, CDATA, and processing-instruction starts, including incomplete
+markup, fail closed before prose sanitation, so markup cannot construct a
+binding or item marker. Any raw blockquote-prefixed line also denies this
+plaintext admission, including bindings inherited through lazy continuations.
+Literal greater-than signs within plaintext and escaped leading signs remain
+supported. The writer must identify the review in the observed standalone native
+binding line and name the exact current full head in live, itemized prose. The
+raw and live binding values must match, and the raw live `Handled` line must
+remain unchanged by sanitation. Indented code, inline backticks, quotes, fences
+and HTML attributes cannot supply that binding.
+The CLI binds the native GraphQL review update to the REST review's node ID,
+database ID, author identity, exact body, state, commit and submission timestamp.
+Missing or mismatched native update custody supplies no positive settlement.
+Writer creation must be strictly later than both submission and the latest
+review-body edit; the writer's own edit cannot precede its creation. The
+review update cannot precede submission. The reviewed historical head and the current writer/head remain
+separate coordinates; this supplies no current-source review credit.
+
+Both the review section and plaintext writer deny raw equal-length backtick
+runs spanning an LF, CRLF or bare-CR line boundary, including blank paragraphs. This is a conservative
+native-format guard, not a general Markdown renderer. Complete outside comments
+and fenced examples are skipped. Backslashes, comment starts and fence syntax
+inside an open span cannot hide a matching closing delimiter; escaped-looking
+closers still close. Same-line code and unmatched delimiter lengths
+remain supported. A stray single run before a later native single-run range can
+therefore conservatively deny the format even across a blank paragraph.
+
+Unknown, negative, malformed, nested, quoted, fenced, generated, duplicate-ID
+and mixed-negative inputs remain conservative. A positive-looking sentence
+inside adverse prose does not qualify. The actual P0/P1 settlement rules,
+writer authority, complete native context, review scope, exact-head approval,
+cohort minimum, mandatory CI and branch protection remain in force.
+
+## Native skipped-review scope
+
+Commit coverage does not establish complete input. The observed CodeRabbit
+section headed “🚧 Files skipped from review as they are similar to previous
+changes (N)” supplies `unreviewed-input` when its exact native details/strong
+header is live and N is a positive decimal count. Zero and arbitrary prose
+mentions supply no omitted-input admission through this format. The positive
+digit grammar avoids numeric overflow; it does not normalize or decode HTML.
+
+This scope-only reader preserves raw LF, CRLF and bare-CR line boundaries and
+excludes complete native generated tweet blocks, HTML comments, and explicitly
+quoted regions. Real pre/code/blockquote wrapper and fence starts allow at most
+three spaces; escaped, inline-prefixed and code-indented starts do not exclude
+later live input. Backtick fence info cannot contain backticks; tilde info can.
+The native details opener allows zero to three spaces and trailing horizontal
+whitespace; indentation on its inner summary remains raw HTML content. A genuine
+blank paragraph ends a quoted paragraph; this native details opener interrupts
+it as a live HTML block. Block structure precedes inline-code parsing,
+so stray or paired paragraph backticks cannot hide this raw native block opener.
+The independently bounded positive-item and plaintext-writer code-span guards
+remain unchanged. Excluded regions leave an inline non-authoritative sentinel,
+so their removal cannot manufacture a live native section header. An unrelated
+example does not hide a later live scope admission. Shared verdict sanitation
+and legacy settlement, approval and round policy remain unchanged.
+
+The [native skipped-scope fixture](scripts/fixtures/native-agents26-skipped-review-scope.json)
+retains the complete observed PR26 comment, identity, verdict, scope section and
+coverage markers, with one generated review-stack capability token redacted
+explicitly in its provenance. The complete original body and its SHA-256 remain
+external evidence. Its derived control removes only the observed skipped
+section. A skipped available review supplies no approval or full-review round,
+and is not a quota exclusion; included-review footer constraints still govern
+requests. This local source qualification supplies no native successor approval,
+CI, merge or installed-policy credit.
+
+## Evidence and limits
+
+The regression fixture preserves the actual native review and writer context.
+Qualification must demonstrate the old parser's failure, positive admission
+only with complete supported context, and rejection of adversarial controls.
+Earlier law assertions remain intact. Local source review and test results
+supply no native review, approval, completed round, operational adoption or
+deployment credit. A later unsupported CodeRabbit format still fails closed.

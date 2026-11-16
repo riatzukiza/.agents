@@ -1,0 +1,15 @@
+{:profile/id :ultra-code/native-swarm-v1
+ :execution/preference [:direct-local :parallel-native-local]
+ :execution/discovery :actual-session-capabilities
+ :review/context :fresh-when-available
+ :review/expected-roster :as-needed
+ :review/skeptic-scope :optional-risk-or-dispute
+ :review/provider-roster :not-required
+ :review/fixed-minimum-rounds nil
+ :repair/default-max-passes 2
+ :repair/budget-scope :entire-task-across-replanning-and-handoffs
+ :repair/exhaustion :stop-and-report-unresolved
+ :writes/ownership :one-writer-per-resource
+ :integration/review :one-proportionate-combined-tree-review
+ :publication/authority :actual-repository-policy
+ :configuration/status :coordinator-policy-data}

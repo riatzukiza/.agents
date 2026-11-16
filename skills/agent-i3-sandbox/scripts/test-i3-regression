@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+set -euo pipefail
+# Runs inside the isolated container only; exercises the bundled Mod4+Return.
+[[ -f /home/agent/.agent-sandbox-container && "$DISPLAY" == :99 ]] || { echo 'container display required' >&2; exit 1; }
+timeout 5 i3 -C -c /home/agent/.config/i3/config
+count() { timeout 5 i3-msg -t get_tree | jq '[.. | objects | select(.window_properties.class? == "XTerm")] | length'; }
+emacsclient -s "${EMACS_DAEMON_NAME:-agent-core}" -c -n -F '((name . "Sandbox i3 regression"))' >/dev/null
+for _ in $(seq 1 50); do
+  window="$(timeout 10 emacsclient -s "${EMACS_DAEMON_NAME:-agent-core}" -e "(catch 'sandbox-frame (dolist (frame (frame-list)) (when (equal (frame-parameter frame 'name) \"Sandbox i3 regression\") (throw 'sandbox-frame (frame-parameter frame 'outer-window-id)))))" 2>/dev/null | tr -d '"' || true)"
+  [[ "$window" =~ ^[0-9]+$ ]] && break
+  sleep 0.1
+done
+[[ "${window:-}" =~ ^[0-9]+$ ]] || { echo 'sandbox target window did not appear' >&2; exit 1; }
+timeout 5 xdotool windowactivate --sync "$window"
+[[ "$(timeout 5 xdotool getwindowfocus)" == "$window" ]] || { echo 'refusing injection: sandbox target is not focused' >&2; exit 1; }
+before="$(count)"
+timeout 5 xdotool key --clearmodifiers super+Return
+for _ in $(seq 1 50); do
+  after="$(count)"
+  if ((after > before)); then
+    timeout 5 i3-msg -t get_tree > /workspace/.artifacts/i3-binding-tree.json
+    echo 'Mod4+Return opened an XTerm in the sandbox'
+    exit 0
+  fi
+  sleep 0.1
+done
+echo 'Mod4+Return did not open XTerm' >&2
+exit 1

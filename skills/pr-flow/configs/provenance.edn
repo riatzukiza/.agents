@@ -1,0 +1,6 @@
+;; SPDX-License-Identifier: GPL-3.0-or-later
+{:skill "pr-flow"
+ :tier :provisional
+ :origin "User request 2026-10-01 (foresight session); distilled from Claude Code/OpenCode session logs, receipts and session-mycology spores across ~/spaces."
+ :native-profile-origin "User request 2026-11-03: native parallel harness agents and independent review contexts."
+ :metadata-location-note "Original frontmatter metadata is preserved here so the distributable frontmatter uses the portable scalar YAML profile."}

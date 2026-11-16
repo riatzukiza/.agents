@@ -1,0 +1,165 @@
+;; pr-flow state machine — the PR lifecycle, as data.
+;;
+;; This FSM governs the *PR flow*, not the card board. Card status is Rheos's
+;; authority; each state only *names* the Rheos transition it expects
+;; (:board/expects) and the agent performs it through Rheos (eta-mu kanban …),
+;; never by editing frontmatter status by hand.
+;;
+;; Epistemic tier of this file: provisional (ημ epiphany ladder). It was
+;; distilled 2026-10-01 from session logs, receipts and spores; it becomes
+;; accepted only by an explicit user review event.
+{:flow/id :pr-flow
+ :flow/version "0.3.0"
+ :flow/tier :provisional
+ :flow/initial :muse
+ :flow/terminal #{:reflected}
+ ;; Only defaults consumed by pr.cljs are executable configuration.
+ ;; Non-executable policy notes (editing these does not configure the CLI):
+ ;; - law/blocking? marks P0/P1; valid independent rejection is governed by law.
+ ;; - pr.cljs gate defaults to --method merge; this default lives in the CLI.
+ ;; - Positive evidence channels emitted by law/review-evidence are
+ ;;   :github-approved, :explicit-review-verdict and :explicit-issue-verdict.
+ ;;   These are output names, not an editable channel allowlist here.
+ ;; - Review sources (who they are, how they are requested, which repos waive
+ ;;   them) are listed in scripts/pr_flow/reviewers.edn. That inventory does
+ ;;   not dispatch invitations or prove provider availability.
+ :flow/defaults {:review/approval-quorum 1
+                 :review/required #{}
+                 :review/by-repo-name {}
+                 ;; Source preparation: one observed route, not global Kimi identity.
+                 ;; Adoption requires canonical source review; never install from local fixtures.
+                 :review/kimi-publication
+                 {:version 1 :repository "open-hax/proxx"
+                  :principal {:login "opencode-agent[bot]" :id 219766164
+                              :node-id "BOT_kgDODRldlA" :type "Bot"}
+                  :workflow-id 285819940 :workflow-path ".github/workflows/opencode-code-review.yml"
+                  :workflow-name "OpenCode Kimi PR Review"
+                  ;; Observed e05, 2e7 and exact aba context-forwarding source bytes.
+                  ;; Unknown source drift fails closed; neither pin supplies review approval.
+                  :workflow-digests #{"15e129cb2fe1a21f8c22e69c6705cc302bdb50b175141ba0db9e6a76b7b5ec25"
+                                      "74c281f49af87a975fa78aa783343ca2d097940a44218849629c993abee7a1cb"
+                                      "90117459b8c0a6883b27df816127fdd3bcb4799e5e25e52f356d04ac134f68bb"
+                                      "974215a7113347a78bd2e0af48925838cc0d58e54e0acbe3ed7a0aaf5a183736"}
+                  :runtime-sha "2810f4515424a146fe37390fb0baf532cca31236"
+                  :runtime-digest "0fa9d7838df3f0718d971beb972a48d2bf73fce6d90f09411a656e57ce3960d7"
+                  :auth-digest "fd4d5630c462f0f202ac20e39ec1433fba4dfa13e12a6f6ffd5c0ec035d2a7e1"}
+                 ;; Separate candidate admission, explicitly authorized 2026-10-03.
+                 ;; Native identity only; not a runtime/run-success guarantee.
+                 ;; Provisional until reviewed, published and freshly assessed.
+                 :review/actionability {:version 1 :status :provisional
+                                        :identities #{{:login "opencode-agent[bot]" :id 219766164
+                                                       :node-id "BOT_kgDODRldlA"}}
+                                        ;; Source preparation only; native full-review identity
+                                        ;; does not qualify a fresh scoped assessment or activation.
+                                        :repository-identities
+                                        {["open-hax/proxx" 1178288746]
+                                         #{{:login "eta-mu-ai[bot]" :id 270021952
+                                            :node-id "BOT_kgDOEBg1QA"}}
+                                         ["open-hax/knoxx" 1199983316]
+                                         #{{:login "eta-mu-ai[bot]" :id 270021952
+                                            :node-id "BOT_kgDOEBg1QA"}}
+                                         ["riatzukiza/knoxx" 1401249297]
+                                         #{{:login "eta-mu-ai[bot]" :id 270021952
+                                            :node-id "BOT_kgDOEBg1QA"}}}}
+                 ;; Separate preservation purpose: source preparation requires
+                 ;; protected adoption and accepted independent native input.
+                 ;; The root publisher gains no reviewer/withdrawal authority.
+                 :review/positive-bot-thread
+                 {:version 2 :status :provisional
+                  :repository ["open-hax/knoxx" 1199983316 "R_kgDOR4ZK1A"]
+                  :root-identities #{["github-actions" 41898282 "MDM6Qm90NDE4OTgyODI=" "Bot"]}
+                  :assessor-identities #{["opencode-agent[bot]" 219766164 "BOT_kgDODRldlA" "Bot"]
+                                         ["eta-mu-ai[bot]" 270021952 "BOT_kgDOEBg1QA" "Bot"]}}
+                 ;; Reviewer identities live only in scripts/pr_flow/reviewers.edn.
+                 ;; This map adds non-reviewer Apps (rejection corroboration only).
+                 :review/identities {"opencode" #{"opencode-agent[bot]"}}}
+
+ :flow/states
+ {:muse
+  {:skill "pr-muse-connect"
+   :doc "The user thinks aloud; we connect documents, code, programs, cards, issues and PRs. Runs throughout, not just first."
+   :inputs [:user/musing :repo/evidence]
+   :outputs [:muse/link-map :muse/inbox-note]
+   :exit "Intent is concrete enough to name an outcome and at least one card."}
+
+  ;; :card/plan describes either one standalone card for simple work or an
+  ;; epic with stories when decomposition is needed; it is not a CLI schema.
+  :plan
+  {:skill "pr-sprint-planning"
+   :doc "Create or update one standalone card for simple work, or an epic with stories when decomposition is needed (Rheos Markdown cards), with outcome, scope, non-goals, acceptance criteria, points, links."
+   :inputs [:muse/link-map]
+   :outputs [:card/plan :branch]
+   :board/expects {:to #{"incoming" "accepted" "breakdown"}}
+   :exit "A standalone card, or an epic with stories, exists on a branch; uuid links (epic/parent/blocked_by) are present when needed."}
+
+  :planning-review
+  {:skill "pr-sprint-planning"
+   :uses ["pr-review-settlement"]
+   :doc "PR opened ready with auto-merge off (drafts are ignored by Codex and others; user decision 2026-10-01); CodeRabbit and other agents asked to review the agile artifacts like sprint planning: scope, AC, points, splits, dependencies."
+   :inputs [:card/plan]
+   :outputs [:pr/open-no-automerge :review/rounds]
+   :cli ["pr.cljs request REPO PR planning" "pr.cljs wait REPO PR" "pr.cljs threads REPO PR"]
+   :exit "Every planning finding settled and resolved. No round minimum or cap (Err 2026-10-29)."}
+
+  :card-ready
+  {:skill "pr-sprint-planning"
+   :doc "Move the reviewed standalone card or each reviewed story through the board to ready."
+   :inputs [:card/plan]
+   :board/expects {:to #{"ready"}}
+   :exit "The standalone card or stories are ready (Rheos), estimates final."}
+
+  :red
+  {:skill "pr-red-green"
+   :doc "Laws and tests first: Malli schemas/laws in .cljc, failing tests that encode the acceptance criteria."
+   :board/expects {:to #{"todo" "in_progress"}}
+   :outputs [:commit/red]
+   :exit "New tests fail for the right reason; commit pushed with the red evidence."}
+
+  :green
+  {:skill "pr-red-green"
+   :doc "Domain logic (pure) then infra adapters that obey the laws; all tests and gates pass."
+   :outputs [:commit/green]
+   :board/expects {:to #{"testing" "review"}}
+   :exit "Local gates green; pushed."}
+
+  :code-review
+  {:skill "pr-review-settlement"
+   :doc "Continue review until all findings are settled and resolved; round counts no longer gate merging (any-approval rule, 2026-10-29). Non-blocking findings may be fixed or deferred in any round; rejection needs detailed evidence and independent non-CodeRabbit agreement."
+   :cli ["pr.cljs request REPO PR code" "pr.cljs wait REPO PR" "pr.cljs threads REPO PR" "pr.cljs settle REPO PR THREAD BODY"]
+   :exit "All findings settled and resolved and review-body items answered. Round counts and law/loop-verdict are reported but no longer gate (any-approval rule, 2026-10-29; see merge-gate.md)."}
+
+  :merge-gate
+  {:skill "pr-review-to-merge"
+   :doc "Any-approval rule (2026-10-29, merge-gate.md): ≥1 approval on the exact head from any reviewer (trusted bot evidence or any human, Err included); no standing CHANGES_REQUESTED; no unresolved thread; no failing required check; any failing check at all needs a human maintainer (admin/maintain) approval or pr-flow.human-approval/v1 evidence on the head; mandatory overrides and settled findings still apply → authorized exact-head merge."
+   :cli ["pr.cljs gate REPO PR --apply"]
+   :exit "Auto-merge enabled, or a direct merge performed, on the exact head that passed the gate."}
+
+  :merged
+  {:skill "pr-review-to-merge"
+   :doc "Verify the merge landed; advance stacked PRs; bump submodule pointers in parents; move cards through document → done via Rheos."
+   :board/expects {:to #{"document" "done"}}}
+
+  :reflected
+  {:skill "session-mycology"
+   :uses ["receipt-river"]
+   :doc "Append receipts; score friction; incubate at most one spore. Do not promote a spore in the session that created it."}}
+
+ :flow/transitions
+ [[:muse :plan]
+  [:plan :planning-review]
+  [:planning-review :planning-review]   ; another review round (soft minimum, no fixed cap)
+  [:planning-review :plan]              ; review asked for a re-plan/split
+  [:planning-review :card-ready]
+  [:card-ready :red]
+  [:red :green]
+  [:green :red]                         ; a missing law found while implementing
+  [:green :code-review]
+  [:code-review :code-review]           ; another review round (soft minimum, no fixed cap)
+  [:code-review :red]                   ; a finding needs a new law/test
+  [:code-review :merge-gate]
+  [:merge-gate :code-review]            ; gate blocked: new head, new findings
+  [:merge-gate :merged]
+  [:merged :reflected]
+  ;; muse is ambient: the user may reopen any stage by thinking aloud.
+  [:plan :muse] [:planning-review :muse] [:card-ready :muse]
+  [:red :muse] [:green :muse] [:code-review :muse] [:merge-gate :muse]]}

@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+set -euo pipefail
+[[ -f /home/agent/.agent-sandbox-container && "$DISPLAY" == :99 ]] || { echo 'container display required' >&2; exit 1; }
+emacsclient() { timeout 10 /usr/bin/emacsclient "$@"; }
+xdotool() { timeout 5 /usr/bin/xdotool "$@"; }
+xclip() { timeout 5 /usr/bin/xclip "$@"; }
+
+artifact=/workspace/.artifacts
+socket="${EMACS_DAEMON_NAME:-agent-core}"
+buffer="*espanso-regression*"
+emacsclient -s "$socket" -e "(with-current-buffer (get-buffer-create \"$buffer\") (fundamental-mode) (when (fboundp 'evil-emacs-state) (evil-emacs-state)) (setq-local overwrite-mode nil) (erase-buffer))" >/dev/null
+emacsclient -s "$socket" -c -n -F '((name . "Sandbox Espanso"))' >/dev/null
+emacsclient -s "$socket" -e "(catch 'sandbox-frame (dolist (frame (frame-list)) (when (equal (frame-parameter frame 'name) \"Sandbox Espanso\") (set-window-buffer (frame-selected-window frame) (get-buffer \"$buffer\")) (throw 'sandbox-frame t))))" >/dev/null
+for _ in $(seq 1 50); do
+  window="$(emacsclient -s "$socket" -e "(catch 'sandbox-frame (dolist (frame (frame-list)) (when (equal (frame-parameter frame 'name) \"Sandbox Espanso\") (throw 'sandbox-frame (frame-parameter frame 'outer-window-id)))))" 2>/dev/null | tr -d '"' || true)"
+  [[ "$window" =~ ^[0-9]+$ ]] && break
+  sleep 0.1
+done
+[[ "${window:-}" =~ ^[0-9]+$ ]] || { echo 'Emacs outer-window-id did not appear' >&2; exit 1; }
+focus() {
+  xdotool windowactivate --sync "$window"
+  [[ "$(xdotool getwindowfocus)" == "$window" ]] || { echo "refusing injection: Emacs is not focused" >&2; exit 1; }
+}
+type_text() {
+  local text="$1" char index
+  for ((index = 0; index < ${#text}; index++)); do
+    char="${text:index:1}"
+    focus
+    xdotool type --clearmodifiers --delay 20 "$char"
+  done
+}
+reset_buffer() { emacsclient -s "$socket" -e "(with-current-buffer (get-buffer-create \"$buffer\") (fundamental-mode) (when (fboundp 'evil-emacs-state) (evil-emacs-state)) (setq-local overwrite-mode nil) (erase-buffer))" >/dev/null; }
+read_buffer() { emacsclient -s "$socket" -e "(with-current-buffer \"$buffer\" (buffer-string))"; }
+type_text ':sandbox-ascii '
+sleep 1
+ascii="$(read_buffer)"
+[[ "$ascii" == '"sandbox-ascii-expanded "' ]] || { echo "ASCII expansion failed: $ascii" >&2; exit 1; }
+reset_buffer
+before="$(xclip -display "$DISPLAY" -selection clipboard -o 2>/dev/null || true)"
+date +%s%N >"$artifact/unicode-selection-before.ns"
+type_text ':sandbox-unicode '
+sleep 1
+date +%s%N >"$artifact/unicode-selection-after.ns"
+after="$(xclip -display "$DISPLAY" -selection clipboard -o 2>/dev/null || true)"
+unicode="$(read_buffer)"
+printf '%s\n' "$before" >"$artifact/clipboard-before.txt"
+printf '%s\n' "$after" >"$artifact/clipboard-after.txt"
+printf '%s\n' "$unicode" >"$artifact/unicode-buffer.txt"
+[[ "$unicode" == '" μ⟲"' ]] || { echo "Unicode automatic expansion failed: $unicode" >&2; exit 1; }
+reset_buffer
+timeout 5 espanso log >"$artifact/espanso-before-keys.log"
+type_text ':sandbox-keys '
+sleep 1
+injected="$(read_buffer)"
+printf '%s\n' "$injected" >"$artifact/unicode-keys-buffer.txt"
+timeout 5 espanso log | tee "$artifact/espanso-keys.log"
+lines_before="$(wc -l < "$artifact/espanso-before-keys.log")"
+tail -n +"$((lines_before + 1))" "$artifact/espanso-keys.log" > "$artifact/espanso-keys-new.log"
+if grep -Eq 'missing vkey mapping.*(μ|⟲)' "$artifact/espanso-keys-new.log"; then
+  [[ "$injected" == '" "' || "$injected" == '""' ]] || { echo "keys failure left unexpected text: $injected" >&2; exit 1; }
+  echo 'Forced keys cannot represent Unicode on this layout (expected diagnostic)'
+else
+  [[ "$injected" == '" μ⟲"' ]] || { echo "keys mode neither failed nor produced exact replacement: $injected" >&2; exit 1; }
+  echo 'Forced keys support Unicode on this layout'
+fi

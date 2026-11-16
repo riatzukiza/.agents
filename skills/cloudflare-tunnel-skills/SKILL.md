@@ -1,5 +1,5 @@
 ---
-name: cloudflare-tunnel-ops
+name: cloudflare-tunnel-skills
 version: 3
 description: "End-to-end Cloudflare Tunnel automation for publishing one or many services behind NAT, including API management, multi-hostname tunnel config, cloudflared setup, and SSL caveats for nested subdomains."
 ---

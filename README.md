@@ -17,6 +17,8 @@ The repository is not a bag of prompts. It is an operating substrate:
 - [`AGENTS.md`](AGENTS.md) — repository-specific instructions for maintaining this corpus.
 - [`skills/`](skills/) — the canonical skill catalog.
 - [`skills/.skill-lock.json`](skills/.skill-lock.json) — provenance and version metadata for imported skills.
+- [`docs/catalog-audit-2026-11.md`](docs/catalog-audit-2026-11.md) — catalog inventory, loading model and first-cut pruning decisions.
+- [`archive/skills/`](archive/skills/README.md) — preserved inactive skill candidates.
 - `.ημ/receipts.edn` — append-only evidence for substantive changes to this repository.
 - `.ημ/session-mycology/` — project-local learning records and incubating skill spores.
 
@@ -30,6 +32,13 @@ The repository is not a bag of prompts. It is an operating substrate:
 | [`grok-intention`](skills/grok-intention/SKILL.md) | Recover compressed intent from prompts, notes, and repository context. |
 | [`sing-the-songs-of-your-people`](skills/sing-the-songs-of-your-people/SKILL.md) | Produce truthful synthesis in the native voice of the corpus. |
 | [`skill-authoring`](skills/skill-authoring/SKILL.md) | Create and revise scoped, reusable skills. |
+| [`pr-flow`](skills/pr-flow/SKILL.md) | Route PR work through native swarm review or the explicit hosted-provider profile, with exact-head evidence and authorized merge. |
+| [`ultra-code`](skills/ultra-code/SKILL.md) | Complete substantial work locally, directly or with native parallel agents, using bounded review and repair. |
+
+For concurrent agent work, use PR flow's [native swarm profile](skills/pr-flow/native-swarm.md).
+It permits independent PRs to progress together and keeps one writer per shared
+resource. The hosted-provider CLI remains an explicit compatibility profile;
+actual required GitHub checks and approvals continue to govern publication.
 
 These are substrate skills, not a mandatory bundle to load on every turn. Explicit invocation wins; otherwise the active agent should select the smallest relevant set.
 
@@ -110,6 +119,27 @@ Do not duplicate and independently edit copied skill trees. Harness-specific ada
 
 ## Working on this repository
 
+### Desktop configuration test toolkit
+
+[`agent-i3-sandbox`](skills/agent-i3-sandbox/SKILL.md) extracts the Spacemacs-local
+X11/i3/Emacs sandbox into a portable skill bundle, with Espanso ASCII/Unicode
+regressions, focus-checked input, and a dry-run-first installer. Start with:
+
+```bash
+cd skills/agent-i3-sandbox
+SANDBOX_PROJECT=my-config-test ./scripts/agentctl up core
+SANDBOX_PROJECT=my-config-test ./scripts/agentctl smoke core
+SANDBOX_PROJECT=my-config-test ./scripts/agentctl i3-regression core
+SANDBOX_PROJECT=my-config-test ./scripts/agentctl espanso-regression core
+SANDBOX_PROJECT=my-config-test ./scripts/agentctl down core
+```
+
+The skill bundles its own fixtures and private layer; it does not require the
+Spacemacs configuration repository. Installation takes an explicit destination
+and refuses unowned or locally modified installs. OS packages remain mutable;
+the Espanso binary is version- and digest-pinned. See the skill's provenance and
+fidelity notes before interpreting results against a live desktop.
+
 Before changing a skill:
 
 1. read [`PRINCIPLE.edn`](PRINCIPLE.edn) and [`AGENTS.md`](AGENTS.md),
@@ -140,3 +170,4 @@ Under the global contract:
 - services and standalone applications are released under GNU GPL v3 or later.
 
 Individual imported skills may retain their upstream license metadata.
+

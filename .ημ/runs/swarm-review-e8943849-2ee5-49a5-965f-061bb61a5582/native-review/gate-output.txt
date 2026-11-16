@@ -1,0 +1,7 @@
+
+Testing native-test
+
+Ran 9 tests containing 67 assertions.
+0 failures, 0 errors.
+Source blob identities and compatibility references verified; runtime behavior not tested.
+Skill is valid!
