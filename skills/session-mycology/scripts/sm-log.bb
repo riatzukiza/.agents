@@ -18,6 +18,8 @@
 (defn usage []
   (println "Usage: sm-log.bb --task \"...\" [options]")
   (println "")
+  (println "Appends an entry to .ημ/session-mycology/ledger.edn")
+  (println "")
   (println "Options:")
   (println "  --task TEXT          one-line task summary (required)")
   (println "  --efficiency FLOAT   0..1 confidence path was near-minimal (default: 0.5)")
@@ -27,6 +29,27 @@
   (println "  --receipt-refs TEXT  comma-separated receipt line hashes or timestamps")
   (println "  --note TEXT          one-line reflection")
   (System/exit 1))
+
+(defn parse-float-safe [s default-val]
+  (try
+    (let [v (Double/parseDouble (str/trim (str s)))]
+      (max 0.0 (min 1.0 v)))
+    (catch Exception _ default-val)))
+
+(defn parse-refs [s]
+  (let [cleaned (str/trim (str s))]
+    (if (or (empty? cleaned) (= cleaned "none") (= cleaned "nil"))
+      []
+      (->> (str/split cleaned #"[,\s]+")
+           (map str/trim)
+           (remove empty?)
+           vec))))
+
+(defn parse-spore [s]
+  (let [cleaned (str/trim (str s))]
+    (if (or (empty? cleaned) (= cleaned "none") (= cleaned "nil"))
+      nil
+      cleaned)))
 
 (let [args (c/parse-key-value-args *command-line-args*)
       task (get args "--task")]
@@ -40,23 +63,22 @@
                  (do (binding [*out* *err*]
                        (println "Could not find project root containing .ημ/ or .git/"))
                      (System/exit 1)))
-        ledger (io/file root ".ημ" "session-mycology" "ledger.md")]
+        ledger (c/ledger-edn-file root)]
     (.mkdirs (.getParentFile ledger))
-    (let [eff (or (get args "--efficiency") "0.5")
-          fric (or (get args "--friction") "0.5")
-          cand (or (get args "--candidate") "0.0")
-          spore (get args "--spore" "none")
-          refs (get args "--receipt-refs" "none")
-          note (get args "--note" "")]
-      (spit ledger
-            (str "- ts: " (c/now-iso) "\n"
-                 "  session: " (c/session-id) "\n"
-                 "  task: " task "\n"
-                 "  p-efficiency: " eff "\n"
-                 "  p-friction: " fric "\n"
-                 "  p-skill-candidate: " cand "\n"
-                 "  spore: " spore "\n"
-                 "  receipt-refs: " refs "\n"
-                 "  note: " note "\n")
-            :append true)
+    (let [eff (parse-float-safe (get args "--efficiency") 0.5)
+          fric (parse-float-safe (get args "--friction") 0.5)
+          cand (parse-float-safe (get args "--candidate") 0.0)
+          spore (parse-spore (get args "--spore"))
+          refs (parse-refs (get args "--receipt-refs"))
+          note (or (get args "--note") "")
+          entry {:ts (c/now-iso)
+                 :session (c/session-id)
+                 :task task
+                 :p-efficiency eff
+                 :p-friction fric
+                 :p-skill-candidate cand
+                 :spore spore
+                 :receipt-refs refs
+                 :note note}]
+      (spit ledger (str (pr-str entry) "\n") :append true)
       (println "Appended to" (.getPath ledger)))))
