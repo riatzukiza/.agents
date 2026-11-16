@@ -20,6 +20,7 @@ maxbackups = 10
 logfile = /home/err/.local/state/agents-sync/unison.log
 ignore = Path skills/synced
 ignore = Path skills/.trash
+ignore = Path skills/promethean-service-deploy
 ignore = Name .git
 ignore = Name node_modules
 ignore = Name __pycache__
