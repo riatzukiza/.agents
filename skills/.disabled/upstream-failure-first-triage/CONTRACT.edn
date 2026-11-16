@@ -1,0 +1,16 @@
+(skill-contract
+  (name "upstream-failure-first-triage")
+  (v "ημ.skill/upstream-failure-first-triage@0.1.0")
+
+  (intent "When a user reports a 500 whose detail names an upstream dependency fetch failure, verify that dependency directly and report outage status before changing application code; only patch after proving local code caused the upstream failure.")
+
+  (activation
+    (priority 41)
+    (explicit ["skill:upstream-failure-first-triage"])
+    (triggers ["upstream-failure-first-triage" "upstream failure first triage"]))
+
+  (governance
+    (touch-layer :mutable)
+    (non-override [:mission :directives :safety :license :output-shape])
+    (requires-user-approval false))
+)

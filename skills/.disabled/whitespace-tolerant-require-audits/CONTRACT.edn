@@ -1,0 +1,30 @@
+(skill-contract
+  (name "whitespace-tolerant-require-audits")
+  (v "ημ.skill/whitespace-tolerant-require-audits@0.1.0")
+
+  (intent
+    "Accurately count and locate all callers of a Clojure namespace before deleting, renaming, or deprecating it.")
+
+  (activation
+    (priority 70)
+    (explicit ["skill:whitespace-tolerant-require-audits"])
+    (triggers ["require audit" "caller count" "delete namespace" "deprecate namespace" "whitespace tolerant" "aligned require"]))
+
+  (governance
+    (touch-layer :mutable)
+    (non-override [:mission :directives :safety :license :output-shape])
+    (requires-user-approval false))
+
+  (effects
+    (writes true)
+    (network false)
+    (commits false))
+
+  (protocol
+    (workflow
+      ["Identify every public symbol the namespace exposes."
+       "Search for :require/:use/require references with whitespace-tolerant patterns."
+       "Search for symbol usages that may bypass the require."
+       "Run a compile check / full test suite as the ground truth."
+       "Report caller counts only after search and compile/test pass."
+       "Delete/rename and run a safety sweep for stragglers."])))

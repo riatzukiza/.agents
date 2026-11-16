@@ -1,0 +1,16 @@
+(skill-contract
+  (name "fork-tax-inbox-docs")
+  (v "ημ.skill/fork-tax-inbox-docs@0.1.0")
+
+  (intent "Fork tax payment for epiphany project with inbox docs and skills")
+
+  (activation
+    (priority 41)
+    (explicit ["skill:fork-tax-inbox-docs"])
+    (triggers ["fork-tax-inbox-docs" "fork tax inbox docs"]))
+
+  (governance
+    (touch-layer :mutable)
+    (non-override [:mission :directives :safety :license :output-shape])
+    (requires-user-approval false))
+)

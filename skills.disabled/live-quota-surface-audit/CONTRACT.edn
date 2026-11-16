@@ -1,0 +1,16 @@
+(skill-contract
+  (name "live-quota-surface-audit")
+  (v "ημ.skill/live-quota-surface-audit@0.1.0")
+
+  (intent "Audit provider quota tracking by diffing direct upstream quota payloads against local extraction, labels, and dashboard semantics to catch stale fields and mislabeled windows.")
+
+  (activation
+    (priority 41)
+    (explicit ["skill:live-quota-surface-audit"])
+    (triggers ["live-quota-surface-audit" "live quota surface audit"]))
+
+  (governance
+    (touch-layer :mutable)
+    (non-override [:mission :directives :safety :license :output-shape])
+    (requires-user-approval false))
+)

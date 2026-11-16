@@ -1,0 +1,16 @@
+(skill-contract
+  (name "host-run-accelerator-sidecar-when-container-abi-breaks")
+  (v "ημ.skill/host-run-accelerator-sidecar-when-container-abi-breaks@0.1.0")
+
+  (intent "Recover a local stack that depends on NPU/GPU acceleration by validating the host runtime, redirecting containers to a managed host-side service over host.docker.internal, and demoting the broken containerized accelerator path to an opt-in profile until ABI issues are fixed.")
+
+  (activation
+    (priority 41)
+    (explicit ["skill:host-run-accelerator-sidecar-when-container-abi-breaks"])
+    (triggers ["host-run-accelerator-sidecar-when-container-abi-breaks" "host run accelerator sidecar when container abi breaks"]))
+
+  (governance
+    (touch-layer :mutable)
+    (non-override [:mission :directives :safety :license :output-shape])
+    (requires-user-approval false))
+)
