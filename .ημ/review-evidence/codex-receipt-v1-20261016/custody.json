@@ -1,0 +1,138 @@
+{
+  "kind": "derived-observed-native-read-custody",
+  "notRawProviderApprovalOrBoardValidation": true,
+  "observedAt": "2026-10-16T02:45:30.733757+00:00",
+  "humanInclusion": "Include the narrow Codex format fix (Recommended)",
+  "proposalV2SHA256": "9cc7f60a5f94d3c70ec5b15a056d61c63295b1f1555221e5831e9fdf07b75019",
+  "unappliedCandidateV2SHA256": "f27755844a96e2a660c5a18ec452623a4c1d98371e0600c83d8613cd3f2aab73",
+  "primary": "166b0f44-1155-442b-96e3-22275cf5785d",
+  "primaryStatus": "incoming",
+  "points": 1,
+  "actualParent": "63a0e4ff-353f-4c90-ab8a-7241d958d54c",
+  "actualParentPoints": 41,
+  "proposedSameParentPoints": 42,
+  "nativeDirectChildren": [
+    {
+      "uuid": "acac43b9-cb60-40c9-884b-a722fab7f645",
+      "title": "Choose social interactions and retain their relationship outcomes",
+      "points": "5",
+      "status": "incoming",
+      "parent": "63a0e4ff-353f-4c90-ab8a-7241d958d54c",
+      "epic": "63a0e4ff-353f-4c90-ab8a-7241d958d54c"
+    },
+    {
+      "uuid": "4cac8ac8-1a9f-441d-ac87-aa09f874eb57",
+      "title": "Evolve a separate mood model that changes attention and recall",
+      "points": "5",
+      "status": "incoming",
+      "parent": "63a0e4ff-353f-4c90-ab8a-7241d958d54c",
+      "epic": "63a0e4ff-353f-4c90-ab8a-7241d958d54c"
+    },
+    {
+      "uuid": "ff3e628b-cd5c-4a89-a397-42cc88dbde70",
+      "title": "Make physical graph and field evolution causally change character recall",
+      "points": "8",
+      "status": "incoming",
+      "parent": "63a0e4ff-353f-4c90-ab8a-7241d958d54c",
+      "epic": "63a0e4ff-353f-4c90-ab8a-7241d958d54c"
+    },
+    {
+      "uuid": "b3da01be-aed8-4d61-88c4-82a62fc5cf1f",
+      "title": "Preserve one creative character with slowly developing traits and relationships",
+      "points": "5",
+      "status": "incoming",
+      "parent": "63a0e4ff-353f-4c90-ab8a-7241d958d54c",
+      "epic": "63a0e4ff-353f-4c90-ab8a-7241d958d54c"
+    },
+    {
+      "uuid": "166b0f44-1155-442b-96e3-22275cf5785d",
+      "title": "Recognize the exact native Codex receipt-v1 passing envelope",
+      "points": "1",
+      "status": "incoming",
+      "parent": "63a0e4ff-353f-4c90-ab8a-7241d958d54c",
+      "epic": "63a0e4ff-353f-4c90-ab8a-7241d958d54c"
+    },
+    {
+      "uuid": "5ea872c3-1db4-47c5-a63d-d49f99f79497",
+      "title": "Verify and deploy the complete encounter-to-character feedback loop",
+      "points": "3",
+      "status": "incoming",
+      "parent": "63a0e4ff-353f-4c90-ab8a-7241d958d54c",
+      "epic": "63a0e4ff-353f-4c90-ab8a-7241d958d54c"
+    },
+    {
+      "uuid": "6eb77110-8cf4-44d5-a242-f495d25d6aaf",
+      "title": "Admit changing outside encounters into the character's memory graph",
+      "points": "3",
+      "status": "ready",
+      "parent": "63a0e4ff-353f-4c90-ab8a-7241d958d54c",
+      "epic": "63a0e4ff-353f-4c90-ab8a-7241d958d54c"
+    },
+    {
+      "uuid": "b5f2ba9e-8d67-4c73-9919-e275983aca87",
+      "title": "Select the physical graph kernel owner and numeric replay contract",
+      "points": "3",
+      "status": "ready",
+      "parent": "63a0e4ff-353f-4c90-ab8a-7241d958d54c",
+      "epic": "63a0e4ff-353f-4c90-ab8a-7241d958d54c"
+    },
+    {
+      "uuid": "a1e9d6af-0233-4dcb-9677-5c76fa9a2701",
+      "title": "Hydrate the creative character with authorized traced graph memory",
+      "points": "5",
+      "status": "in_progress",
+      "parent": "63a0e4ff-353f-4c90-ab8a-7241d958d54c",
+      "epic": "63a0e4ff-353f-4c90-ab8a-7241d958d54c"
+    },
+    {
+      "uuid": "6c789296-a573-47ae-9d46-3f30a9f359ae",
+      "title": "Qualify fresh opener withdrawal at an outdated native location",
+      "points": "2",
+      "status": "in_progress",
+      "parent": "63a0e4ff-353f-4c90-ab8a-7241d958d54c",
+      "epic": "63a0e4ff-353f-4c90-ab8a-7241d958d54c"
+    },
+    {
+      "uuid": "fbf4f337-5a01-48fb-b3ac-52859ed42a07",
+      "title": "Repair canonical opener withdrawal across immutable review heads",
+      "points": "2",
+      "status": "done",
+      "parent": "63a0e4ff-353f-4c90-ab8a-7241d958d54c",
+      "epic": "63a0e4ff-353f-4c90-ab8a-7241d958d54c"
+    }
+  ],
+  "query": "rheos compose --where parent = 63a0e4ff-353f-4c90-ab8a-7241d958d54c --json --config openhax.kanban.edn",
+  "privateFullQueryBytes": 89728,
+  "privateFullQuerySHA256": "bcc4fb5c7dfd180ec01085516bc7f0975f63c410f1f41b87bf3f264dea141198",
+  "rawFiles": {
+    "native-incoming-card-read.json": {
+      "bytes": 6145,
+      "sha256": "27099cac3b92be8354658f513cf9103c47b4c26112f88acaa97cd22926737491",
+      "availability": {
+        "currentTree": "full-board-export-not-included",
+        "originalAvailability": "protected retained original and unchanged historical Git source",
+        "sourceCommit": "d72324a2d00af5813195d99dc74bdf4c74623d48",
+        "retentionManifest": ".\u03b7\u03bc/review-evidence/codex-receipt-v1-20261016/retained-board-originals-20261016.json",
+        "claimBoundary": "Reference only; not raw current evidence, board validation/admission, approval or historical erasure."
+      }
+    },
+    "native-codex-passing-6206360170.json": {
+      "bytes": 4206,
+      "sha256": "b5e9927e862ff5c5d5d7dcbb662099e838755cefa9d3dfa1df1e9c96b7473eaf"
+    }
+  },
+  "nativeCodexFullCommitResolution": "04bb88861f1ed876732e050a299bbfaabe1752af",
+  "nativeCodexShortCommit": "04bb88861f",
+  "rawNativeCodexJSONIsUnchanged": true,
+  "initialDefaultSlugCorrection": "Original default slug draft remains Incoming, detached by native writer and explicitly superseded; direct rejected transition was refused exit3. No identity/history rewrite or forced transition. This UUID card is sole added parent child.",
+  "implementationApplied": false,
+  "noApprovalOrReadyOrEstimateWrite": true,
+  "currentProjection": {
+    "kind": "derived documentary minimization",
+    "observedAt": "2026-10-16T08:29:52.201077+00:00",
+    "originalSourceCommit": "d72324a2d00af5813195d99dc74bdf4c74623d48",
+    "originalDocumentSHA256": "8a57fac86effc22071f1a7429d14b390d7cb1dfecb558bcae8c6f168ca4ce6f3",
+    "retentionManifest": ".\u03b7\u03bc/review-evidence/codex-receipt-v1-20261016/retained-board-originals-20261016.json",
+    "meaning": "Preserved original facts/identities/results with explicit current availability; full originals retained, no synthetic raw provider or board evidence."
+  }
+}

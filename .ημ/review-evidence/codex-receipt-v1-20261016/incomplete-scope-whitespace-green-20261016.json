@@ -1,0 +1,55 @@
+{
+  "tier": "Observed complete registered local GREEN and exact one-line implementation boundary; not nativeapproval/merge/adoption",
+  "observedAt": "2026-10-16T07:49:32.844213+00:00",
+  "causalRED": "c71dfc2388c922faf569f6f410baaf5e10265e74",
+  "nativeRoot": 4291863831,
+  "sourcePath": "skills/pr-flow/scripts/pr_flow/law.cljc",
+  "sourceSHA256": "6936dcd7ebc278a6574cb78ea35c094835f182d938b4250ea63b0421af2d7b17",
+  "lawOnlyPatchSHA256": "70ba3d7ff64cc4b14e63713101788344bca48889229460c3f06cc4b1f1152b6d",
+  "boundary": "Eleven literal separating spaces become backslash-s-plus only inside existing incomplete-review phrase regex at1049; allotherfilebytes unchanged. No rawbody/globalreviewer-prose normalization.",
+  "rawPrefixHelperNativeSkippedArtifactExceptionAndOtherFunctionsUnchanged": true,
+  "frozenREDTestsUnchanged": true,
+  "actualGates": {
+    "law": {
+      "tests": 189,
+      "assertions": 5001,
+      "failures": 0,
+      "errors": 0
+    },
+    "policy": {
+      "tests": 67,
+      "assertions": 1714,
+      "failures": 0,
+      "errors": 0
+    },
+    "portable": {
+      "tests": 4,
+      "assertions": 29,
+      "failures": 0,
+      "errors": 0
+    },
+    "fullCLI": {
+      "tests": 105,
+      "assertions": 3020,
+      "failures": 0,
+      "errors": 0,
+      "startedAt": "2026-10-16T07:29:05.143503Z",
+      "completedAt": "2026-10-16T07:45:12.456822Z",
+      "seconds": 967.312,
+      "actualRuns": 1
+    },
+    "flow": "PASS",
+    "contract": "PASS",
+    "scriptsKondo": {
+      "errors": 0,
+      "warnings": 0
+    },
+    "diff": "PASS"
+  },
+  "node": "22.23.3 process-only",
+  "allGateStderrEmpty": true,
+  "all30ObservedOwnedPIDsAbsent": true,
+  "rawNativeFixtureSHA256": "b5e9927e862ff5c5d5d7dcbb662099e838755cefa9d3dfa1df1e9c96b7473eaf",
+  "fullPrivateExecutionProofSHA256": "d8b620454c8d7099f2d4fa9f829aad1188fe2aae6a84b824c287da01a155b1db",
+  "limits": "Byte audit is localimplementation evidence, not separate native reviewer approval. Currentheadhostedchecks/fullreview/settlement/MERGE thenprotectedadoption remain. No old9c approvaltransfer, runtime/credential/provider/paid/deployment/social/heartbeat change."
+}
