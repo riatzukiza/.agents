@@ -655,13 +655,13 @@
         posted (first (writes r "comment"))]
     (is (= 0 (:exit r)) (:err r))
     (is (= 1 (count (writes r "comment"))))
-    (is (str/starts-with? (:input posted "") "@coderabbitai full review"))
+    (is (str/starts-with? (:input posted "") "@codex review"))
     (is (str/includes? (:input posted "") note))
     (is (str/includes? (:input posted "") (str "pr-flow-review:" head)))
     (is (= ["--body-file" "-"] (vec (take-last 2 (:args posted))))))
   (let [config (assoc base :comments [{:user {:login "riatzukiza" :type "User"}
                                       :created_at "2026-10-03T01:00:00Z"
-                                      :body (str "@coderabbitai full review <!-- pr-flow-review:" head " --> <!-- pr-flow-reviewer:coderabbit -->")}])
+                                      :body (str "@codex review <!-- pr-flow-review:" head " --> <!-- pr-flow-reviewer:codex -->")}])
         r (execute config "request" "riatzukiza/.agents" "8" "code")]
     (is (str/includes? (:out r) "pending"))
     (is (empty? (writes r "comment")))))
@@ -679,10 +679,10 @@
                  :created_at "2026-10-03T01:02:00Z"
                  :body (str "@coderabbitai full review <!-- pr-flow-stage:code --> <!-- pr-flow-review:" head
                             " --> <!-- pr-flow-reviewer:coderabbit -->")}
-        pending (execute (assoc base :comments [request]) "request" "riatzukiza/.agents" "8" "code")
+        pending (execute (assoc base :comments [request]) "request" "riatzukiza/.agents" "8" "code" "--reviewer" "coderabbit")
         limit {:user {:login "coderabbitai[bot]" :type "Bot"} :updated_at (.toISOString (js/Date.))
                :body "Review limit reached.\nNext included review available in 57 minutes."}
-        cooldown (execute (assoc base :comments [request limit]) "request" "riatzukiza/.agents" "8" "code")]
+        cooldown (execute (assoc base :comments [request limit]) "request" "riatzukiza/.agents" "8" "code" "--reviewer" "coderabbit")]
     (is (str/includes? (:out pending) "pending"))
     (is (empty? (writes pending "comment")))
     (is (str/includes? (:out cooldown) "cooldown"))
@@ -695,10 +695,10 @@
                     :body (str "<!-- final_review_risk_coverage: {\"kind\":\"reviewed\",\"sourceCommitId\":\""
                                head "\",\"coveredCommitId\":\"" head "\"} -->"))]
     (let [result (execute (assoc base :comments [(assoc bot :body "The workflow preserves rate-limited reviews; operators wait 53 minutes.")])
-                          "request" "riatzukiza/.agents" "8" "code")]
+                          "request" "riatzukiza/.agents" "8" "code" "--reviewer" "coderabbit")]
         (is (= 0 (:exit result)) (:err result))
         (is (= 1 (count (writes result "comment")))))
-    (let [result (execute (assoc base :comments [notice done]) "request" "riatzukiza/.agents" "8" "code")]
+    (let [result (execute (assoc base :comments [notice done]) "request" "riatzukiza/.agents" "8" "code" "--reviewer" "coderabbit")]
       (is (= 1 (:exit result)))
       (is (empty? (writes result "comment"))))))
 
@@ -790,7 +790,7 @@
     (let [pending {:id 503 :user {:login "riatzukiza" :type "User"} :created_at "2026-10-03T01:01:00Z"
                    :body (str "@coderabbitai full review <!-- pr-flow-stage:code --> <!-- pr-flow-round:1 --> "
                               "<!-- pr-flow-review:" head " --> <!-- pr-flow-reviewer:coderabbit -->")}
-          r (execute (update config :comments conj pending) "request" "riatzukiza/.agents" "8" "code")]
+          r (execute (update config :comments conj pending) "request" "riatzukiza/.agents" "8" "code" "--reviewer" "coderabbit")]
       (is (= 0 (:exit r)) (:err r))
       (is (str/includes? (:out r) "No request sent: pending"))
       (is (empty? (writes r "comment"))))
@@ -1643,8 +1643,15 @@
     (let [config (update (rheos-stage-config) :comments
                          #(mapv (fn [c] (if (= 5968488345 (:id c)) (update c :body alter) c)) %))
           r (execute config "status" "open-hax/rheos" "2")]
-      ;; Altered declarations still earn no round credit; rounds no longer gate (2026-10-29).
-      (is (str/includes? (:out r) "completed code rounds: 0"))
+      ;; Invalid declarations earn no historical credit. The active current
+      ;; CodeRabbit cohort can independently complete after MiMo retirement.
+      (is (not= "code" (:stage (law/legacy-stage-marker
+                               (assoc (first (filter #(= 5968488345 (:id %)) (:comments config))) :authorized? true)))))
+      (is (= 0 (law/stage-review-rounds
+                 (law/completed-review-rounds (:reviews config) (:comments config)
+                                              law/default-reviewer-identities (:checks config))
+                 [] "code" #{"coderabbit" "codex" "mimo"})))
+      (is (str/includes? (:out r) "completed code rounds: 1"))
       (is (str/includes? (:out r) "gate: PASS"))
       (is (empty? (mutations r)))
       (is (empty? (writes r "merge"))))))
@@ -1667,7 +1674,7 @@
     ;; positive cases replay exact native bodies, identities and timestamps.
     (doseq [comments [[unknown wait] [unknown available]]]
       (let [r (execute (assoc base :comments comments)
-                       "request" "riatzukiza/.agents" "8" "code")
+                       "request" "riatzukiza/.agents" "8" "code" "--reviewer" "coderabbit")
             posted (first (writes r "comment"))]
         (is (= 0 (:exit r)) (:err r))
         (is (= 1 (count (writes r "comment"))))
@@ -1685,18 +1692,18 @@
                                  [[unknown (assoc-in available [:user :type] "User")] "rate-limited"]
                                  [[unknown (update available :body #(str "```text\n" % "\n```"))] "rate-limited"]]]
       (let [r (execute (assoc base :comments comments)
-                       "request" "riatzukiza/.agents" "8" "code")]
+                       "request" "riatzukiza/.agents" "8" "code" "--reviewer" "coderabbit")]
         (is (str/includes? (:out r) (str "No request sent: " expected)))
         (is (empty? (writes r "comment")))
         (is (empty? (mutations r)))
         (is (empty? (writes r "merge")))))
     (let [pending (execute (assoc base :comments [unknown available]
                                  :checks [{:name "CodeRabbit" :state "PENDING"}])
-                           "request" "riatzukiza/.agents" "8" "code")
+                           "request" "riatzukiza/.agents" "8" "code" "--reviewer" "coderabbit")
           changed (execute (assoc base :comments [unknown available] :heads [head head head other])
-                           "request" "riatzukiza/.agents" "8" "code")
+                           "request" "riatzukiza/.agents" "8" "code" "--reviewer" "coderabbit")
           public-marker (execute (assoc base :comments [unknown available request] :authorized false)
-                                 "request" "riatzukiza/.agents" "8" "code")]
+                                 "request" "riatzukiza/.agents" "8" "code" "--reviewer" "coderabbit")]
       (is (str/includes? (:out pending) "No request sent: pending"))
       (is (empty? (writes pending "comment")))
       (is (= 1 (:exit changed)))
@@ -2050,7 +2057,7 @@
                          :body (str/replace (:body wait) "30 minutes." "unknown minutes"))]
     (doseq [comments [[inquiry wait] [unknown wait] [available wait]]]
       (let [r (execute-at before (assoc base :comments comments)
-                          "request" "riatzukiza/.agents" "17" "code")]
+                          "request" "riatzukiza/.agents" "17" "code" "--reviewer" "coderabbit")]
         (is (= 0 (:exit r)) (:err r))
         (is (str/includes? (:out r) "No request sent: cooldown; retry after 2026-10-05T12:54:40.000Z"))
         (is (empty? (writes r "comment")))
@@ -2060,7 +2067,7 @@
                                  [[available malformed] "rate-limited"]
                                  [[wait request] "pending"]]]
       (let [r (execute-at after (assoc base :comments comments)
-                          "request" "riatzukiza/.agents" "17" "code")]
+                          "request" "riatzukiza/.agents" "17" "code" "--reviewer" "coderabbit")]
         (is (str/includes? (:out r) (str "No request sent: " expected)))
         (is (= (if (= expected "rate-limited") 1 0) (:exit r)))
         (when (= expected "rate-limited")
@@ -2070,16 +2077,16 @@
         (is (empty? (writes r "merge")))))
     (let [pending (execute-at after (assoc base :comments [inquiry wait]
                                           :checks [{:name "CodeRabbit" :state "PENDING"}])
-                              "request" "riatzukiza/.agents" "17" "code")
+                              "request" "riatzukiza/.agents" "17" "code" "--reviewer" "coderabbit")
           changed (execute-at after (assoc base :comments [inquiry wait] :heads [head head head other])
-                              "request" "riatzukiza/.agents" "17" "code")]
+                              "request" "riatzukiza/.agents" "17" "code" "--reviewer" "coderabbit")]
       (is (str/includes? (:out pending) "No request sent: pending"))
       (is (empty? (writes pending "comment")))
       (is (= 1 (:exit changed)))
       (is (str/includes? (:err changed) "PR head changed before review request"))
       (is (empty? (writes changed "comment"))))
     (let [allowed (execute-at after (assoc base :comments [inquiry wait] :authorized true)
-                              "request" "riatzukiza/.agents" "17" "code")
+                              "request" "riatzukiza/.agents" "17" "code" "--reviewer" "coderabbit")
           posted (first (writes allowed "comment"))]
       (is (= 0 (:exit allowed)) (:err allowed))
       (is (= 1 (count (writes allowed "comment"))))
@@ -2093,7 +2100,7 @@
     ;; Public exact-head markers cannot create a trusted pending request. The
     ;; actual caller still consults the native writer lookup and current head.
     (let [public (execute-at after (assoc base :comments [inquiry wait request] :authorized false)
-                             "request" "riatzukiza/.agents" "17" "code")]
+                             "request" "riatzukiza/.agents" "17" "code" "--reviewer" "coderabbit")]
       (is (= 0 (:exit public)) (:err public))
       (is (= 1 (count (writes public "comment"))))
       (is (some #(str/includes? (second (:args %)) "/collaborators/riatzukiza/permission")

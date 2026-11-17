@@ -15,9 +15,10 @@
                :identities {"codex" #{"chatgpt-codex-connector[bot]"} "mimo" #{"eta-mu-ai[bot]"}}
                :now-ms 1790989320000}
         observed (law/reviewer-availability input)]
-    (is (= #{"mimo"} (:review-participants observed)))
+    (is (= #{} (:review-participants observed)))
     (is (= old (get-in observed [:review-availability "codex" :request-head])))
-    (is (= #{"mimo" "codex"} (:review-participants (law/reviewer-availability (assoc input :mandatory #{"codex"})))))))
+    (is (= #{"codex"} (:review-participants (law/reviewer-availability (assoc input :mandatory #{"codex"})))))
+    (is (= #{"mimo"} (:review-participants (law/reviewer-availability (assoc input :mandatory #{"mimo"})))))))
 
 (deftest issue-comments-without-bodies-remain-findings
   ;; NBB tolerated the old split-lines nil call; Babashka throws. Exercise
