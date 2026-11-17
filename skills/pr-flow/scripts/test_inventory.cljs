@@ -10,6 +10,23 @@
   (is (every? #(contains? inv/eligible %) (keys inv/reviewers)) "all reviewers remain in the inventory; evidence admission is separate")
   (is (= "antigravity" (inv/check-reviewer {:name "review / review" :workflow "Antigravity evidence review"}))))
 
+(deftest retired-recruitment-preserves-evidence
+  (is (not (inv/active "mimo")))
+  (is (inv/eligible "mimo"))
+  (is (= "codex" inv/default-request))
+  (is (= "mimo" (law/trusted-reviewer {:user {:login "eta-mu-ai[bot]" :type "Bot"}} inv/identities)))
+  (is (not (contains? (:review-participants (law/reviewer-availability {:head head})) "mimo")))
+  (is (contains? (:review-participants (law/reviewer-availability {:head head :mandatory #{"mimo"}})) "mimo")))
+
+(deftest retirement-does-not-rewrite-historical-rounds
+  (let [old "0000000000000000000000000000000000000000"
+        configured #{"codex" "mimo"}
+        participants #{"codex"}
+        past [{:reviewer "codex" :commit_id old :submitted_at "2026-11-01T00:00:00Z"}]
+        current {:reviewer "codex" :commit_id head :submitted_at "2026-11-17T00:00:00Z"}]
+    (is (= 0 (law/available-review-rounds past [] "code" configured participants head)))
+    (is (= 1 (law/available-review-rounds (conj past current) [] "code" configured participants head)))))
+
 (deftest waivers
   (is (inv/waived? "kimi" "open-hax/proxx"))
   (is (not (inv/waived? "kimi" "open-hax/eta-mu")))
