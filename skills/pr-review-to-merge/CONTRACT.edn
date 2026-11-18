@@ -15,7 +15,7 @@
     (authorization "Do not infer merge permission from review or skill installation; reuse existing explicit authorization."))
   (invariants
     (native-profile "pr-flow/native-swarm.md; independent PRs may proceed concurrently with one coordinator per PR or coupled stack and one writer per branch/resource")
-    (native-review "One proportionate combined-tree review; at most two review-driven repair passes across the entire task by default, unless the user chooses another bound")
+    (native-review "Proportionate combined-tree review; local repairs have no fixed pass cap and require progress or changed diagnosis. GitHub-hosted requests follow existing pr-flow controls without waiving required checks or approvals")
     (hosted-provider-compatibility
       (one-active-pr true)
       (reviewer-defaults "pr-flow/flow.edn :flow/defaults :review/by-repo-name; mandatory reviewer sets cannot be removed by --reviewers")
