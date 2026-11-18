@@ -14,7 +14,8 @@
  :review/evidence :source-and-plan-bound
  :review/unknown :incomplete
  :review/round-count :no-fixed-minimum
- :review/repair :two-passes-total-across-replanning-then-report-unresolved
+ :review/repair :local-progress-driven-no-fixed-pass-cap
+ :review/github-rereview :existing-repository-and-provider-request-controls
  :writes/authority :one-writer-per-resource
  :integration/qualification :combined-tree-tests-and-proportionate-review
  :publication/principal :observed-authenticated-account

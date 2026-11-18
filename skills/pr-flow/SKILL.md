@@ -13,8 +13,8 @@ Provenance and maturity are retained in [configs/provenance.edn](configs/provena
 The user's 2026-11-03 direction makes native harness subagents the preferred
 execution path. Read [native swarm review](native-swarm.md), then use
 `ultra-code` for local execution, bounded parallel dispatch, proportionate
-review and a task-wide repair limit. The profile is recorded
-in [configs/native-swarm.edn](configs/native-swarm.edn).
+review and progress-driven local repairs. GitHub-hosted re-review requests have
+a separate budget. The profile is recorded in [configs/native-swarm.edn](configs/native-swarm.edn).
 
 Independent PRs run concurrently. One coordinator owns each PR or dependent
 stack, and one writer owns each branch or shared resource. Provider-specific

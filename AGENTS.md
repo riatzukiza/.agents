@@ -111,7 +111,7 @@ Promotions must preserve provenance and be reviewed before becoming a production
 ## Git and concurrent work
 
 - For native agent swarms, use the native profile in `skills/pr-flow/native-swarm.md` and `skills/ultra-code/SKILL.md`. Discover the active harness's capabilities; prefer its own spawn, background completion and wait mechanisms.
-- Independent PRs and packets may run concurrently. Assign one coordinator per PR or dependent stack and one writer per branch or shared resource. Review the integrated result proportionately in a fresh context when available. Use a skeptic only when risk or a disputed finding warrants one, and honor UltraCode’s task-wide repair limit.
+- Independent PRs and packets may run concurrently. Assign one coordinator per PR or dependent stack and one writer per branch or shared resource. Review the integrated result proportionately in a fresh context when available. Use a skeptic only when risk or a disputed finding warrants one, and keep GitHub-hosted re-review budgets separate from uncapped, progress-driven local repairs.
 - Hosted-provider round counts and provider-specific child-skill instructions apply only when that compatibility profile is selected. Required GitHub checks/approvals, current-revision evidence, findings settlement and merge authorization still apply.
 - Assume shared or concurrent work unless exclusivity is explicit.
 - Use a branch and pull request for repository-wide governance changes.

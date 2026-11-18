@@ -10,8 +10,10 @@ test('direct PR entry points select a profile before legacy policy', () => {
     const skill = read(`skills/${dir}/SKILL.md`);
     assert.match(skill, /including direct invocation|including on direct invocation/);
     assert.match(skill, /native-swarm\.md/);
-    assert.match(skill, /two\s+review-driven\s+repair\s+passes/);
-    assert.match(skill, /entire task|whole task/);
+    assert.match(skill, /(?:repairs|repair checks)[\s\S]*?no fixed\s+pass cap|repairs have no fixed pass cap/);
+    assert.match(skill, /separate GitHub-hosted request controls/);
+    assert.match(skill, /stop hosted requests, not useful local work/);
+    assert.doesNotMatch(skill, /two\s+review-driven\s+repair\s+passes/);
     assert.match(skill, /hosted-provider\.md/);
     assert.doesNotMatch(skill, /Five is a \*\*soft minimum\*\*/);
     assert.match(read(`skills/${dir}/hosted-provider.md`), /explicitly selected hosted-provider compatibility profile/);
@@ -28,7 +30,29 @@ test('native review cannot substitute for GitHub requirements or merge authoriza
   assert.match(skill, /Local review evidence is not a GitHub approval/);
   assert.match(skill, /exact-head guard/);
   assert.match(contract, /\(hosted-provider-compatibility\s+\(one-active-pr true\)/);
-  assert.match(contract, /\(native-review "One proportionate combined-tree review; at most two/);
+  assert.match(contract, /local repairs have no fixed pass cap/);
   assert.match(contract, /\(require-passing-required-checks true\)/);
   assert.match(contract, /\(allow-protection-bypass false\)/);
+});
+
+
+test('native profile separates hosted retries from local quality work', () => {
+  const profile = read('skills/pr-flow/native-swarm.md');
+  assert.match(profile, /Local\/internal review and repair have no fixed pass cap/);
+  assert.match(profile, /same failure recurs without progress/);
+  assert.match(profile, /existing repository and provider limits, quotas, cooldowns and pending-request guards/);
+  assert.match(profile, /do not cap internal reviews, local repairs or test reruns/);
+  assert.match(profile, /Do not invent a new task-wide or cross-PR request count/);
+  assert.match(profile, /Required GitHub approvals and checks still must pass/);
+  assert.match(profile, /continue useful local work/);
+  for (const file of ['AGENTS.md', 'skills/pr-flow/SKILL.md',
+                      'skills/pr-flow/CONTRACT.edn', 'skills/pr-flow/configs/native-swarm.edn',
+                      'skills/ultra-code/CONTRACT.edn', 'skills/ultra-code/references/native-schema.md']) {
+    assert.doesNotMatch(read(file), /task-wide repair limit|two-passes-total|task-wide bounded repair exit/, file);
+  }
+});
+
+
+test('hosted settlement guidance is covered by CI routing', () => {
+  assert.match(read('.github/workflows/native-swarm-laws.yml'), /- 'skills\/pr-review-settlement\/hosted-provider\.md'/);
 });

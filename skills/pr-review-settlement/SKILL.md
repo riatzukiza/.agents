@@ -19,11 +19,11 @@ invoking this skill does not select the hosted-provider profile.
 
 For the default native profile, follow [native swarm review](../pr-flow/native-swarm.md):
 review the integrated result once, fix substantiated findings, and use focused
-rechecks rather than restarting a full review for each repair. At most two
-review-driven repair passes apply to the entire task by default, even across
-replanning or handoffs; a user may explicitly choose another bound. If material
-findings or required checks remain unresolved, preserve the work and report the
-blocker rather than starting another loop or claiming success. Honor actual
+rechecks rather than restarting a full review for each repair. Local/internal
+repairs have no fixed pass cap; diagnose repeated no-progress failures rather than
+repeating an identical loop. Follow the separate GitHub-hosted request controls in
+native-swarm.md; their limits stop hosted requests, not useful local work.
+Preserve partial work and report concrete blockers without claiming success. Honor actual
 repository requirements, current-head evidence, and previously raised findings.
 Local reviewer output is not a GitHub approval. Never bypass protections.
 

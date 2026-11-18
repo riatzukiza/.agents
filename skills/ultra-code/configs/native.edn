@@ -6,9 +6,10 @@
  :review/skeptic-scope :optional-risk-or-dispute
  :review/provider-roster :not-required
  :review/fixed-minimum-rounds nil
- :repair/default-max-passes 2
- :repair/budget-scope :entire-task-across-replanning-and-handoffs
- :repair/exhaustion :stop-and-report-unresolved
+ :repair/local-max-passes nil
+ :repair/no-progress :diagnose-change-approach-or-report-concrete-blocker
+ :review/github-request-controls :existing-repository-and-provider-limits
+ :review/github-unavailable :continue-local-work-report-external-requirement
  :writes/ownership :one-writer-per-resource
  :integration/review :one-proportionate-combined-tree-review
  :publication/authority :actual-repository-policy
