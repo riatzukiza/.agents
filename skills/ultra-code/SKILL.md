@@ -1,6 +1,6 @@
 ---
 name: "ultra-code"
-description: "Complete substantial work in the current local environment, using either direct execution or native parallel agents with a bounded review and repair cycle."
+description: "Complete substantial work in the current local environment, using either direct execution or native parallel agents with progress-driven local review and a separate GitHub review-request budget."
 ---
 
 # UltraCode
@@ -22,7 +22,8 @@ Make a short plan identifying the outcome, acceptance checks, dependencies, owne
 - Run appropriate focused tests during implementation, integrate the actual combined tree, and run affected checks on it. Report unrun or failing checks honestly.
 - Perform one proportionate review of the integrated result, using a fresh native reviewer when available. If no independent context is available, inspect and test directly and report that limitation. A separate skeptic is optional when risk or a disputed finding warrants it, not a required second review.
 - Fix substantiated findings and verify the changed behavior. Do not restart a full review solely because a repair changed the candidate. Use a focused recheck of the repair and its affected behavior.
-- **Bound the loop:** at most two review-driven repair passes for the entire task by default, including after replanning, integration or handoffs. The budget never resets when a plan, candidate, reviewer or wave changes. One pass can fix multiple findings. Required checks and safety obligations are not waived. If material findings or failed required checks remain after the budget, stop the review/repair loop, preserve the partial work, and report the specific unresolved issues and next decision instead of declaring success or silently starting another round. A user can explicitly choose a different bound.
+- **Local progress:** Local/internal review and repair have no fixed pass cap. Continue authorized repairs while checks or review provide actionable progress. If the same failure recurs without progress, diagnose the cause and change the approach rather than repeating an identical loop. Report a concrete blocker or a decision requiring the user, preserve partial work, and continue independent work. Required checks and safety obligations are not waived.
+- **Hosted review budget:** Keep GitHub-hosted review requests subject to their existing repository and provider limits, quotas, cooldowns and pending-request guards. These external request controls do not cap internal reviews, local repairs or test reruns. Do not invent a new task-wide or cross-PR request count. When a hosted review cannot be requested, report that external requirement and continue useful local work. Required GitHub approvals and checks still must pass; reviewer unavailability grants no waiver or merge permission.
 - Do not treat failed, missing, stale or truncated review as a clean result. Distinguish observed review and test results from assumptions. Do not fabricate approvals or bypass required controls.
 
 For explicit PR or publication work, follow the target repository's actual requirements and its PR flow when available. Publication, merge and deployment require their own authorization. Do not start them merely because local work finished.

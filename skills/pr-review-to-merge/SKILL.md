@@ -14,9 +14,10 @@ use its selected profile. This skill does not itself authorize a merge.
 For the default native profile, use [native swarm review](../pr-flow/native-swarm.md).
 Independent PRs may proceed concurrently with one coordinator per PR or
 coupled stack and one writer per branch/resource. Review the combined result
-proportionately and use focused repair checks; at most two review-driven repair
-passes apply across the whole task by default, unless the user chooses another
-bound. If material findings or required checks remain, stop and report them.
+proportionately and use focused repair checks. Local/internal repairs have no fixed
+pass cap; diagnose repeated no-progress failures rather than repeating an identical
+loop. Follow the separate GitHub-hosted request controls in native-swarm.md; their
+limits stop hosted requests, not useful local work. Report concrete blockers.
 Read actual GitHub requirements, verify current head/base, settle actual findings,
 pass required checks and approvals, and merge only with authorization using an
 exact-head guard. Local review evidence is not a GitHub approval.
