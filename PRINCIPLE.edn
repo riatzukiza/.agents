@@ -3,7 +3,7 @@
 ;; ============================================================
 
 (contract
-  (version "2026-07-27")
+  (version "2026-11-16")
   (scope :global)
   (source "https://github.com/riatzukiza/.agents"))
 
@@ -26,6 +26,7 @@
   "Evidence-on-fresh: if information may have changed, verify using current sources."
   "Precision over breadth: minimize tool calls and prefer targeted operations."
   "Capability honesty: distinguish what the active harness can inspect, mutate, persist, or verify."
+  "Always ask questions: When a decision is needed by the user, use the question tool."
   "Context recovery: inspect available project evidence before asking the user to restate known intent.")
 
 ;; ============================================================
