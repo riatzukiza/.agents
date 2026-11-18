@@ -306,9 +306,9 @@
 (deftest proxx-admission-adds-only-current-repository-cohort
   (let [input {:head (:commit_id admitted-kimi) :comments [] :reviews [] :checks []
                :identities kimi-identities :publication-profile (:profile native-kimi)}]
-    (is (= #{"coderabbit" "codex" "mimo" "kimi"}
+    (is (= #{"coderabbit" "codex" "kimi"}
            (:review-participants (law/reviewer-availability (assoc input :repository "open-hax/proxx")))))
-    (is (= #{"coderabbit" "codex" "mimo"}
+    (is (= #{"coderabbit" "codex"}
            (:review-participants (law/reviewer-availability (assoc input :repository "open-hax/uxx")))))
     (is (contains? (:review-participants (law/reviewer-availability
                                          (assoc input :repository "open-hax/uxx" :mandatory #{"kimi"}))) "kimi"))))
@@ -346,7 +346,7 @@
     (is (= #{sha} (get-in evidence [:approved-heads "kimi"])))
     (is (= :explicit-review-verdict (get-in evidence [:approval-evidence "kimi" :channel])))
     (is (empty? (:approved-heads (law/review-evidence head [passing-kimi] [] kimi-identities))))
-    (is (= #{"coderabbit" "codex" "mimo" "kimi"}
+    (is (= #{"coderabbit" "codex" "kimi"}
            (:review-participants (law/reviewer-availability
                                   {:head sha :reviews [passing-kimi] :comments [] :checks []
                                    :repository "open-hax/proxx" :identities kimi-identities
@@ -1083,12 +1083,12 @@
         input {:head head :comments [request quota] :reviews [] :checks []
                :identities roster :now-ms (js/Date.parse "2026-10-03T01:02:00Z")}
         available (law/reviewer-availability input)]
-    (is (= #{"coderabbit" "mimo"} (:review-participants available)))
+    (is (= #{"coderabbit"} (:review-participants available)))
     (is (= {:available? false :mandatory? false :status :quota-unavailable
             :request-id 10 :source-id 11 :request-head head :scope :account :head head
             :observed-at "2026-10-03T01:01:00Z" :retry-at-ms nil}
            (get-in available [:review-availability "codex"])))
-    (is (= #{"coderabbit" "codex" "mimo"}
+    (is (= #{"coderabbit" "codex"}
            (:review-participants (law/reviewer-availability (assoc input :mandatory #{"codex"})))))
     (doseq [comments [[(assoc quota :body "Review limit reached.")] [(assoc request :trusted? false) (assoc quota :body "Review limit reached.")]
                       [(assoc request :body (str "<!-- pr-flow-review:" old-head " --> <!-- pr-flow-reviewer:codex -->")) (assoc quota :body "Review limit reached.")]
@@ -1096,11 +1096,11 @@
                       [request (assoc quota :created_at "invalid")]
                       [request (assoc quota :body "```\nYou have reached your Codex usage limits for code reviews.\n```")]
                       [request quota (assoc request :id 12 :created_at "2026-10-03T01:02:00Z")]]]
-      (is (= #{"coderabbit" "codex" "mimo"}
+      (is (= #{"coderabbit" "codex"}
              (:review-participants (law/reviewer-availability (assoc input :comments comments))))))
     (let [restored (assoc (review "chatgpt-codex-connector[bot]" "APPROVED" head)
                           :id 12 :submitted_at "2026-10-03T01:02:00Z" :body "Approved")]
-      (is (= #{"coderabbit" "codex" "mimo"}
+      (is (= #{"coderabbit" "codex"}
              (:review-participants (law/reviewer-availability (assoc input :reviews [restored]))))))
     (let [notice (assoc quota :body "Review rate limited.\nNext included review available in 20 minutes.")
           reset (js/Date.parse "2026-10-03T01:21:00Z")]
@@ -1109,24 +1109,24 @@
       (is (true? (get-in (law/reviewer-availability (assoc input :comments [request notice] :now-ms reset))
                         [:review-availability "codex" :available?]))))
     (let [automatic (law/reviewer-availability (assoc input :comments [quota]))]
-      (is (= #{"coderabbit" "mimo"} (:review-participants automatic)))
+      (is (= #{"coderabbit"} (:review-participants automatic)))
       (is (nil? (get-in automatic [:review-availability "codex" :request-id])))
       (is (= 11 (get-in automatic [:review-availability "codex" :source-id]))))
-    (is (= #{"coderabbit" "codex" "mimo"}
+    (is (= #{"coderabbit" "codex"}
            (:review-participants (law/reviewer-availability
                                   (assoc input :now-ms (js/Date.parse "2026-10-03T00:59:00Z"))))))
-    (is (= #{"coderabbit" "codex" "mimo"}
+    (is (= #{"coderabbit" "codex"}
            (:review-participants (law/reviewer-availability
                                   (assoc input :checks [{:name "Codex" :state "PENDING" :headSha head
                                                          :startedAt "2026-10-03T01:02:00Z"}])))))
     (let [prior-request (assoc request :body (str "<!-- pr-flow-review:" old-head " --> <!-- pr-flow-reviewer:codex -->"))
           account (law/reviewer-availability (assoc input :comments [prior-request quota]))]
-      (is (= #{"coderabbit" "mimo"} (:review-participants account)))
+      (is (= #{"coderabbit"} (:review-participants account)))
       (is (= old-head (get-in account [:review-availability "codex" :request-head])))
       (is (= :account (get-in account [:review-availability "codex" :scope]))))
     ;; Failure, skip, pending and incomplete scope cannot invent unavailability.
     (doseq [state ["FAILURE" "SKIPPED" "PENDING"]]
-      (is (= #{"coderabbit" "codex" "mimo"}
+      (is (= #{"coderabbit" "codex"}
              (:review-participants (law/reviewer-availability
                                     (assoc input :comments [request]
                                            :checks [{:name "Codex" :headSha head :state state}]))))))))
@@ -1346,7 +1346,7 @@
     (is (empty? (law/completed-review-rounds [] [wait available] law/default-reviewer-identities)))
     (is (empty? (:approved-heads (law/review-evidence head [] [wait available]
                                                         law/default-reviewer-identities))))
-    (is (= #{"coderabbit" "codex" "mimo"}
+    (is (= #{"coderabbit" "codex"}
            (:review-participants (law/reviewer-availability
                                   (quota-info-input [wait available] "2026-10-05T00:42:07Z")))))))
 
@@ -1500,7 +1500,7 @@
     (is (empty? (law/completed-review-rounds [] [inquiry wait] law/default-reviewer-identities)))
     (is (empty? (:approved-heads (law/review-evidence head [] [inquiry wait]
                                                         law/default-reviewer-identities))))
-    (is (= #{"coderabbit" "codex" "mimo"}
+    (is (= #{"coderabbit" "codex"}
            (:review-participants (law/reviewer-availability input))))))
 
 (deftest next-review-information-retains-unknown-order-and-pending-guards

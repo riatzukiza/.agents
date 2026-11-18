@@ -33,7 +33,7 @@
    :checks {:names #{"CodeRabbit"}}
    :detectors #{:risk-coverage-comment :native-check-state :info-paragraph-cooldown
                 :generated-reply-suffix :needs-independent-agreement}
-   :request {:mention "@coderabbitai full review" :pattern "@coderabbitai (?:full )?review" :default true}
+   :request {:mention "@coderabbitai full review" :pattern "@coderabbitai (?:full )?review"}
    :counts true
    :waived-in #{}}
 
@@ -41,7 +41,7 @@
   {:identities #{"chatgpt-codex-connector[bot]"}
    :checks {:names #{"Codex"}}
    :detectors #{:review-receipt-comment :account-quota-notice}
-   :request {:mention "@codex review" :pattern "@codex review"}
+   :request {:mention "@codex review" :pattern "@codex review" :default true}
    ;; Err 2026-10-29: auto-review on push is off; Codex reviews only when
    ;; directly requested. Never required or awaited unless named via
    ;; --reviewers / repo policy; its approval still counts when given.
@@ -50,7 +50,9 @@
    :waived-in #{}}
 
   "mimo"
-  {:identities #{"eta-mu-ai[bot]"}
+  {:active false
+   ;; Retired from recruitment; historical evidence and findings remain trusted.
+   :identities #{"eta-mu-ai[bot]"}
    :checks {:names #{"MiMo"}
             :tuples #{["Evidence-first review (eta-mu) / Review pull request with OpenCode MiMo"
                        "eta-mu evidence review"]}}

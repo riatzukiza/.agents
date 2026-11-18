@@ -21,6 +21,10 @@
   "Every reviewer that counts toward quorum and unanimity."
   (set (for [[id r] reviewers :when (:counts r)] id)))
 
+(def active
+  "Review sources eligible for automatic recruitment, not historical admission."
+  (set (filter #(not= false (get-in reviewers [% :active])) eligible)))
+
 (def identities
   "{reviewer #{exact bot logins}}."
   (into {} (for [[id r] reviewers] [id (set (:identities r))])))
@@ -48,7 +52,7 @@
 (defn request-mention [reviewer] (get-in reviewers [reviewer :request :mention]))
 (defn request-pattern [reviewer]
   (when-let [p (get-in reviewers [reviewer :request :pattern])] (re-pattern (str "(?i)" p))))
-(def requestable (set (for [[id r] reviewers :when (get-in r [:request :mention])] id)))
+(def requestable (set (for [[id r] reviewers :when (and (active id) (get-in r [:request :mention]))] id)))
 
 (defn waived?
   "True when `repo` (owner/name) appears, by full name or bare name, in the

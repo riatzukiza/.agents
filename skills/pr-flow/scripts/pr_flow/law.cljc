@@ -1707,7 +1707,7 @@
   [{:keys [head comments reviews checks identities mandatory now-ms repository publication-profile]
     :or {identities default-reviewer-identities mandatory #{}}}]
   (let [configured (cond-> (into (set mandatory)
-                                (for [[p logins] identities :when (and (eligible-reviewers p) (seq logins))] p))
+                                (for [[p logins] identities :when (and (inv/active p) (seq logins))] p))
                      (publication/applicable? repository publication-profile) (conj (publication-reviewer)))
         completed (completed-review-rounds reviews comments identities checks)
         observations
