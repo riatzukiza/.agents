@@ -10,6 +10,7 @@ on:
       - 'skills/pr-flow/configs/native-swarm.edn'
       - 'skills/pr-review-to-merge/**'
       - 'skills/pr-review-settlement/SKILL.md'
+      - 'skills/pr-review-settlement/hosted-provider.md'
       - 'AGENTS.md'
       - '.github/workflows/native-swarm-laws.yml'
   workflow_dispatch:

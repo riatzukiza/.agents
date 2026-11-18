@@ -30,6 +30,8 @@ test('strict qualification is optional and cannot waive real requirements', () =
   const skill = read('SKILL.md');
   assert.match(read('configs/qualification.edn'), /:use :optional-strict-profile/);
   assert.match(read('references/native-schema.md'), /strict format is opt-in/);
+  assert.doesNotMatch(read('references/native-schema.md'), /budget remains global/);
+  assert.match(read('references/native-schema.md'), /without a fixed pass cap/);
   assert.match(skill, /Required checks and safety obligations are not waived/);
   assert.match(skill, /Do not fabricate approvals or bypass required controls/);
 });

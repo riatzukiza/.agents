@@ -1,6 +1,6 @@
 # Optional strict native evidence format v1
 
-This strict format is opt-in unless a target repository explicitly requires it. Ordinary UltraCode work does not need EDN receipts or a skeptic. Its review and repair budget remains global across all strict-profile rounds and replanning.
+This strict format is opt-in unless a target repository explicitly requires it. Ordinary UltraCode work does not need EDN receipts or a skeptic. Local/internal repair rounds follow the progress-driven policy in SKILL.md without a fixed pass cap; strict evidence bookkeeping does not impose a repair budget.
 
 The coordinator writes a fixed plan as an EDN map before dispatch and records returned evidence as a separate EDN vector. The CLI computes SHA-256 over the exact plan file bytes and uses that as every receipt's expected `:input-hash`. The initial roster includes reviewer-scoped skeptics even when reviewers may find nothing. Findings do not add jobs or modify the plan.
 

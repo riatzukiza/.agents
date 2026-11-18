@@ -51,3 +51,8 @@ test('native profile separates hosted retries from local quality work', () => {
     assert.doesNotMatch(read(file), /task-wide repair limit|two-passes-total|task-wide bounded repair exit/, file);
   }
 });
+
+
+test('hosted settlement guidance is covered by CI routing', () => {
+  assert.match(read('.github/workflows/native-swarm-laws.yml'), /- 'skills\/pr-review-settlement\/hosted-provider\.md'/);
+});
